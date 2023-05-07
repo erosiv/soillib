@@ -14,7 +14,7 @@ and put operations are based on positions in space.
 ************************************************/
 
 template<typename T, soil::index_t Index> struct slice_iterator;
-template<typename T, soil::index_t Index = soil::index::flat>
+template<typename T, soil::index_t Index>
 struct slice {
 
   soil::buf<T> root;

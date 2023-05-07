@@ -8,8 +8,15 @@
 
 #include <soillib/soillib.hpp>
 
+struct cell {
+  float height = 0.0f;
+};
+
+soil::pool<cell> cellpool(1024*1024);
+soil::map::basic<cell> map(cellpool);
+
 int main(){
 
-
+  // our map thereby exists, has pooled memory, and we can operate on it!
 
 }
