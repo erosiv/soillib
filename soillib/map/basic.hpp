@@ -13,13 +13,15 @@ template<typename T, soil::index_t Index> struct basic_iterator;
 template<typename T, soil::index_t Index = soil::index::flat>
 struct basic {
 
-  const size_t size = 1024;
-  const size_t area = size*size;
-  const glm::ivec2 dimension = glm::ivec2(size);
+  typedef Index index;
+
+  const glm::ivec2 dimension;
+  const size_t area = dimension.x*dimension.y;
+
   soil::slice<T, Index> slice;
 
-  basic(){}
-  basic(soil::pool<T>& pool){
+  basic(const glm::ivec2 dimension):dimension(dimension){}
+  basic(const glm::ivec2 dimension, soil::pool<T>& pool):dimension(dimension){
     slice = {pool.get(area), dimension};
   }
 
