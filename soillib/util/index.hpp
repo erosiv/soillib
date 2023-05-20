@@ -62,12 +62,11 @@ struct toric: index_base {
 // 2D Morton Order Index
 
 struct morton: index_base {
-
   static inline int flatten(const glm::ivec2 p, const glm::ivec2 s){
     return libmorton::morton2D_32_encode(p.x, p.y);
   }
   static inline glm::ivec2 unflatten(const int i, const glm::ivec2 s){
-    long unsigned int x, y;
+    short unsigned int x, y;
     libmorton::morton2D_32_decode(i, x, y);
     return glm::ivec2(x, y);
   }

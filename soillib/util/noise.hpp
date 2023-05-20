@@ -17,7 +17,42 @@
 namespace soil {
 namespace noise {
 
-static FastNoiseLite source;
+struct sampler_t {
+  FastNoiseLite::NoiseType ntype = FastNoiseLite::NoiseType_OpenSimplex2;
+  FastNoiseLite::FractalType ftype = FastNoiseLite::FractalType_FBm;
+  float frequency = 1.0f;   // Frequency
+  int octaves = 3;          // Set of Scales
+  float gain = 0.6f;        // Scale Multiplier
+  float lacunarity = 2.0f;  // Frequency Multiplier
+};
+
+struct sampler {
+  
+  FastNoiseLite source;
+  sampler_t cfg;
+
+  sampler(){
+    source.SetNoiseType(cfg.ntype);
+    source.SetFractalType(cfg.ftype);
+    source.SetFrequency(cfg.frequency);
+    source.SetFractalOctaves(cfg.octaves);
+    source.SetFractalGain(cfg.gain);
+    source.SetFractalLacunarity(cfg.lacunarity);
+  }
+
+  sampler(sampler_t cfg):sampler(){
+    this->cfg = cfg;
+  }
+
+  inline float get(glm::vec3 pos) {
+    return source.GetNoise(pos.x, pos.y, pos.z);
+  }
+
+};
+
+
+/*
+
 static bool initialized = false;
 
 template<typename T>
@@ -25,8 +60,6 @@ void init(T& map, int SEED){
 
   // Initialize Noise-Source
 
-  source.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-  source.SetFractalType(FastNoiseLite::FractalType_FBm);
 
   // Zero-Out
 
@@ -69,7 +102,7 @@ void init(T& map, int SEED){
     cell.height = ((cell.height - min)/(max - min));
   }
 
-  /*
+  
   // Add Gaussian
 
   for(auto [cell, pos]: node.s){
@@ -78,8 +111,10 @@ void init(T& map, int SEED){
     float d = length(p-c);
     cell.height = exp(-d*d*tilesize*0.2);
   }
-  */
+  
 }
+
+*/
 
 };  // end of namespace noise
 };  // end of namespace soil

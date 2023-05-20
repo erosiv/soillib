@@ -26,7 +26,7 @@ ifeq ($(UNAME), Darwin)			# Detect MacOS
 INCPATH = /opt/homebrew/include
 LIBPATH = /opt/homebrew/lib
 
-CC = g++-12 -std=c++20
+CC = g++-13 -std=c++20
 
 endif
 
