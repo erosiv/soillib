@@ -29,7 +29,33 @@ struct tiff: soil::io::img<T> {
 
 template<typename T>
 bool tiff<T>::read(const char* filename){
-    return true;
+
+  TIFF* tif = TIFFOpen(filename, "r");
+
+  uint32_t width;
+  uint32_t height;
+
+  TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
+  TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
+
+  if(width != this->width || height != this->height || this->data == NULL){
+    this->width = width;
+    this->height = height;
+    if(this->data != NULL){
+      delete[] this->data;
+      this->data = NULL;
+    }
+    allocate();
+  }
+
+  T* buf = this->data;
+  for (size_t row = 0; row < this->height; row++){
+    TIFFReadScanline(tif, buf, row);
+    buf += this->width;
+  }
+
+  return true;
+
 }
 
 template<typename T>
