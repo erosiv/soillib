@@ -28,7 +28,7 @@ LIBPATH = /opt/homebrew/lib
 
 CC = g++-13 -std=c++20
 
-LINK = -lpng
+LINK = -lpng -ltiff
 
 endif
 

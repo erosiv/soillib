@@ -40,7 +40,7 @@ const static inline float height(T& map, glm::vec2 p){
 
 }
 
-/*
+
 template<typename T>
 const static inline glm::vec3 normal(T& map, glm::ivec2 p, const glm::vec3 s = glm::vec3(1)){
 
@@ -74,8 +74,8 @@ const static inline glm::vec3 normal(T& map, glm::ivec2 p, const glm::vec3 s = g
   return n;
 
 }
-*/
 
+/*
 
 template<typename T>
 const static inline glm::vec3 normal(T& map, glm::ivec2 p, const glm::vec3 s){
@@ -100,6 +100,8 @@ const static inline glm::vec3 normal(T& map, glm::ivec2 p, const glm::vec3 s){
   return n;
 
 }
+
+*/
 
 
 };  // end of namespace surface

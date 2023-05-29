@@ -1,6 +1,9 @@
 #ifndef SOILLIB_PHYSICS_CASCADE
 #define SOILLIB_PHYSICS_CASCADE
 
+#include <soillib/soillib.hpp>
+#include <algorithm>
+
 namespace soil {
 namespace phys {
 
@@ -9,27 +12,27 @@ struct cascade_c {
   static float settling;
 };
 
-float cascade_c::maxdiff = 0.01f;
-float cascade_c::settling = 0.8f;
+float cascade_c::maxdiff = 1.0f;
+float cascade_c::settling = 1.0f;
 
 template<typename T>
-void cascade(T& map, const ivec2 ipos){
+void cascade(T& map, const glm::ivec2 ipos){
 
   // Get Non-Out-of-Bounds Neighbors
 
-  static const ivec2 n[] = {
-    ivec2(-1, -1),
-    ivec2(-1,  0),
-    ivec2(-1,  1),
-    ivec2( 0, -1),
-    ivec2( 0,  1),
-    ivec2( 1, -1),
-    ivec2( 1,  0),
-    ivec2( 1,  1)
+  static const glm::ivec2 n[] = {
+    glm::ivec2(-1, -1),
+    glm::ivec2(-1,  0),
+    glm::ivec2(-1,  1),
+    glm::ivec2( 0, -1),
+    glm::ivec2( 0,  1),
+    glm::ivec2( 1, -1),
+    glm::ivec2( 1,  0),
+    glm::ivec2( 1,  1)
   };
 
   struct Point {
-    ivec2 pos;
+    glm::ivec2 pos;
     float h;
     float d;
   };
@@ -39,38 +42,34 @@ void cascade(T& map, const ivec2 ipos){
 
   for(auto& nn: n){
 
-    ivec2 npos = ipos + nn;
+    glm::ivec2 npos = ipos + nn;
 
     if(map.oob(npos))
       continue;
 
-    sn[num++] = { npos, map.get(npos)->height, length(vec2(nn)) };
+    sn[num++] = { npos, map.get(npos)->height, length(glm::vec2(nn)) };
 
   }
 
-  //Iterate over all sorted Neighbors
+  // Compute the Average Height (i.e. trivial non-spurious stable solution)
 
-  sort(std::begin(sn), std::begin(sn) + num, [&](const Point& a, const Point& b){
-    return a.h < b.h;
-  });
+  float h_ave = 0.0f;
+  for (int i = 0; i < num; ++i)
+    h_ave += sn[i].h;
+  h_ave /= (float)num;
 
   for (int i = 0; i < num; ++i) {
 
     auto& npos = sn[i].pos;
 
     //Full Height-Different Between Positions!
-    float diff = map.get(ipos)->height - sn[i].h;
+    float diff = h_ave - sn[i].h;
     if(diff == 0)   //No Height Difference
       continue;
 
-      //The Amount of Excess Difference!
+    //The Amount of Excess Difference!
     float excess = 0.0f;
-    if(sn[i].h > 0.1){
-      excess = abs(diff) - sn[i].d*cascade_c::maxdiff;
-    } else {
-      excess = abs(diff);
-    }
-
+    excess = abs(diff) - sn[i].d*cascade_c::maxdiff;
     if(excess <= 0)  //No Excess
       continue;
 

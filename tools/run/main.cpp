@@ -1,8 +1,10 @@
 #include <soillib/soillib.hpp>
 #include <soillib/map/basic.hpp>
-#include <soillib/io/tiff.hpp>
 #include <soillib/util/noise.hpp>
 #include <soillib/util/surface.hpp>
+
+#include <soillib/io/img/png.hpp>
+#include <soillib/io/img/tiff.hpp>
 
 struct cell {
   float height = 0.0f;
@@ -18,7 +20,7 @@ int main(int argc, char *argv[]) {
   // Fill Cell Pool w. Noise
 
   soil::noise::sampler sampler;
-  sampler.source.SetFractalOctaves(6.0f);
+  sampler.source.SetFractalOctaves(8.0f);
 
   for(auto [cell, pos]: map){
     cell.height = sampler.get(glm::vec3(pos.x, pos.y, 0.0f)/glm::vec3(1024, 1024, 1.0f));
@@ -37,23 +39,21 @@ int main(int argc, char *argv[]) {
     cell.height = (cell.height - min)/(max - min);
   }
 
+  // Now I need to actually run one of my erosion sims on this map...
+
   // Construct, Save Image
 
-  soil::io::tiff image(1024, 1024);
-  image.fill([&](const glm::ivec2 pos){
+  soil::io::tiff tiff_image(1024, 1024);
+  tiff_image.fill([&](const glm::ivec2 pos){
     return map.get(pos)->height;
   });
-  image.write("out.tiff");
+  tiff_image.write("out.tiff");
 
-/*
-  soil::io::tiff image_out(1024, 1024);
-  image_out.fill([&](const glm::ivec2 pos){
-    glm::vec3 normal = 255.0f*soil::surface::normal(map, pos, glm::vec3(1, 256, 1));
-    normal = glm::abs(normal);
-    return glm::ivec4(normal, 255);
+  soil::io::png png_image(1024, 1024);
+  png_image.fill([&](const glm::ivec2 pos){
+    int val = 255*map.get(pos)->height;
+    return glm::ivec4(val, val, val, 255);
   });
-
-  image_out.write("out.png");
-*/
+  png_image.write("out.png");
 
 }
