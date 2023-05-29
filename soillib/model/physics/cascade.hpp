@@ -12,7 +12,7 @@ struct cascade_c {
   static float settling;
 };
 
-float cascade_c::maxdiff = 1.0f;
+float cascade_c::maxdiff = 0.01f;
 float cascade_c::settling = 1.0f;
 
 template<typename T>

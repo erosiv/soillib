@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   image_out.fill([&](const glm::ivec2 pos){
     glm::vec3 normal = soil::surface::normal(map, pos, glm::vec3(1, 1, 1));
     float d = glm::dot(normal, glm::normalize(glm::vec3(-1, 2, -1)));
-    
+
     // Clamp
     d = 0.05f + 0.9f*d;
 
@@ -52,12 +52,13 @@ int main(int argc, char *argv[]) {
 
     d = (1.0f-weight) * d + weight*flattone;
 
-    glm::vec3 color = glm::mix(glm::vec3(0.57, 0.87, 0.51), glm::vec3(0.87, 0.72, 0.51), 1.0f-(1.0f-h)*(1.0f-h));
+  //  glm::vec3 color = glm::mix(glm::vec3(0.57, 0.87, 0.51), glm::vec3(0.87, 0.72, 0.51), 1.0f-(1.0f-h)*(1.0f-h));
 
   // Arial Perspective
 
-  //  h = 1.0f-(1.0f-h)*(1.0f-h);
-  //  d = (1.0f-h)*0.9f + h*d;
+    glm::vec3 color = glm::vec3(1);
+    h = 1.0f-(1.0f-h)*(1.0f-h);
+    d = (1.0f-h)*0.9f + h*d;
 
     return 255.0f*glm::vec4(d*color, 1.0f);
   });

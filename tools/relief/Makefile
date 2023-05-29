@@ -5,8 +5,8 @@
 
 # Install Location
 
-LIBPATH = $(HOME)/.local/lib
-INCPATH = $(HOME)/.local/include
+INCPATH = -I$(HOME)/.local/include
+LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
 
 # Compiler Settings
@@ -19,12 +19,18 @@ CF = -Wfatal-errors -O2
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)			# Detect GNU/Linux
+
+INCPATH = -I$(HOME)/.local/include
+LIBPATH = -L$(HOME)/.local/lib
+
+LINK = -lpng -ltiff
+
 endif
 
 ifeq ($(UNAME), Darwin)			# Detect MacOS
 
-INCPATH = /opt/homebrew/include
-LIBPATH = /opt/homebrew/lib
+INCPATH = -I/opt/homebrew/include
+LIBPATH = -L/opt/homebrew/lib
 
 CC = g++-13 -std=c++20
 
@@ -33,4 +39,4 @@ LINK = -lpng -ltiff
 endif
 
 all: main.cpp
-			$(CC) $(CF) -L$(LIBPATH) -I$(INCPATH) $(LINK) main.cpp -o main
+			$(CC) main.cpp $(CF) $(LIBPATH) $(INCPATH) $(LINK) -o main
