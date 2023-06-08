@@ -14,7 +14,7 @@ the landscape.
 
 struct Drop_c {
 
-  size_t maxAge = 512;
+  size_t maxAge = 1024;
   float evapRate = 0.001;
   float depositionRate = 0.1;
   float minVol = 0.01;
@@ -52,8 +52,9 @@ bool Drop::move(T& map, Drop_c& param){
 
   const glm::ivec2 ipos = pos;
   cell* cell = map.get(ipos);
-  if(cell == NULL)
+  if(cell == NULL){
     return false;
+  }
 
   const glm::vec3 n = World::normal(ipos);
 
@@ -134,6 +135,7 @@ bool Drop::interact(T& map, Drop_c& param){
 
   //Out-Of-Bounds
   if(World::map.oob(pos)){
+    World::no_basin_track++;
     volume = 0.0;
     return false;
   }

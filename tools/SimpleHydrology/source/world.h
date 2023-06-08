@@ -73,6 +73,8 @@ struct World {
 
   static int mapscale;
   static float lrate;
+  static float no_basin;
+  static float no_basin_track;
 
   // Main Update Methods
 
@@ -96,7 +98,10 @@ struct World {
 
 int World::mapscale = 80;
 float World::lrate = 0.1f;
-soil::map::basic<cell, my_index> World::map(glm::ivec2(512));
+float World::no_basin = 0;
+float World::no_basin_track = 0;
+
+soil::map::basic<cell, my_index> World::map(glm::ivec2(1024));
 soil::pool<cell> World::cellpool(World::map.area);
 
 #include "vegetation.h"
@@ -115,6 +120,8 @@ void World::erode(int cycles){
     cell.momentumy_track = 0;
   }
 
+  no_basin_track = 0;
+
   //Do a series of iterations!
   for(int i = 0; i < cycles; i++){
 
@@ -131,6 +138,8 @@ void World::erode(int cycles){
     cell.momentumx = (1.0f-lrate)*cell.momentumx + lrate*cell.momentumx_track;
     cell.momentumy = (1.0f-lrate)*cell.momentumy + lrate*cell.momentumy_track;
   }
+
+  no_basin = (1.0f-lrate)*no_basin + lrate*no_basin_track;
 
 }
 

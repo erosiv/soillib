@@ -33,3 +33,6 @@
 
 .idea/**
 .DS_Store
+
+**/main
+**/*.tiff

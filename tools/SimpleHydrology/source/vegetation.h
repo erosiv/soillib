@@ -70,7 +70,7 @@ bool Plant::die(){
 
   if( World::discharge(pos) >= Plant::maxDischarge ) return true;
   if( World::height(pos) >= Plant::maxTreeHeight) return true;
-  if( soil::dist::istrue(1E-4) ) return true;
+  if( soil::dist::istrue(1E-3) ) return true;
   return false;
 
 }
@@ -156,7 +156,7 @@ bool Vegetation::grow(){
 
     // Check for Growth
 
-    if(soil::dist::istrue(0.95))
+    if(soil::dist::istrue(0.99))
       continue;
 
     //Find New Position
