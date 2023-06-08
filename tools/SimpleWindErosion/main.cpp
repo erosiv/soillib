@@ -29,7 +29,7 @@ int main( int argc, char* args[] ) {
 
   soil::io::tiff tiff_image(512, 512);
   tiff_image.fill([&](const glm::ivec2 pos){
-    return world.map.get(pos)->height;
+    return world.map.get(pos)->height*World::mapscale;
   });
   tiff_image.write("out.tiff");
 

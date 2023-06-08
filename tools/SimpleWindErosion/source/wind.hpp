@@ -1,6 +1,7 @@
 #ifndef SIMPLEWINDEROSION_WIND
 #define SIMPLEWINDEROSION_WIND
 
+#include <iostream>
 #include <soillib/model/physics/cascade.hpp>
 
 struct Wind {
