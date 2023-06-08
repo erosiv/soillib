@@ -117,7 +117,7 @@ soil::pool<cell> World::cellpool(World::map.area);
 
 // Erosion Code Implementation
 
-#include "wind.hpp"
+#include <soillib/particle/wind.hpp>
 
 void World::erode(int cycles){
 
@@ -131,8 +131,8 @@ void World::erode(int cycles){
   //Do a series of iterations!
   for(int i = 0; i < cycles; i++){
 
-    Wind wind(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(wind.fly());
+    soil::WindParticle wind(glm::vec2(map.dimension)*soil::dist::vec2());
+    while(wind.move(map, soil::wind_c) && wind.interact(map, soil::wind_c));
 
   }
 

@@ -31,7 +31,7 @@ int main( int argc, char* args[] ) {
   tiff_image.fill([&](const glm::ivec2 pos){
     return world.map.get(pos)->height;
   });
-  tiff_image.write("out.tiff");
+  tiff_image.write("height.tiff");
 
   return 0;
 }

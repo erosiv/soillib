@@ -105,7 +105,7 @@ soil::map::basic<cell, my_index> World::map(glm::ivec2(1024));
 soil::pool<cell> World::cellpool(World::map.area);
 
 #include "vegetation.h"
-#include "water.h"
+#include <soillib/particle/water.hpp>
 
 /*
 ===================================================
@@ -127,8 +127,11 @@ void World::erode(int cycles){
 
     //Spawn New Particle
 
-    Drop drop(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(drop.move(map, drop_c) && drop.interact(map, drop_c));
+    soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    while(drop.move(map, soil::water_c) && drop.interact(map, soil::water_c));
+
+    if(map.oob(drop.pos))
+      no_basin_track++;
 
   }
 

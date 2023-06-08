@@ -4,7 +4,7 @@
 
 #include <soillib/io/img/tiff.hpp>
 
-#define GRIDSIZE 1024
+#define GRIDSIZE 512
 
 #include "model.h"
 

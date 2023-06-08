@@ -20,7 +20,7 @@ int main( int argc, char* args[] ) {
   size_t n_timesteps = 0;
   size_t n_cycles = 1024;
 
-  while((1.0f-(float)World::no_basin/(float)n_cycles) > 0.1 && n_timesteps < 8*1024){
+  while((1.0f-(float)World::no_basin/(float)n_cycles) > 0.4 && n_timesteps < 8*1024){
 
     std::cout<<n_timesteps++<<" "<<1.0f-(float)World::no_basin/(float)n_cycles<<std::endl;
 

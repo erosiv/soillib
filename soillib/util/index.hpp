@@ -66,7 +66,7 @@ struct morton: index_base {
     return libmorton::morton2D_32_encode(p.x, p.y);
   }
   static inline glm::ivec2 unflatten(const int i, const glm::ivec2 s){
-    long unsigned int x, y;
+    short unsigned int x, y;
     libmorton::morton2D_32_decode(i, x, y);
     return glm::ivec2(x, y);
   }
