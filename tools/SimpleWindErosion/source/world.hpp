@@ -34,13 +34,36 @@ public:
   World(size_t SEED):SEED(SEED){
 
     // Allocate the Nodes
-    
+
     soil::dist::seed(SEED);
     map.slice = { cellpool.get(map.area), map.dimension };
 
     for(auto [cell, pos]: map){
+      cell.massflow = 0.0f;
       cell.height = 0.0f;
     }
+
+    // Add Gaussian
+
+    for(auto [cell, pos]: map){
+      glm::vec2 p = glm::vec2(pos)/glm::vec2(map.dimension);
+      glm::vec2 c = glm::vec2(glm::vec2(map.dimension)/glm::vec2(4, 2))/glm::vec2(map.dimension);
+      float d = length(p-c);
+        cell.height = exp(-d*d*map.dimension.x*0.2f);
+    }
+
+    float min = 0.0f;
+    float max = 0.0f;
+
+    for(auto [cell, pos]: map){
+      min = (min < cell.height)?min:cell.height;
+      max = (max > cell.height)?max:cell.height;
+    }
+
+    for(auto [cell, pos]: map){
+      cell.height = 0.5*((cell.height - min)/(max - min));
+    }
+
 
     /*
     soil::noise::sampler sampler;
