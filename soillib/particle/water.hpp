@@ -38,23 +38,23 @@ struct WaterParticle: soil::Particle {
   // Main Methods
 
   template<typename T>
-  bool move(T& map, WaterParticle_c& param);
+  bool move(T& world, WaterParticle_c& param);
 
   template<typename T>
-  bool interact(T& map, WaterParticle_c& param);
+  bool interact(T& world, WaterParticle_c& param);
 
 };
 
 template<typename T>
-bool WaterParticle::move(T& map, WaterParticle_c& param){
+bool WaterParticle::move(T& world, WaterParticle_c& param){
 
   const glm::ivec2 ipos = pos;
-  cell* cell = map.get(ipos);
+  cell* cell = world.map.get(ipos);
   if(cell == NULL){
     return false;
   }
 
-  const glm::vec3 n = World::normal(ipos);
+  const glm::vec3 n = world.normal(ipos);
 
   // Termination Checks
 
@@ -99,22 +99,22 @@ bool WaterParticle::move(T& map, WaterParticle_c& param){
 }
 
 template<typename T>
-bool WaterParticle::interact(T& map, WaterParticle_c& param){
+bool WaterParticle::interact(T& world, WaterParticle_c& param){
 
   const glm::ivec2 ipos = opos;
-  cell* cell = map.get(ipos);
+  cell* cell = world.map.get(ipos);
   if(cell == NULL)
     return false;
 
   //Out-Of-Bounds
   float h2;
-  if(map.oob(pos))
+  if(world.map.oob(pos))
     h2 = cell->height-0.002;
   else
-    h2 = World::height(pos);
+    h2 = world.height(pos);
 
   //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*World::discharge(ipos))*(cell->height-h2);
+  float c_eq = (1.0f+param.entrainment*world.discharge(ipos))*(cell->height-h2);
   if(c_eq < 0) c_eq = 0;
   float cdiff = (c_eq - sediment);
 
@@ -132,12 +132,12 @@ bool WaterParticle::interact(T& map, WaterParticle_c& param){
   volume *= (1.0-param.evapRate);
 
   //Out-Of-Bounds
-  if(World::map.oob(pos)){
+  if(world.map.oob(pos)){
     volume = 0.0;
     return false;
   }
 
-  soil::phys::cascade(World::map, pos);
+  soil::phys::cascade(world.map, pos);
 
   age++;
   return true;

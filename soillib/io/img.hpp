@@ -14,6 +14,12 @@ struct img {
   size_t height = 0;
   T* data = NULL;
 
+  img(){};
+  img(const size_t width, const size_t height):
+  width(width),height(height){ 
+    allocate(); 
+  }
+
   void allocate(){
     if(data != NULL)
       return;

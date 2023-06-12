@@ -17,6 +17,8 @@ world updating functions for erosion
 and vegetation.
 */
 
+// Type Definitions
+
 // Raw Interleaved Cell Data
 
 struct cell {
@@ -34,12 +36,57 @@ struct cell {
 
 };
 
-using my_index = soil::index::flat;
+using ind_type = soil::index::flat;
+using map_type = soil::map::basic<cell, ind_type>;
+
+// World Configuration Data
+
+struct world_c {
+
+  int scale = 80;
+  float lrate = 0.1f;
+
+  map_type::config map_config = {
+    glm::ivec2(512)
+  }; 
+
+};
+
+// Configuration Loading
+
+#ifdef SOILLIB_IO_YAML
+
+bool operator<<(world_c& conf, soil::io::yaml::node& node){
+  try {
+    conf.scale = node["scale"].As<int>();
+    conf.lrate = node["lrate"].As<float>();
+    conf.map_config << node["map"];
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+#endif
 
 struct World {
 
   const size_t SEED;
-  World(size_t SEED):SEED(SEED){
+  soil::map::basic<cell, ind_type> map;
+  soil::pool<cell> cellpool;
+  
+  static world_c config;
+
+  // Parameters
+
+  float no_basin = 0;
+  float no_basin_track = 0;
+
+  World(size_t SEED):
+    SEED(SEED),
+    map(config.map_config),
+    cellpool(map.area)
+  {
 
     soil::dist::seed(SEED);
     map.slice = { cellpool.get(map.area), map.dimension };
@@ -66,43 +113,27 @@ struct World {
 
   }
 
-  static soil::map::basic<cell, my_index> map;
-  static soil::pool<cell> cellpool;
-
-  // Parameters
-
-  static int mapscale;
-  static float lrate;
-  static float no_basin;
-  static float no_basin_track;
-
   // Main Update Methods
 
-  static void erode(int cycles);              // Erosion Update Step
+  void erode(int cycles);              // Erosion Update Step
 
-  const static inline float height(glm::ivec2 p){
+  const inline float height(glm::ivec2 p){
     cell* c = map.get(p);
     if(c == NULL) return 0.0f;
     return c->height;
   }
 
-  const static inline float discharge(glm::ivec2 p){
+  const inline float discharge(glm::ivec2 p){
     return erf(0.4f*map.get(p)->discharge);
   }
 
-  const static inline glm::vec3 normal(glm::ivec2 p){
-    return soil::surface::normal(map, p, glm::vec3(1, World::mapscale, 1));
+  const inline glm::vec3 normal(glm::ivec2 p){
+    return soil::surface::normal(map, p, glm::vec3(1, World::config.scale, 1));
   }
 
 };
 
-int World::mapscale = 80;
-float World::lrate = 0.1f;
-float World::no_basin = 0;
-float World::no_basin_track = 0;
-
-soil::map::basic<cell, my_index> World::map(glm::ivec2(1024));
-soil::pool<cell> World::cellpool(World::map.area);
+world_c World::config;
 
 #include "vegetation.h"
 #include <soillib/particle/water.hpp>
@@ -112,6 +143,7 @@ soil::pool<cell> World::cellpool(World::map.area);
           HYDRAULIC EROSION FUNCTIONS
 ===================================================
 */
+
 void World::erode(int cycles){
 
   for(auto [cell, pos]: map){
@@ -128,7 +160,7 @@ void World::erode(int cycles){
     //Spawn New Particle
 
     soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(drop.move(map, soil::water_c) && drop.interact(map, soil::water_c));
+    while(drop.move(*this, soil::water_c) && drop.interact(*this, soil::water_c));
 
     if(map.oob(drop.pos))
       no_basin_track++;
@@ -137,12 +169,12 @@ void World::erode(int cycles){
 
   //Update Fields
   for(auto [cell, pos]: map){
-    cell.discharge = (1.0f-lrate)*cell.discharge + lrate*cell.discharge_track;
-    cell.momentumx = (1.0f-lrate)*cell.momentumx + lrate*cell.momentumx_track;
-    cell.momentumy = (1.0f-lrate)*cell.momentumy + lrate*cell.momentumy_track;
+    cell.discharge = (1.0f-config.lrate)*cell.discharge + config.lrate*cell.discharge_track;
+    cell.momentumx = (1.0f-config.lrate)*cell.momentumx + config.lrate*cell.momentumx_track;
+    cell.momentumy = (1.0f-config.lrate)*cell.momentumy + config.lrate*cell.momentumy_track;
   }
 
-  no_basin = (1.0f-lrate)*no_basin + lrate*no_basin_track;
+  no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
 
 }
 

@@ -8,10 +8,13 @@
 namespace soil {
 namespace map {
 
+// Configuration / Parameterization
+
 struct basic_config {
   glm::ivec2 dimension = glm::ivec2(0);
-  float scale = 0.0f;
 };
+
+// Basic Map
 
 template<typename T, soil::index_t Index> struct basic_iterator;
 template<typename T, soil::index_t Index = soil::index::flat>
@@ -21,19 +24,12 @@ struct basic {
   typedef basic_config config;
 
   const glm::ivec2 dimension;
-  const float scale;
-
   const size_t area = dimension.x*dimension.y;
 
   soil::slice<T, Index> slice;
 
-  basic(const glm::ivec2 dimension, const float scale):
-    dimension(dimension),
-    scale(scale)
-  {}
-  basic(const config config):
-    basic(config.dimension, config.scale)
-  {}
+  basic(const glm::ivec2 dimension):dimension(dimension){}
+  basic(const config config):dimension(config.dimension){}
 
   inline T* get(const glm::ivec2 p) noexcept {
     return slice.get(p);
@@ -41,6 +37,10 @@ struct basic {
 
   const inline bool oob(const glm::ivec2 p) noexcept {
     return slice.oob(p);
+  }
+
+  const inline glm::ivec2 bound() noexcept {
+    return dimension;
   }
 
   basic_iterator<T, Index> begin() const noexcept { return basic_iterator<T, Index>(slice.begin(), dimension); }
@@ -85,7 +85,6 @@ bool operator<<(basic_config& conf, soil::io::yaml::node& node){
   try {
     conf.dimension.x = node["dimension"][0].As<int>();
     conf.dimension.y = node["dimension"][1].As<int>();
-    conf.scale = node["scale"].As<float>();
   } catch(soil::io::yaml::exception& e){
     return false;
   }

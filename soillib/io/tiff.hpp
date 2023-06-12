@@ -17,8 +17,8 @@ struct tiff: soil::io::img<T> {
 
   tiff(){};
   tiff(const char* filename){ read(filename); };
-  tiff(const size_t width, const size_t height):img<T>(width, height){ allocate(); }
-  tiff(const glm::ivec2 res):img<T>(res){ allocate(); }
+  tiff(const size_t width, const size_t height):img<T>(width, height){}
+  tiff(const glm::ivec2 res):img<T>(res.x, res.y){}
 
   bool read(const char* filename);
   bool write(const char* filename);
