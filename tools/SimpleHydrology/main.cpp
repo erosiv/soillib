@@ -1,5 +1,6 @@
 #include <soillib/soillib.hpp>
-#include <soillib/io/img/tiff.hpp>
+#include <soillib/io/tiff.hpp>
+#include <soillib/io/yaml.hpp>
 
 #include "source/world.h"
 #include <iostream>

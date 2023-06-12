@@ -1,7 +1,7 @@
-#ifndef SOILLIB_IO_IMAGE_TIFF
-#define SOILLIB_IO_IMAGE_TIFF
+#ifndef SOILLIB_IO_TIFF
+#define SOILLIB_IO_TIFF
 
-#include <soillib/io/img/img.hpp>
+#include <soillib/io/img.hpp>
 #include <tiffio.h>
 
 namespace soil {

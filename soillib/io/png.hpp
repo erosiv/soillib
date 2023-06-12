@@ -1,7 +1,7 @@
-#ifndef SOILLIB_IO_IMAGE_PNG
-#define SOILLIB_IO_IMAGE_PNG
+#ifndef SOILLIB_IO_PNG
+#define SOILLIB_IO_PNG
 
-#include <soillib/io/img/img.hpp>
+#include <soillib/io/img.hpp>
 #include <stdio.h>
 #include <png.h>
 

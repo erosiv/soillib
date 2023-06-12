@@ -1,5 +1,5 @@
-#ifndef SOILLIB_IO_IMAGE
-#define SOILLIB_IO_IMAGE
+#ifndef SOILLIB_IO_IMG
+#define SOILLIB_IO_IMG
 
 #include <soillib/soillib.hpp>
 #include <functional>
