@@ -2,9 +2,9 @@
 #include <TinyEngine/color>
 #include <TinyEngine/camera>
 
-#include <soillib/io/img/tiff.hpp>
+#include <soillib/io/tiff.hpp>
 
-#define GRIDSIZE 512
+#define GRIDSIZE 1024
 
 #include "model.h"
 

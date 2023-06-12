@@ -9,6 +9,9 @@
 #include <soillib/map/basic.hpp>
 #include <soillib/util/surface.hpp>
 
+#include <soillib/particle/water.hpp>
+#include <soillib/particle/vegetation.hpp>
+
 /*
 SimpleHydrology - world.h
 
@@ -50,6 +53,8 @@ struct world_c {
     glm::ivec2(512)
   }; 
 
+  soil::WaterParticle_c water_config;
+
 };
 
 // Configuration Loading
@@ -61,6 +66,7 @@ bool operator<<(world_c& conf, soil::io::yaml::node& node){
     conf.scale = node["scale"].As<int>();
     conf.lrate = node["lrate"].As<float>();
     conf.map_config << node["map"];
+    conf.water_config << node["water"];
   } catch(soil::io::yaml::exception& e){
     return false;
   }
@@ -135,9 +141,6 @@ struct World {
 
 world_c World::config;
 
-#include "vegetation.h"
-#include <soillib/particle/water.hpp>
-
 /*
 ===================================================
           HYDRAULIC EROSION FUNCTIONS
@@ -160,7 +163,7 @@ void World::erode(int cycles){
     //Spawn New Particle
 
     soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(drop.move(*this, soil::water_c) && drop.interact(*this, soil::water_c));
+    while(drop.move(*this, config.water_config) && drop.interact(*this, config.water_config));
 
     if(map.oob(drop.pos))
       no_basin_track++;

@@ -1,6 +1,7 @@
 #include <soillib/soillib.hpp>
-#include <soillib/io/tiff.hpp>
 #include <soillib/io/yaml.hpp>
+#include <soillib/io/tiff.hpp>
+#include <soillib/io/png.hpp>
 
 #include "source/world.h"
 #include <iostream>
@@ -70,6 +71,15 @@ int main( int argc, char* args[] ) {
     return world.map.get(pos)->rootdensity;
   });
   vegetation.write("out/vegetation.tiff");
+
+  soil::io::png normal(world.map.dimension);
+  normal.fill([&](const glm::ivec2 pos){
+    glm::vec3 normal = world.normal(pos);
+    normal = glm::vec3(normal.x, -normal.z, normal.y);
+    normal = 0.5f*normal + 0.5f;
+    return 255.0f*glm::vec4(normal, 1.0f);
+  });
+  normal.write("out/normal.png");
 
   return 0;
 }

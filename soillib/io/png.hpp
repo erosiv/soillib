@@ -25,8 +25,8 @@ struct png: soil::io::img<T> {
 
   png(){};
   png(const char* filename){ read(filename); };
-  png(const size_t width, const size_t height):img<T>(width, height){ allocate(); }
-  png(const glm::ivec2 res):img<T>(res){ allocate(); }
+  png(const size_t width, const size_t height):img<T>(width, height){}
+  png(const glm::ivec2 res):img<T>(res.x, res.y){}
 
   bool read(const char* filename);
   bool write(const char* filename);

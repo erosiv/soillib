@@ -1,15 +1,7 @@
-#ifndef SIMPLEHYDROLOGY_VEGETATION
-#define SIMPLEHYDROLOGY_VEGETATION
+#ifndef SOILLIB_PARTICLE_VEGETATION
+#define SOILLIB_PARTICLE_VEGETATION
 
 #include <soillib/util/dist.hpp>
-
-/*
-SimpleHydrology - vegatation.h
-
-Defines our vegetation / plant
-particles and their static Density
-maps and update functions.
-*/
 
 struct Plant {
 
@@ -98,9 +90,7 @@ bool Plant::spawn(T& world, glm::vec2 pos ){
 template<typename T>
 void Plant::root(T& world, float f){
 
-  cell* c;
-
-  c = world.map.get( pos + glm::vec2( 0, 0) );
+  auto c = world.map.get( pos + glm::vec2( 0, 0) );
   if(c != NULL) c->rootdensity += f*1.0f;
 
   c = world.map.get( pos + glm::vec2( 1, 0) );

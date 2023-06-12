@@ -18,7 +18,7 @@ struct WaterParticle_c {
   float gravity = 2.0f;
   float momentumTransfer = 1.0f;
 
-} static water_c;
+};
 
 // WaterParticle Definition
 
@@ -49,7 +49,7 @@ template<typename T>
 bool WaterParticle::move(T& world, WaterParticle_c& param){
 
   const glm::ivec2 ipos = pos;
-  cell* cell = world.map.get(ipos);
+  auto cell = world.map.get(ipos);
   if(cell == NULL){
     return false;
   }
@@ -102,7 +102,7 @@ template<typename T>
 bool WaterParticle::interact(T& world, WaterParticle_c& param){
 
   const glm::ivec2 ipos = opos;
-  cell* cell = world.map.get(ipos);
+  auto cell = world.map.get(ipos);
   if(cell == NULL)
     return false;
 
@@ -143,6 +143,27 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
   return true;
 
 }
+
+// Configuration Loading
+
+#ifdef SOILLIB_IO_YAML
+
+bool operator<<(WaterParticle_c& conf, soil::io::yaml::node& node){
+  try {
+    conf.maxAge = node["max-age"].As<int>();
+    conf.evapRate = node["evap-rate"].As<float>();
+    conf.depositionRate = node["deposition-rate"].As<float>();
+    conf.minVol = node["min-vol"].As<float>();
+    conf.entrainment = node["entrainment"].As<float>();
+    conf.gravity = node["gravity"].As<float>();
+    conf.momentumTransfer = node["momentum-transfer"].As<float>();
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+#endif
 
 } // end of namespace
 
