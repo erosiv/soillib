@@ -9,6 +9,8 @@
 #include <soillib/map/basic.hpp>
 #include <soillib/util/surface.hpp>
 
+#include <soillib/particle/wind.hpp>
+
 struct cell {
 
   float height;
@@ -25,15 +27,56 @@ struct cell {
 
 };
 
-using my_index = soil::index::flat;
+using ind_type = soil::index::flat;
+using map_type = soil::map::basic<cell, ind_type>;
+
+// World Configuration Data
+
+struct world_c {
+
+  int scale = 80;
+  float lrate = 0.1f;
+
+  map_type::config map_config = {
+    glm::ivec2(512)
+  }; 
+
+  soil::WindParticle_c wind_config;
+
+};
+
+// Configuration Loading
+
+#ifdef SOILLIB_IO_YAML
+
+bool operator<<(world_c& conf, soil::io::yaml::node& node){
+  try {
+    conf.scale = node["scale"].As<int>();
+    conf.lrate = node["lrate"].As<float>();
+    conf.map_config << node["map"];
+    conf.wind_config << node["wind"];
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+#endif
 
 class World{
 public:
 
   const size_t SEED;
-  World(size_t SEED):SEED(SEED){
+  soil::map::basic<cell, ind_type> map;
+  soil::pool<cell> cellpool;
 
-    // Allocate the Nodes
+  static world_c config;
+
+  World(size_t SEED):
+    SEED(SEED),
+    map(config.map_config),
+    cellpool(map.area)
+  {
 
     soil::dist::seed(SEED);
     map.slice = { cellpool.get(map.area), map.dimension };
@@ -89,35 +132,23 @@ public:
 
   }
 
-  static soil::map::basic<cell, my_index> map;
-  static soil::pool<cell> cellpool;
+  void erode(int cycles);               //Erode with N Particles
 
-  static float mapscale;
-  static float lrate;
-
-  static void erode(int cycles);               //Erode with N Particles
-
-  const static float height(glm::ivec2 p){
+  const float height(glm::ivec2 p){
     cell* c = map.get(p);
     if(c == NULL) return 0.0f;
     return c->height;
   }
 
-  const static inline glm::vec3 normal(glm::ivec2 p){
-    return soil::surface::normal(map, p, glm::vec3(1, mapscale, 1));
+  const inline glm::vec3 normal(glm::ivec2 p){
+    return soil::surface::normal(map, p, glm::vec3(1, World::config.scale, 1));
   }
 
 };
 
-float World::mapscale = 80.0f;
-float World::lrate = 0.1f;
-
-soil::map::basic<cell, my_index> World::map(glm::ivec2(512));
-soil::pool<cell> World::cellpool(World::map.area);
+world_c World::config;
 
 // Erosion Code Implementation
-
-#include <soillib/particle/wind.hpp>
 
 void World::erode(int cycles){
 
@@ -132,16 +163,16 @@ void World::erode(int cycles){
   for(int i = 0; i < cycles; i++){
 
     soil::WindParticle wind(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(wind.move(map, soil::wind_c) && wind.interact(map, soil::wind_c));
+    while(wind.move(*this, soil::wind_c) && wind.interact(*this, soil::wind_c));
 
   }
 
   //Update Fields
   for(auto [cell, pos]: map){
-    cell.massflow = (1.0f-lrate)*cell.massflow + lrate*cell.massflow_track;
-    cell.momentumx = (1.0f-lrate)*cell.momentumx + lrate*cell.momentumx_track;
-    cell.momentumy = (1.0f-lrate)*cell.momentumy + lrate*cell.momentumy_track;
-    cell.momentumz = (1.0f-lrate)*cell.momentumz + lrate*cell.momentumz_track;
+    cell.massflow = (1.0f-config.lrate)*cell.massflow + config.lrate*cell.massflow_track;
+    cell.momentumx = (1.0f-config.lrate)*cell.momentumx + config.lrate*cell.momentumx_track;
+    cell.momentumy = (1.0f-config.lrate)*cell.momentumy + config.lrate*cell.momentumy_track;
+    cell.momentumz = (1.0f-config.lrate)*cell.momentumz + config.lrate*cell.momentumz_track;
   }
 }
 

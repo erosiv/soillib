@@ -3,7 +3,7 @@
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/png.hpp>
 
-#include "source/world.h"
+#include "source/world.hpp"
 #include <iostream>
 
 int main( int argc, char* args[] ) {
@@ -33,7 +33,7 @@ int main( int argc, char* args[] ) {
   size_t n_timesteps = 0;
   size_t n_cycles = 1024;
 
-  while((1.0f-(float)world.no_basin/(float)n_cycles) > 0.2 && n_timesteps < 8*1024){
+  while((1.0f-(float)world.no_basin/(float)n_cycles) > 0.15 && n_timesteps < 8*1024){
 
     std::cout<<n_timesteps++<<" "<<1.0f-(float)world.no_basin/(float)n_cycles<<std::endl;
 

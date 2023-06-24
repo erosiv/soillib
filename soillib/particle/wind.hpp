@@ -36,23 +36,23 @@ struct WindParticle: soil::Particle {
   // Main Methods
 
   template<typename T>
-  bool move(T& map, WindParticle_c& param);
+  bool move(T& world, WindParticle_c& param);
 
   template<typename T>
-  bool interact(T& map, WindParticle_c& param);
+  bool interact(T& world, WindParticle_c& param);
 
 };
 
 template<typename T>
-bool WindParticle::move(T& map, WindParticle_c& param){
+bool WindParticle::move(T& world, WindParticle_c& param){
 
   const glm::ivec2 ipos = glm::vec2(pos.x, pos.z);
-  cell* cell = map.get(ipos);
+  auto cell = world.map.get(ipos);
   if(cell == NULL){
     return false;
   }
 
-  const glm::vec3 n = World::normal(ipos);
+  const glm::vec3 n = world.normal(ipos);
 
   // Termination Checks
 
@@ -135,8 +135,8 @@ bool WindParticle::move(T& map, WindParticle_c& param){
 
 //  World::cascade(ipos);
   soil::phys::cascade_c::maxdiff = 0.002;
-  soil::phys::cascade(World::map, ipos);
-  soil::phys::cascade(World::map, ipos);
+  soil::phys::cascade(world.map, ipos);
+  soil::phys::cascade(world.map, ipos);
 
   return true;
 
@@ -148,6 +148,24 @@ bool WindParticle::interact(T& map, WindParticle_c& param){
   return true;
 
 }
+
+// Configuration Loading
+
+#ifdef SOILLIB_IO_YAML
+
+bool operator<<(WindParticle_c& conf, soil::io::yaml::node& node){
+  try {
+    conf.maxAge = node["max-age"].As<int>();
+    conf.boundaryLayer = node["boundary-layer"].As<float>();
+    conf.suspension = node["suspension"].As<float>();
+    conf.gravity = node["gravity"].As<float>();
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+#endif
 
 } // end of namespace
 

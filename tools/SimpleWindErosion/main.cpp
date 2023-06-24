@@ -1,10 +1,23 @@
 #include <soillib/soillib.hpp>
-#include <soillib/io/img/tiff.hpp>
+#include <soillib/io/yaml.hpp>
+#include <soillib/io/tiff.hpp>
+#include <soillib/io/png.hpp>
 
 #include "source/world.hpp"
 #include <iostream>
 
 int main( int argc, char* args[] ) {
+
+  // Load Configuration
+
+  soil::io::yaml config("config.yaml");
+  if(!config.valid()){
+    std::cout<<"failed to load yaml configuration"<<std::endl;
+  }
+  
+  if(!(World::config << config.root)){
+    std::cout<<"failed to parse yaml configuration"<<std::endl;
+  }
 
   // Initialize World
 
@@ -27,11 +40,20 @@ int main( int argc, char* args[] ) {
 
   }
 
-  soil::io::tiff tiff_image(512, 512);
-  tiff_image.fill([&](const glm::ivec2 pos){
+  soil::io::tiff height(world.map.dimension);
+  height.fill([&](const glm::ivec2 pos){
     return world.map.get(pos)->height;
   });
-  tiff_image.write("height.tiff");
+  height.write("out/height.tiff");
+
+  soil::io::png normal(world.map.dimension);
+  normal.fill([&](const glm::ivec2 pos){
+    glm::vec3 normal = world.normal(pos);
+    normal = glm::vec3(normal.x, -normal.z, normal.y);
+    normal = 0.5f*normal + 0.5f;
+    return 255.0f*glm::vec4(normal, 1.0f);
+  });
+  normal.write("out/normal.png");
 
   return 0;
 }
