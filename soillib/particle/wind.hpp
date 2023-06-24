@@ -1,140 +1,172 @@
-/*
-================================================================================
-                      Wind Particle for Wind Erosion
-================================================================================
-*/
+#ifndef SOILLIB_PARTICLE_WIND
+#define SOILLIB_PARTICLE_WIND
 
-#include "particle.h"
+#include <soillib/particle/particle.hpp>
+#include <soillib/model/physics/cascade.hpp>
 
-using namespace glm;
+namespace soil {
 
-struct WindParticle : public Particle {
+// WindParticle Properties
 
-  WindParticle(Layermap& map){
+struct WindParticle_c {
 
-    pos = vec2(rand()%map.dim.x, rand()%map.dim.y);
+  size_t maxAge = 512;
+  float boundaryLayer = 2.0f;
+  float suspension = 0.05f;
+  float gravity = 0.1;
 
-    ipos = round(pos);
-    surface = map.surface(ipos);
-    param = soils[surface];
-    contains = param.transports;    //The Transporting Type
+} static wind_c;
 
-  }
+// WindParticle Definition
 
-  static void init(){
-    frequency = new float[SIZEX*SIZEY]{0.0f};
-  }
+struct WindParticle: soil::Particle {
 
-  //Core Properties
-  const vec3 pspeed = vec3(-2,0,1);
-  vec3 speed = pspeed;
-  double sediment = 0.0;  //Sediment Mass
-  double height = 0.0;    //Particle Height
-  double sheight = 0.0;   //Surface Height
+  WindParticle(glm::vec2 _pos){ pos = glm::vec3(_pos.x, 0.0f, _pos.y); }
 
-  //Helper Properties
-  ivec2 ipos;
-  vec3 n;
-  SurfType surface;
-  SurfType contains;
-  SurfParam param;
+  // Properties
 
-  const double gravity = 0.25;
-  const double winddominance = 0.2;
-  const double windfriction = 0.8;
-  const double minsed = 0.0001;
+  glm::vec3 pos;
+  glm::vec3 opos;
+  glm::vec3 speed = glm::vec3(0);
+  glm::vec3 pspeed = glm::normalize(glm::vec3(1, 0, 0));
 
+  int age = 0;
+  float sediment = 0.0;     //Sediment Mass
 
-  static float* frequency;
-  void updatefrequency(Layermap& map, ivec2 ipos){
-    int ind = ipos.y*map.dim.x+ipos.x;
-    frequency[ind] = 0.5*frequency[ind] + 0.5f;
-  }
+  // Main Methods
 
-  bool move(Layermap& map, Vertexpool<Vertex>& vertexpool){
+  template<typename T>
+  bool move(T& world, WindParticle_c& param);
 
-    if(soils[contains].suspension == 0.0)
-      return false;
-
-    //Integer Position
-    ipos = round(pos);
-    n = map.normal(ipos);
-    surface = map.surface(ipos);
-    param = soils[surface];
-    updatefrequency(map, ipos);
-
-    //Surface Height, No-Clip Condition
-    sheight = map.height(ipos)*(float)SCALE/80.0f;
-    if(height < sheight){
-      height = sheight;
-    }
-
-    //Movement Mechanics
-    if(height > sheight)    //Flying Movement
-      speed.y -= gravity;   //Gravity
-    else                    //Contact Movement
-      speed = mix(speed, cross(cross(speed,n),n), windfriction);
-
-    speed = mix(speed, pspeed, winddominance);
-    pos += vec2(speed.x, speed.z);
-    height += speed.y;
-
-    //Out-Of-Bounds
-    if(!all(greaterThanEqual(pos, vec2(0))) ||
-       !all(lessThan((ivec2)pos, map.dim-1)))
-       return false;
-
-    if(length(speed) < 0.01)
-         return false;
-
-    return true;
-
-  }
-
-  bool interact(Layermap& map, Vertexpool<Vertex>& vertexpool){
-
-  //  if(param.abrasion == 0.0)
-  //    return true;
-
-    ivec2 npos = round(pos);
-
-    //Surface Contact
-    if(height <= map.height(pos)*(float)SCALE/80.0f){
-
-      //If this surface can conribute to this particle
-      if(param.transports == contains){
-
-        double force = length(speed)*(map.height(npos)-height)*(float)SCALE/80.0f*(1.0f-sediment);
-
-        double diff = map.remove(ipos, param.suspension*force);
-        sediment += (param.suspension*force - diff);
-
-        Particle::cascade(ipos, map, vertexpool, 1);
-        map.update(ipos, vertexpool);
-
-      }
-
-    }
-
-    else if(param.suspension > 0.0){
-
-      sediment -= soils[contains].suspension*sediment;
-
-      map.add(npos, map.pool.get(0.5f*soils[contains].suspension*sediment, contains));
-      map.add(ipos, map.pool.get(0.5f*soils[contains].suspension*sediment, contains));
-
-      Particle::cascade(ipos, map, vertexpool, 1);
-      map.update(ipos, vertexpool);
-
-      Particle::cascade(npos, map, vertexpool, 1);
-      map.update(npos, vertexpool);
-
-    }
-
-    return true;
-
-  }
+  template<typename T>
+  bool interact(T& world, WindParticle_c& param);
 
 };
 
-float* WindParticle::frequency = NULL;
+template<typename T>
+bool WindParticle::move(T& world, WindParticle_c& param){
+
+  const glm::ivec2 ipos = glm::vec2(pos.x, pos.z);
+  auto cell = world.map.get(ipos);
+  if(cell == NULL){
+    return false;
+  }
+
+  const glm::vec3 n = world.normal(ipos);
+
+  // Termination Checks
+
+  if(age++ > param.maxAge){
+    return false;
+  }
+
+  if(age == 0 || pos.y < cell->height)
+    pos.y = cell->height;
+
+  // Compute Movement
+
+  float hfac = exp(-(pos.y - cell->height)/param.boundaryLayer);
+  if(hfac < 0)
+    hfac = 0;
+
+
+  // Apply Base Prevailign Wind-Speed w. Shadowing
+
+  float shadow = dot(normalize(pspeed), n);
+  if(shadow < 0)
+    shadow = 0;
+  shadow = 1.0f-shadow;
+
+  speed += 0.05f*((0.1f+0.9f*shadow)*pspeed - speed);
+
+  // Apply Gravity
+
+  if(pos.y > cell->height)
+    speed.y -= param.gravity*sediment;
+
+  // Compute Collision Factor
+
+  float collision = -dot(normalize(speed), n);
+  if(collision < 0) collision = 0;
+
+  // Compute Redirect Velocity
+
+  glm::vec3 rspeed = cross(n, cross((1.0f-collision)*speed, n));
+
+  // Speed is accelerated by terrain features
+
+  speed += 0.9f*( shadow*mix(pspeed, rspeed, shadow*hfac) - speed);
+
+  // Turbulence
+
+  speed += 0.1f*hfac*collision*(glm::vec3(rand()%1001, rand()%1001, rand()%1001)-500.0f)/500.0f;
+
+  // Speed is damped by drag
+
+  speed *= (1.0f - 0.3*sediment);
+
+  // Move
+
+  opos = pos;
+  pos += speed;
+
+  // Update Momentum Tracking Maps
+
+  cell->momentumx_track += speed.x;
+  cell->momentumy_track += speed.y;
+  cell->momentumz_track += speed.z;
+  cell->massflow_track += sediment;
+
+   // Compute Mass Transport
+
+  float force = -dot(normalize(speed), n)*length(speed);
+  if(force < 0)
+    force = 0;
+
+  float lift = (1.0f-collision)*length(speed);
+
+  float capacity = force*hfac + 0.02f*lift*hfac;
+
+  // Mass Transfer to Equilibrium
+
+  float diff = capacity - sediment;
+  cell->height -= param.suspension*diff;
+  sediment += param.suspension*diff;
+
+//  World::cascade(ipos);
+  soil::phys::cascade_c::maxdiff = 0.002;
+  soil::phys::cascade(world.map, ipos);
+  soil::phys::cascade(world.map, ipos);
+
+  return true;
+
+};
+
+template<typename T>
+bool WindParticle::interact(T& map, WindParticle_c& param){
+
+  return true;
+
+}
+
+// Configuration Loading
+
+#ifdef SOILLIB_IO_YAML
+
+bool operator<<(WindParticle_c& conf, soil::io::yaml::node& node){
+  try {
+    conf.maxAge = node["max-age"].As<int>();
+    conf.boundaryLayer = node["boundary-layer"].As<float>();
+    conf.suspension = node["suspension"].As<float>();
+    conf.gravity = node["gravity"].As<float>();
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+#endif
+
+} // end of namespace
+
+#endif

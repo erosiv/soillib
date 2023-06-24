@@ -1,0 +1,14 @@
+lrate: 0.1
+scale: 80
+map:
+  dimension:
+    - 1024
+      1024
+water:
+  max-age: 1024
+  evap-rate: 0.001
+  deposition-rate: 0.1
+  min-vol: 0.001
+  entrainment: 10.0
+  gravity: 2.0
+  momentum-transfer: 1.0
