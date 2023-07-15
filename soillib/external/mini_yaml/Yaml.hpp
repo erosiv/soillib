@@ -293,6 +293,12 @@ namespace Yaml
         std::pair<const std::string &, Node &> operator *();
 
         /**
+        * @breif Pre-increment operator.
+        *
+        */
+        Iterator & operator ++ ();
+
+        /**
         * @breif Post-increment operator.
         *
         */
@@ -559,15 +565,15 @@ namespace Yaml
         * @breif Get start iterator.
         *
         */
-        Iterator Begin();
-        ConstIterator Begin() const;
+        Iterator begin();
+        ConstIterator begin() const;
 
         /**
         * @breif Get end iterator.
         *
         */
-        Iterator End();
-        ConstIterator End() const;
+        Iterator end();
+        ConstIterator end() const;
 
 
     private:

@@ -22,6 +22,10 @@ todo:
 - add in-place single element construct and get
 *************************************************/
 
+// Note: The two pool types below should be unified somehow.
+
+// Full-Bucket Pool
+
 template<typename T>
 struct pool {
 
@@ -75,41 +79,62 @@ struct pool {
 
   }
 
-  /*
+};
 
-    //Return Element
-    void unget(sec* E){
-      if(E == NULL)
-        return;
-      E->reset();
-      free.push_front(E);
+template<typename T>
+struct pool_t {
+
+  soil::buf<T> root;          // Owning Memory Segment
+  std::deque<T*> free;         // Reference to Available Memory
+
+  pool_t(){}
+  pool_t(size_t _size){
+    reserve(_size);
+  }
+
+  ~pool_t(){
+    clear();
+  }
+
+  void reserve(size_t _size){
+    root.size = _size;
+    root.start = new T[root.size];
+    for(size_t i = 0; i < root.size; ++i)
+      free.emplace_front(root.start + i);
+  }
+
+  void clear(){
+    free.clear();
+    if(root.start != NULL){
+      delete[] root.start;
+      root.start = NULL;
+      root.size = 0;
     }
+  }
 
-    void reset(){
-      free.clear();
-      for(int i = 0; i < size; i++)
-        free.push_front(start+i);
-    }
+  // Data Retrieval and Returning
 
+  template<typename... Args>
+  T* get(Args && ...args){ // In-Place Construction
 
-      //Retrieve Element, Construct in Place
-      template<typename... Args>
-      sec* get(Args && ...args){
+    if(free.empty())
+      return NULL;
 
-        if(free.empty()){
-          cout<<"Memory Pool Out-Of-Elements"<<endl;
-          return NULL;
-        }
+    T* E = free.back();
+    try{ new (E)T(forward<Args>(args)...); }
+    catch(...) { throw; }
+    free.pop_back();
+    return E;
 
-        sec* E = free.back();
-        try{ new (E)sec(forward<Args>(args)...); }
-        catch(...) { throw; }
-        free.pop_back();
-        return E;
+  }
 
-      }
-
-    */
+  void unget(T* E){
+    if(E == NULL)
+      return;
+    if(E >= root.start + root.size)
+      return;
+    free.push_front(E);
+  }
 
 };
 

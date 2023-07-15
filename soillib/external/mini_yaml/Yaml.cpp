@@ -734,6 +734,22 @@ namespace Yaml
         return { g_EmptyString, g_NoneNode};
     }
 
+    Iterator & Iterator::operator ++ ()
+    {
+        switch(m_Type)
+        {
+        case SequenceType:
+            static_cast<SequenceIteratorImp*>(m_pImp)->m_Iterator++;
+            break;
+        case MapType:
+            static_cast<MapIteratorImp*>(m_pImp)->m_Iterator++;
+            break;
+        default:
+            break;
+        }
+        return *this;
+    }
+
     Iterator & Iterator::operator ++ (int dummy)
     {
         switch(m_Type)
@@ -1092,7 +1108,7 @@ namespace Yaml
         return *this;
     }
 
-    Iterator Node::Begin()
+    Iterator Node::begin()
     {
         Iterator it;
 
@@ -1122,7 +1138,7 @@ namespace Yaml
         return it;
     }
 
-    ConstIterator Node::Begin() const
+    ConstIterator Node::begin() const
     {
         ConstIterator it;
 
@@ -1152,7 +1168,7 @@ namespace Yaml
         return it;
     }
 
-    Iterator Node::End()
+    Iterator Node::end()
     {
        Iterator it;
 
@@ -1182,7 +1198,7 @@ namespace Yaml
         return it;
     }
 
-    ConstIterator Node::End() const
+    ConstIterator Node::end() const
     {
        ConstIterator it;
 
@@ -1434,7 +1450,7 @@ namespace Yaml
                     continue;
                 }
 
-                // End of document.
+                // end of document.
                 if (line == "...")
                 {
                     break;
@@ -2347,7 +2363,7 @@ namespace Yaml
         {
             case Node::SequenceType:
             {
-                for(auto it = node.Begin(); it != node.End(); it++)
+                for(auto it = node.begin(); it != node.end(); it++)
                 {
                     const Node & value = (*it).second;
                     if(value.IsNone())
@@ -2370,7 +2386,7 @@ namespace Yaml
             case Node::MapType:
             {
                 size_t count = 0;
-                for(auto it = node.Begin(); it != node.End(); it++)
+                for(auto it = node.begin(); it != node.end(); it++)
                 {
                     const Node & value = (*it).second;
                     if(value.IsNone())
@@ -2710,7 +2726,7 @@ namespace Yaml
         switch(type)
         {
         case Node::SequenceType:
-            for(auto it = from.Begin(); it != from.End(); it++)
+            for(auto it = from.begin(); it != from.end(); it++)
             {
                 const Node & currentNode = (*it).second;
                 Node & newNode = to.PushBack();
@@ -2718,7 +2734,7 @@ namespace Yaml
             }
             break;
         case Node::MapType:
-            for(auto it = from.Begin(); it != from.End(); it++)
+            for(auto it = from.begin(); it != from.end(); it++)
             {
                 const Node & currentNode = (*it).second;
                 Node & newNode = to[(*it).first];
