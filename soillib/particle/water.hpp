@@ -1,10 +1,27 @@
 #ifndef SOILLIB_PARTICLE_WATER
 #define SOILLIB_PARTICLE_WATER
 
+#include <soillib/soillib.hpp>
 #include <soillib/particle/particle.hpp>
-#include <soillib/model/physics/cascade.hpp>
+#include <soillib/model/cascade.hpp>
 
 namespace soil {
+
+// Hydrologically Erodable Map Constraints
+
+template<typename T>
+concept WaterParticle_t = requires(T t){
+  // Measurement Methods
+  { t.oob(glm::ivec2()) } -> std::same_as<bool>;
+  { t.height(glm::ivec2()) } -> std::same_as<float>;
+  { t.normal(glm::ivec2()) } -> std::convertible_to<glm::vec3>;
+  // Specific Physics Requirements
+  { t.discharge(glm::ivec2()) } -> std::same_as<float>;
+  { t.momentum(glm::ivec2()) } -> std::convertible_to<glm::vec2>;
+  { t.resistance(glm::ivec2()) } -> std::same_as<float>;
+  // Add Method
+  { t.add(glm::ivec2(), float()) } -> std::same_as<void>;
+};
 
 // WaterParticle Properties
 
@@ -37,7 +54,7 @@ struct WaterParticle: soil::Particle {
 
   // Main Methods
 
-  template<typename T>
+  template<WaterParticle_t T>
   bool move(T& world, WaterParticle_c& param);
 
   template<typename T>
@@ -45,30 +62,30 @@ struct WaterParticle: soil::Particle {
 
 };
 
-template<typename T>
+template<WaterParticle_t T>
 bool WaterParticle::move(T& world, WaterParticle_c& param){
-
-  const glm::ivec2 ipos = pos;
-  auto cell = world.map.get(ipos);
-  if(cell == NULL){
-    return false;
-  }
-
-  const glm::vec3 n = world.normal(ipos);
 
   // Termination Checks
 
+  const glm::ivec2 ipos = pos;
+  if(world.oob(ipos))
+    return false;
+
   if(age > param.maxAge){
-    cell->height += sediment;
+    world.add(ipos, sediment);
     return false;
   }
 
   if(volume < param.minVol){
-    cell->height += sediment;
+    world.add(ipos, sediment);
     return false;
   }
 
   // Apply Forces to Particle
+
+  const glm::vec3 n = world.normal(ipos);
+  const glm::vec2 fspeed = world.momentum(ipos);
+  const float discharge = world.discharge(ipos);
 
   // Gravity Force
 
@@ -76,9 +93,8 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
 
   // Momentum Transfer Force
 
-  glm::vec2 fspeed = glm::vec2(cell->momentumx, cell->momentumy);
   if(length(fspeed) > 0 && length(speed) > 0)
-    speed += param.momentumTransfer*dot(normalize(fspeed), normalize(speed))/(volume + cell->discharge)*fspeed;
+    speed += param.momentumTransfer*dot(normalize(fspeed), normalize(speed))/(volume + discharge)*fspeed;
 
   // Dynamic Time-Step, Update
 
@@ -88,12 +104,6 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
   opos = pos;
   pos  += speed;
 
-  // Update Discharge, Momentum Tracking Maps
-
-  cell->discharge_track += volume;
-  cell->momentumx_track += volume*speed.x;
-  cell->momentumy_track += volume*speed.y;
-
   return true;
 
 }
@@ -101,43 +111,47 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
 template<typename T>
 bool WaterParticle::interact(T& world, WaterParticle_c& param){
 
+  // Termination Checks
+
   const glm::ivec2 ipos = opos;
-  auto cell = world.map.get(ipos);
-  if(cell == NULL)
+  if(world.oob(ipos))
     return false;
 
+  const float discharge = world.discharge(ipos);
+  const float resistance = world.resistance(ipos);
+
   //Out-Of-Bounds
+
   float h2;
-  if(world.map.oob(pos))
-    h2 = cell->height-0.002;
+  if(world.oob(pos))
+    h2 = world.height(ipos)-0.002;
   else
     h2 = world.height(pos);
 
   //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*world.discharge(ipos))*(cell->height-h2);
+  float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
   if(c_eq < 0) c_eq = 0;
   float cdiff = (c_eq - sediment);
 
   // Effective Parameter Set
 
-  float effD = param.depositionRate*(1.0f - cell->rootdensity);
+  float effD = param.depositionRate*(1.0f - resistance);
   if(effD < 0) effD = 0;
 
-
   sediment += effD*cdiff;
-  cell->height -= effD*cdiff;
+  world.add(ipos, -effD*cdiff);
 
   //Evaporate (Mass Conservative)
   sediment /= (1.0-param.evapRate);
   volume *= (1.0-param.evapRate);
 
   //Out-Of-Bounds
-  if(world.map.oob(pos)){
+  if(world.oob(pos)){
     volume = 0.0;
     return false;
   }
 
-  soil::phys::cascade(world.map, pos);
+  soil::phys::cascade(world, pos);
 
   age++;
   return true;

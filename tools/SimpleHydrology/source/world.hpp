@@ -133,12 +133,32 @@ struct World {
     return c->height;
   }
 
-  const inline float discharge(glm::ivec2 p){
-    return erf(0.4f*map.get(p)->discharge);
+  const inline void add(glm::ivec2 p, float h){
+    if(!map.oob(p))
+      map.get(p)->height += h;
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
     return soil::surface::normal(*this, p, glm::vec3(1, World::config.scale, 1));
+  }
+
+  const inline glm::vec2 momentum(glm::ivec2 p){
+    if(!map.oob(p)){
+      return glm::vec2(map.get(p)->momentumx, map.get(p)->momentumy);
+    }
+    return glm::vec2(0);
+  }
+
+  const inline float discharge(glm::ivec2 p){
+    if(!map.oob(p))
+      return erf(0.4f*map.get(p)->discharge);
+    return 0.0f;
+  }
+
+  const inline float resistance(glm::ivec2 p){
+    if(!map.oob(p))
+      return map.get(p)->rootdensity;
+    return 0.0f;
   }
 
 };
@@ -167,7 +187,25 @@ void World::erode(int cycles){
     //Spawn New Particle
 
     soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(drop.move(*this, config.water_config) && drop.interact(*this, config.water_config));
+
+    while(true){
+
+      if(!drop.move(*this, config.water_config))
+        break;
+
+      // Update Discharge, Momentum Tracking Maps
+
+      auto cell = map.get(drop.pos);
+      if(cell != NULL){
+        cell->discharge_track += drop.volume;
+        cell->momentumx_track += drop.volume*drop.speed.x;
+        cell->momentumy_track += drop.volume*drop.speed.y;
+      }
+
+      if(!drop.interact(*this, config.water_config))
+        break;
+
+    }
 
     if(map.oob(drop.pos))
       no_basin_track++;
