@@ -7,7 +7,7 @@
 #include <soillib/util/dist.hpp>
 
 #include <soillib/map/basic.hpp>
-#include <soillib/util/surface.hpp>
+#include <soillib/model/surface.hpp>
 
 #include <soillib/particle/water.hpp>
 #include <soillib/particle/vegetation.hpp>
@@ -51,7 +51,7 @@ struct world_c {
 
   map_type::config map_config = {
     glm::ivec2(512)
-  }; 
+  };
 
   soil::WaterParticle_c water_config;
 
@@ -80,7 +80,7 @@ struct World {
   const size_t SEED;
   soil::map::basic<cell, ind_type> map;
   soil::pool<cell> cellpool;
-  
+
   static world_c config;
 
   // Parameters
@@ -123,6 +123,10 @@ struct World {
 
   void erode(int cycles);              // Erosion Update Step
 
+  const inline bool oob(glm::ivec2 p){
+    return map.oob(p);
+  }
+
   const inline float height(glm::ivec2 p){
     cell* c = map.get(p);
     if(c == NULL) return 0.0f;
@@ -134,7 +138,7 @@ struct World {
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
-    return soil::surface::normal(map, p, glm::vec3(1, World::config.scale, 1));
+    return soil::surface::normal(*this, p, glm::vec3(1, World::config.scale, 1));
   }
 
 };

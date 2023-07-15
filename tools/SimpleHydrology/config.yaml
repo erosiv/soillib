@@ -2,10 +2,10 @@ lrate: 0.1
 scale: 80
 map:
   dimension:
-    - 1024
-      1024
+    - 512
+      512
 water:
-  max-age: 1024
+  max-age: 512
   evap-rate: 0.001
   deposition-rate: 0.1
   min-vol: 0.001

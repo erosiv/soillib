@@ -7,7 +7,7 @@
 #include <soillib/util/dist.hpp>
 
 #include <soillib/map/basic.hpp>
-#include <soillib/util/surface.hpp>
+#include <soillib/model/surface.hpp>
 
 #include <soillib/particle/wind.hpp>
 
@@ -39,7 +39,7 @@ struct world_c {
 
   map_type::config map_config = {
     glm::ivec2(512)
-  }; 
+  };
 
   soil::WindParticle_c wind_config;
 
@@ -134,6 +134,10 @@ public:
 
   void erode(int cycles);               //Erode with N Particles
 
+  const inline bool oob(glm::ivec2 p){
+    return map.oob(p);
+  }
+
   const float height(glm::ivec2 p){
     cell* c = map.get(p);
     if(c == NULL) return 0.0f;
@@ -141,7 +145,7 @@ public:
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
-    return soil::surface::normal(map, p, glm::vec3(1, World::config.scale, 1));
+    return soil::surface::normal(*this, p, glm::vec3(1, World::config.scale, 1));
   }
 
 };
