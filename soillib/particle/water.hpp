@@ -124,19 +124,22 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
 
   float h2;
   if(world.oob(pos))
-    h2 = world.height(ipos)-0.002;
+    h2 = world.height(ipos);
   else
     h2 = world.height(pos);
 
   //Mass-Transfer (in MASS)
   float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
-  if(c_eq < 0) c_eq = 0;
+  if(c_eq < 0)
+    c_eq = 0;
+
   float cdiff = (c_eq - sediment);
 
   // Effective Parameter Set
 
   float effD = param.depositionRate*(1.0f - resistance);
-  if(effD < 0) effD = 0;
+  if(effD < 0)
+    effD = 0;
 
   sediment += effD*cdiff;
   world.add(ipos, -effD*cdiff);

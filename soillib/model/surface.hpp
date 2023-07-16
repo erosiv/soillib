@@ -50,7 +50,7 @@ const static inline float height(T& map, glm::vec2 p){
 
 
 template<surface_t T>
-const static inline glm::vec3 normal(T& map, glm::ivec2 p, const glm::vec3 s = glm::vec3(1)){
+const static inline glm::vec3 normal(T& map, glm::ivec2 p){
 
   glm::vec3 n = glm::vec3(0, 0, 0);
 
@@ -72,9 +72,9 @@ const static inline glm::vec3 normal(T& map, glm::ivec2 p, const glm::vec3 s = g
 
   // Compute Gradient
 
-  n.x = -s.y*(map.height(pxb) - map.height(pxa))/length(pxb-pxa);
+  n.x = -(map.height(pxb) - map.height(pxa))/length(pxb-pxa);
   n.y = 1.0f;
-  n.z = -s.y*(map.height(pyb) - map.height(pya))/length(pyb-pya);
+  n.z = -(map.height(pyb) - map.height(pya))/length(pyb-pya);
   n = n;
 
   if(length(n) > 0)

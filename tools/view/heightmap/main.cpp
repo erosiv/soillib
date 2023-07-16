@@ -4,7 +4,7 @@
 
 #include <soillib/io/tiff.hpp>
 
-#define GRIDSIZE 1024
+#define GRIDSIZE 512
 
 #include "model.h"
 
@@ -14,7 +14,7 @@ int main( int argc, char* args[] ) {
 
   	for(int i = 0; i < dim.x; i++)
 	for(int j = 0; j < dim.y; j++){
-      	heightmap[i][j] = 80.0f*image[glm::ivec2(i, j)];
+      	heightmap[i][j] = 100.0f*image[glm::ivec2(i, j)];
   	}
 
 	Tiny::view.vsync = false;
