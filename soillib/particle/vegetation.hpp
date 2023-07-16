@@ -38,7 +38,7 @@ float Plant::maxSize = 1.5f;
 float Plant::growRate = 0.05f;
 float Plant::maxSteep = 0.8f;
 float Plant::maxDischarge = 0.3f;
-float Plant::maxTreeHeight = 0.8f;
+float Plant::maxTreeHeight = 100.0f;
 
 // Vegetation Struct (Plant Container)
 

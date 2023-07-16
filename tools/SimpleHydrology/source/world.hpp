@@ -48,6 +48,8 @@ struct world_c {
 
   int scale = 80;
   float lrate = 0.1f;
+  int maxcycles = 2048;
+  float minbasin = 0.1f;
 
   map_type::config map_config = {
     glm::ivec2(512)
@@ -65,6 +67,8 @@ bool operator<<(world_c& conf, soil::io::yaml::node& node){
   try {
     conf.scale = node["scale"].As<int>();
     conf.lrate = node["lrate"].As<float>();
+    conf.maxcycles= node["max-cycles"].As<int>();
+    conf.minbasin = node["min-basin"].As<float>();
     conf.map_config << node["map"];
     conf.water_config << node["water"];
   } catch(soil::io::yaml::exception& e){
@@ -99,6 +103,8 @@ struct World {
 
     soil::noise::sampler sampler;
     sampler.source.SetFractalOctaves(8.0f);
+    sampler.cfg.min = -2.0f;
+    sampler.cfg.max = 2.0f;
 
     for(auto [cell, pos]: map){
       cell.height = sampler.get(glm::vec3(pos.x, pos.y, SEED%10000)/glm::vec3(512, 512, 1.0f));
@@ -121,25 +127,27 @@ struct World {
 
   // Main Update Methods
 
-  void erode(int cycles);              // Erosion Update Step
+  bool erode();
+
+  // Interface Methods
 
   const inline bool oob(glm::ivec2 p){
     return map.oob(p);
   }
 
   const inline float height(glm::ivec2 p){
-    cell* c = map.get(p);
-    if(c == NULL) return 0.0f;
-    return c->height;
+    if(!map.oob(p))
+      return World::config.scale*map.get(p)->height;
+    return 0.0f;
   }
 
   const inline void add(glm::ivec2 p, float h){
     if(!map.oob(p))
-      map.get(p)->height += h;
+      map.get(p)->height += h/World::config.scale;
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
-    return soil::surface::normal(*this, p, glm::vec3(1, World::config.scale, 1));
+    return soil::surface::normal(*this, p);
   }
 
   const inline glm::vec2 momentum(glm::ivec2 p){
@@ -171,7 +179,19 @@ world_c World::config;
 ===================================================
 */
 
-void World::erode(int cycles){
+int n_timesteps = 0;
+
+bool World::erode(){
+
+  const float ncycles = map.area/World::config.water_config.maxAge;
+
+  std::cout<<n_timesteps++<<" "<<1.0f-(float)no_basin/(float)ncycles<<std::endl;
+
+  if(n_timesteps > config.maxcycles)
+    return false;
+
+  if((1.0f-(float)no_basin/(float)ncycles) < config.minbasin)
+    return false;
 
   for(auto [cell, pos]: map){
     cell.discharge_track = 0;
@@ -181,8 +201,10 @@ void World::erode(int cycles){
 
   no_basin_track = 0;
 
+  // Max-Age is Mean-Path-Length,
+
   //Do a series of iterations!
-  for(int i = 0; i < cycles; i++){
+  for(int i = 0; i < ncycles; i++){
 
     //Spawn New Particle
 
@@ -220,6 +242,9 @@ void World::erode(int cycles){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
+  Vegetation::grow(*this);     //Grow Trees
+
+  return true;
 
 }
 

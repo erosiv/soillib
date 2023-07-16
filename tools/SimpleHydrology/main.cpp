@@ -5,6 +5,13 @@
 
 #include "source/world.hpp"
 #include <iostream>
+#include <csignal>
+
+bool quit = false;
+
+void sighandler(int signal){
+  quit = true;
+}
 
 int main( int argc, char* args[] ) {
 
@@ -14,7 +21,7 @@ int main( int argc, char* args[] ) {
   if(!config.valid()){
     std::cout<<"failed to load yaml configuration"<<std::endl;
   }
-  
+
   if(!(World::config << config.root)){
     std::cout<<"failed to parse yaml configuration"<<std::endl;
   }
@@ -30,27 +37,8 @@ int main( int argc, char* args[] ) {
 
   // Run Erosion
 
-  size_t n_timesteps = 0;
-  size_t n_cycles = 1024;
-
-  while((1.0f-(float)world.no_basin/(float)n_cycles) > 0.15 && n_timesteps < 8*1024){
-
-    std::cout<<n_timesteps++<<" "<<1.0f-(float)world.no_basin/(float)n_cycles<<std::endl;
-
-    world.erode(n_cycles); //Execute Erosion Cycles
-    Vegetation::grow(world);     //Grow Trees
- 
-  }
-
-  int n = 512;
-  while(n-- > 0){
-
-    std::cout<<n_timesteps++<<" "<<1.0f-(float)world.no_basin/(float)n_cycles<<std::endl;
-
-    world.erode(n_cycles);          //Execute Erosion Cycles
-    Vegetation::grow(world);    //Grow Trees
- 
-  }
+  signal(SIGINT, &sighandler);
+  while(!quit && world.erode());
 
   // Export Images
 
@@ -62,7 +50,7 @@ int main( int argc, char* args[] ) {
 
   soil::io::tiff height(world.map.dimension);
   height.fill([&](const glm::ivec2 pos){
-    return world.height(pos); 
+    return world.map.get(pos)->height;
   });
   height.write("out/height.tiff");
 

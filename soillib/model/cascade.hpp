@@ -25,7 +25,7 @@ struct cascade_c {
   static float settling;
 };
 
-float cascade_c::maxdiff = 0.01f;
+float cascade_c::maxdiff = 0.8f;
 float cascade_c::settling = 1.0f;
 
 template<cascade_t T>
