@@ -1,8 +1,9 @@
 #ifndef SOILLIB_PARTICLE_WIND
 #define SOILLIB_PARTICLE_WIND
 
+#include <soillib/soillib.hpp>
 #include <soillib/particle/particle.hpp>
-#include <soillib/model/physics/cascade.hpp>
+#include <soillib/model/cascade.hpp>
 
 namespace soil {
 
