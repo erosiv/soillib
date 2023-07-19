@@ -8,6 +8,7 @@ uniform mat4 vp;
 
 uniform sampler2D dischargeMap;
 uniform sampler2D normalMap;
+uniform vec2 dimension;
 
 out vec4 ex_Color;
 out vec3 ex_Normal;
@@ -16,12 +17,12 @@ out vec3 ex_FragPos;
 void main(void) {
 	//Fragment Position in Model Space
 	ex_FragPos = (model * vec4(in_Position, 1.0f)).xyz;
-	ex_Normal = texture(normalMap, in_Position.xz/vec2(512)).xyz;
+	ex_Normal = texture(normalMap, in_Position.xz/dimension).xyz;
 
 	//Fragment in Screen Space
 	gl_Position = vp * vec4(ex_FragPos, 1.0f);
 
-	float discharge = texture(dischargeMap, in_Position.xz/vec2(512)).a;
+	float discharge = texture(dischargeMap, in_Position.xz/dimension).a;
 
 	//Color from Normal Vector
 	float light = dot(normalize(in_Normal), normalize(vec3(1, 1, 1)));
