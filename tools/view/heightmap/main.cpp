@@ -21,10 +21,10 @@ int main( int argc, char* args[] ) {
 
   if(argc < 2)
     return 0;
+  std::string path = args[1];
 
   // Load Image Data
 
-  std::string path = args[1];
   soil::io::tiff height((path + "height.tiff").c_str());
   soil::io::tiff discharge((path + "discharge.tiff").c_str());
   soil::io::png normal((path + "normal.png").c_str());
