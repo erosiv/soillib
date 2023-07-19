@@ -5,7 +5,7 @@ min-basin: 0.1
 map:
   dimension:
     - 512
-      512
+    - 512
 water:
   max-age: 512
   evap-rate: 0.001

@@ -1,7 +1,7 @@
 # TinyEngine Makefile
 # Compiler Configuration
 
-CC = g++ -std=c++17
+CC = g++-10 -std=c++20
 CF = -Wfatal-errors -O
 LF = -I$(HOME)/.local/include -L$(HOME)/.local/lib
 
@@ -26,7 +26,7 @@ CC = g++-13 -std=c++20
 endif
 
 all: main.cpp
-			$(CC) main.cpp -o main $(CF) $(LF) -lTinyEngine $(TINYLINK) -ltiff
+			$(CC) main.cpp -o main $(CF) $(LF) -lTinyEngine $(TINYLINK) -ltiff -lpng
 
 DAT = shader			#data directory to embed
 .PHONY: embedded

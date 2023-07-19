@@ -51,10 +51,7 @@ struct world_c {
   int maxcycles = 2048;
   float minbasin = 0.1f;
 
-  map_type::config map_config = {
-    glm::ivec2(512)
-  };
-
+  map_type::config map_config;
   soil::WaterParticle_c water_config;
 
 };
