@@ -23,10 +23,8 @@ void main(void) {
 
 	float discharge = texture(dischargeMap, in_Position.xz/dimension).a;
 
-	vec3 normal = normalize(ex_Normal);
-	//Color from Normal Vector
-	float light = 1.0f;//dot(normalize(normal), normalize(vec3(1, 1, 1)));
-
+	vec3 normal = 1.0f-ex_Normal*2.0f;
+	float light = dot(normalize(normal), normalize(vec3(1, 1, 1)));
 
 	ex_Color = vec4(vec3(light), 1.0);
 	ex_Color = vec4(ex_Normal, 1.0f);

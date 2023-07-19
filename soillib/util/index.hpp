@@ -26,15 +26,15 @@ struct flat: index_base {
     return p.x * s.y + p.y;
   }
   static inline glm::ivec2 unflatten(const int i, const glm::ivec2 s){
-    int y = ( i / 1   ) % s.x;
-    int x = ( i / s.x ) % s.y;
+    int y = ( i / 1   ) % s.y;
+    int x = ( i / s.y ) % s.x;
     return glm::ivec2(x, y);
   }
-  const static inline bool oob(const glm::ivec2 p, const::glm::ivec2 s){
+  const static inline bool oob(const glm::ivec2 p, const glm::ivec2 s){
     if(p.x >= s.x)  return true;
     if(p.y >= s.y)  return true;
-    if(p.x  < 0)      return true;
-    if(p.y  < 0)      return true;
+    if(p.x  < 0)    return true;
+    if(p.y  < 0)    return true;
     return false;
   }
 };

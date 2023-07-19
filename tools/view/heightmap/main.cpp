@@ -4,6 +4,7 @@
 #include <TinyEngine/image>
 
 #include <soillib/util/pool.hpp>
+#include <soillib/util/index.hpp>
 #include <soillib/map/basic.hpp>
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/png.hpp>

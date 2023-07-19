@@ -1,12 +1,9 @@
-int SEED = 10;
-double scale = 30.0;
-
 template<typename T>
-void construct(T& map, Buffer& positions, Buffer& normals, Buffer& indices){
+void construct(T& map, Buffer& positions, Buffer& indices){
   //Fill the Buffers!
 
   std::vector<int> indbuf;
-  std::vector<float> posbuf, norbuf;
+  std::vector<float> posbuf;
 
   std::function<void(std::vector<float>&, glm::vec3)> add = [](std::vector<float>& v, glm::vec3 p){
     v.push_back(p.x);
@@ -35,13 +32,7 @@ void construct(T& map, Buffer& positions, Buffer& normals, Buffer& indices){
     add(posbuf, a);
     add(posbuf, b);
     add(posbuf, d);
-
-    glm::vec3 n1 = glm::cross(a-b, d-b);
-    n1 = 0.5f*n1 + 0.5f;
-
-    for(int i = 0; i < 3; i++)
-      add(norbuf, n1);
-
+    
     indbuf.push_back(posbuf.size()/3+0);
     indbuf.push_back(posbuf.size()/3+2);
     indbuf.push_back(posbuf.size()/3+1);
@@ -50,16 +41,9 @@ void construct(T& map, Buffer& positions, Buffer& normals, Buffer& indices){
     add(posbuf, d);
     add(posbuf, c);
 
-    glm::vec3 n2 = glm::cross(a-d, c-d);
-    n2 = 0.5f*n2 + 0.5f;
-
-    for(int i = 0; i < 3; i++)
-      add(norbuf, n2);
-
   }
 
   indices.fill(indbuf);
   positions.fill(posbuf);
-  normals.fill(norbuf);
 
 }

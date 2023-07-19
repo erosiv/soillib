@@ -34,6 +34,7 @@ int main( int argc, char* args[] ) {
 
   World world(SEED);
   std::cout<<"SEED: "<<world.SEED<<std::endl;
+  std::cout<<"DIM: "<<world.map.dimension.x<<" "<<world.map.dimension.y<<std::endl;
 
   // Run Erosion
 
