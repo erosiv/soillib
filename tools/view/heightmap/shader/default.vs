@@ -1,7 +1,6 @@
 #version 330
 
 in vec3 in_Position;
-in vec3 in_Normal;
 
 uniform mat4 model;
 uniform mat4 vp;
@@ -24,8 +23,11 @@ void main(void) {
 
 	float discharge = texture(dischargeMap, in_Position.xz/dimension).a;
 
+	vec3 normal = normalize(ex_Normal);
 	//Color from Normal Vector
-	float light = dot(normalize(in_Normal), normalize(vec3(1, 1, 1)));
+	float light = 1.0f;//dot(normalize(normal), normalize(vec3(1, 1, 1)));
+
+
 	ex_Color = vec4(vec3(light), 1.0);
 	ex_Color = vec4(ex_Normal, 1.0f);
 	ex_Color = mix(ex_Color, vec4(1,1,1,1), discharge);

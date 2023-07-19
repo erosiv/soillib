@@ -42,19 +42,19 @@ void construct(T& map, Buffer& positions, Buffer& normals, Buffer& indices){
     for(int i = 0; i < 3; i++)
       add(norbuf, n1);
 
-      indbuf.push_back(posbuf.size()/3+0);
-      indbuf.push_back(posbuf.size()/3+2);
-      indbuf.push_back(posbuf.size()/3+1);
+    indbuf.push_back(posbuf.size()/3+0);
+    indbuf.push_back(posbuf.size()/3+2);
+    indbuf.push_back(posbuf.size()/3+1);
 
     add(posbuf, a);
     add(posbuf, d);
     add(posbuf, c);
 
-      glm::vec3 n2 = glm::cross(a-d, c-d);
-      n2 = 0.5f*n2 + 0.5f;
+    glm::vec3 n2 = glm::cross(a-d, c-d);
+    n2 = 0.5f*n2 + 0.5f;
 
-      for(int i = 0; i < 3; i++)
-        add(norbuf, n2);
+    for(int i = 0; i < 3; i++)
+      add(norbuf, n2);
 
   }
 

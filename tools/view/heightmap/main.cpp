@@ -56,17 +56,16 @@ int main( int argc, char* args[] ) {
 	Tiny::event.handler = cam::handler;								//Event Handler
 	Tiny::view.interface = [&](){ /* ... */ };				//No Interface
 
-	Buffer positions, normals;												//Define Buffers
+	Buffer positions;												//Define Buffers
 	Buffer indices;
-	construct(map, positions, normals, indices);						//Call algorithm to fill buffers
+	construct(map, positions, indices);						//Call algorithm to fill buffers
 
-	Model mesh({"in_Position", "in_Normal"});					//Create Model with 2 Properties
+	Model mesh({"in_Position"});					//Create Model with 2 Properties
 	mesh.bind<glm::vec3>("in_Position", &positions);	//Bind Buffer to Property
-	mesh.bind<glm::vec3>("in_Normal", &normals);
 	mesh.index(&indices);
 	mesh.model = glm::translate(glm::mat4(1.0f), glm::vec3(-map.dimension.x/2, -15.0, -map.dimension.y/2));
 
-	Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position", "in_Normal"});
+	Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position"});
 
   // Textures
 
