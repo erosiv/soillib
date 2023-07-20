@@ -1,4 +1,7 @@
 # SimpleHydrology
+
+RUN ONLY VERSION
+
 C++ implementation of a particle based procedural hydrology system for terrain generation. This extends simple particle based hydraulic erosion to capture streams and pools.
 
 Rendered using my homebrew [TinyEngine](https://github.com/weigert/TinyEngine).
@@ -6,6 +9,7 @@ Rendered using my homebrew [TinyEngine](https://github.com/weigert/TinyEngine).
 [Link to a blog post about this](https://nickmcd.me/2020/04/15/procedural-hydrology/)
 
 ![Banner Image](https://github.com/weigert/SimpleHydrology/blob/master/screenshots/banner.png)
+
 
 ## Compiling
 

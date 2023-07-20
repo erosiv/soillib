@@ -124,7 +124,7 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
 
   float h2;
   if(world.oob(pos))
-    h2 = world.height(ipos);
+    h2 = 0.99*world.height(ipos);
   else
     h2 = world.height(pos);
 
