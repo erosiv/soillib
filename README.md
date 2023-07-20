@@ -4,11 +4,15 @@ C++20 library and toolbox for procedural geomorphology simluation
 
 Based on concepts developed by and maintained by [Nicholas McDonald](https://github.com/weigert).
 
-![Heightmap with Normal Shading](https://github.com/erosiv/soillib/assets/6532707/51cd9ef0-13a1-4831-8e12-0806fad1580d)
+<p align="center">
+<img alt="Heightmap with Normal Shading" src="https://github.com/erosiv/soillib/assets/6532707/51cd9ef0-13a1-4831-8e12-0806fad1580d" width="75%" align="center"/>
+</p>
 
-Relief Shaded Heightmap with Aerial Perspective (see: `tools/view`)
+Normal Shaded Heightmap, 3D View (see: `tools/view`)
 
-![Relief Shaded Heightmap with Aerial Perspective](https://github.com/erosiv/soillib/assets/6532707/b6bd03eb-ccb5-4287-8499-5948895652ac)
+<p align="center">
+<img alt="Relief Shaded Heightmap with Aerial Perspective" src="https://github.com/erosiv/soillib/assets/6532707/b6bd03eb-ccb5-4287-8499-5948895652ac" width="75%" align="center"/>
+</p>
 
 Relief Shaded Heightmap with Aerial Perspective (see: `tools/map`)
 
