@@ -41,6 +41,17 @@ int main(int argc, char *args[]) {
     cell.normal = glm::vec3(cell.normal.x, cell.normal.z, cell.normal.y);
   }
 
+  float min = 0.0f;
+  float max = 0.0f;
+  for(auto [cell, pos]: map){
+    if(cell.height < min) min = cell.height;
+    if(cell.height > max) max = cell.height;
+  }
+
+  for(auto [cell, pos]: map){
+    cell.height = (cell.height - min)/(max - min);
+  }
+
   // Manipulate Map
 
   //for(auto [cell, pos]: map)

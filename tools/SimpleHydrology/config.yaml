@@ -1,13 +1,13 @@
 lrate: 0.1
 scale: 80
-max-cycles: 4096
-min-basin: 0.1
+max-cycles: 8192
+min-basin: 0.05
 map:
   dimension:
-    - 512
-    - 512
+    - 960
+    - 960
 water:
-  max-age: 512
+  max-age: 1024
   evap-rate: 0.001
   deposition-rate: 0.05
   min-vol: 0.001
