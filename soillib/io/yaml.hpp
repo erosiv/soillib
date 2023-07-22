@@ -6,61 +6,138 @@
 namespace soil {
 namespace io {
 
-struct yaml {
+template<typename T>
+struct yaml_iterator {
 
-    typedef Yaml::Node node;
-    typedef Yaml::Exception exception;
+  yaml_iterator(Yaml::ConstIterator iter) noexcept: iter(iter) {}
 
-    node root;
+  const yaml_iterator& operator++() noexcept {
+    iter++;
+    ind++;
+    return *this;
+  };
 
-    yaml(std::string file){
-        try {
-            Yaml::Parse(root, file.c_str());
-        } catch(Yaml::Exception e){
-            isvalid = false;
-        }
-    }
+  const bool operator!=(yaml_iterator other) noexcept {
+    return this->iter != other.iter;
+  };
 
-    bool valid(){
-        return isvalid;
-    }
-
+  T operator*() noexcept {
+    if(iter.Type() == Yaml::ConstIterator::MapType)
+      return T((*iter).first, (*iter).second);
+    else return T(ind, (*iter).second);
+  };
 
 private:
-    bool isvalid = true;
+
+  Yaml::ConstIterator iter;
+  size_t ind = 0;
 
 };
 
+struct yaml_pair;
+struct yaml {
 
-/*
-extract nodes, then try and do what??
+  typedef Yaml::Exception exception;
+  typedef Yaml::Node node;
+  typedef yaml_pair pair;
 
-what if I have a single static yaml file or node,
-then when something tries to load it can decide
-whether to try and parse the yaml
+  yaml(){}
+  yaml(const node n):n(n){}
+  yaml(const char* filename){
+   try {
+      Yaml::Parse(n, filename);
+    } catch(exception e){
+      isvalid = false;
+    }
+  }
 
-lets start with map resolutions...
+  bool valid(){
+    return isvalid;
+  }
+  
+  template<typename T>
+  T As() const {
+    return n.As<T>();
+  }
 
-then images need to be able to take maps as an input directly
-when filling, so that I don't need to pass the resolution!!!!
+  yaml operator[](int i){
+    auto sub = n[i];
+    if(sub.IsNone()){
+      throw exception("subnode does not exist", exception::OperationError);
+    }
+    return node(sub);
+  }
 
-I need to be able to write nice iterators. without this, the interface
-will be scuffed.
-*/
+  yaml operator[](const char* s){
+    auto sub = n[s];
+    if(sub.IsNone()){
+      throw exception("subnode does not exist", exception::OperationError);
+    }
+    return node(sub);
+  }
 
-// yaml loader: now or never
+  yaml_iterator<pair> begin() const { 
+    auto iter = n.Begin();
+    if(iter.Type() == Yaml::ConstIterator::None)
+      throw exception("can't iterate over node: empty", exception::OperationError);
+    return yaml_iterator<pair>(iter); 
+  }
+
+  yaml_iterator<pair> end()   const { 
+    auto iter = n.End();
+    if(iter.Type() == Yaml::ConstIterator::None)
+      throw exception("can't iterate over node: empty", exception::OperationError);
+    return yaml_iterator<pair>(iter); 
+  }
+
+private:
+
+  node n;
+  bool isvalid = true;
+
+};
+
+// Index or Key Type
+
+struct indkey {
+
+  bool is_key = true;
+
+  indkey(std::string key):key(key),is_key(true){}
+  indkey(size_t ind):ind(ind),is_key(false){}
+
+  std::string key;
+  size_t ind;
+  
+  explicit operator std::string() const {
+    if(!is_key) throw yaml::exception("node index is not key", yaml::exception::OperationError);
+    return key;
+  }
+  
+  explicit operator size_t() const {
+    if(is_key) throw yaml::exception("node index is not integer", yaml::exception::OperationError);
+    return ind;
+  }
+
+};
+
+struct yaml_pair {
+  indkey ik;
+  yaml n;
+};
+
+std::ostream& operator<<(std::ostream& os, indkey& ik){
+  if(ik.is_key) 
+      return os << ik.key;
+  else 
+    return os << ik.ind;
+}
 
 }; // end of namespace io
 }; // end of namespace soil
 
-// Pre-Defined Parse Operators
+// Well-Known Types Pre-Define Parse Operators
 
-template<typename T>
-void operator<<(T& t, soil::io::yaml::node& node){
-  t = node.As<T>();
-}
-
-template<>
 void operator<<(glm::vec4& t, soil::io::yaml::node& node){
   t.x = node[0].As<float>();
   t.y = node[1].As<float>();

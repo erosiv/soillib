@@ -293,12 +293,6 @@ namespace Yaml
         std::pair<const std::string &, Node &> operator *();
 
         /**
-        * @breif Pre-increment operator.
-        *
-        */
-        Iterator & operator ++ ();
-
-        /**
         * @breif Post-increment operator.
         *
         */
@@ -403,14 +397,18 @@ namespace Yaml
         */
         bool operator != (const ConstIterator & it);
 
-    private:
-
         enum eType
         {
             None,
             SequenceType,
             MapType
         };
+
+        eType Type(){
+            return m_Type;
+        }
+
+    private:
 
         eType   m_Type; ///< Type of iterator.
         void *  m_pImp; ///< Implementation of constant iterator class.
@@ -565,15 +563,15 @@ namespace Yaml
         * @breif Get start iterator.
         *
         */
-        Iterator begin();
-        ConstIterator begin() const;
+        Iterator Begin();
+        ConstIterator Begin() const;
 
         /**
         * @breif Get end iterator.
         *
         */
-        Iterator end();
-        ConstIterator end() const;
+        Iterator End();
+        ConstIterator End() const;
 
 
     private:
