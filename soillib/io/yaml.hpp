@@ -37,7 +37,7 @@ private:
 struct yaml_pair;
 struct yaml {
 
-  typedef Yaml::Exception exception;
+  typedef Yaml::OperationException exception;
   typedef Yaml::Node node;
   typedef yaml_pair pair;
 
@@ -54,16 +54,13 @@ struct yaml {
   bool valid(){
     return isvalid;
   }
-  
-  template<typename T>
-  T As() const {
-    return n.As<T>();
-  }
+
+  // Indexing
 
   yaml operator[](int i){
     auto sub = n[i];
     if(sub.IsNone()){
-      throw exception("subnode does not exist", exception::OperationError);
+      throw exception("subnode does not exist");
     }
     return node(sub);
   }
@@ -71,23 +68,41 @@ struct yaml {
   yaml operator[](const char* s){
     auto sub = n[s];
     if(sub.IsNone()){
-      throw exception("subnode does not exist", exception::OperationError);
+      throw exception("subnode does not exist");
     }
     return node(sub);
   }
 
+  // Iteration
+
   yaml_iterator<pair> begin() const { 
     auto iter = n.Begin();
     if(iter.Type() == Yaml::ConstIterator::None)
-      throw exception("can't iterate over node: empty", exception::OperationError);
+      throw exception("can't iterate over node: empty");
     return yaml_iterator<pair>(iter); 
   }
 
   yaml_iterator<pair> end()   const { 
     auto iter = n.End();
     if(iter.Type() == Yaml::ConstIterator::None)
-      throw exception("can't iterate over node: empty", exception::OperationError);
+      throw exception("can't iterate over node: empty");
     return yaml_iterator<pair>(iter); 
+  }
+
+  // Casting
+
+  // Note: Either define As() function OR cast struct
+
+  template<typename T>
+  struct cast {
+    static T As(const yaml& node){
+      return node.n.As<T>();
+    }
+  };
+  
+  template<typename T>
+  T As() {
+    return cast<T>::As(*this);
   }
 
 private:
@@ -110,12 +125,12 @@ struct indkey {
   size_t ind;
   
   explicit operator std::string() const {
-    if(!is_key) throw yaml::exception("node index is not key", yaml::exception::OperationError);
+    if(!is_key) throw yaml::exception("node index is not key");
     return key;
   }
   
   explicit operator size_t() const {
-    if(is_key) throw yaml::exception("node index is not integer", yaml::exception::OperationError);
+    if(is_key) throw yaml::exception("node index is not integer");
     return ind;
   }
 
@@ -136,13 +151,74 @@ std::ostream& operator<<(std::ostream& os, indkey& ik){
 }; // end of namespace io
 }; // end of namespace soil
 
-// Well-Known Types Pre-Define Parse Operators
+// Well-Known Types with Pre-Defined Cast Operators
 
-void operator<<(glm::vec4& t, soil::io::yaml::node& node){
-  t.x = node[0].As<float>();
-  t.y = node[1].As<float>();
-  t.z = node[2].As<float>();
-  t.w = node[3].As<float>();
-}
+// GLM-Types
+
+template<typename T>
+struct soil::io::yaml::cast<glm::tvec2<T>> {
+  static glm::tvec2<T> As(soil::io::yaml& node){
+    return glm::tvec2<T> {
+      node[0].As<T>(),
+      node[1].As<T>()
+    };
+  }
+};
+
+template<typename T>
+struct soil::io::yaml::cast<glm::tvec3<T>> {
+  static glm::tvec3<T> As(soil::io::yaml& node){
+    return glm::tvec3<T> {
+      node[0].As<T>(),
+      node[1].As<T>(),
+      node[2].As<T>()
+    };
+  }
+};
+
+template<typename T>
+struct soil::io::yaml::cast<glm::tvec4<T>> {
+  static glm::tvec4<T> As(soil::io::yaml& node){
+    return glm::tvec4<T> {
+      node[0].As<T>(),
+      node[1].As<T>(),
+      node[2].As<T>(),
+      node[3].As<T>()
+    };
+  }
+};
+
+// STL Containers
+//  Note: Only those required by Mini-Yaml
+
+template<typename T>
+struct soil::io::yaml::cast<std::vector<T>> {
+  static std::vector<T> As(soil::io::yaml& node){
+    std::vector<T> vector;
+    for(auto [key, sub]: node)
+      vector.push_back(sub.As<T>());
+    return vector;
+  }
+};
+
+template<typename T>
+struct soil::io::yaml::cast<std::map<size_t, T>> {
+  static std::map<size_t, T> As(soil::io::yaml& node){
+    std::map<size_t, T> map;
+    for(auto [key, sub]: node)
+      map.emplace((size_t)key, sub.As<T>());
+    return map;
+  }
+};
+
+template<typename T>
+struct soil::io::yaml::cast<std::map<std::string, T>> {
+  static std::map<std::string, T> As(soil::io::yaml& node){
+    std::map<std::string, T> map;
+    for(auto [key, sub]: node)
+      map.emplace((std::string)key, sub.As<T>());
+    return map;
+  }
+};
 
 #endif
