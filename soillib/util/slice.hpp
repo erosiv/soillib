@@ -49,9 +49,9 @@ template<typename T> struct slice_t {
 template<typename T, soil::index_t Index>
 struct slice_iterator {
 
-  const glm::ivec2 res;
-
   buf_iterator<T> iter = NULL;
+  
+  glm::ivec2 res;
   int ind = 0;
 
   slice_iterator() noexcept : iter(NULL){};
@@ -72,7 +72,7 @@ struct slice_iterator {
   // Dereference the Pointer to Slice-T
 
   const slice_t<T> operator*() noexcept {
-      return {*(iter.iter), Index::unflatten(ind, res)};
+    return {*(iter.iter), Index::unflatten(ind, res)};
   };
 
 };
