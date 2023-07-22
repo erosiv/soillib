@@ -66,6 +66,8 @@ int main( int argc, char* args[] ) {
 
   soil::io::png normal(world.map.max - world.map.min);
   normal.fill([&](const glm::ivec2 pos){
+    if(world.oob(pos+world.map.min))
+      return glm::vec4(0);
     glm::vec3 normal = world.normal(pos+world.map.min);
     normal = glm::vec3(normal.x, -normal.z, normal.y);
     normal = 0.5f*normal + 0.5f;
