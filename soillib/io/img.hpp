@@ -12,12 +12,18 @@ struct img {
 
   size_t width = 0;
   size_t height = 0;
+  glm::ivec2 res;
+
   T* data = NULL;
 
   img(){};
   img(const size_t width, const size_t height):
-  width(width),height(height){ 
+  width(width),height(height),res(glm::ivec2(width, height)){ 
     allocate(); 
+  }
+  img(const glm::ivec2 res):
+  width(res.x),height(res.y),res(res){
+    allocate();
   }
 
   void allocate(){

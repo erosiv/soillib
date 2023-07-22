@@ -17,14 +17,16 @@ struct cell {
 
 int main(int argc, char *args[]) {
 
-  if(argc < 2)
+  if(argc < 2){
+    std::cout<<"please specify input directory for dataset"<<std::endl;
     return 0;
+  }
   std::string path = args[1];
 
   // Load the Image First
 
-  soil::io::tiff height((path+"height.tiff").c_str());
-  soil::io::png normal((path + "normal.png").c_str());
+  soil::io::tiff height((path + "/height.tiff").c_str());
+  soil::io::png normal((path + "/normal.png").c_str());
 
   // Create Cell Pool, Map
 
@@ -41,6 +43,8 @@ int main(int argc, char *args[]) {
     cell.normal = glm::vec3(cell.normal.x, cell.normal.z, cell.normal.y);
   }
 
+  // Normalize Height Map
+
   float min = 0.0f;
   float max = 0.0f;
   for(auto [cell, pos]: map){
@@ -51,11 +55,6 @@ int main(int argc, char *args[]) {
   for(auto [cell, pos]: map){
     cell.height = (cell.height - min)/(max - min);
   }
-
-  // Manipulate Map
-
-  //for(auto [cell, pos]: map)
-  //  soil::phys::cascade(map, pos);
 
   // Export a Shaded Relief Map
 
