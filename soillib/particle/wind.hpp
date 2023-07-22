@@ -136,8 +136,8 @@ bool WindParticle::move(T& world, WindParticle_c& param){
 
 //  World::cascade(ipos);
   soil::phys::cascade_c::maxdiff = 0.002;
-  soil::phys::cascade(world.map, ipos);
-  soil::phys::cascade(world.map, ipos);
+  soil::phys::cascade(world, ipos);
+  soil::phys::cascade(world, ipos);
 
   return true;
 

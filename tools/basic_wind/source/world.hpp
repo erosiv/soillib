@@ -49,17 +49,17 @@ struct world_c {
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(world_c& conf, soil::io::yaml::node& node){
-  try {
-    conf.scale = node["scale"].As<int>();
-    conf.lrate = node["lrate"].As<float>();
-    conf.map_config << node["map"];
-    conf.wind_config << node["wind"];
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<world_c> {
+  static world_c As(soil::io::yaml& node){
+    world_c config;
+    config.scale = node["scale"].As<int>();
+    config.lrate = node["lrate"].As<float>();
+    config.map_config = node["map"].As<map_type::config>();
+    config.wind_config = node["wind"].As<soil::WindParticle_c>();
+    return config;
   }
-  return true;
-}
+};
 
 #endif
 
@@ -134,18 +134,24 @@ public:
 
   void erode(int cycles);               //Erode with N Particles
 
-  const inline bool oob(glm::ivec2 p){
+  const inline bool oob(glm::vec2 p){
     return map.oob(p);
   }
 
-  const float height(glm::ivec2 p){
+  const inline float height(glm::vec2 p){
     cell* c = map.get(p);
-    if(c == NULL) return 0.0f;
-    return c->height;
+    if(c == NULL) 
+      return 0.0f;
+    return config.scale*c->height;
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
-    return soil::surface::normal(*this, p, glm::vec3(1, World::config.scale, 1));
+    return soil::surface::normal(*this, p);
+  }
+
+  const inline void add(glm::ivec2 p, float h){
+    if(!map.oob(p))
+      map.get(p)->height += h/World::config.scale;
   }
 
 };

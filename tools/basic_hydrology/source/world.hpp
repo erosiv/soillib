@@ -60,19 +60,24 @@ struct world_c {
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(world_c& conf, soil::io::yaml::node& node){
-  try {
-    conf.scale = node["scale"].As<int>();
-    conf.lrate = node["lrate"].As<float>();
-    conf.maxcycles= node["max-cycles"].As<int>();
-    conf.minbasin = node["min-basin"].As<float>();
-    conf.map_config << node["map"];
-    conf.water_config << node["water"];
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<world_c> {
+  static world_c As(soil::io::yaml& node){
+
+    world_c config;
+    
+    config.scale = node["scale"].As<int>();
+    config.lrate = node["lrate"].As<float>();
+    config.maxcycles = node["max-cycles"].As<int>();
+    config.minbasin = node["min-basin"].As<float>();
+
+    config.map_config = node["map"].As<map_type::config>();
+    config.water_config = node["water"].As<soil::WaterParticle_c>();
+    
+    return config;
+  
   }
-  return true;
-}
+};
 
 #endif
 
