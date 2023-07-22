@@ -19,15 +19,17 @@ struct cell {
 
 int main( int argc, char* args[] ) {
 
-  if(argc < 2)
+  if(argc < 2){
+    std::cout<<"please specify input directory for dataset"<<std::endl;
     return 0;
+  }
   std::string path = args[1];
 
   // Load Image Data
 
-  soil::io::tiff height((path + "height.tiff").c_str());
-  soil::io::tiff discharge((path + "discharge.tiff").c_str());
-  soil::io::png normal((path + "normal.png").c_str());
+  soil::io::tiff height((path + "/height.tiff").c_str());
+  soil::io::tiff discharge((path + "/discharge.tiff").c_str());
+  soil::io::png normal((path + "/normal.png").c_str());
 
   // Create Map
 
@@ -45,7 +47,7 @@ int main( int argc, char* args[] ) {
   }
 
 	Tiny::view.vsync = false;
-	Tiny::window("Heightmap Render", 1200, 800);			//Open Window
+	Tiny::window("soillib dataset viewer", 1200, 800);			//Open Window
 
 	cam::near = -500.0f;
 	cam::far = 500.0f;
@@ -57,9 +59,8 @@ int main( int argc, char* args[] ) {
 	Tiny::event.handler = cam::handler;								//Event Handler
 	Tiny::view.interface = [&](){ /* ... */ };				//No Interface
 
-	Buffer positions;												//Define Buffers
-	Buffer indices;
-	construct(map, positions, indices);						//Call algorithm to fill buffers
+	Buffer positions, indices;												//Define Buffers
+	construct(map, positions, indices);						    //Fill Buffers
 
 	Model mesh({"in_Position"});					//Create Model with 2 Properties
 	mesh.bind<glm::vec3>("in_Position", &positions);	//Bind Buffer to Property
