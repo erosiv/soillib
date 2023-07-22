@@ -51,7 +51,7 @@ struct img {
 
   // Subscript Operator
 
-  const T operator[](const glm::ivec2 pos){
+  T& operator[](const glm::ivec2 pos){
     return data[pos.y * width + pos.x];
   }
 
