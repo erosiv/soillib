@@ -2,6 +2,7 @@
 #define SOILLIB_IO_YAML
 
 #include <soillib/external/mini_yaml/Yaml.cpp>
+#include <format>
 
 namespace soil {
 namespace io {
@@ -60,7 +61,7 @@ struct yaml {
   yaml operator[](int i){
     auto sub = n[i];
     if(sub.IsNone()){
-      throw exception("subnode does not exist");
+      throw exception(std::format("sub-node \"{}\" does not exist", i));
     }
     return node(sub);
   }
@@ -68,7 +69,7 @@ struct yaml {
   yaml operator[](const char* s){
     auto sub = n[s];
     if(sub.IsNone()){
-      throw exception("subnode does not exist");
+      throw exception(std::format("sub-node \"{}\" does not exist", s));
     }
     return node(sub);
   }
