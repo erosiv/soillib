@@ -5,6 +5,21 @@
 #include <soillib/util/index.hpp>
 #include <soillib/util/slice.hpp>
 
+/*==================================================
+soillib map basic
+
+simple rectangular map of arbitrary size, which uses
+a cellpool to allocate templated cell data. Includes
+a convenient iterator for accessing cell and pos.
+
+the basic map is also templated by and index, which
+lets you decide how the data chunk is ordered. This
+also affects the iterator order.
+
+it is yaml configurable by specifying the x and y
+dimensions of the map.
+==================================================*/
+
 namespace soil {
 namespace map {
 
@@ -77,23 +92,21 @@ struct basic_iterator {
 
 };
 
+}; // namespace map
+}; // namespace soil
+
 // Configuration Loading
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(basic_config& conf, soil::io::yaml::node& node){
-  try {
-    conf.dimension.x = node["dimension"][0].As<int>();
-    conf.dimension.y = node["dimension"][1].As<int>();
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<soil::map::basic_config> {
+  static soil::map::basic_config As(soil::io::yaml& node){
+    soil::map::basic_config config;
+    config.dimension = node["dimension"].As<glm::ivec2>();
+    return config;
   }
-  return true;
-}
+};
 
 #endif
-
-}; // namespace map
-}; // namespace soil
-
 #endif

@@ -165,20 +165,20 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(WaterParticle_c& conf, soil::io::yaml::node& node){
-  try {
-    conf.maxAge = node["max-age"].As<int>();
-    conf.evapRate = node["evap-rate"].As<float>();
-    conf.depositionRate = node["deposition-rate"].As<float>();
-    conf.minVol = node["min-vol"].As<float>();
-    conf.entrainment = node["entrainment"].As<float>();
-    conf.gravity = node["gravity"].As<float>();
-    conf.momentumTransfer = node["momentum-transfer"].As<float>();
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<WaterParticle_c> {
+  static WaterParticle_c As(soil::io::yaml& node){
+    WaterParticle_c config;
+    config.maxAge = node["max-age"].As<int>();
+    config.evapRate = node["evap-rate"].As<float>();
+    config.depositionRate = node["deposition-rate"].As<float>();
+    config.minVol = node["min-vol"].As<float>();
+    config.entrainment = node["entrainment"].As<float>();
+    config.gravity = node["gravity"].As<float>();
+    config.momentumTransfer = node["momentum-transfer"].As<float>();
+    return config;
   }
-  return true;
-}
+};
 
 #endif
 

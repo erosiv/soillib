@@ -9,6 +9,31 @@
 namespace soil {
 namespace map {
 
+/*==================================================
+soillib map quad
+
+multi-rectangular map consisting of a singular
+contiguous chunk of memory. The memory is divided
+into (possibly spatially disjoint) rectangular
+segments, which are arranged spatially. This allows
+for arbitrary map shapes and sizes.
+==================================================*/
+
+// Configuration / Parameterization
+
+struct node_config {
+  glm::ivec2 position = glm::ivec2(0);
+  glm::ivec2 dimension = glm::ivec2(0);
+};
+
+struct quad_config {
+  std::vector<node_config> nodes;
+};
+
+/*
+
+// 
+
 // Base Templated Quadtree-Node w. Iterator
 
 template<typename T, soil::index_t Index> struct quadtree_node_iterator;
@@ -75,38 +100,68 @@ struct quadtree_node_iterator {
 
 
 
-
-
-/*
-  This guy needs an iterator, which returns with the position
-  of the corresponding node!
 */
+
 
 // Actual Quadtree Structure
 
 template<typename T, soil::index_t Index = soil::index::flat>
-struct quadtree {
+struct quad {
 
   typedef Index index;
-  typedef quadtree_node<T, Index> node_t;
+  typedef quad_config config;
+
+  //typedef quadtree_node<T, Index> node_t;
 
   // Should be sorted into a quadtree!!
 
-  std::vector<quadtree_node<T, Index>> nodes;
+  //std::vector<quadtree_node<T, Index>> nodes;
 
   inline T* get(glm::ivec2 p){
-    for(auto& node: nodes)
-      if(!node.oob(p)) return node.get(p);
+  //  for(auto& node: nodes)
+  //    if(!node.oob(p)) return node.get(p);
     return NULL;
   }
 
   const inline bool oob(glm::ivec2 p){
-    for(auto& node: nodes)
-      if(!node.oob(p)) return false;
+  //  for(auto& node: nodes)
+  //    if(!node.oob(p)) return false;
     return true;
   }
 
 };
+
+// Configuration Loading
+
+#ifdef SOILLIB_IO_YAML
+
+bool operator<<(node_config& conf, soil::io::yaml::node& node){
+  try {
+    conf.position.x = node["position"][0].As<int>();
+    conf.position.y = node["position"][1].As<int>();
+    conf.dimension.x = node["dimension"][0].As<int>();
+    conf.dimension.y = node["dimension"][1].As<int>();
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+bool operator<<(quad_config& conf, soil::io::yaml::node& node){
+  try {
+    auto nodes = node["nodes"];
+    for(const auto& yaml_node: nodes){
+      node_config node;
+      node << yaml_node;
+      quad_config.nodes.push_back(node);
+    }
+  } catch(soil::io::yaml::exception& e){
+    return false;
+  }
+  return true;
+}
+
+#endif
 
 }; // namespace map
 }; // namespace soil
