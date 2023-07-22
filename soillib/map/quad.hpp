@@ -131,39 +131,32 @@ struct quad {
 
 };
 
+}; // namespace map
+}; // namespace soil
+
 // Configuration Loading
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(node_config& conf, soil::io::yaml::node& node){
-  try {
-    conf.position.x = node["position"][0].As<int>();
-    conf.position.y = node["position"][1].As<int>();
-    conf.dimension.x = node["dimension"][0].As<int>();
-    conf.dimension.y = node["dimension"][1].As<int>();
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<soil::map::node_config> {
+  static soil::map::node_config As(soil::io::yaml& node){
+    soil::map::node_config config;
+    config.position = node["position"].As<glm::ivec2>();
+    config.dimension = node["dimension"].As<glm::ivec2>();
+    return config;
   }
-  return true;
-}
+};
 
-bool operator<<(quad_config& conf, soil::io::yaml::node& node){
-  try {
-    auto nodes = node["nodes"];
-    for(const auto& yaml_node: nodes){
-      node_config node;
-      node << yaml_node;
-      quad_config.nodes.push_back(node);
-    }
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<soil::map::quad_config> {
+  static soil::map::quad_config As(soil::io::yaml& node){
+    soil::map::quad_config config;
+    config.nodes = node["nodes"].As<std::vector<soil::map::node_config>>();
+    return config;
   }
-  return true;
-}
+};
 
 #endif
-
-}; // namespace map
-}; // namespace soil
 
 #endif
