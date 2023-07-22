@@ -10,7 +10,7 @@
 #include <soillib/model/surface.hpp>
 
 #include <soillib/particle/water.hpp>
-#include <soillib/particle/vegetation.hpp>
+//#include <soillib/particle/vegetation.hpp>
 
 // Type Definitions
 
@@ -75,14 +75,11 @@ struct soil::io::yaml::cast<world_c> {
 
 struct World {
 
-
-  static world_c config;
-  /*
-
   const size_t SEED;
-  soil::map::basic<cell, ind_type> map;
+  soil::map::quad<cell, ind_type> map;
   soil::pool<cell> cellpool;
 
+  static world_c config;
 
   // Parameters
 
@@ -96,7 +93,9 @@ struct World {
   {
 
     soil::dist::seed(SEED);
-    map.slice = { cellpool.get(map.area), map.dimension };
+    for(auto& node: map.nodes){
+      node.slice = { cellpool.get(node.area), node.dimension };
+    }
 
     soil::noise::sampler sampler;
     sampler.source.SetFractalOctaves(8.0f);
@@ -166,8 +165,6 @@ struct World {
     return 0.0f;
   }
 
-  */
-
 };
 
 world_c World::config;
@@ -177,8 +174,6 @@ world_c World::config;
           HYDRAULIC EROSION FUNCTIONS
 ===================================================
 */
-
-/*
 
 int n_timesteps = 0;
 
@@ -209,7 +204,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    soil::WaterParticle drop(glm::vec2(map.max - map.min)*soil::dist::vec2());
 
     while(true){
 
@@ -243,12 +238,10 @@ bool World::erode(){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
-  Vegetation::grow(*this);     //Grow Trees
+  //Vegetation::grow(*this);     //Grow Trees
 
   return true;
 
 }
-
-*/
 
 #endif

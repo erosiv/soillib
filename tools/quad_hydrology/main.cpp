@@ -29,17 +29,6 @@ int main( int argc, char* args[] ) {
     return 0;
   }
 
-  // Successfully loaded the guy!
-
-  // 
-
-  for(auto& node: World::config.map_config.nodes){
-    std::cout<<node.dimension.x<<" "<<node.dimension.y<<std::endl;
-    std::cout<<node.position.x<<" "<<node.position.y<<std::endl;
-  }
-
-  /*
-
   // Initialize World
 
   size_t SEED = time(NULL);
@@ -48,7 +37,6 @@ int main( int argc, char* args[] ) {
 
   World world(SEED);
   std::cout<<"SEED: "<<world.SEED<<std::endl;
-  std::cout<<"DIM: "<<world.map.dimension.x<<" "<<world.map.dimension.y<<std::endl;
 
   // Run Erosion
 
@@ -57,25 +45,26 @@ int main( int argc, char* args[] ) {
 
   // Export Images
 
-  soil::io::tiff discharge(world.map.dimension);
+  soil::io::tiff discharge(world.map.max - world.map.min);
   discharge.fill([&](const glm::ivec2 pos){
     return world.discharge(pos);
   });
   discharge.write("out/discharge.tiff");
 
-  soil::io::tiff height(world.map.dimension);
-  height.fill([&](const glm::ivec2 pos){
-    return world.map.get(pos)->height;
-  });
+  soil::io::tiff height(world.map.max - world.map.min);
+  for(auto [cell, pos]: world.map)
+    height[pos] = cell.height;
   height.write("out/height.tiff");
 
-  soil::io::tiff vegetation(world.map.dimension);
+/*
+  soil::io::tiff vegetation(world.map.max - world.map.min);
   vegetation.fill([&](const glm::ivec2 pos){
     return world.map.get(pos)->rootdensity;
   });
   vegetation.write("out/vegetation.tiff");
+  */
 
-  soil::io::png normal(world.map.dimension);
+  soil::io::png normal(world.map.max - world.map.min);
   normal.fill([&](const glm::ivec2 pos){
     glm::vec3 normal = world.normal(pos);
     normal = glm::vec3(normal.x, -normal.z, normal.y);
@@ -83,8 +72,6 @@ int main( int argc, char* args[] ) {
     return 255.0f*glm::vec4(normal, 1.0f);
   });
   normal.write("out/normal.png");
-
-  */
 
   return 0;
 }

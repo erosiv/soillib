@@ -12,14 +12,6 @@
 #include <soillib/particle/water.hpp>
 #include <soillib/particle/vegetation.hpp>
 
-/*
-SimpleHydrology - world.h
-
-Defines our main storage buffers,
-world updating functions for erosion
-and vegetation.
-*/
-
 // Type Definitions
 
 // Raw Interleaved Cell Data
