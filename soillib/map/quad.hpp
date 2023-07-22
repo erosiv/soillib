@@ -1,5 +1,5 @@
-#ifndef SOILLIB_MAP_QUADTREE
-#define SOILLIB_MAP_QUADTREE
+#ifndef SOILLIB_MAP_QUAD
+#define SOILLIB_MAP_QUAD
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/index.hpp>
