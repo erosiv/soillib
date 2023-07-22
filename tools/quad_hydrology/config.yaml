@@ -11,13 +11,25 @@ map:
         - 0
         - 0    
     - dimension:
+        - 512
+        - 512
+      position:
+        - 512
+        - 0
+    - dimension:
+        - 512
+        - 512
+      position:
+        - 0
+        - 512
+    - dimension:
         - 256
         - 256
       position:
         - 512
-        - 0
+        - 512
 water:
-  max-age: 1024
+  max-age: 512
   evap-rate: 0.001
   deposition-rate: 0.05
   min-vol: 0.001

@@ -92,6 +92,7 @@ struct World {
     cellpool(map.area)
   {
 
+
     soil::dist::seed(SEED);
     for(auto& node: map.nodes){
       node.slice = { cellpool.get(node.area), node.dimension };
@@ -204,7 +205,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle drop(glm::vec2(map.max - map.min)*soil::dist::vec2());
+    soil::WaterParticle drop(glm::vec2(map.min) + glm::vec2(map.max - map.min)*soil::dist::vec2());
 
     while(true){
 

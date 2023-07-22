@@ -6,6 +6,7 @@
 #include <soillib/util/slice.hpp>
 
 #include <vector>
+#include <climits>
 
 /*==================================================
 soillib map quad
@@ -113,7 +114,8 @@ struct quad {
   typedef quad_node<T, Index> node;
 
   size_t area = 0;
-  glm::ivec2 min, max;
+  glm::ivec2 min = glm::ivec2(INT_MAX);
+  glm::ivec2 max = glm::ivec2(INT_MIN);
 
   std::vector<node> nodes;
 
