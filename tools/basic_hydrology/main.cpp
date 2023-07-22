@@ -22,8 +22,11 @@ int main( int argc, char* args[] ) {
     std::cout<<"failed to load yaml configuration"<<std::endl;
   }
 
-  if(!(World::config << config.root)){
-    std::cout<<"failed to parse yaml configuration"<<std::endl;
+  try {
+    World::config = config.As<world_c>();
+  } catch(soil::io::yaml::exception e){
+    std::cout<<"failed to parse yaml configuration: "<<e.what()<<std::endl; 
+    return 0;
   }
 
   // Initialize World

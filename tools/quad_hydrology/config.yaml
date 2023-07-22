@@ -1,0 +1,38 @@
+lrate: 0.1
+scale: 80
+max-cycles: 8192
+min-basin: 0.05
+map:
+  nodes:
+    - dimension:
+        - 512
+        - 512
+      position:
+        - 0
+        - 0    
+    - dimension:
+        - 512
+        - 512
+      position:
+        - 512
+        - 0
+    - dimension:
+        - 512
+        - 512
+      position:
+        - 0
+        - 512
+    - dimension:
+        - 256
+        - 256
+      position:
+        - 512
+        - 512
+water:
+  max-age: 512
+  evap-rate: 0.001
+  deposition-rate: 0.05
+  min-vol: 0.001
+  entrainment: 10.0
+  gravity: 2.0
+  momentum-transfer: 1.0

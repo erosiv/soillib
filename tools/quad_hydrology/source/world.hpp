@@ -6,11 +6,11 @@
 #include <soillib/util/noise.hpp>
 #include <soillib/util/dist.hpp>
 
-#include <soillib/map/basic.hpp>
+#include "../../../soillib/map/quad.hpp"
 #include <soillib/model/surface.hpp>
 
 #include <soillib/particle/water.hpp>
-#include <soillib/particle/vegetation.hpp>
+//#include <soillib/particle/vegetation.hpp>
 
 // Type Definitions
 
@@ -32,7 +32,7 @@ struct cell {
 };
 
 using ind_type = soil::index::flat;
-using map_type = soil::map::basic<cell, ind_type>;
+using map_type = soil::map::quad<cell, ind_type>;
 
 // World Configuration Data
 
@@ -76,7 +76,7 @@ struct soil::io::yaml::cast<world_c> {
 struct World {
 
   const size_t SEED;
-  soil::map::basic<cell, ind_type> map;
+  soil::map::quad<cell, ind_type> map;
   soil::pool<cell> cellpool;
 
   static world_c config;
@@ -92,8 +92,11 @@ struct World {
     cellpool(map.area)
   {
 
+
     soil::dist::seed(SEED);
-    map.slice = { cellpool.get(map.area), map.dimension };
+    for(auto& node: map.nodes){
+      node.slice = { cellpool.get(node.area), node.dimension };
+    }
 
     soil::noise::sampler sampler;
     sampler.source.SetFractalOctaves(8.0f);
@@ -202,7 +205,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    soil::WaterParticle drop(glm::vec2(map.min) + glm::vec2(map.max - map.min)*soil::dist::vec2());
 
     while(true){
 
@@ -236,7 +239,7 @@ bool World::erode(){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
-  Vegetation::grow(*this);     //Grow Trees
+  //Vegetation::grow(*this);     //Grow Trees
 
   return true;
 

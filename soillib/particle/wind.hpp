@@ -136,8 +136,8 @@ bool WindParticle::move(T& world, WindParticle_c& param){
 
 //  World::cascade(ipos);
   soil::phys::cascade_c::maxdiff = 0.002;
-  soil::phys::cascade(world.map, ipos);
-  soil::phys::cascade(world.map, ipos);
+  soil::phys::cascade(world, ipos);
+  soil::phys::cascade(world, ipos);
 
   return true;
 
@@ -154,17 +154,17 @@ bool WindParticle::interact(T& map, WindParticle_c& param){
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(WindParticle_c& conf, soil::io::yaml::node& node){
-  try {
-    conf.maxAge = node["max-age"].As<int>();
-    conf.boundaryLayer = node["boundary-layer"].As<float>();
-    conf.suspension = node["suspension"].As<float>();
-    conf.gravity = node["gravity"].As<float>();
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<WindParticle_c> {
+  static WindParticle_c As(soil::io::yaml& node){
+    WindParticle_c config;
+    config.maxAge = node["max-age"].As<int>();
+    config.boundaryLayer = node["boundary-layer"].As<float>();
+    config.suspension = node["suspension"].As<float>();
+    config.gravity = node["gravity"].As<float>();
+    return config;
   }
-  return true;
-}
+};
 
 #endif
 

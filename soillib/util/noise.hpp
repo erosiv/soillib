@@ -74,22 +74,20 @@ struct sampler {
 
 #ifdef SOILLIB_IO_YAML
 
-bool operator<<(soil::noise::sampler_t& conf, soil::io::yaml::node& node){
-  try {
-    conf.octaves << node["octaves"];
-    conf.frequency << node["frequency"];
-    conf.gain << node["gain"];
-    conf.lacunarity << node["lacunarity"];
-    conf.min << node["min"];
-    conf.max << node["max"];
-    conf.bias << node["bias"];
-    conf.scale << node["scale"];
-  } catch(soil::io::yaml::exception& e){
-    return false;
+template<>
+struct soil::io::yaml::cast<soil::noise::sampler_t> {
+  static soil::noise::sampler_t As(soil::io::yaml& node){
+    soil::noise::sampler_t sampler;
+    sampler.frequency = node["frequency"].As<float>();
+    sampler.octaves =  node["octaves"].As<int>();
+    sampler.lacunarity = node["lacunarity"].As<float>();
+    sampler.min = node["min"].As<float>();
+    sampler.max = node["max"].As<float>();
+    sampler.bias = node["bias"].As<float>();
+    sampler.scale = node["scale"].As<float>();
+    return sampler;
   }
-  return true;
-}
+};
 
 #endif
-
 #endif
