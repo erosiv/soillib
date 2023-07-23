@@ -49,30 +49,29 @@ template<typename T> struct slice_t {
 template<typename T, soil::index_t Index>
 struct slice_iterator {
 
-  buf_iterator<T> iter = NULL;
-  
+  buf_iterator<T> iter;  
   glm::ivec2 res;
-  int ind = 0;
 
-  slice_iterator() noexcept : iter(NULL){};
-  slice_iterator(const buf_iterator<T>& iter, const glm::ivec2 res) noexcept : iter(iter), res(res){};
+  slice_iterator() noexcept : iter(NULL, 0){};
+  slice_iterator(const buf_iterator<T>& iter, const glm::ivec2 res) noexcept : iter(iter),res(res){};
 
   // Base Operators
 
+  const slice_t<T> operator*() noexcept {
+    return {*iter, Index::unflatten(iter.ind, res)};
+  };
+
   const slice_iterator<T, Index>& operator++() noexcept {
     ++iter;
-    ++ind;
     return *this;
   };
 
-  const bool operator!=(const slice_iterator<T, Index> &other) const noexcept {
-    return this->iter != other.iter;
+  const bool operator==(const slice_iterator<T, Index>& other) const noexcept {
+    return this->iter == other.iter;
   };
 
-  // Dereference the Pointer to Slice-T
-
-  const slice_t<T> operator*() noexcept {
-    return {*(iter.iter), Index::unflatten(ind, res)};
+  const bool operator!=(const slice_iterator<T, Index> &other) const noexcept {
+    return !(*this == other);
   };
 
 };

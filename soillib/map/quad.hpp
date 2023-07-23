@@ -34,7 +34,6 @@ struct quad_config {
 
 // Base Templated Quad-Node w. Iterator
 
-template<typename T, soil::index_t Index> struct quad_node_iterator;
 template<typename T, soil::index_t Index>
 struct quad_node {
 
@@ -66,40 +65,8 @@ struct quad_node {
     return position + dimension;
   }
 
-  quad_node_iterator<T, Index> begin() const noexcept { return quad_node_iterator<T, Index>(position, dimension, slice.begin()); }
-  quad_node_iterator<T, Index> end()   const noexcept { return quad_node_iterator<T, Index>(position, dimension, slice.end()); }
-
-};
-
-template<typename T, soil::index_t Index>
-struct quad_node_iterator {
-
-  slice_iterator<T, Index> iter = NULL;
-
-  glm::ivec2 position;
-  glm::ivec2 dimension;
-  int ind = 0;
-
-  quad_node_iterator() noexcept : iter(NULL){};
-  quad_node_iterator( const glm::ivec2 position, const::glm::ivec2 dimension, const slice_iterator<T, Index>& iter) noexcept : 
-    position(position),dimension(dimension),iter(iter){};
-
-  // Base Operators
-
-  const quad_node_iterator<T, Index>& operator++() noexcept {
-    ++iter;
-    ++ind;
-    return *this;
-  };
-
-  const bool operator!=(const quad_node_iterator<T, Index> &other) const noexcept {
-    return this->iter != other.iter;
-  };
-
-  const slice_t<T> operator*() noexcept {
-    slice_t<T> deref = *iter;
-    return {deref.start, deref.pos + position};
-  };
+  slice_iterator<T, Index> begin() const noexcept { return slice.begin(); }
+  slice_iterator<T, Index> end()   const noexcept { return slice.end(); }
 
 };
 
@@ -159,27 +126,35 @@ struct quad_iterator {
   typedef quad_node<T, Index> node;
   
   std::vector<node>::const_iterator iter = NULL;
-  quad_node_iterator<T, Index> node_iter;
+  slice_iterator<T, Index> slice_iter;
 
   quad_iterator() noexcept : iter(NULL){};
   quad_iterator(const std::vector<node>::const_iterator& iter) noexcept : 
-    iter(iter),node_iter(iter->begin()){};
+    iter(iter),slice_iter(iter->begin()){};
 
   // Base Operators
 
   const quad_iterator<T, Index>& operator++() noexcept {
-    if(++node_iter != iter->end())
-      return *this;
-    node_iter = (++iter)->begin();
-    return *this;  
+    if(++slice_iter == iter->end()){
+      ++iter;
+      slice_iter = iter->begin();
+    }
+    return *this;
+  };
+
+  const bool operator==(const quad_iterator<T, Index> &other) const noexcept {
+    if(iter != other.iter) return false;
+    if(slice_iter != other.slice_iter) return false;
+    return true;
   };
 
   const bool operator!=(const quad_iterator<T, Index> &other) const noexcept {
-    return node_iter != other.iter->end();
+    return !(*this == other);
   };
 
   const slice_t<T> operator*() noexcept {
-      return *node_iter;
+    slice_t<T> deref = *slice_iter;
+    return {deref.start, deref.pos + iter->position};
   };
 
 };
