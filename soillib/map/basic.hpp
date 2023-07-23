@@ -31,7 +31,6 @@ struct basic_config {
 
 // Basic Map
 
-template<typename T, soil::index_t Index> struct basic_iterator;
 template<typename T, soil::index_t Index = soil::index::flat>
 struct basic {
 
@@ -58,37 +57,8 @@ struct basic {
     return dimension;
   }
 
-  basic_iterator<T, Index> begin() const noexcept { return basic_iterator<T, Index>(slice.begin(), dimension); }
-  basic_iterator<T, Index> end()   const noexcept { return basic_iterator<T, Index>(slice.end(), dimension); }
-
-};
-
-template<typename T, soil::index_t Index>
-struct basic_iterator {
-
-  const glm::ivec2 res;
-
-  slice_iterator<T, Index> iter = NULL;
-  int ind = 0;
-
-  basic_iterator() noexcept : iter(NULL){};
-  basic_iterator(const slice_iterator<T, Index>& iter, const glm::ivec2 res) noexcept : iter(iter), res(res){};
-
-  // Base Operators
-
-  const basic_iterator<T, Index>& operator++() noexcept {
-    ++iter;
-    ++ind;
-    return *this;
-  };
-
-  const bool operator!=(const basic_iterator<T, Index> &other) const noexcept {
-    return this->iter != other.iter;
-  };
-
-  const slice_t<T> operator*() noexcept {
-      return *iter;
-  };
+  slice_iterator<T, Index> begin() const noexcept { return slice.begin(); }
+  slice_iterator<T, Index> end()   const noexcept { return slice.end(); }
 
 };
 

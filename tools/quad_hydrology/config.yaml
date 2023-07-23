@@ -28,6 +28,24 @@ map:
       position:
         - 576
         - 320
+    - dimension:
+        - 32
+        - 32
+      position:
+        - 576
+        - 288
+    - dimension:
+        - 16
+        - 16
+      position:
+        - 608
+        - 288
+    - dimension:
+        - 8
+        - 8
+      position:
+        - 616
+        - 304
 water:
   max-age: 512
   evap-rate: 0.001
