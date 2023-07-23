@@ -17,7 +17,7 @@ Normal Shaded Heightmap, 3D View (see: `tools/view`)
 Relief Shaded Heightmap with Aerial Perspective (see: `tools/map_relief`)
 
 <p align="center">
-<img alt="Erosion Normal Map with Non-Regular Map Shape" src="https://github.com/erosiv/soillib/assets/6532707/a144b38c-5e0b-4940-b340-12da4f92aec4" width="75%" align="center"/>
+<img alt="Erosion Normal Map with Non-Regular Map Shape" src="https://github.com/erosiv/soillib/assets/6532707/737d417d-a308-48cd-94f4-eef43a02bd1b" width="75%" align="center"/>
 </p>
 
 Irregular Map Shape Normal Map (see: `tools/quad_hydrology`)
