@@ -121,7 +121,7 @@ struct pool_t {
       return NULL;
 
     T* E = free.back();
-    try{ new (E)T(forward<Args>(args)...); }
+    try{ new (E)T(std::forward<Args>(args)...); }
     catch(...) { throw; }
     free.pop_back();
     return E;
