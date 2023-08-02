@@ -7,14 +7,19 @@ map:
     - 960
     - 960
 matrix:
-  colorB:
-    - 255
-    - 127
-    - 1
-  colorA:
-    - 127
-    - 1
-    - 255
+  color:
+    - # color 0
+      - 37
+      - 22
+      - 5
+    - # color 1
+      - 201
+      - 93
+      - 99
+    - # color 2
+      - 247
+      - 219
+      - 167
 water:
   max-age: 1024
   evap-rate: 0.001

@@ -7,7 +7,7 @@
 #include <soillib/util/dist.hpp>
 
 #include <soillib/map/basic.hpp>
-#include <soillib/matrix/binary.hpp>
+#include <soillib/matrix/mixture.hpp>
 
 #include <soillib/model/surface.hpp>
 
@@ -18,7 +18,7 @@
 
 // Raw Interleaved Cell Data
 
-using matrix_type = soil::matrix::binary;
+using matrix_type = soil::matrix::mixture<3>;
 
 struct cell {
 
@@ -110,7 +110,6 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = sampler.get(glm::vec3(pos.x, pos.y, SEED%10000)/glm::vec3(512, 512, 1.0f));
-      cell.matrix.mixture = 0.5f + 0.5f*sampler.get(glm::vec3(pos.x, pos.y, (SEED+1)%10000)/glm::vec3(512, 512, 1.0f));
     }
 
     // Normalize
@@ -124,7 +123,12 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = (cell.height - min)/(max - min);
-      cell.matrix.mixture = cell.height;
+
+      // Initial Soil Distribution
+      int n = floor(2.0f*cell.height);
+      float f = (2.0f*cell.height - (float)n);
+      cell.matrix.weight[n] = 1.0f-f;
+      cell.matrix.weight[n+1] = f;
     }
 
   }
@@ -155,7 +159,7 @@ struct World {
     if(map.oob(p))
       return;
 
-    const float mrate = 0.001f;
+    const float mrate = 0.0025f;
 
     if(h > 0){
       float s = h/World::config.scale + mrate;
