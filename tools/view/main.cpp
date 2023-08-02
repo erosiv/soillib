@@ -30,6 +30,7 @@ int main( int argc, char* args[] ) {
   soil::io::tiff height((path + "/height.tiff").c_str());
   soil::io::tiff discharge((path + "/discharge.tiff").c_str());
   soil::io::png normal((path + "/normal.png").c_str());
+  soil::io::png albedo((path + "/albedo.png").c_str());
 
   // Create Map
 
@@ -53,6 +54,7 @@ int main( int argc, char* args[] ) {
 	cam::far = 500.0f;
 	cam::rot = 45.0f;
 	cam::roty = 45.0f;
+  cam::turnrate = 0.1f;
 	cam::init(10, cam::ORTHO);
 	cam::update();
 
@@ -79,6 +81,10 @@ int main( int argc, char* args[] ) {
     return glm::vec4(normal[p]);
   }, map.dimension));
 
+  Texture albedoMap(image::make([&](const glm::ivec2 p){
+    return glm::vec4(albedo[p]);
+  }, map.dimension));
+
 	Tiny::view.pipeline = [&](){											//Setup Drawing Pipeline
 
 		Tiny::view.target(color::white);								//Target Screen
@@ -87,7 +93,8 @@ int main( int argc, char* args[] ) {
 		defaultShader.uniform("model", mesh.model);			//Set Model Matrix
     defaultShader.uniform("vp", cam::vp);						//View Projection Matrix
     defaultShader.texture("dischargeMap", dischargeMap);						//View Projection Matrix
-    defaultShader.texture("normalMap", normalMap);						//View Projection Matrix
+    defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
+    defaultShader.texture("albedoMap", albedoMap);            //View Projection Matrix
     defaultShader.uniform("dimension", glm::vec2(map.dimension));						//View Projection Matrix
 		mesh.render(GL_TRIANGLES);													//Render Model with Lines
 

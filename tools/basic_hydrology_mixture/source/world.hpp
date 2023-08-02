@@ -51,6 +51,7 @@ struct world_c {
   float minbasin = 0.1f;
 
   map_type::config map_config;
+  matrix_type::config matrix_config;
   soil::WaterParticle_c water_config;
 
 };
@@ -71,8 +72,8 @@ struct soil::io::yaml::cast<world_c> {
     config.minbasin = node["min-basin"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
+    config.matrix_config = node["matrix"].As<matrix_type::config>();
     config.water_config = node["water"].As<soil::WaterParticle_c>();
-    
     return config;
   
   }
@@ -123,8 +124,9 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = (cell.height - min)/(max - min);
-      if(cell.matrix.mixture < 0) cell.matrix.mixture = 0;
-      if(cell.matrix.mixture > 1) cell.matrix.mixture = 1;
+      cell.matrix.mixture = floor(15.0f*cell.height)/16.0f;
+    //  if(cell.matrix.mixture < 0) cell.matrix.mixture = 0;
+    //  if(cell.matrix.mixture > 1) cell.matrix.mixture = 1;
     }
 
   }
@@ -159,7 +161,7 @@ struct World {
 
     if(h > 0){
       float s = h/World::config.scale + mrate;
-      map.get(p)->matrix.mixture = (h/World::config.scale*m.mixture + mrate*map.get(p)->matrix.mixture)/s;
+      map.get(p)->matrix = (m*h/World::config.scale + matrix(p)*mrate)/s;
     }
 
     map.get(p)->height += h/World::config.scale;

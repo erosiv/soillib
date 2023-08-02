@@ -6,6 +6,15 @@ map:
   dimension:
     - 960
     - 960
+matrix:
+  colorB:
+    - 255
+    - 1
+    - 1
+  colorA:
+    - 1
+    - 1
+    - 255
 water:
   max-age: 1024
   evap-rate: 0.001
