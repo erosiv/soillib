@@ -28,7 +28,6 @@ Irregular Map Shape Normal Map (see: `tools/quad_hydrology`)
 
 Binary Soil-Mixture Transport Albedo Map (see: `tools/basic_hydrology_binary`)
 
-![albedo]()
 ## Description
 
 `soillib` is a unified C++20 library for procedural geomorphology simulation.
