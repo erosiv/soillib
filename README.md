@@ -22,6 +22,13 @@ Relief Shaded Heightmap with Aerial Perspective (see: `tools/map_relief`)
 
 Irregular Map Shape Normal Map (see: `tools/quad_hydrology`)
 
+<p align="center">
+<img alt="Erosion Normal Map with Non-Regular Map Shape" src="https://github.com/erosiv/soillib/assets/6532707/86b7e873-bd4c-4035-8b8e-fe37dde62a71" width="75%" align="center"/>
+</p>
+
+Binary Soil-Mixture Transport Albedo Map (see: `tools/basic_hydrology_binary`)
+
+![albedo]()
 ## Description
 
 `soillib` is a unified C++20 library for procedural geomorphology simulation.
