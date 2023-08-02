@@ -9,13 +9,18 @@ namespace phys {
 
 // Cascadable Map Constraints
 
+template<typename M>
+concept matrix_t = true;
+
 template<typename T>
 concept cascade_t = requires(T t){
   // Measurement Methods
   { t.height(glm::ivec2()) } -> std::same_as<float>;
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
+  // Soil Matrix Retrieval
+  { t.matrix(glm::ivec2()) };
   // Add Method
-  { t.add(glm::ivec2(), float()) } -> std::same_as<void>;
+  //{ t.add(glm::ivec2(), float(), matrix_t) } -> std::same_as<void>;
 };
 
 // Cascading Parameters
@@ -28,7 +33,7 @@ struct cascade_c {
 float cascade_c::maxdiff = 0.8f;
 float cascade_c::settling = 1.0f;
 
-template<cascade_t T>
+template<typename M, cascade_t T>
 void cascade(T& map, const glm::ivec2 ipos){
 
   // Get Non-Out-of-Bounds Neighbors
@@ -48,6 +53,7 @@ void cascade(T& map, const glm::ivec2 ipos){
     glm::ivec2 pos;
     float h;
     float d;
+    M matrix;
   };
 
   static Point sn[8];
@@ -60,7 +66,7 @@ void cascade(T& map, const glm::ivec2 ipos){
     if(map.oob(npos))
       continue;
 
-    sn[num++] = { npos, map.height(npos), length(glm::vec2(nn)) };
+    sn[num++] = { npos, map.height(npos), length(glm::vec2(nn)), map.matrix(npos) };
 
   }
 
@@ -70,6 +76,8 @@ void cascade(T& map, const glm::ivec2 ipos){
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
   h_ave /= (float)num;
+
+  M matrix = map.matrix(ipos);
 
   for (int i = 0; i < num; ++i) {
 
@@ -91,12 +99,12 @@ void cascade(T& map, const glm::ivec2 ipos){
 
     //Cap by Maximum Transferrable Amount
     if(diff > 0) {
-      map.add(ipos,-transfer);
-      map.add(npos, transfer);
+      map.add(ipos,-transfer, matrix);
+      map.add(npos, transfer, matrix);
     }
     else {
-      map.add(ipos, transfer);
-      map.add(npos,-transfer);
+      map.add(ipos, transfer, sn[i].matrix);
+      map.add(npos,-transfer, sn[i].matrix);
     }
 
   }

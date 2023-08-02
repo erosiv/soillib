@@ -73,5 +73,13 @@ int main( int argc, char* args[] ) {
   });
   normal.write("out/normal.png");
 
+  soil::io::png albedo(world.map.dimension);
+  albedo.fill([&](const glm::ivec2 pos){
+    float type = world.matrix(pos).mixture;
+    if(type > 1) std::cout<<type<<std::endl;
+    return 255.0f*glm::vec4(glm::mix(glm::vec3(1,0,0), glm::vec3(0,0,1), type), 1.0f);
+  });
+  albedo.write("out/albedo.png");
+
   return 0;
 }

@@ -15,12 +15,13 @@ concept WaterParticle_t = requires(T t){
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
   { t.height(glm::ivec2()) } -> std::same_as<float>;
   { t.normal(glm::ivec2()) } -> std::convertible_to<glm::vec3>;
+  { t.matrix(glm::ivec2()) };
   // Specific Physics Requirements
   { t.discharge(glm::ivec2()) } -> std::same_as<float>;
   { t.momentum(glm::ivec2()) } -> std::convertible_to<glm::vec2>;
   { t.resistance(glm::ivec2()) } -> std::same_as<float>;
   // Add Method
-  { t.add(glm::ivec2(), float()) } -> std::same_as<void>;
+  //{ t.add(glm::ivec2(), float()) } -> std::same_as<void>;
 };
 
 // WaterParticle Properties
@@ -39,9 +40,11 @@ struct WaterParticle_c {
 
 // WaterParticle Definition
 
+template<typename M>
 struct WaterParticle: soil::Particle {
 
-  WaterParticle(glm::vec2 _pos){ pos = _pos; }   // Construct at Position
+  WaterParticle(glm::vec2 pos)
+    :pos(pos){}   // Construct at Position
 
   // Properties
 
@@ -51,10 +54,11 @@ struct WaterParticle: soil::Particle {
 
   float volume = 1.0;                   // Droplet Water Volume
   float sediment = 0.0;                 // Droplet Sediment Concentration
+  M matrix;
 
   // Main Methods
 
-  template<WaterParticle_t T>
+  template<typename T>
   bool move(T& world, WaterParticle_c& param);
 
   template<typename T>
@@ -62,8 +66,9 @@ struct WaterParticle: soil::Particle {
 
 };
 
-template<WaterParticle_t T>
-bool WaterParticle::move(T& world, WaterParticle_c& param){
+template<typename M>
+template<typename T>
+bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
 
   // Termination Checks
 
@@ -72,12 +77,14 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
     return false;
 
   if(age > param.maxAge){
-    world.add(ipos, sediment);
+    world.add(ipos, sediment, matrix);
+    soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
   if(volume < param.minVol){
-    world.add(ipos, sediment);
+    world.add(ipos, sediment, matrix);
+    soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
@@ -108,8 +115,9 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
 
 }
 
+template<typename M>
 template<typename T>
-bool WaterParticle::interact(T& world, WaterParticle_c& param){
+bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // Termination Checks
 
@@ -141,8 +149,12 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
   if(effD < 0)
     effD = 0;
 
+  if(effD*cdiff >= 0){
+    matrix.mixture = (matrix.mixture*sediment + effD*cdiff*world.matrix(ipos).mixture) / (sediment + effD*cdiff);
+  }
   sediment += effD*cdiff;
-  world.add(ipos, -effD*cdiff);
+
+  world.add(ipos, -effD*cdiff, matrix);
 
   //Evaporate (Mass Conservative)
   sediment /= (1.0-param.evapRate);
@@ -154,7 +166,7 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
     return false;
   }
 
-  soil::phys::cascade(world, pos);
+  soil::phys::cascade<M>(world, pos);
 
   age++;
   return true;

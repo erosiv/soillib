@@ -9,7 +9,7 @@
 #include <soillib/map/layer.hpp>
 #include <soillib/model/surface.hpp>
 
-#include <soillib/particle/water.hpp>
+#include "../../../soillib/particle/water_new.hpp"
 //#include <soillib/particle/vegetation.hpp>
 
 // Type Definitions
@@ -33,9 +33,7 @@ struct cell {
 struct segment {
 
   float height;
-
-  segment(){}
-  segment(float h):height(h){}
+  float type;
 
 };
 
@@ -112,7 +110,13 @@ struct World {
     sampler.cfg.max = 2.0f;
 
     for(auto [cell, pos]: map){
-      cell.seg = segpool.get(sampler.get(glm::vec3(pos.x, pos.y, SEED%10000)/glm::vec3(512, 512, 1.0f)));
+      float height_s = sampler.get(glm::vec3(pos.x, pos.y, (SEED+0)%10000)/glm::vec3(512, 512, 1.0f));
+      float type_s = sampler.get(glm::vec3(pos.x, pos.y, (SEED+1)%10000)/glm::vec3(512, 512, 1.0f));
+      segment seg = {
+        height_s,
+        0.5f + 0.5f*type_s
+      };
+      cell.top = segpool.get(seg);
     }
 
     // Normalize
@@ -120,12 +124,14 @@ struct World {
     float min = 0.0f;
     float max = 0.0f;
     for(auto [cell, pos]: map){
-      if(cell.seg->height < min) min = cell.seg->height;
-      if(cell.seg->height > max) max = cell.seg->height;
+      if(cell.top->height < min) min = cell.top->height;
+      if(cell.top->height > max) max = cell.top->height;
     }
 
     for(auto [cell, pos]: map){
-      cell.seg->height = (cell.seg->height - min)/(max - min);
+      cell.top->height = (cell.top->height - min)/(max - min);
+      if(cell.top->type > 1) cell.top->type = 1;
+      if(cell.top->type < 0) cell.top->type = 0;
     }
 
   }
@@ -142,13 +148,30 @@ struct World {
 
   const inline float height(glm::ivec2 p){
     if(!map.oob(p))
-      return World::config.scale*map.get(p)->seg->height;
+      return World::config.scale*map.top(p)->height;
     return 0.0f;
   }
 
-  const inline void add(glm::ivec2 p, float h){
+  const inline float type(glm::ivec2 p){
     if(!map.oob(p))
-      map.get(p)->seg->height += h/World::config.scale;
+      return map.top(p)->type;
+    return 0.0f;
+  }
+
+  const inline void add(glm::ivec2 p, float h, float t){
+
+    if(map.oob(p))
+      return;
+
+    const float mrate = 0.0025f;
+
+    if(h > 0){
+      float s = h/World::config.scale + mrate;
+      map.top(p)->type = (h/World::config.scale*t + mrate*map.top(p)->type)/s;
+    }
+
+    map.top(p)->height += h/World::config.scale;
+
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
@@ -214,6 +237,7 @@ bool World::erode(){
     //Spawn New Particle
 
     soil::WaterParticle drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    drop.type = this->type(drop.pos);
 
     while(true){
 

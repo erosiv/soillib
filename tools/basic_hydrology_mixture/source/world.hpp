@@ -7,7 +7,7 @@
 #include <soillib/util/dist.hpp>
 
 #include <soillib/map/basic.hpp>
-#include <soillib/matrix/singular.hpp>
+#include <soillib/matrix/binary.hpp>
 
 #include <soillib/model/surface.hpp>
 
@@ -18,9 +18,11 @@
 
 // Raw Interleaved Cell Data
 
-using matrix_type = soil::matrix::singular;
+using matrix_type = soil::matrix::binary;
 
 struct cell {
+
+  matrix_type matrix;
 
   float height;
 
@@ -107,6 +109,7 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = sampler.get(glm::vec3(pos.x, pos.y, SEED%10000)/glm::vec3(512, 512, 1.0f));
+      cell.matrix.mixture = 0.5f + 0.5f*sampler.get(glm::vec3(pos.x, pos.y, (SEED+1)%10000)/glm::vec3(512, 512, 1.0f));
     }
 
     // Normalize
@@ -120,6 +123,8 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = (cell.height - min)/(max - min);
+      if(cell.matrix.mixture < 0) cell.matrix.mixture = 0;
+      if(cell.matrix.mixture > 1) cell.matrix.mixture = 1;
     }
 
   }
@@ -141,12 +146,23 @@ struct World {
   }
 
   const inline matrix_type matrix(glm::ivec2 p){
+    if(!map.oob(p))
+      return map.get(p)->matrix;
     return matrix_type();
   }
 
   const inline void add(glm::ivec2 p, float h, matrix_type m){
-    if(!map.oob(p))
-      map.get(p)->height += h/World::config.scale;
+    if(map.oob(p))
+      return;
+
+    const float mrate = 0.0025f;
+
+    if(h > 0){
+      float s = h/World::config.scale + mrate;
+      map.get(p)->matrix.mixture = (h/World::config.scale*m.mixture + mrate*map.get(p)->matrix.mixture)/s;
+    }
+
+    map.get(p)->height += h/World::config.scale;
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){

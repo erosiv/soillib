@@ -73,9 +73,10 @@ template<typename S> struct layer_segment_iterator {
 template<typename T, typename S>
 struct layer_cell: public T {
 
-  layer_segment<S>* seg;
- // layer_segment_iterator<S> begin() const noexcept { return layer_segment_iterator<S>(seg); }
- // layer_segment_iterator<S> end()   const noexcept { return layer_segment_iterator<S>(NULL); }
+  layer_segment<S>* top;
+
+  layer_segment_iterator<S> begin() const noexcept { return layer_segment_iterator<S>(top); }
+  layer_segment_iterator<S> end()   const noexcept { return layer_segment_iterator<S>(NULL); }
 
 };
 
@@ -86,6 +87,7 @@ struct layer {
 
   typedef Index index;
   typedef layer_config config;
+
   typedef layer_segment<S> segment;
   typedef layer_cell<T, S> cell;
 
@@ -93,10 +95,13 @@ struct layer {
   const size_t area = dimension.x*dimension.y;
 
   soil::slice<cell, Index> slice;
-  //soil::slice<segment, Index> slice_seg;
 
   layer(const glm::ivec2 dimension):dimension(dimension){}
   layer(const config config):dimension(config.dimension){}
+
+  inline segment* top(const glm::ivec2 p) noexcept {
+    return slice.get(p)->top;
+  }
 
   inline cell* get(const glm::ivec2 p) noexcept {
     return slice.get(p);
