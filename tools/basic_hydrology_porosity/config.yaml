@@ -1,0 +1,30 @@
+lrate: 0.1
+scale: 80
+max-cycles: 8192
+min-basin: 0.05
+map:
+  dimension:
+    - 960
+    - 960
+matrix:
+  color:
+    - # color 0
+      - 37
+      - 22
+      - 5
+    - # color 1
+      - 201
+      - 93
+      - 99
+    - # color 2
+      - 247
+      - 219
+      - 167
+water:
+  max-age: 1024
+  evap-rate: 0.001
+  deposition-rate: 0.05
+  min-vol: 0.001
+  entrainment: 10.0
+  gravity: 2.0
+  momentum-transfer: 1.0
