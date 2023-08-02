@@ -1,0 +1,25 @@
+#ifndef SOILLIB_MATRIX_SINGULAR
+#define SOILLIB_MATRIX_SINGULAR
+
+/*==========================
+soillib unary soil matrix:
+single soil type descriptor
+==========================*/
+
+namespace soil {
+namespace matrix {
+
+struct singular {
+
+  singular(){}
+
+  const singular operator+(const singular rhs) const { return *this; }
+  const singular operator/(const float rhs) const { return *this; }
+  const singular operator*(const float rhs) const { return *this; }
+
+};
+
+} // end of namespace matrix
+} // end of namespace soil
+
+#endif // SOILLIB_MATRIX_SINGULAR

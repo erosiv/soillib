@@ -9,18 +9,16 @@ namespace soil {
 
 // Hydrologically Erodable Map Constraints
 
-template<typename T>
+template<typename T, typename M>
 concept WaterParticle_t = requires(T t){
-  // Measurement Methods
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
   { t.height(glm::ivec2()) } -> std::same_as<float>;
   { t.normal(glm::ivec2()) } -> std::convertible_to<glm::vec3>;
-  // Specific Physics Requirements
+  { t.matrix(glm::ivec2()) } -> std::same_as<M>;
+  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<void>;
   { t.discharge(glm::ivec2()) } -> std::same_as<float>;
   { t.momentum(glm::ivec2()) } -> std::convertible_to<glm::vec2>;
   { t.resistance(glm::ivec2()) } -> std::same_as<float>;
-  // Add Method
-  { t.add(glm::ivec2(), float()) } -> std::same_as<void>;
 };
 
 // WaterParticle Properties
@@ -39,9 +37,11 @@ struct WaterParticle_c {
 
 // WaterParticle Definition
 
+template<typename M>
 struct WaterParticle: soil::Particle {
 
-  WaterParticle(glm::vec2 _pos){ pos = _pos; }   // Construct at Position
+  WaterParticle(glm::vec2 pos)
+    :pos(pos){}   // Construct at Position
 
   // Properties
 
@@ -51,10 +51,11 @@ struct WaterParticle: soil::Particle {
 
   float volume = 1.0;                   // Droplet Water Volume
   float sediment = 0.0;                 // Droplet Sediment Concentration
+  M matrix;
 
   // Main Methods
 
-  template<WaterParticle_t T>
+  template<typename T>
   bool move(T& world, WaterParticle_c& param);
 
   template<typename T>
@@ -62,8 +63,9 @@ struct WaterParticle: soil::Particle {
 
 };
 
-template<WaterParticle_t T>
-bool WaterParticle::move(T& world, WaterParticle_c& param){
+template<typename M>
+template<typename T>
+bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
 
   // Termination Checks
 
@@ -72,12 +74,14 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
     return false;
 
   if(age > param.maxAge){
-    world.add(ipos, sediment);
+    world.add(ipos, sediment, matrix);
+    soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
   if(volume < param.minVol){
-    world.add(ipos, sediment);
+    world.add(ipos, sediment, matrix);
+    soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
@@ -108,8 +112,9 @@ bool WaterParticle::move(T& world, WaterParticle_c& param){
 
 }
 
+template<typename M>
 template<typename T>
-bool WaterParticle::interact(T& world, WaterParticle_c& param){
+bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // Termination Checks
 
@@ -133,7 +138,7 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
   if(c_eq < 0)
     c_eq = 0;
 
-  float cdiff = (c_eq - sediment);
+  float cdiff = (c_eq*volume - sediment);
 
   // Effective Parameter Set
 
@@ -141,20 +146,33 @@ bool WaterParticle::interact(T& world, WaterParticle_c& param){
   if(effD < 0)
     effD = 0;
 
-  sediment += effD*cdiff;
-  world.add(ipos, -effD*cdiff);
+  // Compute Actual Mass Transfer
 
-  //Evaporate (Mass Conservative)
-  sediment /= (1.0-param.evapRate);
-  volume *= (1.0-param.evapRate);
+  // Add Sediment to Map
 
-  //Out-Of-Bounds
-  if(world.oob(pos)){
-    volume = 0.0;
-    return false;
+  if(effD*cdiff < 0){
+
+    if(effD*cdiff < -sediment) // Only Use Available
+      cdiff = -sediment/effD;
+
+  } else if(effD*cdiff > 0){
+
+    matrix = (matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
+
   }
 
-  soil::phys::cascade(world, pos);
+  // Add Sediment Mass to Map, Particle
+
+  sediment += effD*cdiff;
+  world.add(ipos, -effD*cdiff, matrix);
+
+  //Evaporate (Mass Conservative)
+
+  volume *= (1.0-param.evapRate);
+
+  // New Position Out-Of-Bounds
+
+  soil::phys::cascade<M>(world, ipos);
 
   age++;
   return true;

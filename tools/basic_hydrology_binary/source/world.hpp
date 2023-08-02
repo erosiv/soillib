@@ -7,7 +7,7 @@
 #include <soillib/util/dist.hpp>
 
 #include <soillib/map/basic.hpp>
-#include <soillib/matrix/singular.hpp>
+#include <soillib/matrix/binary.hpp>
 
 #include <soillib/model/surface.hpp>
 
@@ -18,7 +18,11 @@
 
 // Raw Interleaved Cell Data
 
+using matrix_type = soil::matrix::binary;
+
 struct cell {
+
+  matrix_type matrix;
 
   float height;
 
@@ -36,7 +40,6 @@ struct cell {
 
 using ind_type = soil::index::flat;
 using map_type = soil::map::basic<cell, ind_type>;
-using mat_type = soil::matrix::singular;
 
 // World Configuration Data
 
@@ -48,6 +51,7 @@ struct world_c {
   float minbasin = 0.1f;
 
   map_type::config map_config;
+  matrix_type::config matrix_config;
   soil::WaterParticle_c water_config;
 
 };
@@ -68,8 +72,8 @@ struct soil::io::yaml::cast<world_c> {
     config.minbasin = node["min-basin"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
+    config.matrix_config = node["matrix"].As<matrix_type::config>();
     config.water_config = node["water"].As<soil::WaterParticle_c>();
-    
     return config;
   
   }
@@ -106,6 +110,7 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = sampler.get(glm::vec3(pos.x, pos.y, SEED%10000)/glm::vec3(512, 512, 1.0f));
+      cell.matrix.mixture = 0.5f + 0.5f*sampler.get(glm::vec3(pos.x, pos.y, (SEED+1)%10000)/glm::vec3(512, 512, 1.0f));
     }
 
     // Normalize
@@ -119,6 +124,7 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = (cell.height - min)/(max - min);
+      cell.matrix.mixture = cell.height;
     }
 
   }
@@ -139,13 +145,24 @@ struct World {
     return 0.0f;
   }
 
-  inline mat_type matrix(glm::ivec2 p){
-    return mat_type();
+  inline matrix_type matrix(glm::ivec2 p){
+    if(!map.oob(p))
+      return map.get(p)->matrix;
+    return matrix_type();
   }
 
-  const inline void add(glm::ivec2 p, float h, mat_type m){
-    if(!map.oob(p))
-      map.get(p)->height += h/World::config.scale;
+  const inline void add(glm::ivec2 p, float h, matrix_type m){
+    if(map.oob(p))
+      return;
+
+    const float mrate = 0.001f;
+
+    if(h > 0){
+      float s = h/World::config.scale + mrate;
+      map.get(p)->matrix = (m*h/World::config.scale + matrix(p)*mrate)/s;
+    }
+
+    map.get(p)->height += h/World::config.scale;
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
@@ -210,7 +227,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle<mat_type> drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    soil::WaterParticle<matrix_type> drop(glm::vec2(map.dimension)*soil::dist::vec2());
     drop.matrix = matrix(drop.pos);
 
     while(true){

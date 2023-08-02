@@ -54,7 +54,7 @@ int main( int argc, char* args[] ) {
 
   soil::io::tiff height(world.map.dimension);
   height.fill([&](const glm::ivec2 pos){
-    return world.height(pos)/world.config.scale;
+    return world.map.top(pos)->height;
   });
   height.write("out/height.tiff");
 
@@ -72,6 +72,14 @@ int main( int argc, char* args[] ) {
     return 255.0f*glm::vec4(normal, 1.0f);
   });
   normal.write("out/normal.png");
+
+  soil::io::png albedo(world.map.dimension);
+  albedo.fill([&](const glm::ivec2 pos){
+    float type = world.type(pos);
+    if(type > 1) std::cout<<type<<std::endl;
+    return 255.0f*glm::vec4(glm::mix(glm::vec3(1,0,0), glm::vec3(0,0,1), type), 1.0f);
+  });
+  albedo.write("out/albedo.png");
 
   return 0;
 }
