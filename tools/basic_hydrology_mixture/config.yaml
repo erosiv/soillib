@@ -9,10 +9,10 @@ map:
 matrix:
   colorB:
     - 255
-    - 1
+    - 127
     - 1
   colorA:
-    - 1
+    - 127
     - 1
     - 255
 water:

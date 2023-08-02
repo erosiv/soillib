@@ -124,9 +124,7 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.height = (cell.height - min)/(max - min);
-      cell.matrix.mixture = floor(15.0f*cell.height)/16.0f;
-    //  if(cell.matrix.mixture < 0) cell.matrix.mixture = 0;
-    //  if(cell.matrix.mixture > 1) cell.matrix.mixture = 1;
+      cell.matrix.mixture = cell.height;
     }
 
   }
@@ -157,7 +155,7 @@ struct World {
     if(map.oob(p))
       return;
 
-    const float mrate = 0.0025f;
+    const float mrate = 0.001f;
 
     if(h > 0){
       float s = h/World::config.scale + mrate;
