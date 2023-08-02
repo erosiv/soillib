@@ -10,7 +10,26 @@ namespace soil {
 namespace matrix {
 
 struct binary {
+  
   float mixture = 0.0f;
+
+  binary(){}
+
+  binary operator+(const binary rhs) {
+    this->mixture += rhs.mixture;
+    return *this; 
+  }
+  
+  binary operator/(const float rhs) { 
+    this->mixture /= rhs;
+    return *this; 
+  }
+
+  binary operator*(const float rhs) {
+    this->mixture *= rhs;
+    return *this; 
+  }
+
 };
 
 } // end of namespace matrix

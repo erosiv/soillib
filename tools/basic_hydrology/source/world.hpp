@@ -18,8 +18,6 @@
 
 // Raw Interleaved Cell Data
 
-using matrix_type = soil::matrix::singular;
-
 struct cell {
 
   float height;
@@ -38,6 +36,7 @@ struct cell {
 
 using ind_type = soil::index::flat;
 using map_type = soil::map::basic<cell, ind_type>;
+using mat_type = soil::matrix::singular;
 
 // World Configuration Data
 
@@ -140,11 +139,11 @@ struct World {
     return 0.0f;
   }
 
-  const inline matrix_type matrix(glm::ivec2 p){
-    return matrix_type();
+  inline mat_type matrix(glm::ivec2 p){
+    return mat_type();
   }
 
-  const inline void add(glm::ivec2 p, float h, matrix_type m){
+  const inline void add(glm::ivec2 p, float h, mat_type m){
     if(!map.oob(p))
       map.get(p)->height += h/World::config.scale;
   }
@@ -211,7 +210,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle<matrix_type> drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    soil::WaterParticle<mat_type> drop(glm::vec2(map.dimension)*soil::dist::vec2());
     drop.matrix = matrix(drop.pos);
 
     while(true){

@@ -145,7 +145,7 @@ struct World {
     return 0.0f;
   }
 
-  const inline matrix_type matrix(glm::ivec2 p){
+  inline matrix_type matrix(glm::ivec2 p){
     if(!map.oob(p))
       return map.get(p)->matrix;
     return matrix_type();

@@ -9,18 +9,12 @@ namespace phys {
 
 // Cascadable Map Constraints
 
-template<typename M>
-concept matrix_t = true;
-
-template<typename T>
+template<typename T, typename M>
 concept cascade_t = requires(T t){
-  // Measurement Methods
   { t.height(glm::ivec2()) } -> std::same_as<float>;
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
-  // Soil Matrix Retrieval
-  { t.matrix(glm::ivec2()) };
-  // Add Method
-  //{ t.add(glm::ivec2(), float(), matrix_t) } -> std::same_as<void>;
+  { t.matrix(glm::ivec2()) } -> std::same_as<M>;
+  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<void>;
 };
 
 // Cascading Parameters
@@ -33,7 +27,7 @@ struct cascade_c {
 float cascade_c::maxdiff = 0.8f;
 float cascade_c::settling = 1.0f;
 
-template<typename M, cascade_t T>
+template<typename M, cascade_t<M> T>
 void cascade(T& map, const glm::ivec2 ipos){
 
   // Get Non-Out-of-Bounds Neighbors
@@ -52,8 +46,8 @@ void cascade(T& map, const glm::ivec2 ipos){
   struct Point {
     glm::ivec2 pos;
     float h;
-    float d;
     M matrix;
+    float d;
   };
 
   static Point sn[8];
@@ -66,18 +60,18 @@ void cascade(T& map, const glm::ivec2 ipos){
     if(map.oob(npos))
       continue;
 
-    sn[num++] = { npos, map.height(npos), length(glm::vec2(nn)), map.matrix(npos) };
+    sn[num++] = { npos, map.height(npos), map.matrix(npos), length(glm::vec2(nn)) };
 
   }
 
   // Compute the Average Height (i.e. trivial non-spurious stable solution)
 
+  M matrix = map.matrix(ipos);
+
   float h_ave = 0.0f;
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
   h_ave /= (float)num;
-
-  M matrix = map.matrix(ipos);
 
   for (int i = 0; i < num; ++i) {
 

@@ -9,7 +9,15 @@ single soil type descriptor
 namespace soil {
 namespace matrix {
 
-struct singular {};
+struct singular {
+
+  singular(){}
+
+  const singular operator+(const singular rhs) const { return *this; }
+  const singular operator/(const float rhs) const { return *this; }
+  const singular operator*(const float rhs) const { return *this; }
+
+};
 
 } // end of namespace matrix
 } // end of namespace soil

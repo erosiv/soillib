@@ -9,19 +9,16 @@ namespace soil {
 
 // Hydrologically Erodable Map Constraints
 
-template<typename T>
+template<typename T, typename M>
 concept WaterParticle_t = requires(T t){
-  // Measurement Methods
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
   { t.height(glm::ivec2()) } -> std::same_as<float>;
   { t.normal(glm::ivec2()) } -> std::convertible_to<glm::vec3>;
-  { t.matrix(glm::ivec2()) };
-  // Specific Physics Requirements
+  { t.matrix(glm::ivec2()) } -> std::same_as<M>;
+  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<void>;
   { t.discharge(glm::ivec2()) } -> std::same_as<float>;
   { t.momentum(glm::ivec2()) } -> std::convertible_to<glm::vec2>;
   { t.resistance(glm::ivec2()) } -> std::same_as<float>;
-  // Add Method
-  //{ t.add(glm::ivec2(), float()) } -> std::same_as<void>;
 };
 
 // WaterParticle Properties
@@ -141,7 +138,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   if(c_eq < 0)
     c_eq = 0;
 
-  float cdiff = (c_eq - sediment);
+  float cdiff = (c_eq*volume - sediment);
 
   // Effective Parameter Set
 
@@ -149,24 +146,33 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   if(effD < 0)
     effD = 0;
 
-  if(effD*cdiff >= 0){
-    matrix.mixture = (matrix.mixture*sediment + effD*cdiff*world.matrix(ipos).mixture) / (sediment + effD*cdiff);
-  }
-  sediment += effD*cdiff;
+  // Compute Actual Mass Transfer
 
+  // Add Sediment to Map
+
+  if(effD*cdiff < 0){
+
+    if(effD*cdiff < -sediment) // Only Use Available
+      cdiff = -sediment/effD;
+
+  } else if(effD*cdiff > 0){
+
+    matrix = (matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
+
+  }
+
+  // Add Sediment Mass to Map, Particle
+
+  sediment += effD*cdiff;
   world.add(ipos, -effD*cdiff, matrix);
 
   //Evaporate (Mass Conservative)
-  sediment /= (1.0-param.evapRate);
+
   volume *= (1.0-param.evapRate);
 
-  //Out-Of-Bounds
-  if(world.oob(pos)){
-    volume = 0.0;
-    return false;
-  }
+  // New Position Out-Of-Bounds
 
-  soil::phys::cascade<M>(world, pos);
+  soil::phys::cascade<M>(world, ipos);
 
   age++;
   return true;

@@ -5,11 +5,12 @@
 #include <glm/glm.hpp>
 #include <type_traits>
 
-// Base Type Definitions
-
-#include <soillib/map/_map.hpp>
-
 namespace soil {
+
+template<typename T>
+concept matrix_t = requires(T t){
+  {float() * t};
+};
 
 }; // end of namespace
 
