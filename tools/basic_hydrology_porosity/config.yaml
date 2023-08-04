@@ -1,6 +1,6 @@
 lrate: 0.1
 scale: 80
-max-cycles: 8192
+max-cycles: 12000
 min-basin: 0.05
 map:
   dimension:

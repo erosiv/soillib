@@ -75,7 +75,7 @@ int main( int argc, char* args[] ) {
 
   soil::io::png albedo(world.map.dimension);
   albedo.fill([&](const glm::ivec2 pos){
-    float type = world.type(pos);
+    float type = world.matrix(pos).weight[0];
     if(type > 1) std::cout<<type<<std::endl;
     return 255.0f*glm::vec4(glm::mix(glm::vec3(1,0,0), glm::vec3(0,0,1), type), 1.0f);
   });

@@ -18,7 +18,7 @@
 
 // Raw Interleaved Cell Data
 
-using matrix_type = soil::matrix::mixture<3>;
+using matrix_type = soil::matrix::mixture<2>;
 
 struct cell {
 
@@ -124,11 +124,10 @@ struct World {
     for(auto [cell, pos]: map){
       cell.height = (cell.height - min)/(max - min);
 
-      // Initial Soil Distribution
-      int n = floor(2.0f*cell.height);
-      float f = (2.0f*cell.height - (float)n);
-      cell.matrix.weight[n] = 1.0f-f;
-      cell.matrix.weight[n+1] = f;
+      float f = cell.height;//floor(16.0f*cell.height)/(float)15.0f;
+      cell.matrix.weight[0] = 1.0f-f;
+      cell.matrix.weight[1] = f;
+
     }
 
   }

@@ -1,27 +1,23 @@
 lrate: 0.1
-scale: 80
-max-cycles: 8192
-min-basin: 0.1
+scale: 120
+max-cycles: 16180
+min-basin: 0.05
 map:
   dimension:
-    - 960
-    - 960
+    - 2048
+    - 2048
 matrix:
   color:
     - # color 0
-      - 37
-      - 22
-      - 5
+      - 1
+      - 1
+      - 255
     - # color 1
-      - 201
-      - 93
-      - 99
-    - # color 2
-      - 247
-      - 219
-      - 167
+      - 255
+      - 1
+      - 1
 water:
-  max-age: 1024
+  max-age: 2048
   evap-rate: 0.001
   deposition-rate: 0.05
   min-vol: 0.001

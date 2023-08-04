@@ -73,11 +73,11 @@ int main( int argc, char* args[] ) {
   });
   normal.write("out/normal.png");
 
-  soil::io::png albedo(world.map.dimension);
+  soil::io::tiff albedo(world.map.dimension);
   albedo.fill([&](const glm::ivec2 pos){
-    return glm::vec4(255.0f*glm::vec3(world.matrix(pos).value), 255.0f);
+    return world.matrix(pos).value;
   });
-  albedo.write("out/porosity.png");
+  albedo.write("out/porosity.tiff");
 
   return 0;
 }

@@ -5,6 +5,7 @@
 
 #include "source/world.hpp"
 #include <iostream>
+#include <iomanip>
 #include <csignal>
 
 bool quit = false;
@@ -73,11 +74,11 @@ int main( int argc, char* args[] ) {
   });
   normal.write("out/normal.png");
 
-  soil::io::png albedo(world.map.dimension);
+  soil::io::tiff albedo(world.map.dimension);
   albedo.fill([&](const glm::ivec2 pos){
-    return glm::vec4(world.matrix(pos).albedo(world.config.matrix_config), 255.0f);
+    return world.matrix(pos).weight[0];
   });
-  albedo.write("out/albedo.png");
+  albedo.write("out/albedo.tiff");
 
   return 0;
 }

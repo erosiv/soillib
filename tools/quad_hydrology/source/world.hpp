@@ -6,8 +6,9 @@
 #include <soillib/util/noise.hpp>
 #include <soillib/util/dist.hpp>
 
-#include "../../../soillib/map/quad.hpp"
+#include <soillib/map/quad.hpp>
 #include <soillib/model/surface.hpp>
+#include <soillib/matrix/singular.hpp>
 
 #include <soillib/particle/water.hpp>
 //#include <soillib/particle/vegetation.hpp>
@@ -33,6 +34,7 @@ struct cell {
 
 using ind_type = soil::index::flat;
 using map_type = soil::map::quad<cell, ind_type>;
+using mat_type = soil::matrix::singular;
 
 // World Configuration Data
 
@@ -138,7 +140,11 @@ struct World {
     return 0.0f;
   }
 
-  const inline void add(glm::ivec2 p, float h){
+  inline mat_type matrix(glm::ivec2 p){
+    return mat_type();
+  }
+
+  const inline void add(glm::ivec2 p, float h, mat_type m){
     if(!map.oob(p))
       map.get(p)->height += h/World::config.scale;
   }
@@ -205,7 +211,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle drop(glm::vec2(map.min) + glm::vec2(map.max - map.min)*soil::dist::vec2());
+    soil::WaterParticle<mat_type> drop(glm::vec2(map.min) + glm::vec2(map.max - map.min)*soil::dist::vec2());
 
     while(true){
 

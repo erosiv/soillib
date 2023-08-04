@@ -30,11 +30,11 @@ void main(void) {
 	float diffuse = dot(normalize(normal), normalize(vec3(1, 1, 1)));
 	diffuse = clamp(diffuse, 0.1, 0.9);
 	
-	float light = 1.0 + 0.2*diffuse;
+	float light = 0.7 + 0.5*diffuse;
 
 	ex_Normal = 1.0f-ex_Normal.zxy;
 	//ex_Color = vec4(vec3(light), 1.0);
 	ex_Color = vec4(light*ex_Albedo, 1.0f);
 	//ex_Color = vec4(ex_Normal, 1.0f);
-	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.2*discharge);
+	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.6*discharge);
 }
