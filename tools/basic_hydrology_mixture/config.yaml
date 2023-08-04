@@ -17,7 +17,7 @@ matrix:
       - 1
       - 1
 water:
-  max-age: 2048
+  max-age: 1024
   evap-rate: 0.001
   deposition-rate: 0.05
   min-vol: 0.001

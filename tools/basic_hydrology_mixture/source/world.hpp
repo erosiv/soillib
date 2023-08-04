@@ -265,7 +265,7 @@ bool World::erode(){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
-  Vegetation::grow(*this);     //Grow Trees
+  //Vegetation::grow(*this);     //Grow Trees
 
   return true;
 
