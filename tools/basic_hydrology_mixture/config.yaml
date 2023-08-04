@@ -1,11 +1,11 @@
 lrate: 0.1
 scale: 120
-max-cycles: 16180
+max-cycles: 8192
 min-basin: 0.05
 map:
   dimension:
-    - 2048
-    - 2048
+    - 960
+    - 960
 matrix:
   color:
     - # color 0
