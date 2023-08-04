@@ -5,6 +5,7 @@
 
 #include "source/world.hpp"
 #include <iostream>
+#include <iomanip>
 #include <csignal>
 
 bool quit = false;
@@ -54,7 +55,7 @@ int main( int argc, char* args[] ) {
 
   soil::io::tiff height(world.map.dimension);
   height.fill([&](const glm::ivec2 pos){
-    return world.map.top(pos)->height;
+    return world.height(pos)/world.config.scale;
   });
   height.write("out/height.tiff");
 
@@ -73,12 +74,11 @@ int main( int argc, char* args[] ) {
   });
   normal.write("out/normal.png");
 
-  soil::io::png albedo(world.map.dimension);
+  soil::io::tiff albedo(world.map.dimension);
   albedo.fill([&](const glm::ivec2 pos){
-    float type = world.matrix(pos).weight[0];
-    return 255.0f*glm::vec4(glm::mix(glm::vec3(1,0,0), glm::vec3(0,0,1), type), 1.0f);
+    return world.matrix(pos).weight[0];
   });
-  albedo.write("out/albedo.png");
+  albedo.write("out/albedo.tiff");
 
   return 0;
 }
