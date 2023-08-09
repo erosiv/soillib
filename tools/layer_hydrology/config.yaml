@@ -3,6 +3,7 @@ scale: 80
 max-cycles: 8192
 min-basin: 0.05
 map:
+  max-depth: 16
   dimension:
     - 960
     - 960

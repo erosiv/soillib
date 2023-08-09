@@ -4,6 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/index.hpp>
 #include <soillib/util/slice.hpp>
+#include <soillib/util/pool.hpp>
 
 /*==================================================
 soillib map layer
@@ -22,6 +23,7 @@ namespace map {
 
 struct layer_config {
   glm::ivec2 dimension = glm::ivec2(0);
+  size_t max_depth = 0;
 };
 
 // Layer Segment, Iterator
@@ -107,12 +109,13 @@ struct layer {
   const size_t area = dimension.x*dimension.y;
 
   soil::slice<cell, Index> slice;
+  soil::pool<segment> pool;
 
-  layer(const glm::ivec2 dimension)
-    :dimension(dimension),slice(dimension){}
+  layer(const glm::ivec2 dimension, const size_t poolsize)
+    :dimension(dimension),slice(dimension),pool(poolsize){}
 
   layer(const config config)
-    :layer(config.dimension){}
+    :layer(config.dimension, config.dimension.x*config.dimension.y*config.max_depth){}
 
   inline cell* get(const glm::ivec2 p) noexcept {
     return slice.get(p);
@@ -135,9 +138,12 @@ struct layer {
     return slice.get(p)->top;
   }
 
-  inline void push(const glm::ivec2 p, segment* above) noexcept {
+  inline void push(const glm::ivec2 p, S passed) noexcept {
+
     if(slice.oob(p))
       return;
+
+    segment* above = pool.get(passed);
     segment* below = slice.get(p)->top;
     if(below != NULL)
       below->insert_above(above);
@@ -153,6 +159,7 @@ struct layer {
     if(top->below != NULL)
       top->below->above = NULL;
     slice.get(p)->top = top->below;
+    pool.unget(top);
   }
 
 };
@@ -169,6 +176,7 @@ struct soil::io::yaml::cast<soil::map::layer_config> {
   static soil::map::layer_config As(soil::io::yaml& node){
     soil::map::layer_config config;
     config.dimension = node["dimension"].As<glm::ivec2>();
+    config.max_depth = node["max-depth"].As<int>();
     return config;
   }
 };
