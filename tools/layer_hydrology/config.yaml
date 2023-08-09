@@ -16,11 +16,13 @@ water:
   gravity: 2.0
   momentum-transfer: 1.0
 matrix:
-  - color:
+  - max-diff: 0.9
+    color:
       - 0
       - 0
       - 0
-  - color:
+  - max-diff: 0.1
+    color:
       - 0
       - 0
       - 0

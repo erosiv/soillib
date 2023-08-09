@@ -57,9 +57,9 @@ struct world_c {
   float minbasin = 0.1f;
 
   map_type::config map_config;
+  mat_type::config mat_config;
+  
   soil::WaterParticle_c water_config;
-
-  std::array<mat_type::config, 2> mat_config;
 
 };
 
@@ -79,10 +79,10 @@ struct soil::io::yaml::cast<world_c> {
     config.minbasin = node["min-basin"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
+    config.mat_config = node["matrix"].As<mat_type::config>();
+    
     config.water_config = node["water"].As<soil::WaterParticle_c>();
 
-    config.mat_config = node["matrix"].As<std::array<mat_type::config, 2>>();
-    
     return config;
   
   }
@@ -106,6 +106,8 @@ struct World {
     SEED(SEED),
     map(config.map_config)
   {
+
+    mat_type::conf = config.mat_config;
 
     soil::dist::seed(SEED);
 
