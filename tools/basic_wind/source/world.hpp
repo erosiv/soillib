@@ -7,6 +7,8 @@
 #include <soillib/util/dist.hpp>
 
 #include <soillib/map/basic.hpp>
+#include <soillib/matrix/singular.hpp>
+
 #include <soillib/model/surface.hpp>
 
 #include <soillib/particle/wind.hpp>
@@ -29,6 +31,7 @@ struct cell {
 
 using ind_type = soil::index::flat;
 using map_type = soil::map::basic<cell, ind_type>;
+using mat_type = soil::matrix::singular;
 
 // World Configuration Data
 
@@ -68,18 +71,15 @@ public:
 
   const size_t SEED;
   soil::map::basic<cell, ind_type> map;
-  soil::pool<cell> cellpool;
 
   static world_c config;
 
   World(size_t SEED):
     SEED(SEED),
-    map(config.map_config),
-    cellpool(map.area)
+    map(config.map_config)
   {
 
     soil::dist::seed(SEED);
-    map.slice = { cellpool.get(map.area), map.dimension };
 
     for(auto [cell, pos]: map){
       cell.massflow = 0.0f;
@@ -132,24 +132,27 @@ public:
 
   }
 
-  void erode(int cycles);               //Erode with N Particles
+  bool erode(int cycles);               //Erode with N Particles
 
   const inline bool oob(glm::vec2 p){
     return map.oob(p);
   }
 
   const inline float height(glm::vec2 p){
-    cell* c = map.get(p);
-    if(c == NULL) 
-      return 0.0f;
-    return config.scale*c->height;
+    if(!map.oob(p))
+      return config.scale*map.get(p)->height;
+    return 0.0f;
+  }
+
+  inline mat_type matrix(glm::ivec2 p){
+    return mat_type();
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
     return soil::surface::normal(*this, p);
   }
 
-  const inline void add(glm::ivec2 p, float h){
+  const inline void add(glm::ivec2 p, float h, mat_type m){
     if(!map.oob(p))
       map.get(p)->height += h/World::config.scale;
   }
@@ -160,7 +163,7 @@ world_c World::config;
 
 // Erosion Code Implementation
 
-void World::erode(int cycles){
+bool World::erode(int cycles){
 
   for(auto [cell, pos]: map){
     cell.massflow_track = 0;
@@ -172,8 +175,25 @@ void World::erode(int cycles){
   //Do a series of iterations!
   for(int i = 0; i < cycles; i++){
 
-    soil::WindParticle wind(glm::vec2(map.dimension)*soil::dist::vec2());
-    while(wind.move(*this, soil::wind_c) && wind.interact(*this, soil::wind_c));
+    soil::WindParticle<mat_type> wind(glm::vec2(map.dimension)*soil::dist::vec2());
+   
+    while(true){
+
+      if(!wind.move(*this, config.wind_config))
+        break;
+
+      auto cell = map.get(wind.pos);
+      if(cell != NULL){
+        cell->momentumx_track += wind.speed.x;
+        cell->momentumy_track += wind.speed.y;
+        cell->momentumz_track += wind.speed.z;
+        cell->massflow_track += wind.sediment;
+      }
+
+      if(!wind.interact(*this, config.wind_config))
+        break;
+
+    }
 
   }
 
@@ -184,6 +204,9 @@ void World::erode(int cycles){
     cell.momentumy = (1.0f-config.lrate)*cell.momentumy + config.lrate*cell.momentumy_track;
     cell.momentumz = (1.0f-config.lrate)*cell.momentumz + config.lrate*cell.momentumz_track;
   }
+
+  return true;
+
 }
 
 #endif

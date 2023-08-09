@@ -5,6 +5,13 @@
 
 #include "source/world.hpp"
 #include <iostream>
+#include <csignal>
+
+bool quit = false;
+
+void sighandler(int signal){
+  quit = true;
+}
 
 int main( int argc, char* args[] ) {
 
@@ -18,7 +25,8 @@ int main( int argc, char* args[] ) {
   try {
     World::config = config.As<world_c>();
   } catch(soil::io::yaml::exception e){
-    std::cout<<"failed to parse yaml configuration: "<<e.what()<<std::endl; 
+    std::cout<<"failed to parse yaml configuration: "<<e.what()<<std::endl;
+    return 0;
   }
 
   // Initialize World
@@ -35,11 +43,9 @@ int main( int argc, char* args[] ) {
   size_t n_timesteps = 1024;
   size_t n_cycles = 512;
 
-  while(n_timesteps > 0){
-
-    std::cout<<n_timesteps--<<std::endl;
-    world.erode(n_cycles);
-
+  signal(SIGINT, &sighandler);
+  while(!quit && world.erode(n_cycles) && n_timesteps > 0){
+    std::cout<<n_timesteps--<<std::endl;    
   }
 
   soil::io::tiff height(world.map.dimension);

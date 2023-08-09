@@ -3,7 +3,7 @@ scale: 80
 map:
   dimension:
     - 512
-      512
+    - 512
 wind:
   max-age: 1024
   gravity: 0.1

@@ -20,7 +20,10 @@ struct slice {
   soil::buf<T> root;
   glm::ivec2 res = glm::ivec2(0);
 
-  const inline size_t size(){
+  slice(const glm::ivec2 res)
+    :res(res),root(res.x*res.y){}
+
+  const inline size_t size() const {
     return res.x * res.y;
   }
 

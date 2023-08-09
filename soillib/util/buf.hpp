@@ -6,18 +6,28 @@
 namespace soil {
 
 /************************************************
-buf is an (optionally) owning raw-data extent,
+buf is an owning raw-data extent,
 with a built-in iterator. This acts as a basis
 for a nuber of memory-pooling concepts.
 ************************************************/
 
 template<typename T> struct buf_iterator;
 template<typename T> struct buf {
+
   T* start = NULL;
   size_t size = 0;
 
+  buf(size_t size):size(size){
+    start = new T[size];
+  }
+
+  ~buf(){
+    delete[] start;
+  }
+
   const buf_iterator<T> begin() const noexcept { return buf_iterator<T>(start, 0); }
   const buf_iterator<T> end()   const noexcept { return buf_iterator<T>(start, size); }
+
 };
 
 template<typename T> struct buf_iterator {

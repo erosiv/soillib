@@ -90,8 +90,7 @@ struct World {
 
   const size_t SEED;
   soil::map::layer<cell, segment, ind_type> map;
-  soil::pool<soil::map::layer_cell<cell, segment>> cellpool;
-  soil::pool_t<soil::map::layer_segment<segment>> segpool;
+  soil::pool<soil::map::layer_segment<segment>> segpool;
 
   static world_c config;
 
@@ -103,13 +102,10 @@ struct World {
   World(size_t SEED):
     SEED(SEED),
     map(config.map_config),
-    cellpool(map.area),
     segpool(map.area*16)
   {
 
     soil::dist::seed(SEED);
-
-    map.slice = { cellpool.get(map.area), map.dimension };
 
     soil::noise::sampler sampler;
     sampler.source.SetFractalOctaves(8.0f);

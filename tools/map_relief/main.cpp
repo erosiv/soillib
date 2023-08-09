@@ -32,8 +32,6 @@ int main(int argc, char *args[]) {
 
   const glm::ivec2 dim = glm::ivec2(height.width, height.height);
   soil::map::basic<cell> map(dim);
-  soil::pool<cell> cellpool(map.area);
-  map.slice = { cellpool.get(map.area), dim };
 
   // Fill Cell Pool w. Image
 

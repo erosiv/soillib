@@ -79,7 +79,6 @@ struct World {
 
   const size_t SEED;
   soil::map::quad<cell, ind_type> map;
-  soil::pool<cell> cellpool;
 
   static world_c config;
 
@@ -90,15 +89,10 @@ struct World {
 
   World(size_t SEED):
     SEED(SEED),
-    map(config.map_config),
-    cellpool(map.area)
+    map(config.map_config)
   {
 
-
     soil::dist::seed(SEED);
-    for(auto& node: map.nodes){
-      node.slice = { cellpool.get(node.area), node.dimension };
-    }
 
     soil::noise::sampler sampler;
     sampler.source.SetFractalOctaves(8.0f);

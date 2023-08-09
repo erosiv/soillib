@@ -108,8 +108,11 @@ struct layer {
 
   soil::slice<cell, Index> slice;
 
-  layer(const glm::ivec2 dimension):dimension(dimension){}
-  layer(const config config):dimension(config.dimension){}
+  layer(const glm::ivec2 dimension)
+    :dimension(dimension),slice(dimension){}
+
+  layer(const config config)
+    :layer(config.dimension){}
 
   inline cell* get(const glm::ivec2 p) noexcept {
     return slice.get(p);
