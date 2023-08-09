@@ -28,7 +28,7 @@ struct porous {
   // Concept Implementations
 
   const float maxdiff() const noexcept {
-    return 0.1*value*0.7f;
+    return value*0.8f;
   }
 
   const float settling() const noexcept {
