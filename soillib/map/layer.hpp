@@ -35,6 +35,18 @@ template<typename S> struct layer_segment: public S {
   layer_segment_iterator<S> begin() const noexcept { return layer_segment_iterator<S>(this); }
   layer_segment_iterator<S> end()   const noexcept { return layer_segment_iterator<S>(NULL); }
 
+  void insert_above(layer_segment<S>* seg) noexcept {
+    seg->below = this;
+    seg->above = above;
+    above = seg;
+  }
+
+  void insert_below(layer_segment<S>* seg) noexcept {
+    seg->above = this;
+    seg->below = below;
+    below = seg;
+  }
+
 };
 
 template<typename S> struct layer_segment_iterator {
@@ -99,10 +111,6 @@ struct layer {
   layer(const glm::ivec2 dimension):dimension(dimension){}
   layer(const config config):dimension(config.dimension){}
 
-  inline segment* top(const glm::ivec2 p) noexcept {
-    return slice.get(p)->top;
-  }
-
   inline cell* get(const glm::ivec2 p) noexcept {
     return slice.get(p);
   }
@@ -117,6 +125,32 @@ struct layer {
 
   slice_iterator<cell, Index> begin() const noexcept { return slice.begin(); }
   slice_iterator<cell, Index> end()   const noexcept { return slice.end(); }
+
+  // Specialized Methods
+
+  inline segment* top(const glm::ivec2 p) noexcept {
+    return slice.get(p)->top;
+  }
+
+  inline void push(const glm::ivec2 p, segment* above) noexcept {
+    if(slice.oob(p))
+      return;
+    segment* below = slice.get(p)->top;
+    if(below != NULL)
+      below->insert_above(above);
+    slice.get(p)->top = above;
+  }
+
+  inline void pop(const glm::ivec2 p) noexcept {
+    if(slice.oob(p))
+      return;
+    segment* top = slice.get(p)->top;
+    if(top == NULL)
+      return;
+    if(top->below != NULL)
+      top->below->above = NULL;
+    slice.get(p)->top = top->below;
+  }
 
 };
 

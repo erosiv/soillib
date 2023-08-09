@@ -38,6 +38,10 @@ struct segment {
   float height;
   mat_type matrix;
 
+  segment(){}
+  segment(float height, mat_type matrix)
+    :height(height),matrix(matrix){}
+
 };
 
 using ind_type = soil::index::flat;
@@ -114,14 +118,9 @@ struct World {
 
     for(auto [cell, pos]: map){
       float height_s = sampler.get(glm::vec3(pos.x, pos.y, (SEED+0)%10000)/glm::vec3(512, 512, 1.0f));
-      float type_s = sampler.get(glm::vec3(pos.x, pos.y, (SEED+1)%10000)/glm::vec3(512, 512, 1.0f));
       mat_type matrix;
-      matrix.weight[0] = type_s;
-      segment seg = {
-        height_s,
-        matrix
-      };
-      cell.top = segpool.get(seg);
+      matrix.weight[1] = 1;
+      map.push(pos, segpool.get(segment(height_s, matrix)));
     }
 
     // Normalize
@@ -135,8 +134,10 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.top->height = (cell.top->height - min)/(max - min);
-      if(cell.top->matrix.weight[0] > 1) cell.top->matrix.weight[0] = 1;
-      if(cell.top->matrix.weight[0] < 0) cell.top->matrix.weight[0] = 0;
+      //cell.top->matrix.weight[0] = cell.top->height;
+      mat_type matrix;
+      matrix.weight[0] = 1;
+      map.push(pos, segpool.get(segment(cell.top->height+0.025, matrix)));
     }
 
   }
@@ -158,6 +159,8 @@ struct World {
   }
 
   inline mat_type matrix(glm::ivec2 p){
+    if(!map.oob(p))
+      return map.top(p)->matrix;
     return mat_type();
   }
 
@@ -173,6 +176,13 @@ struct World {
     }
 
     map.top(p)->height += h/World::config.scale;
+    if(map.top(p)->below != NULL){
+      if(map.top(p)->below->height >= map.top(p)->height){
+        auto top = map.top(p);
+        map.pop(p);
+        segpool.unget(top);
+      }
+    }
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
