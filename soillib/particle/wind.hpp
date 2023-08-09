@@ -144,8 +144,8 @@ bool WindParticle<M>::interact(T& world, WindParticle_c& param){
 
 //  World::cascade(ipos);
 
-  soil::phys::cascade_c::maxdiff = 0.4;
-  soil::phys::cascade_c::settling = 0.1;
+ // soil::phys::cascade_c::maxdiff = 0.4;
+ // soil::phys::cascade_c::settling = 0.1;
   soil::phys::cascade<M>(world, cpos);
 
   age++;
