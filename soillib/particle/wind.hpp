@@ -20,6 +20,7 @@ struct WindParticle_c {
 
 // WindParticle Definition
 
+template<typename M>
 struct WindParticle: soil::Particle {
 
   WindParticle(glm::vec2 _pos){ pos = glm::vec3(_pos.x, 0.0f, _pos.y); }
@@ -33,6 +34,7 @@ struct WindParticle: soil::Particle {
 
   int age = 0;
   float sediment = 0.0;     //Sediment Mass
+  M matrix;
 
   // Main Methods
 
@@ -44,55 +46,48 @@ struct WindParticle: soil::Particle {
 
 };
 
+template<typename M>
 template<typename T>
-bool WindParticle::move(T& world, WindParticle_c& param){
-
-  const glm::ivec2 ipos = glm::vec2(pos.x, pos.z);
-  auto cell = world.map.get(ipos);
-  if(cell == NULL){
-    return false;
-  }
-
-  const glm::vec3 n = world.normal(ipos);
+bool WindParticle<M>::move(T& world, WindParticle_c& param){
 
   // Termination Checks
 
-  if(age++ > param.maxAge){
+  const glm::ivec2 ipos = glm::ivec2(pos.x, pos.z);
+  if(world.oob(ipos))
+    return false;
+
+  if(age > param.maxAge){
+    world.add(ipos, sediment, matrix);
+    soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
-  if(age == 0 || pos.y < cell->height)
-    pos.y = cell->height;
-
   // Compute Movement
 
-  float hfac = exp(-(pos.y - cell->height)/param.boundaryLayer);
-  if(hfac < 0)
-    hfac = 0;
+  const float height = world.height(ipos);
+  if(age == 0 || pos.y < height)
+    pos.y = height;
 
+  const glm::vec3 n = world.normal(ipos);
+  const float hfac = exp(-(pos.y - height)/param.boundaryLayer);
+  const float shadow = 1.0f-glm::max(0.0f, dot(normalize(pspeed), n));
+  const float collision = glm::max(0.0f, -dot(normalize(speed), n));
+  const glm::vec3 rspeed = cross(n, cross((1.0f-collision)*speed, n));
 
   // Apply Base Prevailign Wind-Speed w. Shadowing
-
-  float shadow = dot(normalize(pspeed), n);
-  if(shadow < 0)
-    shadow = 0;
-  shadow = 1.0f-shadow;
 
   speed += 0.05f*((0.1f+0.9f*shadow)*pspeed - speed);
 
   // Apply Gravity
 
-  if(pos.y > cell->height)
+  if(pos.y > height)
     speed.y -= param.gravity*sediment;
 
   // Compute Collision Factor
 
-  float collision = -dot(normalize(speed), n);
-  if(collision < 0) collision = 0;
 
   // Compute Redirect Velocity
 
-  glm::vec3 rspeed = cross(n, cross((1.0f-collision)*speed, n));
 
   // Speed is accelerated by terrain features
 
@@ -111,41 +106,49 @@ bool WindParticle::move(T& world, WindParticle_c& param){
   opos = pos;
   pos += speed;
 
-  // Update Momentum Tracking Maps
-
-  cell->momentumx_track += speed.x;
-  cell->momentumy_track += speed.y;
-  cell->momentumz_track += speed.z;
-  cell->massflow_track += sediment;
-
-   // Compute Mass Transport
-
-  float force = -dot(normalize(speed), n)*length(speed);
-  if(force < 0)
-    force = 0;
-
-  float lift = (1.0f-collision)*length(speed);
-
-  float capacity = force*hfac + 0.02f*lift*hfac;
-
-  // Mass Transfer to Equilibrium
-
-  float diff = capacity - sediment;
-  cell->height -= param.suspension*diff;
-  sediment += param.suspension*diff;
-
-//  World::cascade(ipos);
-  soil::phys::cascade_c::maxdiff = 0.002;
-  soil::phys::cascade(world, ipos);
-  soil::phys::cascade(world, ipos);
-
   return true;
 
 };
 
+template<typename M>
 template<typename T>
-bool WindParticle::interact(T& map, WindParticle_c& param){
+bool WindParticle<M>::interact(T& world, WindParticle_c& param){
 
+  // Termination Checks
+
+  const glm::ivec2 cpos = glm::ivec2(pos.x, pos.z);
+  const glm::ivec2 ipos = glm::ivec2(opos.x, opos.z);
+
+  if(world.oob(cpos))
+    return false;
+
+   // Compute Mass Transport
+
+  const glm::vec3 n = world.normal(cpos);
+  const float height = world.height(cpos);
+
+  const float hfac = exp(-(pos.y - height)/param.boundaryLayer);
+  const float collision = glm::max(0.0f, -dot(normalize(speed), n));
+  const float force = glm::max(0.0f, -dot(normalize(speed), n)*length(speed));
+
+  float lift = (1.0f-collision)*length(speed);
+
+  float capacity = 10*(force*hfac + 0.02f*lift*hfac);
+
+  // Mass Transfer to Equilibrium
+
+  float diff = capacity - sediment;
+
+  sediment += param.suspension*diff;
+  world.add(cpos, -param.suspension*diff, matrix);
+
+//  World::cascade(ipos);
+
+  soil::phys::cascade_c::maxdiff = 0.4;
+  soil::phys::cascade_c::settling = 0.1;
+  soil::phys::cascade<M>(world, cpos);
+
+  age++;
   return true;
 
 }
