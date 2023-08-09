@@ -37,6 +37,8 @@ template<typename S> struct layer_segment: public S {
   layer_segment_iterator<S> begin() const noexcept { return layer_segment_iterator<S>(this); }
   layer_segment_iterator<S> end()   const noexcept { return layer_segment_iterator<S>(NULL); }
 
+  // Insertion Methods
+
   void insert_above(layer_segment<S>* seg) noexcept {
     seg->below = this;
     seg->above = above;
@@ -47,6 +49,20 @@ template<typename S> struct layer_segment: public S {
     seg->above = this;
     seg->below = below;
     below = seg;
+  }
+
+  // Removal Methods
+
+  void detach_above() noexcept {
+    if(above != NULL)
+      above->below = NULL;
+    above = NULL;
+  }
+
+  void detach_below() noexcept {
+    if(below != NULL)
+      below->above = NULL;
+    below = NULL;
   }
 
 };
@@ -76,7 +92,7 @@ template<typename S> struct layer_segment_iterator {
     return !(*this == other);
   };
 
-  const S operator*() noexcept {
+  const S operator*() const noexcept {
     return iter->segment;
   };
 
@@ -117,15 +133,15 @@ struct layer {
   layer(const config config)
     :layer(config.dimension, config.dimension.x*config.dimension.y*config.max_depth){}
 
-  inline cell* get(const glm::ivec2 p) noexcept {
+  inline cell* get(const glm::ivec2 p) const noexcept {
     return slice.get(p);
   }
 
-  const inline bool oob(const glm::ivec2 p) noexcept {
+  const inline bool oob(const glm::ivec2 p) const noexcept {
     return slice.oob(p);
   }
 
-  const inline glm::ivec2 bound() noexcept {
+  const inline glm::ivec2 bound() const noexcept {
     return dimension;
   }
 
@@ -139,26 +155,27 @@ struct layer {
   }
 
   inline void push(const glm::ivec2 p, S passed) noexcept {
-
     if(slice.oob(p))
       return;
 
+    segment* top = slice.get(p)->top;
     segment* above = pool.get(passed);
-    segment* below = slice.get(p)->top;
-    if(below != NULL)
-      below->insert_above(above);
+
     slice.get(p)->top = above;
+    if(top != NULL)
+      top->insert_above(above);
   }
 
   inline void pop(const glm::ivec2 p) noexcept {
     if(slice.oob(p))
       return;
+
     segment* top = slice.get(p)->top;
     if(top == NULL)
       return;
-    if(top->below != NULL)
-      top->below->above = NULL;
+
     slice.get(p)->top = top->below;
+    top->detach_below();
     pool.unget(top);
   }
 

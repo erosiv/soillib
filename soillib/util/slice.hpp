@@ -27,11 +27,11 @@ struct slice {
     return res.x * res.y;
   }
 
-  const inline bool oob(const glm::ivec2 p){
+  const inline bool oob(const glm::ivec2 p) const {
     return Index::oob(p, res);
   }
 
-  inline T* get(const glm::ivec2 p){
+  inline T* get(const glm::ivec2 p) const {
     if(root.start == NULL) return NULL;
     if(Index::oob(p, res)) return NULL;
     return root.start + Index::flatten(p, res);
