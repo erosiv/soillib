@@ -46,8 +46,11 @@ struct quad_node {
 
   soil::slice<T, Index> slice;
 
-  quad_node(const glm::ivec2 position, const glm::ivec2 dimension):position(position),dimension(dimension){}
-  quad_node(const config config):position(config.position),dimension(config.dimension){}
+  quad_node(const glm::ivec2 position, const glm::ivec2 dimension)
+    :position(position),dimension(dimension),slice(dimension){}
+
+  quad_node(const config config)
+    :quad_node(config.position,config.dimension){}
 
   inline T* get(const glm::ivec2 p) noexcept {
     return slice.get(p - position);
@@ -84,7 +87,7 @@ struct quad {
   glm::ivec2 min = glm::ivec2(INT_MAX);
   glm::ivec2 max = glm::ivec2(INT_MIN);
 
-  std::vector<node> nodes;
+  std::vector<node*> nodes;
 
   quad(const config config){
 
@@ -93,25 +96,33 @@ struct quad {
     // Initialize Node-Set, Compute Area
 
     for(auto& node_config: config.nodes){
-      nodes.emplace_back(node_config);
-      area += nodes.back().area;
-      min = glm::min(min, nodes.back().min());
-      max = glm::max(max, nodes.back().max());
+      nodes.push_back(new node(node_config));
+      area += nodes.back()->area;
+      min = glm::min(min, nodes.back()->min());
+      max = glm::max(max, nodes.back()->max());
     }
 
+  }
+
+  ~quad(){
+    for(auto& node: nodes)
+    if(node != NULL){
+      delete node;
+      node = NULL;
+    }
   }
 
   // Note: This access pattern is currently slow!
 
   inline T* get(glm::ivec2 p){
     for(auto& node: nodes)
-      if(!node.oob(p)) return node.get(p);
+      if(!node->oob(p)) return node->get(p);
     return NULL;
   }
 
   const inline bool oob(glm::ivec2 p){
     for(auto& node: nodes)
-      if(!node.oob(p)) return false;
+      if(!node->oob(p)) return false;
     return true;
   }
 
@@ -125,19 +136,19 @@ struct quad_iterator {
 
   typedef quad_node<T, Index> node;
   
-  std::vector<node>::const_iterator iter = NULL;
+  std::vector<node*>::const_iterator iter = NULL;
   slice_iterator<T, Index> slice_iter;
 
   quad_iterator() noexcept : iter(NULL){};
-  quad_iterator(const std::vector<node>::const_iterator& iter) noexcept : 
-    iter(iter),slice_iter(iter->begin()){};
+  quad_iterator(const std::vector<node*>::const_iterator& iter) noexcept : 
+    iter(iter),slice_iter((*iter)->begin()){};
 
   // Base Operators
 
   const quad_iterator<T, Index>& operator++() noexcept {
-    if(++slice_iter == iter->end()){
+    if(++slice_iter == (*iter)->end()){
       ++iter;
-      slice_iter = iter->begin();
+      slice_iter = (*iter)->begin();
     }
     return *this;
   };
@@ -154,7 +165,7 @@ struct quad_iterator {
 
   const slice_t<T> operator*() noexcept {
     slice_t<T> deref = *slice_iter;
-    return {deref.start, deref.pos + iter->position};
+    return {deref.start, deref.pos + (*iter)->position};
   };
 
 };
