@@ -22,12 +22,9 @@ struct world_t {
 
   const glm::ivec2 dim;
   soil::map::basic<cell> map;
-  soil::pool<cell> cellpool;
 
-  world_t(const glm::ivec2 dim):
-  dim(dim),map(dim),cellpool(map.area){
-    map.slice = { cellpool.get(map.area), dim };
-  }
+  world_t(const glm::ivec2 dim)
+    :dim(dim),map(dim){}
 
   const inline bool oob(glm::vec2 p){
     return map.oob(p);
