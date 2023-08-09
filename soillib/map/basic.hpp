@@ -42,7 +42,9 @@ struct basic {
 
   soil::slice<T, Index> slice;
 
-  basic(const glm::ivec2 dimension):dimension(dimension){}
+  basic(const glm::ivec2 dimension):dimension(dimension){
+    
+  }
   basic(const config config):dimension(config.dimension){}
 
   inline T* get(const glm::ivec2 p) noexcept {
