@@ -59,6 +59,8 @@ struct world_c {
   map_type::config map_config;
   soil::WaterParticle_c water_config;
 
+  std::array<mat_type::config, 2> mat_config;
+
 };
 
 // Configuration Loading
@@ -78,6 +80,8 @@ struct soil::io::yaml::cast<world_c> {
 
     config.map_config = node["map"].As<map_type::config>();
     config.water_config = node["water"].As<soil::WaterParticle_c>();
+
+    config.mat_config = node["matrix"].As<std::array<mat_type::config, 2>>();
     
     return config;
   

@@ -15,3 +15,12 @@ water:
   entrainment: 10.0
   gravity: 2.0
   momentum-transfer: 1.0
+matrix:
+  - color:
+      - 0
+      - 0
+      - 0
+  - color:
+      - 0
+      - 0
+      - 0

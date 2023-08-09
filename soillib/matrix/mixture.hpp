@@ -9,15 +9,14 @@ single soil type descriptor
 namespace soil {
 namespace matrix {
 
-template<size_t N>
 struct mixture_config {
-  glm::vec3 color[N];
+  glm::vec3 color;
 };
 
 template<size_t N = 2>
 struct mixture {
   
-  typedef mixture_config<N> config;
+  typedef mixture_config config;
 
   float weight[N];
 
@@ -75,12 +74,11 @@ struct mixture {
 
 #ifdef SOILLIB_IO_YAML
 
-template<size_t N>
-struct soil::io::yaml::cast<soil::matrix::mixture_config<N>> {
-  static soil::matrix::mixture_config<N> As(soil::io::yaml& node){
-    soil::matrix::mixture_config<N> config;
-    for(size_t n = 0; n < N; n++)
-      config.color[n] = node["color"][n].As<glm::vec3>();
+template<>
+struct soil::io::yaml::cast<soil::matrix::mixture_config> {
+  static soil::matrix::mixture_config As(soil::io::yaml& node){
+    soil::matrix::mixture_config config;
+    config.color = node["color"].As<glm::vec3>();
     return config;
   }
 };

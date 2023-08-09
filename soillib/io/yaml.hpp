@@ -3,6 +3,7 @@
 
 #include <soillib/external/mini_yaml/Yaml.cpp>
 #include <format>
+#include <array>
 
 namespace soil {
 namespace io {
@@ -154,6 +155,20 @@ std::ostream& operator<<(std::ostream& os, indkey& ik){
 
 // Well-Known Types with Pre-Defined Cast Operators
 
+/*
+// Basic Array Type
+
+template<typename T, size_t N>
+struct soil::io::yaml::cast<T[N]> {
+  static glm::tvec2<T> As(soil::io::yaml& node){
+    std::vector<T> vector;
+    for(auto [key, sub]: node)
+      vector.push_back(sub.As<T>());
+    return vector;
+  }
+};
+*/
+
 // GLM-Types
 
 template<typename T>
@@ -190,7 +205,7 @@ struct soil::io::yaml::cast<glm::tvec4<T>> {
 };
 
 // STL Containers
-//  Note: Only those required by Mini-Yaml
+//  Note: Only those required by Mini-Yaml + std::array
 
 template<typename T>
 struct soil::io::yaml::cast<std::vector<T>> {
@@ -219,6 +234,16 @@ struct soil::io::yaml::cast<std::map<std::string, T>> {
     for(auto [key, sub]: node)
       map.emplace((std::string)key, sub.As<T>());
     return map;
+  }
+};
+
+template<typename T, size_t N>
+struct soil::io::yaml::cast<std::array<T, N>> {
+  static std::array<T, N> As(soil::io::yaml& node){
+    std::array<T, N> array;
+    for(size_t n = 0; n < N; n++)
+      array[n] = node[n].As<T>();
+    return array;
   }
 };
 
