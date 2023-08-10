@@ -14,6 +14,8 @@ out vec4 ex_Color;
 out vec3 ex_Normal;
 out vec3 ex_FragPos;
 
+uniform bool albedoRead;
+
 void main(void) {
 	//Fragment Position in Model Space
 	ex_FragPos = (model * vec4(in_Position, 1.0f)).xyz;
@@ -34,7 +36,9 @@ void main(void) {
 
 	ex_Normal = 1.0f-ex_Normal.xyz;
 	ex_Color = vec4(vec3(light), 1.0);
-	ex_Color = vec4(light*ex_Albedo, 1.0f);
-	ex_Color = vec4(ex_Normal, 1.0f);
+	if(albedoRead)
+		ex_Color = vec4(light*ex_Albedo, 1.0f);
+	else
+		ex_Color = vec4(ex_Normal, 1.0f);
 	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.6*discharge);
 }

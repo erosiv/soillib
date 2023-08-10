@@ -28,6 +28,11 @@ concept cascade_t = requires(T t){
 template<cascade_matrix M, cascade_t<M> T>
 void cascade(T& map, const glm::ivec2 ipos){
 
+  // Out-Of-Bounds Checking
+
+  if(map.oob(ipos))
+    return;
+
   // Get Non-Out-of-Bounds Neighbors
 
   static const glm::ivec2 n[] = {
@@ -66,10 +71,10 @@ void cascade(T& map, const glm::ivec2 ipos){
 
   M matrix = map.matrix(ipos);
 
-  float h_ave = 0.0f;
+  float h_ave = map.height(ipos);
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
-  h_ave /= (float)num;
+  h_ave /= (float)(num+1);
 
   for (int i = 0; i < num; ++i) {
 

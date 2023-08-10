@@ -30,7 +30,9 @@ int main( int argc, char* args[] ) {
   soil::io::tiff height((path + "/height.tiff").c_str());
   soil::io::tiff discharge((path + "/discharge.tiff").c_str());
   soil::io::png normal((path + "/normal.png").c_str());
-  soil::io::png albedo((path + "/albedo.png").c_str());
+  soil::io::png albedo;
+
+  bool albedo_read = albedo.read((path + "/albedo.png").c_str());
 
   // Create Map
 
@@ -80,7 +82,9 @@ int main( int argc, char* args[] ) {
   }, map.dimension));
 
   Texture albedoMap(image::make([&](const glm::ivec2 p){
-    return glm::vec4(albedo[p]);
+    if(albedo_read)
+      return glm::vec4(albedo[p]);
+    else return glm::vec4(0);
   }, map.dimension));
 
 	Tiny::view.pipeline = [&](){											//Setup Drawing Pipeline
@@ -93,6 +97,7 @@ int main( int argc, char* args[] ) {
     defaultShader.texture("dischargeMap", dischargeMap);						//View Projection Matrix
     defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
     defaultShader.texture("albedoMap", albedoMap);            //View Projection Matrix
+    defaultShader.uniform("albedoRead", albedo_read);            //View Projection Matrix
     defaultShader.uniform("dimension", glm::vec2(map.dimension));						//View Projection Matrix
 		mesh.render(GL_TRIANGLES);													//Render Model with Lines
 

@@ -20,7 +20,7 @@ struct singular {
   // Concept Implementations
 
   const float maxdiff() const noexcept {
-    return 0.8f;
+    return 0.7f;
   }
 
   const float settling() const noexcept {
