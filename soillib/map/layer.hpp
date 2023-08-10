@@ -4,6 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/index.hpp>
 #include <soillib/util/slice.hpp>
+#include <soillib/util/pool.hpp>
 
 /*==================================================
 soillib map layer
@@ -22,6 +23,7 @@ namespace map {
 
 struct layer_config {
   glm::ivec2 dimension = glm::ivec2(0);
+  size_t max_depth = 0;
 };
 
 // Layer Segment, Iterator
@@ -35,6 +37,8 @@ template<typename S> struct layer_segment: public S {
   layer_segment_iterator<S> begin() const noexcept { return layer_segment_iterator<S>(this); }
   layer_segment_iterator<S> end()   const noexcept { return layer_segment_iterator<S>(NULL); }
 
+  // Insertion Methods
+
   void insert_above(layer_segment<S>* seg) noexcept {
     seg->below = this;
     seg->above = above;
@@ -45,6 +49,20 @@ template<typename S> struct layer_segment: public S {
     seg->above = this;
     seg->below = below;
     below = seg;
+  }
+
+  // Removal Methods
+
+  void detach_above() noexcept {
+    if(above != NULL)
+      above->below = NULL;
+    above = NULL;
+  }
+
+  void detach_below() noexcept {
+    if(below != NULL)
+      below->above = NULL;
+    below = NULL;
   }
 
 };
@@ -74,7 +92,7 @@ template<typename S> struct layer_segment_iterator {
     return !(*this == other);
   };
 
-  const S operator*() noexcept {
+  const S operator*() const noexcept {
     return iter->segment;
   };
 
@@ -107,22 +125,23 @@ struct layer {
   const size_t area = dimension.x*dimension.y;
 
   soil::slice<cell, Index> slice;
+  soil::pool<segment> pool;
 
-  layer(const glm::ivec2 dimension)
-    :dimension(dimension),slice(dimension){}
+  layer(const glm::ivec2 dimension, const size_t poolsize)
+    :dimension(dimension),slice(dimension),pool(poolsize){}
 
   layer(const config config)
-    :layer(config.dimension){}
+    :layer(config.dimension, config.dimension.x*config.dimension.y*config.max_depth){}
 
-  inline cell* get(const glm::ivec2 p) noexcept {
+  inline cell* get(const glm::ivec2 p) const noexcept {
     return slice.get(p);
   }
 
-  const inline bool oob(const glm::ivec2 p) noexcept {
+  const inline bool oob(const glm::ivec2 p) const noexcept {
     return slice.oob(p);
   }
 
-  const inline glm::ivec2 bound() noexcept {
+  const inline glm::ivec2 bound() const noexcept {
     return dimension;
   }
 
@@ -135,24 +154,29 @@ struct layer {
     return slice.get(p)->top;
   }
 
-  inline void push(const glm::ivec2 p, segment* above) noexcept {
+  inline void push(const glm::ivec2 p, S passed) noexcept {
     if(slice.oob(p))
       return;
-    segment* below = slice.get(p)->top;
-    if(below != NULL)
-      below->insert_above(above);
+
+    segment* top = slice.get(p)->top;
+    segment* above = pool.get(passed);
+
     slice.get(p)->top = above;
+    if(top != NULL)
+      top->insert_above(above);
   }
 
   inline void pop(const glm::ivec2 p) noexcept {
     if(slice.oob(p))
       return;
+
     segment* top = slice.get(p)->top;
     if(top == NULL)
       return;
-    if(top->below != NULL)
-      top->below->above = NULL;
+
     slice.get(p)->top = top->below;
+    top->detach_below();
+    pool.unget(top);
   }
 
 };
@@ -169,6 +193,7 @@ struct soil::io::yaml::cast<soil::map::layer_config> {
   static soil::map::layer_config As(soil::io::yaml& node){
     soil::map::layer_config config;
     config.dimension = node["dimension"].As<glm::ivec2>();
+    config.max_depth = node["max-depth"].As<int>();
     return config;
   }
 };

@@ -155,7 +155,7 @@ struct World {
       map.get(p)->matrix = (m*h/World::config.scale + matrix(p)*mrate)/s;
     }
 
-    map.get(p)->matrix.value *= 0.999;
+    map.get(p)->matrix.value *= 0.995;
     map.get(p)->height += h/World::config.scale;
   }
 

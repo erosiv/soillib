@@ -57,6 +57,8 @@ struct world_c {
   float minbasin = 0.1f;
 
   map_type::config map_config;
+  mat_type::config mat_config;
+  
   soil::WaterParticle_c water_config;
 
 };
@@ -77,8 +79,10 @@ struct soil::io::yaml::cast<world_c> {
     config.minbasin = node["min-basin"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
-    config.water_config = node["water"].As<soil::WaterParticle_c>();
+    config.mat_config = node["matrix"].As<mat_type::config>();
     
+    config.water_config = node["water"].As<soil::WaterParticle_c>();
+
     return config;
   
   }
@@ -90,7 +94,6 @@ struct World {
 
   const size_t SEED;
   soil::map::layer<cell, segment, ind_type> map;
-  soil::pool<soil::map::layer_segment<segment>> segpool;
 
   static world_c config;
 
@@ -101,9 +104,10 @@ struct World {
 
   World(size_t SEED):
     SEED(SEED),
-    map(config.map_config),
-    segpool(map.area*16)
+    map(config.map_config)
   {
+
+    mat_type::conf = config.mat_config;
 
     soil::dist::seed(SEED);
 
@@ -116,7 +120,7 @@ struct World {
       float height_s = sampler.get(glm::vec3(pos.x, pos.y, (SEED+0)%10000)/glm::vec3(512, 512, 1.0f));
       mat_type matrix;
       matrix.weight[1] = 1;
-      map.push(pos, segpool.get(segment(height_s, matrix)));
+      map.push(pos, segment(height_s, matrix));
     }
 
     // Normalize
@@ -133,7 +137,7 @@ struct World {
       //cell.top->matrix.weight[0] = cell.top->height;
       mat_type matrix;
       matrix.weight[0] = 1;
-      map.push(pos, segpool.get(segment(cell.top->height+0.025, matrix)));
+      map.push(pos, segment(cell.top->height+0.025, matrix));
     }
 
   }
@@ -176,7 +180,6 @@ struct World {
       if(map.top(p)->below->height >= map.top(p)->height){
         auto top = map.top(p);
         map.pop(p);
-        segpool.unget(top);
       }
     }
   }

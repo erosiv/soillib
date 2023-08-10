@@ -7,6 +7,14 @@
 namespace soil {
 namespace phys {
 
+// Cascadable Matrix Constraints
+
+template<typename M>
+concept cascade_matrix = requires(M m){
+  { m.maxdiff() } -> std::same_as<float>;
+  { m.settling() } -> std::same_as<float>;
+};
+
 // Cascadable Map Constraints
 
 template<typename T, typename M>
@@ -17,17 +25,7 @@ concept cascade_t = requires(T t){
   { t.add(glm::ivec2(), float(), M()) } -> std::same_as<void>;
 };
 
-// Cascading Parameters
-
-struct cascade_c {
-  static float maxdiff;
-  static float settling;
-};
-
-float cascade_c::maxdiff = 0.8f;
-float cascade_c::settling = 1.0f;
-
-template<typename M, cascade_t<M> T>
+template<cascade_matrix M, cascade_t<M> T>
 void cascade(T& map, const glm::ivec2 ipos){
 
   // Get Non-Out-of-Bounds Neighbors
@@ -84,12 +82,12 @@ void cascade(T& map, const glm::ivec2 ipos){
 
     //The Amount of Excess Difference!
     float excess = 0.0f;
-    excess = abs(diff) - sn[i].d*cascade_c::maxdiff;
+    excess = abs(diff) - sn[i].d*matrix.maxdiff();
     if(excess <= 0)  //No Excess
       continue;
 
     //Actual Amount Transferred
-    float transfer = cascade_c::settling * excess / 2.0f;
+    float transfer = matrix.settling() * excess / 2.0f;
 
     //Cap by Maximum Transferrable Amount
     if(diff > 0) {

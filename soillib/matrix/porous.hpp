@@ -25,6 +25,16 @@ struct porous {
     return porous(this->value*rhs); 
   }
 
+  // Concept Implementations
+
+  const float maxdiff() const noexcept {
+    return value*0.8f;
+  }
+
+  const float settling() const noexcept {
+    return 1.0f;
+  }
+
 };
 
 } // end of namespace matrix
