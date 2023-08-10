@@ -14,6 +14,8 @@ DIRNAME = soillib
 CC = g++-10 -std=c++20
 CF = -Wfatal-errors -O2
 
+TINYLINK = -lpthread -lSDL2 -lSDL2_image -lSDL2_mixer -lSDL2_ttf -lGLEW -lboost_system -lboost_filesystem
+
 # OS Specific Configuration
 
 UNAME := $(shell uname)
@@ -26,17 +28,12 @@ LIBPATH = -L$(HOME)/.local/lib
 LINK = -lpng -ltiff
 
 endif
-
-ifeq ($(UNAME), Darwin)			# Detect MacOS
-
-INCPATH = -I/opt/homebrew/include
-LIBPATH = -L/opt/homebrew/lib
-
+## Detect MacOS
+ifeq ($(UNAME), Darwin)
+TINYLINK += -framework OpenGL -DTINYENGINE_OS_MAC
+LF += -I/opt/homebrew/include -L/opt/homebrew/lib
 CC = g++-13 -std=c++20
-
-LINK = -lpng -ltiff
-
 endif
 
 all: main.cpp
-			$(CC) main.cpp $(CF) $(LIBPATH) $(INCPATH) $(LINK) -o main
+			$(CC) main.cpp -o main $(CF) $(LF) -lTinyEngine $(TINYLINK) -ltiff -lpng

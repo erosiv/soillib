@@ -174,8 +174,12 @@ struct layer {
     if(top == NULL)
       return;
 
-    slice.get(p)->top = top->below;
-    top->detach_below();
+    segment* below = top->below;
+
+    if(top->below != NULL)
+      top->below->above = NULL;
+
+    slice.get(p)->top = below;
     pool.unget(top);
   }
 

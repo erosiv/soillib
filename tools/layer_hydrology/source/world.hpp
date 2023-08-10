@@ -31,7 +31,35 @@ struct cell {
 
 };
 
-using mat_type = soil::matrix::mixture<2>;
+struct saturation {
+
+  bool is_water = false;
+
+  saturation operator+(const saturation rhs) {
+    return *this;
+  }
+
+  saturation operator/(const float rhs) { 
+    return *this;
+  }
+
+  saturation operator*(const float rhs) { 
+    return *this;
+  }
+
+  // Concept Implementations
+
+  const float maxdiff() const noexcept {
+    return (is_water)?0.0f:0.7f;
+  }
+
+  const float settling() const noexcept {
+    return 1.0f;
+  }
+
+};
+
+using mat_type = saturation;
 
 struct segment {
 
@@ -57,7 +85,7 @@ struct world_c {
   float minbasin = 0.1f;
 
   map_type::config map_config;
-  mat_type::config mat_config;
+  //mat_type::config mat_config;
   
   soil::WaterParticle_c water_config;
 
@@ -79,7 +107,7 @@ struct soil::io::yaml::cast<world_c> {
     config.minbasin = node["min-basin"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
-    config.mat_config = node["matrix"].As<mat_type::config>();
+  //  config.mat_config = node["matrix"].As<mat_type::config>();
     
     config.water_config = node["water"].As<soil::WaterParticle_c>();
 
@@ -107,7 +135,7 @@ struct World {
     map(config.map_config)
   {
 
-    mat_type::conf = config.mat_config;
+    //mat_type::conf = config.mat_config;
 
     soil::dist::seed(SEED);
 
@@ -119,7 +147,7 @@ struct World {
     for(auto [cell, pos]: map){
       float height_s = sampler.get(glm::vec3(pos.x, pos.y, (SEED+0)%10000)/glm::vec3(512, 512, 1.0f));
       mat_type matrix;
-      matrix.weight[1] = 1;
+     // matrix.weight[1] = 1;
       map.push(pos, segment(height_s, matrix));
     }
 
@@ -135,9 +163,9 @@ struct World {
     for(auto [cell, pos]: map){
       cell.top->height = (cell.top->height - min)/(max - min);
       //cell.top->matrix.weight[0] = cell.top->height;
-      mat_type matrix;
-      matrix.weight[0] = 1;
-      map.push(pos, segment(cell.top->height+0.025, matrix));
+ //     mat_type matrix;
+ //     matrix.weight[0] = 1;
+ //     map.push(pos, segment(cell.top->height+0.025, matrix));
     }
 
   }
@@ -158,30 +186,60 @@ struct World {
     return 0.0f;
   }
 
+  const inline float transfer(glm::ivec2 p){
+    if(!map.oob(p))
+      return matrix(p).is_water?0.0f:1.0f;
+    return 1.0f;
+  }
+
   inline mat_type matrix(glm::ivec2 p){
     if(!map.oob(p))
       return map.top(p)->matrix;
     return mat_type();
   }
 
-  const inline void add(glm::ivec2 p, float h, mat_type m){
+  const inline float add(glm::ivec2 p, float h, mat_type m){
     if(map.oob(p))
-      return;
+      return h;
 
-    const float mrate = 0.0025f;
 
-    if(h > 0){
-      float s = h/World::config.scale + mrate;
-      map.top(p)->matrix = (m*h/World::config.scale + matrix(p)*mrate)/s;
-    }
+    if(h < 0){
 
-    map.top(p)->height += h/World::config.scale;
-    if(map.top(p)->below != NULL){
-      if(map.top(p)->below->height >= map.top(p)->height){
-        auto top = map.top(p);
+      if(map.top(p)->below == NULL){
+        map.top(p)->height += h/World::config.scale;
+        return h;
+      }
+
+      // Cap the Height Subtraction
+
+      h = -glm::min(-h, World::config.scale*(map.top(p)->height - map.top(p)->below->height));
+      
+      map.top(p)->height += h/World::config.scale;
+      if(map.top(p)->height <= map.top(p)->below->height){
         map.pop(p);
       }
+
+      return h;
+
     }
+
+    if(matrix(p).is_water == m.is_water){
+
+      map.top(p)->height += h/World::config.scale;
+
+    } else if(m.is_water) {
+
+      map.push(p, segment(map.top(p)->height + h/World::config.scale, m));
+
+    } else {
+
+      map.top(p)->below->height += h/World::config.scale;
+      map.top(p)->height += h/World::config.scale;
+
+    }
+
+    return h;
+
   }
 
   const inline glm::vec3 normal(glm::ivec2 p){
@@ -216,6 +274,119 @@ world_c World::config;
           HYDRAULIC EROSION FUNCTIONS
 ===================================================
 */
+
+
+template<typename M>
+concept cascade_matrix = requires(M m){
+  { m.maxdiff() } -> std::same_as<float>;
+  { m.settling() } -> std::same_as<float>;
+};
+
+// Cascadable Map Constraints
+
+template<typename T, typename M>
+concept cascade_t = requires(T t){
+  { t.height(glm::ivec2()) } -> std::same_as<float>;
+  { t.oob(glm::ivec2()) } -> std::same_as<bool>;
+  { t.matrix(glm::ivec2()) } -> std::same_as<M>;
+  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<float>;
+};
+
+template<cascade_matrix M, cascade_t<M> T>
+void cascade2(T& map, const glm::ivec2 ipos){
+
+  // Out-Of-Bounds Checking
+
+  if(map.oob(ipos))
+    return;
+
+  // Get Non-Out-of-Bounds Neighbors
+
+  static const glm::ivec2 n[] = {
+    glm::ivec2(-1, -1),
+    glm::ivec2(-1,  0),
+    glm::ivec2(-1,  1),
+    glm::ivec2( 0, -1),
+    glm::ivec2( 0,  1),
+    glm::ivec2( 1, -1),
+    glm::ivec2( 1,  0),
+    glm::ivec2( 1,  1)
+  };
+
+  struct Point {
+    glm::ivec2 pos;
+    float h;
+    M matrix;
+    float d;
+  };
+
+  static Point sn[8];
+  int num = 0;
+
+  for(auto& nn: n){
+
+    glm::ivec2 npos = ipos + nn;
+
+    if(map.oob(npos))
+      continue;
+
+    sn[num++] = { npos, map.height(npos), map.matrix(npos), length(glm::vec2(nn)) };
+
+  }
+
+  // Compute the Average Height (i.e. trivial non-spurious stable solution)
+
+  M matrix = map.matrix(ipos);
+
+/*
+  float h_ave = map.height(ipos);
+  for (int i = 0; i < num; ++i)
+    h_ave += sn[i].h;
+  h_ave /= (float)(num+1);
+*/
+  
+  for (int i = 0; i < num; ++i) {
+
+    auto& npos = sn[i].pos;
+
+    //Full Height-Different Between Positions!
+    float diff = map.height(ipos) - sn[i].h;
+    if(diff == 0)   //No Height Difference
+      continue;
+
+    const M tmatrix = (diff >= 0)?matrix:sn[i].matrix;
+    if(!tmatrix.is_water)
+      continue;
+
+    const glm::ivec2 tpos = (diff > 0)?ipos:npos;
+    const glm::ivec2 bpos = (diff > 0)?npos:ipos;
+
+
+    //The Amount of Excess Difference!
+    float excess = 0.0f;
+    excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
+    if(excess <= 0)  //No Excess
+      continue;
+
+    //Actual Amount Transferred
+    float transfer = matrix.settling() * excess / 2.0f;
+
+    //Cap by Maximum Transferrable Amount
+    
+    transfer = -map.add(tpos,-transfer, tmatrix);
+    transfer = map.add(bpos, transfer, tmatrix);
+
+  }
+
+}
+
+
+
+
+
+
+
+
 
 int n_timesteps = 0;
 
@@ -267,9 +438,25 @@ bool World::erode(){
 
     }
 
+    // Attempt to Flood
+
+    if(!map.oob(drop.pos) && drop.volume >= config.water_config.minVol && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.1){
+
+      mat_type watermatrix;
+      watermatrix.is_water = true;
+      add(drop.pos, drop.volume*0.1f, watermatrix);
+      soil::phys::cascade<mat_type>(*this, drop.pos);
+
+    }
+
     if(map.oob(drop.pos))
       no_basin_track++;
 
+  }
+
+
+  for(auto [cell, pos]: map){
+    cascade2<mat_type>(*this, pos);
   }
 
   //Update Fields

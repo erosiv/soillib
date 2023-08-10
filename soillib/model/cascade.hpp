@@ -22,7 +22,7 @@ concept cascade_t = requires(T t){
   { t.height(glm::ivec2()) } -> std::same_as<float>;
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
   { t.matrix(glm::ivec2()) } -> std::same_as<M>;
-  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<void>;
+  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<float>;
 };
 
 template<cascade_matrix M, cascade_t<M> T>
@@ -81,13 +81,17 @@ void cascade(T& map, const glm::ivec2 ipos){
     auto& npos = sn[i].pos;
 
     //Full Height-Different Between Positions!
-    float diff = h_ave - sn[i].h;
+    float diff = map.height(ipos) - sn[i].h;
     if(diff == 0)   //No Height Difference
       continue;
 
+    const M& tmatrix = (diff >= 0)?matrix:sn[i].matrix;
+    const glm::ivec2& tpos = (diff >= 0)?ipos:npos;
+    const glm::ivec2& bpos = (diff >= 0)?npos:ipos;
+
     //The Amount of Excess Difference!
     float excess = 0.0f;
-    excess = abs(diff) - sn[i].d*matrix.maxdiff();
+    excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
     if(excess <= 0)  //No Excess
       continue;
 
@@ -95,14 +99,8 @@ void cascade(T& map, const glm::ivec2 ipos){
     float transfer = matrix.settling() * excess / 2.0f;
 
     //Cap by Maximum Transferrable Amount
-    if(diff > 0) {
-      map.add(ipos,-transfer, matrix);
-      map.add(npos, transfer, matrix);
-    }
-    else {
-      map.add(ipos, transfer, sn[i].matrix);
-      map.add(npos,-transfer, sn[i].matrix);
-    }
+    transfer = -map.add(tpos,-transfer, tmatrix);
+    transfer = map.add(bpos, transfer, tmatrix);
 
   }
 

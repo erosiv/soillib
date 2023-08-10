@@ -4,6 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/buf.hpp>
 
+#include <stdexcept>
 #include <deque>
 
 namespace soil {
@@ -38,8 +39,10 @@ struct pool {
   template<typename... Args>
   T* get(Args && ...args){ // In-Place Construction
 
-    if(free.empty())
+    if(free.empty()){
+      throw std::invalid_argument( "out of memory" );
       return NULL;
+    }
 
     T* E = free.back();
     try{ new (E)T(std::forward<Args>(args)...); }

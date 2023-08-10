@@ -98,7 +98,7 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
   // Momentum Transfer Force
 
   if(length(fspeed) > 0 && length(speed) > 0)
-    speed += param.momentumTransfer*dot(normalize(fspeed), normalize(speed))/(volume + discharge)*fspeed;
+    speed += world.transfer(ipos)*dot(normalize(fspeed), normalize(speed))/(volume + discharge)*fspeed;
 
   // Dynamic Time-Step, Update
 
@@ -152,12 +152,12 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   if(effD*cdiff < 0){
 
-    if(effD*cdiff < -sediment) // Only Use Available
+    if(matrix.is_water && effD*cdiff < -sediment) // Only Use Available
       cdiff = -sediment/effD;
 
   } else if(effD*cdiff > 0){
 
-    matrix = (matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
+    matrix = world.matrix(ipos);//(matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
 
   }
 
@@ -172,7 +172,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // New Position Out-Of-Bounds
 
-  soil::phys::cascade<M>(world, ipos);
+  soil::phys::cascade<M>(world, pos);
 
   age++;
   return true;

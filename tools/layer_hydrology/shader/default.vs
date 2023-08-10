@@ -20,25 +20,22 @@ void main(void) {
 	//Fragment Position in Model Space
 	ex_FragPos = (model * vec4(in_Position, 1.0f)).xyz;
 	ex_Normal = texture(normalMap, in_Position.xz/dimension).xyz;
-	vec3 ex_Albedo = 1.0f-texture(albedoMap, in_Position.xz/dimension).xyz;
+	float ex_Albedo = texture(albedoMap, in_Position.xz/dimension).a;
 
 	//Fragment in Screen Space
 	gl_Position = vp * vec4(ex_FragPos, 1.0f);
 
 	float discharge = texture(dischargeMap, in_Position.xz/dimension).a;
 
-	vec3 normal = 1.0f-ex_Normal*2.0f;
+	vec3 normal = normalize(ex_Normal).zxy;
 
-	float diffuse = dot(normalize(normal), normalize(vec3(1, 1, 1)));
+	float diffuse = dot(normalize(ex_Normal), normalize(vec3(1, 1, 1)));
 	diffuse = clamp(diffuse, 0.1, 0.9);
 	
-	float light = 0.7 + 0.5*diffuse;
-
-	ex_Normal = 1.0f-ex_Normal.xyz;
-	ex_Color = vec4(vec3(light), 1.0);
-	if(albedoRead)
-		ex_Color = vec4(light*ex_Albedo, 1.0f);
-	else
-		ex_Color = vec4(ex_Normal, 1.0f);
-//	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.6*discharge);
+	float light = 0.3 + 0.7*diffuse;
+	
+	ex_Color = vec4(0.5, 0.5, 0.5, 1.0f);
+	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.6*discharge);
+	ex_Color = mix(ex_Color, vec4(0,0,1,1), ex_Albedo);
+	ex_Color = vec4(light*ex_Color.xyz, 1.0f);
 }
