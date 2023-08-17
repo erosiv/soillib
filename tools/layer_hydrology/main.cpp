@@ -64,6 +64,8 @@ int main( int argc, char* args[] ) {
   Tiny::event.handler = [&](){
     if(!Tiny::event.press.empty() && Tiny::event.press.back() == SDLK_p)
       paused = !paused;
+    if(!Tiny::event.press.empty() && Tiny::event.press.back() == SDLK_m)
+      cam::roty = 0.0f;
     cam::handler();               //Event Handler
   };
 

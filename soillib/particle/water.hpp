@@ -141,12 +141,71 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   if(c_eq < 0)
     c_eq = 0;
 
+  const auto& nmatrix = world.matrix(ipos);
+
+  /*
+
   // We are Water
 
-  const auto& nmatrix = world.matrix(ipos);
+
+  float cvdiff = 0.5 + c_eq - volume;
+  float csdiff = c_eq - sediment;
+
+  float effD = param.depositionRate*(1.0f - resistance);
+  if(effD < 0)
+    effD = 0;
+
+  // Take Water from Water
+
+  if(cvdiff*effD > 0 && nmatrix.is_water){
+
+    cvdiff = -world.add(ipos, -effD*cvdiff, matrix)/effD;
+    volume += effD*cvdiff;
+    matrix = world.matrix(pos);
+
+  }
+
+  // Simply Place Water
+
+  else if(cvdiff*effD < 0 && matrix.is_water){
+
+    if(effD*cvdiff < -volume) // Only Use Available
+      cvdiff = -volume/effD;
+
+    volume += effD*cvdiff;
+    world.add(ipos, -effD*cvdiff, matrix);
+
+  }
+
+  // Take Soil from Soil
+
+  if(csdiff*effD > 0 && !nmatrix.is_water){
+
+      world.add(ipos, -effD*csdiff, matrix);
+      sediment += effD*csdiff;
+      matrix = world.matrix(pos);
+
+  }
+
+  // Place Soil
+
+  else if(csdiff*effD < 0 && !matrix.is_water){
+
+    if(effD*csdiff < -sediment) // Only Use Available
+      csdiff = -sediment/effD;
+
+    sediment += effD*csdiff;
+    world.add(ipos, -effD*csdiff, matrix);
+
+  }
+
+  */
+
+  
+
   if(nmatrix.is_water){
 
-    float cdiff = c_eq - volume; 
+    float cdiff = 0.5 + c_eq - volume; 
     float effD = param.depositionRate*(1.0f - resistance);
     if(effD < 0)
       effD = 0;
@@ -193,43 +252,6 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
     }
 
   }
-
-
-/*
-  //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
-  if(c_eq < 0)
-    c_eq = 0;
-
-
-  // Effective Parameter Set
-
-
-  // Compute Actual Mass Transfer
-
-  // Add Sediment to Map
-
-  if(effD*cdiff < 0){
-
-    if(matrix.is_water && effD*cdiff < -sediment) // Only Use Available
-      cdiff = -sediment/effD;
-
-  } else if(effD*cdiff > 0){
-
-
-  }
-  */
-
-  //(matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
-
-
-/*
-
-  // Add Sediment Mass to Map, Particle
-
-  sediment += effD*cdiff;
-  world.add(ipos, -effD*cdiff, matrix);
-  */
 
   //Evaporate (Mass Conservative)
 

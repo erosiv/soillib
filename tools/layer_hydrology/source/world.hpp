@@ -216,6 +216,7 @@ struct World {
 
       map.top(p)->height += h/World::config.scale;
       if(map.top(p)->height <= map.top(p)->below->height){
+        h = 0;
         map.pop(p);
       }
 
