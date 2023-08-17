@@ -105,7 +105,7 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
   // Dynamic Time-Step, Update
 
   if(length(speed) > 0)
-    speed = (sqrt(2.0f))*normalize(speed);
+    speed = normalize(speed);
 
   opos = pos;
   pos  += speed;
@@ -145,7 +145,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // We are Water
 
-  float cvdiff = c_eq - volume;
+  float cvdiff = 0.2 + c_eq - volume;
   float csdiff = c_eq - sediment;
 
   float effD = param.depositionRate*(1.0f - resistance);
