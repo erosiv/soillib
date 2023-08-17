@@ -18,11 +18,11 @@
 
 // Raw Interleaved Cell Data
 
-using matrix_type = soil::matrix::mixture<2>;
+using mat_type = soil::matrix::mixture<2>;
 
 struct cell {
 
-  matrix_type matrix;
+  mat_type matrix;
 
   float height;
 
@@ -51,7 +51,7 @@ struct world_c {
   float minbasin = 0.1f;
 
   map_type::config map_config;
-  matrix_type::config matrix_config;
+  mat_type::config mat_config;
   soil::WaterParticle_c water_config;
 
 };
@@ -72,7 +72,7 @@ struct soil::io::yaml::cast<world_c> {
     config.minbasin = node["min-basin"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
-    config.matrix_config = node["matrix"].As<matrix_type::config>();
+    config.mat_config = node["matrix"].As<mat_type::config>();
     config.water_config = node["water"].As<soil::WaterParticle_c>();
     return config;
   
@@ -97,6 +97,8 @@ struct World {
     SEED(SEED),
     map(config.map_config)
   {
+
+    mat_type::conf = config.mat_config;
 
     soil::dist::seed(SEED);
 
@@ -145,13 +147,13 @@ struct World {
     return 0.0f;
   }
 
-  inline matrix_type matrix(glm::ivec2 p){
+  inline mat_type matrix(glm::ivec2 p){
     if(!map.oob(p))
       return map.get(p)->matrix;
-    return matrix_type();
+    return mat_type();
   }
 
-  const inline void add(glm::ivec2 p, float h, matrix_type m){
+  const inline void add(glm::ivec2 p, float h, mat_type m){
     if(map.oob(p))
       return;
 
@@ -227,7 +229,7 @@ bool World::erode(){
 
     //Spawn New Particle
 
-    soil::WaterParticle<matrix_type> drop(glm::vec2(map.dimension)*soil::dist::vec2());
+    soil::WaterParticle<mat_type> drop(glm::vec2(map.dimension)*soil::dist::vec2());
     drop.matrix = matrix(drop.pos);
 
     while(true){
