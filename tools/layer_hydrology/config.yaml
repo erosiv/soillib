@@ -21,7 +21,7 @@ matrix:
       - 0
       - 0
       - 0
-  - max-diff: 0.1
+  - max-diff: 0.0
     color:
       - 0
       - 0

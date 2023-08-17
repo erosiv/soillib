@@ -79,12 +79,14 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
     return false;
   }
 
+/*
   if(volume < param.minVol){
     world.add(ipos, sediment, matrix);
     soil::phys::cascade<M>(world, ipos);
     return false;
   }
-
+*/
+  
   // Apply Forces to Particle
 
   const glm::vec3 n = world.normal(ipos);
@@ -133,18 +135,75 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   else
     h2 = world.height(pos);
 
+  // Add Mass to Map
+
+  float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
+  if(c_eq < 0)
+    c_eq = 0;
+
+  // We are Water
+
+  const auto& nmatrix = world.matrix(ipos);
+  if(nmatrix.is_water){
+
+    float cdiff = c_eq - volume; 
+    float effD = param.depositionRate*(1.0f - resistance);
+    if(effD < 0)
+      effD = 0;
+
+    if(cdiff*effD < 0){
+
+      if(effD*cdiff < -volume) // Only Use Available
+        cdiff = -volume/effD;
+
+      volume += effD*cdiff;
+      world.add(ipos, -effD*cdiff, matrix);
+
+    } else {
+
+      cdiff = -world.add(ipos, -effD*cdiff, matrix)/effD;
+      volume += effD*cdiff;
+      matrix = world.matrix(pos);
+
+    }
+
+  } else {
+
+    float cdiff = (c_eq - sediment);
+    float effD = param.depositionRate*(1.0f - resistance);
+    if(effD < 0)
+      effD = 0;
+
+    // Adding to Map
+
+    if(effD*cdiff < 0){
+
+      if(effD*cdiff < -sediment) // Only Use Available
+        cdiff = -sediment/effD;
+
+      sediment += effD*cdiff;
+      world.add(ipos, -effD*cdiff, matrix);
+
+    } else {
+
+      world.add(ipos, -effD*cdiff, matrix);
+      sediment += effD*cdiff;
+      matrix = world.matrix(pos);
+
+    }
+
+  }
+
+
+/*
   //Mass-Transfer (in MASS)
   float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
   if(c_eq < 0)
     c_eq = 0;
 
-  float cdiff = (c_eq*volume - sediment);
 
   // Effective Parameter Set
 
-  float effD = param.depositionRate*(1.0f - resistance);
-  if(effD < 0)
-    effD = 0;
 
   // Compute Actual Mass Transfer
 
@@ -157,14 +216,20 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   } else if(effD*cdiff > 0){
 
-    matrix = world.matrix(ipos);//(matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
 
   }
+  */
+
+  //(matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
+
+
+/*
 
   // Add Sediment Mass to Map, Particle
 
   sediment += effD*cdiff;
   world.add(ipos, -effD*cdiff, matrix);
+  */
 
   //Evaporate (Mass Conservative)
 
@@ -172,7 +237,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // New Position Out-Of-Bounds
 
-  soil::phys::cascade<M>(world, pos);
+  soil::phys::cascade<M>(world, ipos);
 
   age++;
   return true;

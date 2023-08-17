@@ -35,7 +35,7 @@ void main(void) {
 	float light = 0.3 + 0.7*diffuse;
 	
 	ex_Color = vec4(0.5, 0.5, 0.5, 1.0f);
-	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.6*discharge);
 	ex_Color = mix(ex_Color, vec4(0,0,1,1), ex_Albedo);
+	ex_Color = mix(ex_Color, vec4(1,1,1,1), 0.6*discharge);
 	ex_Color = vec4(light*ex_Color.xyz, 1.0f);
 }
