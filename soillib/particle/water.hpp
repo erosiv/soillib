@@ -141,14 +141,11 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   if(c_eq < 0)
     c_eq = 0;
 
-  const auto& nmatrix = world.matrix(ipos);
-
-  /*
+  auto nmatrix = world.matrix(ipos);
 
   // We are Water
 
-
-  float cvdiff = 0.5 + c_eq - volume;
+  float cvdiff = c_eq - volume;
   float csdiff = c_eq - sediment;
 
   float effD = param.depositionRate*(1.0f - resistance);
@@ -157,39 +154,23 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // Take Water from Water
 
-  if(cvdiff*effD > 0 && nmatrix.is_water){
+  if(!nmatrix.is_water && csdiff*effD > 0){
+
+    world.add(ipos, -effD*csdiff, matrix);
+    sediment += effD*csdiff;
+
+  }
+
+  if(nmatrix.is_water && cvdiff*effD > 0){
 
     cvdiff = -world.add(ipos, -effD*cvdiff, matrix)/effD;
     volume += effD*cvdiff;
-    matrix = world.matrix(pos);
-
-  }
-
-  // Simply Place Water
-
-  else if(cvdiff*effD < 0 && matrix.is_water){
-
-    if(effD*cvdiff < -volume) // Only Use Available
-      cvdiff = -volume/effD;
-
-    volume += effD*cvdiff;
-    world.add(ipos, -effD*cvdiff, matrix);
-
-  }
-
-  // Take Soil from Soil
-
-  if(csdiff*effD > 0 && !nmatrix.is_water){
-
-      world.add(ipos, -effD*csdiff, matrix);
-      sediment += effD*csdiff;
-      matrix = world.matrix(pos);
 
   }
 
   // Place Soil
 
-  else if(csdiff*effD < 0 && !matrix.is_water){
+  if(!matrix.is_water && csdiff*effD < 0){
 
     if(effD*csdiff < -sediment) // Only Use Available
       csdiff = -sediment/effD;
@@ -199,67 +180,26 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   }
 
-  */
+  // Simply Place Water
 
-  
+  if(matrix.is_water && cvdiff*effD < 0){
 
-  if(nmatrix.is_water){
+    if(effD*cvdiff < -volume) // Only Use Available
+      cvdiff = -volume/effD;
 
-    float cdiff = 0.5 + c_eq - volume; 
-    float effD = param.depositionRate*(1.0f - resistance);
-    if(effD < 0)
-      effD = 0;
-
-    if(cdiff*effD < 0){
-
-      if(effD*cdiff < -volume) // Only Use Available
-        cdiff = -volume/effD;
-
-      volume += effD*cdiff;
-      world.add(ipos, -effD*cdiff, matrix);
-
-    } else {
-
-      cdiff = -world.add(ipos, -effD*cdiff, matrix)/effD;
-      volume += effD*cdiff;
-      matrix = world.matrix(pos);
-
-    }
-
-  } else {
-
-    float cdiff = (c_eq - sediment);
-    float effD = param.depositionRate*(1.0f - resistance);
-    if(effD < 0)
-      effD = 0;
-
-    // Adding to Map
-
-    if(effD*cdiff < 0){
-
-      if(effD*cdiff < -sediment) // Only Use Available
-        cdiff = -sediment/effD;
-
-      sediment += effD*cdiff;
-      world.add(ipos, -effD*cdiff, matrix);
-
-    } else {
-
-      world.add(ipos, -effD*cdiff, matrix);
-      sediment += effD*cdiff;
-      matrix = world.matrix(pos);
-
-    }
+    volume += effD*cvdiff;
+    world.add(ipos, -effD*cvdiff, matrix);
 
   }
+
+  soil::phys::cascade<M>(world, ipos);
+  matrix = world.matrix(ipos);
 
   //Evaporate (Mass Conservative)
 
   volume *= (1.0-param.evapRate);
 
   // New Position Out-Of-Bounds
-
-  soil::phys::cascade<M>(world, ipos);
 
   age++;
   return true;
