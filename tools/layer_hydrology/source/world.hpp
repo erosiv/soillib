@@ -361,6 +361,14 @@ bool World::erode(){
 
   }
 
+  // Lake Evaporation
+
+  for(auto [cell, pos]: map){
+    if(this->matrix(pos).is_water){
+      add(pos, -0.001, this->matrix(pos));
+    }
+  }
+
   //Update Fields
   for(auto [cell, pos]: map){
     cell.discharge = (1.0f-config.lrate)*cell.discharge + config.lrate*cell.discharge_track;
