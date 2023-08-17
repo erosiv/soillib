@@ -28,6 +28,9 @@ concept cascade_t = requires(T t){
 template<cascade_matrix M, cascade_t<M> T>
 void cascade(T& map, const glm::ivec2 ipos){
 
+  if(map.oob(ipos))
+    return;
+
   // Get Non-Out-of-Bounds Neighbors
 
   static const glm::ivec2 n[] = {
@@ -46,9 +49,8 @@ void cascade(T& map, const glm::ivec2 ipos){
     float h;
     M matrix;
     float d;
-  };
+  } static sn[8];
 
-  static Point sn[8];
   int num = 0;
 
   for(auto& nn: n){
@@ -62,42 +64,36 @@ void cascade(T& map, const glm::ivec2 ipos){
 
   }
 
-  // Compute the Average Height (i.e. trivial non-spurious stable solution)
+  // Local Matrix, Target Height
 
-  M matrix = map.matrix(ipos);
+  const M matrix = map.matrix(ipos);
 
-  float h_ave = 0.0f;
+  float h_ave = map.height(ipos);
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
-  h_ave /= (float)num;
+  h_ave /= (float)(num+1);
 
   for (int i = 0; i < num; ++i) {
-
-    auto& npos = sn[i].pos;
 
     //Full Height-Different Between Positions!
     float diff = h_ave - sn[i].h;
     if(diff == 0)   //No Height Difference
       continue;
 
+    const glm::ivec2& tpos = (diff > 0)?ipos:sn[i].pos;
+    const glm::ivec2& bpos = (diff > 0)?sn[i].pos:ipos;
+    const M& tmatrix = (diff > 0)?matrix:sn[i].matrix;
+
     //The Amount of Excess Difference!
     float excess = 0.0f;
-    excess = abs(diff) - sn[i].d*matrix.maxdiff();
+    excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
     if(excess <= 0)  //No Excess
       continue;
 
     //Actual Amount Transferred
-    float transfer = matrix.settling() * excess / 2.0f;
-
-    //Cap by Maximum Transferrable Amount
-    if(diff > 0) {
-      map.add(ipos,-transfer, matrix);
-      map.add(npos, transfer, matrix);
-    }
-    else {
-      map.add(ipos, transfer, sn[i].matrix);
-      map.add(npos,-transfer, sn[i].matrix);
-    }
+    float transfer = tmatrix.settling() * excess / 2.0f;
+    map.add(tpos,-transfer, tmatrix);
+    map.add(bpos, transfer, tmatrix);
 
   }
 
