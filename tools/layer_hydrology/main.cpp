@@ -95,6 +95,10 @@ int main( int argc, char* args[] ) {
     return glm::vec4(world.normal(p), 1.0f);
   }, world.map.dimension));
 
+  Texture subNormalMap(image::make([&](const glm::ivec2 p){
+    return glm::vec4(world.subnormal(p), 1.0f);
+  }, world.map.dimension));
+
   Texture albedoMap(image::make([&](const glm::ivec2 p){
     return glm::vec4(world.matrix(p).is_water?1.0f:0.0f);
   }, world.map.dimension));
@@ -110,6 +114,7 @@ int main( int argc, char* args[] ) {
     defaultShader.uniform("vp", cam::vp);           //View Projection Matrix
     defaultShader.texture("dischargeMap", dischargeMap);            //View Projection Matrix
     defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
+    defaultShader.texture("subNormalMap", subNormalMap);            //View Projection Matrix
     defaultShader.texture("albedoMap", albedoMap);            //View Projection Matrix
   //  defaultShader.uniform("albedoRead", albedo_read);            //View Projection Matrix
     defaultShader.uniform("dimension", glm::vec2(world.map.dimension));           //View Projection Matrix
@@ -130,6 +135,10 @@ int main( int argc, char* args[] ) {
     normalMap.raw(image::make([&](const glm::ivec2 p){
       return glm::vec4(world.normal(p), 0.0f);
     }, world.map.dimension));
+
+    subNormalMap.raw(image::make([&](const glm::ivec2 p){
+        return glm::vec4(world.subnormal(p), 1.0f);
+      }, world.map.dimension));
 
     albedoMap.raw(image::make([&](const glm::ivec2 p){
       return glm::vec4(world.matrix(p).is_water?1.0f:0.0f);

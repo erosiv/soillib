@@ -162,10 +162,13 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.top->height = (cell.top->height - min)/(max - min);
-      //cell.top->matrix.weight[0] = cell.top->height;
- //     mat_type matrix;
- //     matrix.weight[0] = 1;
- //     map.push(pos, segment(cell.top->height+0.025, matrix));
+      /*
+      if(cell.top->height < 0.4){
+        mat_type matrix;
+        matrix.is_water = true;
+        map.push(pos, segment(0.4, matrix));
+      }
+      */ 
     }
 
   }
@@ -183,6 +186,16 @@ struct World {
   const inline float height(glm::ivec2 p){
     if(!map.oob(p))
       return World::config.scale*map.top(p)->height;
+    return 0.0f;
+  }
+
+  const inline float subheight(glm::ivec2 p){
+    if(!map.oob(p)){
+      if(map.top(p)->below == NULL)
+        return World::config.scale*map.top(p)->height;
+      else 
+        return World::config.scale*map.top(p)->below->height;
+    }
     return 0.0f;
   }
 
@@ -216,8 +229,33 @@ struct World {
       map.top(p)->height += h/World::config.scale;
 
       if(map.top(p)->height <= map.top(p)->below->height){
-        h = 0;
         map.pop(p);
+
+        if(this->matrix(p).is_water){
+
+          soil::WaterParticle<mat_type> drop(p);
+          drop.matrix = this->matrix(drop.pos);
+          drop.volume = h/0.5;
+
+          while(true){
+            if(!drop.move(*this, config.water_config))
+              break;
+
+            auto cell = map.get(drop.pos);
+            if(cell != NULL){
+              cell->discharge_track += drop.volume;
+              cell->momentumx_track += drop.volume*drop.speed.x;
+              cell->momentumy_track += drop.volume*drop.speed.y;
+            }
+
+            if(!drop.interact(*this, config.water_config))
+              break;
+          }
+
+        }
+
+        h = 0;
+
       }
 
       return h;
@@ -245,6 +283,10 @@ struct World {
 
   const inline glm::vec3 normal(glm::ivec2 p){
     return soil::surface::normal(*this, p);
+  }
+
+  const inline glm::vec3 subnormal(glm::ivec2 p){
+    return soil::surface::subnormal(*this, p);
   }
 
   const inline glm::vec2 momentum(glm::ivec2 p){
@@ -351,7 +393,7 @@ bool World::erode(){
 
       mat_type watermatrix;
       watermatrix.is_water = true;
-      add(drop.pos, drop.volume*0.1f, watermatrix);
+      add(drop.pos, drop.volume*0.5f, watermatrix);
       soil::phys::cascade<mat_type>(*this, drop.pos);
 
     }
@@ -366,8 +408,6 @@ bool World::erode(){
   for(auto [cell, pos]: map){
     if(this->matrix(pos).is_water){
       add(pos, -0.001, this->matrix(pos));
-      soil::phys::cascade<mat_type>(*this, pos);
-      soil::phys::cascade<mat_type>(*this, pos);
       soil::phys::cascade<mat_type>(*this, pos);
     }
   }

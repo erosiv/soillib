@@ -75,6 +75,7 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
 
   if(age > param.maxAge){
     world.add(ipos, sediment, matrix);
+    world.add(ipos, volume*0.1, matrix);
     soil::phys::cascade<M>(world, ipos);
     return false;
   }
@@ -145,8 +146,8 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // We are Water
 
-  float cvdiff = 0.2 + c_eq - volume;
-  float csdiff = c_eq - sediment;
+  float cvdiff = (0.2 + c_eq)/0.5 - volume;
+  float csdiff = c_eq*volume - sediment;
 
   float effD = param.depositionRate*(1.0f - resistance);
   if(effD < 0)
@@ -163,7 +164,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   if(nmatrix.is_water && cvdiff*effD > 0){
 
-    cvdiff = -world.add(ipos, -effD*cvdiff, matrix)/effD;
+    cvdiff = -world.add(ipos, -effD*cvdiff*0.5, matrix)/effD;
     volume += effD*cvdiff;
 
   }
@@ -188,7 +189,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
       cvdiff = -volume/effD;
 
     volume += effD*cvdiff;
-    world.add(ipos, -effD*cvdiff, matrix);
+    world.add(ipos, -effD*cvdiff*0.5, matrix);
 
   }
 
