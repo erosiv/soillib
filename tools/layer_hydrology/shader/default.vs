@@ -40,10 +40,8 @@ void main(void) {
 		float diffuse = clamp(dot(normalize(snormal), normalize(vec3(1, 1, 1))), 0.0, 1.0);	
 		float light = diffuse;
 
-		if(ex_Albedo != 0)
+		if(ex_Albedo != 1)
 			ex_Color = mix(ex_Color, vec4(0.1,0.1,0.1,1), 0.6*discharge);
-		else
-			ex_Color = mix(ex_Color, vec4(0.1,0.1,0.1,1), 0.1*discharge);
 
 		ex_Color = vec4(light*ex_Color.xyz, 1.0f);
 	
@@ -58,9 +56,10 @@ void main(void) {
 		}
 		else{
 
-			ex_Color = mix(ex_Color, vec4(0.5,0.5,0.8,1), ex_Albedo);
-			ex_Color = mix(ex_Color, vec4(0.1,0.1,0.1,1), 0.1*discharge);
+			ex_Color = mix(ex_Color, vec4(0.25,0.35,0.6,1), ex_Albedo);
 			ex_Color = vec4(light*ex_Color.xyz, 0.5);
+			ex_Color = mix(ex_Color, vec4(0.75,0.85,0.9,1), discharge);
+
 		}
 
 

@@ -8,6 +8,7 @@
 
 #include <soillib/map/layer.hpp>
 #include <soillib/model/surface.hpp>
+#include <soillib/model/cascade.hpp>
 
 #include <soillib/matrix/mixture.hpp>
 #include <soillib/particle/water.hpp>
@@ -83,6 +84,7 @@ struct world_c {
   float lrate = 0.1f;
   int maxcycles = 2048;
   float minbasin = 0.1f;
+  float waterscale = 5.0f;
 
   map_type::config map_config;
   //mat_type::config mat_config;
@@ -105,6 +107,7 @@ struct soil::io::yaml::cast<world_c> {
     config.lrate = node["lrate"].As<float>();
     config.maxcycles = node["max-cycles"].As<int>();
     config.minbasin = node["min-basin"].As<float>();
+    config.waterscale = node["water-scale"].As<float>();
 
     config.map_config = node["map"].As<map_type::config>();
   //  config.mat_config = node["matrix"].As<mat_type::config>();
@@ -162,13 +165,6 @@ struct World {
 
     for(auto [cell, pos]: map){
       cell.top->height = (cell.top->height - min)/(max - min);
-      /*
-      if(cell.top->height < 0.4){
-        mat_type matrix;
-        matrix.is_water = true;
-        map.push(pos, segment(0.4, matrix));
-      }
-      */ 
     }
 
   }
@@ -201,8 +197,14 @@ struct World {
 
   const inline float transfer(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?-0.1f:1.0f;
+      return matrix(p).is_water?0.0f:1.0f;
     return 1.0f;
+  }
+
+  const inline float gravity(glm::ivec2 p){
+    if(!map.oob(p))
+      return matrix(p).is_water?2.0f:2.0f;
+    return 2.0f;
   }
 
   inline mat_type matrix(glm::ivec2 p){
@@ -218,7 +220,7 @@ struct World {
 
     if(h < 0){
 
-      if(map.top(p)->below == NULL){
+      if(!this->matrix(p).is_water){
         map.top(p)->height += h/World::config.scale;
         return h;
       }
@@ -230,32 +232,7 @@ struct World {
 
       if(map.top(p)->height <= map.top(p)->below->height){
         map.pop(p);
-
-        if(this->matrix(p).is_water){
-
-          soil::WaterParticle<mat_type> drop(p);
-          drop.matrix = this->matrix(drop.pos);
-          drop.volume = h/0.5;
-
-          while(true){
-            if(!drop.move(*this, config.water_config))
-              break;
-
-            auto cell = map.get(drop.pos);
-            if(cell != NULL){
-              cell->discharge_track += drop.volume;
-              cell->momentumx_track += drop.volume*drop.speed.x;
-              cell->momentumy_track += drop.volume*drop.speed.y;
-            }
-
-            if(!drop.interact(*this, config.water_config))
-              break;
-          }
-
-        }
-
         h = 0;
-
       }
 
       return h;
@@ -385,15 +362,25 @@ bool World::erode(){
       if(!drop.interact(*this, config.water_config))
         break;
 
+      soil::phys::cascade<mat_type>(*this, drop.pos);
+
     }
+
+     if(!drop.matrix.is_water)
+      add(drop.pos, drop.sediment, drop.matrix);
+    else 
+      add(drop.pos, drop.volume*config.waterscale, drop.matrix);
+
+    soil::phys::cascade<mat_type>(*this, drop.pos);
 
     // Attempt to Flood
 
-    if(!map.oob(drop.pos) && drop.volume >= config.water_config.minVol && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.1){
+    if(!map.oob(drop.pos) && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.1){
 
       mat_type watermatrix;
       watermatrix.is_water = true;
-      add(drop.pos, drop.volume*0.5f, watermatrix);
+
+      add(drop.pos, drop.volume*config.waterscale, watermatrix);
       soil::phys::cascade<mat_type>(*this, drop.pos);
 
     }
@@ -409,6 +396,8 @@ bool World::erode(){
     if(this->matrix(pos).is_water){
       add(pos, -0.001, this->matrix(pos));
       soil::phys::cascade<mat_type>(*this, pos);
+    //  soil::phys::cascade<mat_type>(*this, pos);
+    //  soil::phys::cascade<mat_type>(*this, pos);
     }
   }
 

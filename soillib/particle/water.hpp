@@ -3,7 +3,6 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/particle/particle.hpp>
-#include <soillib/model/cascade.hpp>
 
 namespace soil {
 
@@ -73,20 +72,8 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
   if(world.oob(ipos))
     return false;
 
-  if(age > param.maxAge){
-    world.add(ipos, sediment, matrix);
-    world.add(ipos, volume*0.1, matrix);
-    soil::phys::cascade<M>(world, ipos);
+  if(age > param.maxAge)
     return false;
-  }
-
-/*
-  if(volume < param.minVol){
-    world.add(ipos, sediment, matrix);
-    soil::phys::cascade<M>(world, ipos);
-    return false;
-  }
-*/
   
   // Apply Forces to Particle
 
@@ -96,7 +83,7 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
 
   // Gravity Force
 
-  speed += param.gravity*glm::vec2(n.x, n.z)/volume;
+  speed += world.gravity(ipos)*glm::vec2(n.x, n.z)/volume;
 
   // Momentum Transfer Force
 
@@ -146,12 +133,38 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // We are Water
 
-  float cvdiff = (0.2 + c_eq)/0.5 - volume;
+  float cvdiff = 1.0 + c_eq/world.config.waterscale - volume;
   float csdiff = c_eq*volume - sediment;
 
   float effD = param.depositionRate*(1.0f - resistance);
   if(effD < 0)
     effD = 0;
+
+  // Place Soil
+
+  if(csdiff*effD < 0){
+
+    if(effD*csdiff < -sediment) // Only Use Available
+      csdiff = -sediment/effD;
+
+    sediment += effD*csdiff;
+    matrix.is_water = false;
+    world.add(ipos, -effD*csdiff, matrix);
+
+  }
+
+  // Simply Place Water
+
+  if(cvdiff*effD < 0){
+
+    if(effD*cvdiff < -volume) // Only Use Available
+      cvdiff = -volume/effD;
+
+    volume += effD*cvdiff;
+    matrix.is_water = true;
+    world.add(ipos, -effD*cvdiff*world.config.waterscale, matrix);
+
+  }
 
   // Take Water from Water
 
@@ -164,43 +177,12 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   if(nmatrix.is_water && cvdiff*effD > 0){
 
-    cvdiff = -world.add(ipos, -effD*cvdiff*0.5, matrix)/effD;
+    cvdiff = -world.add(ipos, -effD*cvdiff*world.config.waterscale, matrix)/effD;
     volume += effD*cvdiff;
 
   }
 
-  // Place Soil
-
-  if(!matrix.is_water && csdiff*effD < 0){
-
-    if(effD*csdiff < -sediment) // Only Use Available
-      csdiff = -sediment/effD;
-
-    sediment += effD*csdiff;
-    world.add(ipos, -effD*csdiff, matrix);
-
-  }
-
-  // Simply Place Water
-
-  if(matrix.is_water && cvdiff*effD < 0){
-
-    if(effD*cvdiff < -volume) // Only Use Available
-      cvdiff = -volume/effD;
-
-    volume += effD*cvdiff;
-    world.add(ipos, -effD*cvdiff*0.5, matrix);
-
-  }
-
-  soil::phys::cascade<M>(world, ipos);
   matrix = world.matrix(ipos);
-
-  //Evaporate (Mass Conservative)
-
-  volume *= (1.0-param.evapRate);
-
-  // New Position Out-Of-Bounds
 
   age++;
   return true;

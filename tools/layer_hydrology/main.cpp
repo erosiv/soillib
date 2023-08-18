@@ -56,7 +56,8 @@ int main( int argc, char* args[] ) {
   cam::rot = 45.0f;
   cam::roty = 45.0f;
   cam::turnrate = 0.1f;
-  cam::init(10, cam::ORTHO);
+  cam::zoomrate *= 0.1f;
+  cam::init(2, cam::ORTHO);
   cam::update();
 
   bool paused = true;
@@ -164,6 +165,12 @@ int main( int argc, char* args[] ) {
   });
   height.write("out/height.tiff");
 
+  soil::io::tiff subheight(world.map.dimension);
+  subheight.fill([&](const glm::ivec2 pos){
+    return world.subheight(pos)/world.config.scale;
+  });
+  subheight.write("out/subheight.tiff");
+
   soil::io::tiff vegetation(world.map.dimension);
   vegetation.fill([&](const glm::ivec2 pos){
     return world.map.get(pos)->rootdensity;
@@ -178,6 +185,15 @@ int main( int argc, char* args[] ) {
     return 255.0f*glm::vec4(normal, 1.0f);
   });
   normal.write("out/normal.png");
+
+  soil::io::png subnormal(world.map.dimension);
+  subnormal.fill([&](const glm::ivec2 pos){
+    glm::vec3 normal = world.subnormal(pos);
+    normal = glm::vec3(normal.x, -normal.z, normal.y);
+    normal = 0.5f*normal + 0.5f;
+    return 255.0f*glm::vec4(normal, 1.0f);
+  });
+  subnormal.write("out/subnormal.png");
 
   soil::io::png albedo(world.map.dimension);
   albedo.fill([&](const glm::ivec2 pos){

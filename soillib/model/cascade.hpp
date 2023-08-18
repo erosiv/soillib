@@ -69,12 +69,12 @@ void cascade(T& map, const glm::ivec2 ipos){
 
   // Compute the Average Height (i.e. trivial non-spurious stable solution)
 
-  M matrix = map.matrix(ipos);
+  const M matrix = map.matrix(ipos);
 
   float h_ave = map.height(ipos);
   for (int i = 0; i < num; ++i)
-    h_ave += sn[i].h;
-  h_ave /= (float)(num+1);
+    h_ave += matrix.maxdiff()*sn[i].h;
+  h_ave /= (matrix.maxdiff()*num+1.0f);
 
   for (int i = 0; i < num; ++i) {
 
