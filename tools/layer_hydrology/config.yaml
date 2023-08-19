@@ -9,7 +9,7 @@ map:
     - 512
     - 512
 water:
-  max-age: 960
+  max-age: 512
   evap-rate: 0.001
   deposition-rate: 0.05
   min-vol: 0.001

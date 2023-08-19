@@ -97,6 +97,7 @@ void cascade(T& map, const glm::ivec2 ipos){
 
     //Actual Amount Transferred
     float transfer = tmatrix.settling() * excess / 2.0f;
+    transfer = map.maxremove(tpos, transfer);
 
     //Cap by Maximum Transferrable Amount
     transfer = -map.add(tpos,-transfer, tmatrix);

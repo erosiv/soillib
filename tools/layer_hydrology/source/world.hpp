@@ -195,6 +195,14 @@ struct World {
     return 0.0f;
   }
 
+  const inline float maxremove(glm::ivec2 p, float h){
+    if(map.oob(p))
+      return h;
+    if(map.top(p)->below == NULL)
+      return h;
+    return glm::min(h, map.top(p)->height - map.top(p)->below->height);
+  }
+
   const inline float transfer(glm::ivec2 p){
     if(!map.oob(p))
       return matrix(p).is_water?0.0f:1.0f;
@@ -214,9 +222,9 @@ struct World {
   }
 
   const inline float add(glm::ivec2 p, float h, mat_type m){
-    if(map.oob(p))
-      return h;
 
+    if(map.oob(p) || h == 0)
+      return h;
 
     if(h < 0){
 
@@ -227,7 +235,6 @@ struct World {
 
       // Cap the Height Subtraction
 
-      h = -glm::min(-h, World::config.scale*(map.top(p)->height - map.top(p)->below->height));
       map.top(p)->height += h/World::config.scale;
 
       if(map.top(p)->height <= map.top(p)->below->height){
@@ -396,8 +403,8 @@ bool World::erode(){
     if(this->matrix(pos).is_water){
       add(pos, -0.001, this->matrix(pos));
       soil::phys::cascade<mat_type>(*this, pos);
-    //  soil::phys::cascade<mat_type>(*this, pos);
-    //  soil::phys::cascade<mat_type>(*this, pos);
+      soil::phys::cascade<mat_type>(*this, pos);
+      soil::phys::cascade<mat_type>(*this, pos);
     }
   }
 

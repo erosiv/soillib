@@ -142,47 +142,48 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // Place Soil
 
-  if(csdiff*effD < 0){
+  matrix = world.matrix(ipos);
 
-    if(effD*csdiff < -sediment) // Only Use Available
-      csdiff = -sediment/effD;
-
-    sediment += effD*csdiff;
-    matrix.is_water = false;
-    world.add(ipos, -effD*csdiff, matrix);
-
-  }
-
-  // Simply Place Water
-
-  if(cvdiff*effD < 0){
-
-    if(effD*cvdiff < -volume) // Only Use Available
-      cvdiff = -volume/effD;
-
-    volume += effD*cvdiff;
-    matrix.is_water = true;
-    world.add(ipos, -effD*cvdiff*world.config.waterscale, matrix);
-
-  }
 
   // Take Water from Water
 
   if(!nmatrix.is_water && csdiff*effD > 0){
 
-    world.add(ipos, -effD*csdiff, matrix);
+    world.add(ipos, -effD*csdiff, nmatrix);
     sediment += effD*csdiff;
 
   }
 
   if(nmatrix.is_water && cvdiff*effD > 0){
 
-    cvdiff = -world.add(ipos, -effD*cvdiff*world.config.waterscale, matrix)/effD;
+    cvdiff = -world.add(ipos, -effD*cvdiff*world.config.waterscale, nmatrix)/effD;
     volume += effD*cvdiff;
 
   }
 
-  matrix = world.matrix(ipos);
+  matrix = nmatrix;
+
+  if(!matrix.is_water && csdiff*effD < 0){
+
+    if(effD*csdiff < -sediment) // Only Use Available
+      csdiff = -sediment/effD;
+
+    sediment += effD*csdiff;
+    world.add(ipos, -effD*csdiff, matrix);
+
+  }
+
+  // Simply Place Water
+
+  if(matrix.is_water && cvdiff*effD < 0){
+
+    if(effD*cvdiff < -volume) // Only Use Available
+      cvdiff = -volume/effD;
+
+    volume += effD*cvdiff;
+    world.add(ipos, -effD*cvdiff*world.config.waterscale, matrix);
+
+  }
 
   age++;
   return true;
