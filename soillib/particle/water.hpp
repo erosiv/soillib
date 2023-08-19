@@ -176,7 +176,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
     if(transfer < 0){
       transfer = -world.maxremove(ipos, -transfer*world.config.waterscale)/world.config.waterscale;
     }
-p
+
     // Transfer
 
     world.add(ipos, transfer*world.config.waterscale, matrix);
