@@ -69,7 +69,6 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
 
   // Compute the Average Height (i.e. trivial non-spurious stable solution)
 
-  const M matrix = map.matrix(ipos);
 
   float h_ave = map.height(ipos);
   for (int i = 0; i < num; ++i)
@@ -78,33 +77,129 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
 
   for (int i = 0; i < num; ++i) {
 
-    auto& npos = sn[i].pos;
+    const M matrix = map.matrix(ipos);
+    const auto& npos = sn[i].pos;
+    sn[i].matrix = map.matrix(npos);
 
-    //Full Height-Different Between Positions!
-    float diff = map.height(ipos) - sn[i].h;
-    if(diff == 0)   //No Height Difference
+    // Same Matrix: Simple Cascade on Height
+
+    if(sn[i].matrix.is_water == matrix.is_water) {
+
+      //Full Height-Different Between Positions!
+      float diff = map.height(ipos) - sn[i].h;
+      if(diff == 0)   //No Height Difference
+        continue;
+
+      const M& tmatrix = (diff >= 0)?matrix:sn[i].matrix;
+      const glm::ivec2& tpos = (diff >= 0)?ipos:npos;
+      const glm::ivec2& bpos = (diff >= 0)?npos:ipos;
+
+      //The Amount of Excess Difference!
+      float excess = 0.0f;
+      excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
+      if(excess <= 0)  //No Excess
+        continue;
+
+      //Actual Amount Transferred
+      float transfer = tmatrix.settling() * excess / 2.0f;
+      transfer = map.maxremove(tpos, transfer);
+
+      //Cap by Maximum Transferrable Amount
+      transfer = -map.add(tpos,-transfer, tmatrix);
+      transfer = map.add(bpos, transfer, tmatrix);
+
+      if(recascade)
+        cascade<M>(map, npos, false);
+
       continue;
 
-    const M& tmatrix = (diff >= 0)?matrix:sn[i].matrix;
-    const glm::ivec2& tpos = (diff >= 0)?ipos:npos;
-    const glm::ivec2& bpos = (diff >= 0)?npos:ipos;
+    }
 
-    //The Amount of Excess Difference!
-    float excess = 0.0f;
-    excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
-    if(excess <= 0)  //No Excess
-      continue;
+    if(!matrix.is_water && sn[i].matrix.is_water){
 
-    //Actual Amount Transferred
-    float transfer = tmatrix.settling() * excess / 2.0f;
-    transfer = map.maxremove(tpos, transfer);
+      auto& npos = sn[i].pos;
 
-    //Cap by Maximum Transferrable Amount
-    transfer = -map.add(tpos,-transfer, tmatrix);
-    transfer = map.add(bpos, transfer, tmatrix);
+      //Full Height-Different Between Positions!
+      float diff;
 
-    if(recascade)
-      cascade<M>(map, npos, false);
+      if(map.height(ipos) >= map.height(npos)){
+        diff = map.height(ipos) - map.subheight(npos);
+      }
+
+      else {
+        diff = map.height(ipos) - map.height(npos);
+      }
+
+      if(diff == 0)   //No Height Difference
+        continue;
+
+      const M& tmatrix = (diff >= 0)?matrix:sn[i].matrix;
+      const glm::ivec2& tpos = (diff >= 0)?ipos:npos;
+      const glm::ivec2& bpos = (diff >= 0)?npos:ipos;
+
+      //The Amount of Excess Difference!
+      float excess = 0.0f;
+      excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
+      if(excess <= 0)  //No Excess
+        continue;
+
+      //Actual Amount Transferred
+      float transfer = tmatrix.settling() * excess / 2.0f;
+      transfer = map.maxremove(tpos, transfer);
+
+      //Cap by Maximum Transferrable Amount
+      transfer = -map.add(tpos,-transfer, tmatrix);
+      transfer = map.add(bpos, transfer, tmatrix);
+
+      if(recascade)
+        cascade<M>(map, npos, false);
+
+      continue;      
+
+    }
+
+    if(matrix.is_water && !sn[i].matrix.is_water){
+
+      auto& npos = sn[i].pos;
+
+      //Full Height-Different Between Positions!
+      float diff;
+
+      if(map.height(ipos) > map.height(npos)){
+        diff = map.height(ipos) - map.height(npos);
+      }
+
+      else {
+        diff = map.subheight(ipos) - map.height(npos);
+      }
+
+      if(diff == 0)   //No Height Difference
+        continue;
+
+      const M& tmatrix = (diff >= 0)?matrix:sn[i].matrix;
+      const glm::ivec2& tpos = (diff >= 0)?ipos:npos;
+      const glm::ivec2& bpos = (diff >= 0)?npos:ipos;
+
+      //The Amount of Excess Difference!
+      float excess = 0.0f;
+      excess = abs(diff) - sn[i].d*tmatrix.maxdiff();
+      if(excess <= 0)  //No Excess
+        continue;
+
+      //Actual Amount Transferred
+      float transfer = tmatrix.settling() * excess / 2.0f;
+      transfer = map.maxremove(tpos, transfer);
+
+      //Cap by Maximum Transferrable Amount
+      transfer = -map.add(tpos,-transfer, tmatrix);
+      transfer = map.add(bpos, transfer, tmatrix);
+
+      if(recascade)
+        cascade<M>(map, npos, false);
+
+      continue;      
+
+    }
 
   }
 
