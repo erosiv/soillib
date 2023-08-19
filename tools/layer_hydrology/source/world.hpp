@@ -205,13 +205,13 @@ struct World {
 
   const inline float transfer(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?0.0f:1.0f;
+      return matrix(p).is_water?0.1f:1.0f;
     return 1.0f;
   }
 
   const inline float gravity(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?2.0f:2.0f;
+      return matrix(p).is_water?4.0f:2.0f;
     return 2.0f;
   }
 
@@ -239,7 +239,7 @@ struct World {
 
       if(map.top(p)->height <= map.top(p)->below->height){
         map.pop(p);
-        h = 0;
+        return 0;
       }
 
       return h;
@@ -373,16 +373,9 @@ bool World::erode(){
 
     }
 
-     if(!drop.matrix.is_water)
-      add(drop.pos, drop.sediment, drop.matrix);
-    else 
-      add(drop.pos, drop.volume*config.waterscale, drop.matrix);
-
-    soil::phys::cascade<mat_type>(*this, drop.pos);
-
     // Attempt to Flood
 
-    if(!map.oob(drop.pos) && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.1){
+    if(!map.oob(drop.pos) && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.001){
 
       mat_type watermatrix;
       watermatrix.is_water = true;
@@ -392,12 +385,17 @@ bool World::erode(){
 
     }
 
+    if(!(this->matrix(drop.pos).is_water)){
+
+      add(drop.pos, drop.sediment, this->matrix(drop.pos));
+      soil::phys::cascade<mat_type>(*this, drop.pos);
+    
+    }
+
     if(map.oob(drop.pos))
       no_basin_track++;
 
   }
-
-  // Lake Evaporation
 
   for(auto [cell, pos]: map){
     if(this->matrix(pos).is_water){

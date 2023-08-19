@@ -108,7 +108,7 @@ int main( int argc, char* args[] ) {
 
   Tiny::view.pipeline = [&](){                      //Setup Drawing Pipeline
 
-    Tiny::view.target(color::white);                //Target Screen
+    Tiny::view.target(color::black);                //Target Screen
 
     defaultShader.use();                            //Prepare Shader
     defaultShader.uniform("model", mesh.model);     //Set Model Matrix

@@ -26,7 +26,7 @@ concept cascade_t = requires(T t){
 };
 
 template<cascade_matrix M, cascade_t<M> T>
-void cascade(T& map, const glm::ivec2 ipos){
+void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
 
   // Out-Of-Bounds Checking
 
@@ -102,6 +102,9 @@ void cascade(T& map, const glm::ivec2 ipos){
     //Cap by Maximum Transferrable Amount
     transfer = -map.add(tpos,-transfer, tmatrix);
     transfer = map.add(bpos, transfer, tmatrix);
+
+    if(recascade)
+      cascade<M>(map, npos, false);
 
   }
 

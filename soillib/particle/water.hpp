@@ -74,6 +74,9 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
 
   if(age > param.maxAge)
     return false;
+
+  if(volume == 0)
+    return false;
   
   // Apply Forces to Particle
 
@@ -114,76 +117,70 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   const float discharge = world.discharge(ipos);
   const float resistance = world.resistance(ipos);
+  matrix = world.matrix(ipos);
 
   //Out-Of-Bounds
 
-  float h2;
-  if(world.oob(pos))
-    h2 = 0.99*world.height(ipos);
-  else
-    h2 = world.height(pos);
+  // Sediment Transport
 
-  // Add Mass to Map
+  if(!matrix.is_water){
 
-  float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
-  if(c_eq < 0)
-    c_eq = 0;
-
-  auto nmatrix = world.matrix(ipos);
-
-  // We are Water
-
-  float cvdiff = 1.0 + c_eq/world.config.waterscale - volume;
-  float csdiff = c_eq*volume - sediment;
-
-  float effD = param.depositionRate*(1.0f - resistance);
-  if(effD < 0)
-    effD = 0;
-
-  matrix = world.matrix(ipos);
+    float h2;
+    if(world.oob(pos))
+      h2 = 0.99*world.height(ipos);
+    else
+      h2 = world.height(pos);
 
 
-  // TAKE SEDIMENT
+    // Non-Negative Values
 
-  if(!nmatrix.is_water && csdiff*effD > 0){
+    const float c_eq = glm::max(0.0f, (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2));
+    const float effD = glm::max(0.0f, param.depositionRate*(1.0f - resistance));
+    
+    // Capped at Sediment
 
-    world.add(ipos, -effD*csdiff, nmatrix);
-    sediment += effD*csdiff;
+    const float transfer = glm::min(sediment, effD*(sediment - c_eq*volume));
+
+    // Transfer
+
+    sediment -= transfer;
+    world.add(ipos, transfer, matrix);
 
   }
 
-  // TAKE WATER
+  // Water Transport
 
-  if(nmatrix.is_water && cvdiff*effD > 0){
+  if(matrix.is_water){
 
-    cvdiff = -world.add(ipos, -effD*cvdiff*world.config.waterscale, nmatrix)/effD;
-    volume += effD*cvdiff;
 
-  }
+    float h2;
+    if(world.oob(pos))
+      h2 = 0.99*world.height(ipos);
+    else
+      h2 = world.height(pos);
 
-  matrix = nmatrix;
 
-  // PLACE SEDIMENT
+    // Non-Negative Values
 
-  if(!matrix.is_water && csdiff*effD < 0){
+    const float c_eq = glm::max(0.0f, volume + (world.height(ipos)-h2)/world.config.waterscale);
+    const float effD = 1.0;
 
-    if(effD*csdiff < -sediment) // Only Use Available
-      csdiff = -sediment/effD;
+    // Capped at Volume
 
-    sediment += effD*csdiff;
-    world.add(ipos, -effD*csdiff, matrix);
+    float transfer = effD*(volume - c_eq);
 
-  }
+    if(transfer > 0){
+      transfer = glm::min(volume, transfer);
+    }
 
-  // PLACE WATER
+    if(transfer < 0){
+      transfer = -world.maxremove(ipos, -transfer*world.config.waterscale)/world.config.waterscale;
+    }
+p
+    // Transfer
 
-  if(matrix.is_water && cvdiff*effD < 0){
-
-    if(effD*cvdiff < -volume) // Only Use Available
-      cvdiff = -volume/effD;
-
-    volume += effD*cvdiff;
-    world.add(ipos, -effD*cvdiff*world.config.waterscale, matrix);
+    world.add(ipos, transfer*world.config.waterscale, matrix);
+    volume -= transfer;
 
   }
 
