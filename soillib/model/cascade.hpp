@@ -73,8 +73,8 @@ void cascade(T& map, const glm::ivec2 ipos){
 
   float h_ave = map.height(ipos);
   for (int i = 0; i < num; ++i)
-    h_ave += matrix.maxdiff()*sn[i].h;
-  h_ave /= (matrix.maxdiff()*num+1.0f);
+    h_ave += sn[i].h;
+  h_ave /= (num+1.0f);
 
   for (int i = 0; i < num; ++i) {
 

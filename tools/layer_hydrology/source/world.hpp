@@ -403,8 +403,6 @@ bool World::erode(){
     if(this->matrix(pos).is_water){
       add(pos, -0.001, this->matrix(pos));
       soil::phys::cascade<mat_type>(*this, pos);
-      soil::phys::cascade<mat_type>(*this, pos);
-      soil::phys::cascade<mat_type>(*this, pos);
     }
   }
 

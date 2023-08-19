@@ -140,12 +140,10 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   if(effD < 0)
     effD = 0;
 
-  // Place Soil
-
   matrix = world.matrix(ipos);
 
 
-  // Take Water from Water
+  // TAKE SEDIMENT
 
   if(!nmatrix.is_water && csdiff*effD > 0){
 
@@ -153,6 +151,8 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
     sediment += effD*csdiff;
 
   }
+
+  // TAKE WATER
 
   if(nmatrix.is_water && cvdiff*effD > 0){
 
@@ -162,6 +162,8 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   }
 
   matrix = nmatrix;
+
+  // PLACE SEDIMENT
 
   if(!matrix.is_water && csdiff*effD < 0){
 
@@ -173,7 +175,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   }
 
-  // Simply Place Water
+  // PLACE WATER
 
   if(matrix.is_water && cvdiff*effD < 0){
 
