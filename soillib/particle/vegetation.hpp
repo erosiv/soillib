@@ -69,6 +69,8 @@ template<typename T>
 bool Plant::die(T& world){
 
   if( world.discharge(pos) >= Plant::maxDischarge ) return true;
+  if( world.matrix(pos).is_water) return true;
+
   if( world.height(pos) >= Plant::maxTreeHeight) return true;
   if( soil::dist::istrue(1E-4) ) return true;
   return false;
@@ -79,6 +81,8 @@ template<typename T>
 bool Plant::spawn(T& world, glm::vec2 pos ){
 
   if( world.discharge(pos) >= Plant::maxDischarge ) return false;
+  if( world.matrix(pos).is_water) return false;
+
   glm::vec3 n = world.normal(pos);
   if( n.y < Plant::maxSteep ) return false;
   if( world.height(pos) >= Plant::maxTreeHeight) return false;
@@ -157,7 +161,7 @@ bool Vegetation::grow(T& world){
 
     // Check for Growth
 
-    if(soil::dist::istrue(0.99))
+    if(soil::dist::istrue(0.98))
       continue;
 
     //Find New Position
@@ -168,6 +172,9 @@ bool Vegetation::grow(T& world){
       continue;
 
     if(world.discharge(npos) >= Plant::maxDischarge)
+      continue;
+
+    if(world.matrix(npos).is_water)
       continue;
 
     if(soil::dist::istrue(world.map.get(npos)->rootdensity))

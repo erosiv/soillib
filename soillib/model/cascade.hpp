@@ -181,6 +181,8 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
       float transfer = tmatrix.settling() * excess / 2.0f;
       transfer = map.maxremove(tpos, transfer);
 
+      transfer *= (1.0f - 0.9*map.resistance(tpos));
+
       //Cap by Maximum Transferrable Amount
       transfer = -map.add(tpos,-transfer, tmatrix);
       transfer = map.add(bpos, transfer, tmatrix);
@@ -227,6 +229,8 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
       float transfer = tmatrix.settling() * excess / 2.0f;
       transfer = map.maxremove(tpos, transfer);
 
+      transfer *= (1.0f - 0.9*map.resistance(tpos));
+
       //Cap by Maximum Transferrable Amount
       transfer = -map.add(tpos,-transfer, tmatrix);
       transfer = map.add(bpos, transfer, tmatrix);
@@ -269,6 +273,8 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
       //Actual Amount Transferred
       float transfer = tmatrix.settling() * excess / 2.0f;
       transfer = map.maxremove(tpos, transfer);
+
+      transfer *= (1.0f - 0.9*map.resistance(tpos));
 
       //Cap by Maximum Transferrable Amount
       transfer = -map.add(tpos,-transfer, tmatrix);
