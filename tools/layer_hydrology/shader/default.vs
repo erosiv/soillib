@@ -58,7 +58,7 @@ void main(void) {
 
 			ex_Color = mix(ex_Color, vec4(0.25,0.35,0.6,1), ex_Albedo);
 			ex_Color = vec4(light*ex_Color.xyz, 0.5);
-			ex_Color = mix(ex_Color, vec4(0.75,0.85,0.9,1), discharge);
+			ex_Color = mix(ex_Color, vec4(0.75,0.85,0.9,0.5), discharge);
 
 		}
 

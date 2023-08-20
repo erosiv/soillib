@@ -152,22 +152,21 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   if(matrix.is_water){
 
-
     float h2;
     if(world.oob(pos))
       h2 = 0.99*world.height(ipos);
-    else
-      h2 = world.height(pos);
-
+    else{
+      h2 = world.height(pos);     
+    }
 
     // Non-Negative Values
 
-    const float c_eq = glm::max(0.0f, volume + (world.height(ipos)-h2)/world.config.waterscale);
-    const float effD = 1.0;
+    const float effD = 0.5;
+    const float c_eq = glm::max(0.0f, volume + effD*(world.height(ipos)-h2)/world.config.waterscale);
 
     // Capped at Volume
 
-    float transfer = effD*(volume - c_eq);
+    float transfer = (volume - c_eq);
 
     if(transfer > 0){
       transfer = glm::min(volume, transfer);

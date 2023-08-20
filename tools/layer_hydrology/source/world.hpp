@@ -373,9 +373,24 @@ bool World::erode(){
 
     }
 
+    if(!(this->matrix(drop.pos).is_water)){
+
+      add(drop.pos, drop.sediment, this->matrix(drop.pos));
+      soil::phys::cascade<mat_type>(*this, drop.pos);
+    
+    }
+
+    if((this->matrix(drop.pos).is_water)){
+
+      add(drop.pos, drop.volume*config.waterscale, this->matrix(drop.pos));
+      soil::phys::cascade<mat_type>(*this, drop.pos);
+      drop.volume = 0;
+    
+    }
+
     // Attempt to Flood
 
-    if(!map.oob(drop.pos) && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.001){
+    if(!map.oob(drop.pos) && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.1){
 
       mat_type watermatrix;
       watermatrix.is_water = true;
@@ -383,13 +398,6 @@ bool World::erode(){
       add(drop.pos, drop.volume*config.waterscale, watermatrix);
       soil::phys::cascade<mat_type>(*this, drop.pos);
 
-    }
-
-    if(!(this->matrix(drop.pos).is_water)){
-
-      add(drop.pos, drop.sediment, this->matrix(drop.pos));
-      soil::phys::cascade<mat_type>(*this, drop.pos);
-    
     }
 
     if(map.oob(drop.pos))
