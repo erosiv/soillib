@@ -12,7 +12,7 @@
 
 #include <soillib/matrix/mixture.hpp>
 #include <soillib/particle/water.hpp>
-//#include <soillib/particle/vegetation.hpp>
+#include <soillib/particle/vegetation.hpp>
 
 // Type Definitions
 
@@ -288,7 +288,7 @@ struct World {
 
   const inline float resistance(glm::ivec2 p){
     if(!map.oob(p))
-      return map.get(p)->rootdensity;
+      return glm::min(1.0f, map.get(p)->rootdensity);
     return 0.0f;
   }
 
@@ -420,7 +420,7 @@ bool World::erode(){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
-  //Vegetation::grow(*this);     //Grow Trees
+  Vegetation::grow(*this);     //Grow Trees
 
   return true;
 
