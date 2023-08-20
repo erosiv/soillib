@@ -89,7 +89,7 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
 
     if(matrix.is_water && sn[i].matrix.is_water){
 
-      
+
       {
 
         //Full Height-Different Between Positions!
@@ -188,6 +188,8 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
       if(recascade)
         cascade<M>(map, npos, false);
 
+      continue;
+
     }
 
 
@@ -278,9 +280,6 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
       continue;      
 
     }
-
-
-    
 
   }
 

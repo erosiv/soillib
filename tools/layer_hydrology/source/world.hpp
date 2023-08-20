@@ -205,13 +205,13 @@ struct World {
 
   const inline float transfer(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?0.1f:1.0f;
+      return matrix(p).is_water?0.0f:1.0f;
     return 1.0f;
   }
 
   const inline float gravity(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?4.0f:2.0f;
+      return matrix(p).is_water?2.0f:2.0f;
     return 2.0f;
   }
 
@@ -407,7 +407,7 @@ bool World::erode(){
 
   for(auto [cell, pos]: map){
     if(this->matrix(pos).is_water){
-      add(pos, -0.001, this->matrix(pos));
+      add(pos, -0.005, this->matrix(pos));
       soil::phys::cascade<mat_type>(*this, pos);
     }
   }

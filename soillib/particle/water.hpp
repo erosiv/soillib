@@ -161,8 +161,10 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
     // Non-Negative Values
 
-    const float effD = 0.5;
-    const float c_eq = glm::max(0.0f, volume + effD*(world.height(ipos)-h2)/world.config.waterscale);
+    const glm::vec3 n = world.normal(ipos);
+    const float hdiff = (world.height(ipos)-h2);
+    const float effD = 0.5f;//(hdiff > 0)?1.0f:0.0f;
+    const float c_eq = glm::max(0.0f, 1.0f + effD*hdiff/world.config.waterscale);
 
     // Capped at Volume
 
@@ -182,6 +184,8 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
     volume -= transfer;
 
   }
+
+  volume *= (1.0f - world.config.water_config.evapRate);
 
   age++;
   return true;
