@@ -205,7 +205,7 @@ struct World {
 
   const inline float transfer(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?0.0f:1.0f;
+      return matrix(p).is_water?1.0f:1.0f;
     return 1.0f;
   }
 
@@ -223,43 +223,52 @@ struct World {
 
   const inline float add(glm::ivec2 p, float h, mat_type m){
 
-    if(map.oob(p) || h == 0)
+    if(map.oob(p))
       return h;
 
-    if(h < 0){
+    if(h > 0 && m.is_water){
 
-      if(!this->matrix(p).is_water){
+      if(matrix(p).is_water)
         map.top(p)->height += h/World::config.scale;
-        return h;
-      }
-
-      // Cap the Height Subtraction
-
-      map.top(p)->height += h/World::config.scale;
-
-      if(map.top(p)->height <= map.top(p)->below->height){
-        map.pop(p);
-        return 0;
-      }
-
-      return h;
+      else
+        map.push(p, segment(map.top(p)->height + h/World::config.scale, m));
 
     }
 
-    if(matrix(p).is_water == m.is_water){
+    if(h > 0 && !m.is_water){
 
-      map.top(p)->height += h/World::config.scale;
-
-    } else if(m.is_water) {
-
-      map.push(p, segment(map.top(p)->height + h/World::config.scale, m));
-
-    } else {
-
-      map.top(p)->below->height += h/World::config.scale;
-      map.top(p)->height += h/World::config.scale;
+      if(!matrix(p).is_water)
+        map.top(p)->height += h/World::config.scale;
+      else {
+        map.top(p)->below->height += h/World::config.scale;
+        map.top(p)->height += h/World::config.scale;
+      }
 
     }
+
+    if(h < 0 && m.is_water){
+
+      if(matrix(p).is_water)
+        map.top(p)->height += h/World::config.scale;
+
+    }
+
+    if(h < 0 && !m.is_water){
+
+      if(!matrix(p).is_water)
+        map.top(p)->height += h/World::config.scale;
+      else{
+        map.top(p)->below->height += h/World::config.scale;
+        map.top(p)->height += h/World::config.scale;
+      }
+
+    }
+
+    // Clean-Up Step
+
+    if(map.top(p)->below != NULL)
+    if(map.top(p)->below->height >= map.top(p)->height)
+      map.pop(p);
 
     return h;
 
@@ -373,43 +382,22 @@ bool World::erode(){
 
     }
 
-    if(!(this->matrix(drop.pos).is_water)){
+    // Dump Remaining Sediment
 
-      add(drop.pos, drop.sediment, this->matrix(drop.pos));
-      soil::phys::cascade<mat_type>(*this, drop.pos);
-    
-    }
+    mat_type matrix;
+    matrix.is_water = false;
+    add(drop.pos, drop.sediment, matrix);
+    soil::phys::cascade<mat_type>(*this, drop.pos);
 
-    if((this->matrix(drop.pos).is_water)){
+    // Dump Remaining Water
 
-      add(drop.pos, drop.volume*config.waterscale, this->matrix(drop.pos));
-      soil::phys::cascade<mat_type>(*this, drop.pos);
-      drop.volume = 0;
-    
-    }
-
-    // Attempt to Flood
-
-    if(!map.oob(drop.pos) && soil::surface::normal(*this, drop.pos).y > 0.9999 && discharge(drop.pos) < 0.1){
-
-      mat_type watermatrix;
-      watermatrix.is_water = true;
-
-      add(drop.pos, drop.volume*config.waterscale, watermatrix);
-      soil::phys::cascade<mat_type>(*this, drop.pos);
-
-    }
+    matrix.is_water = true;
+    add(drop.pos, drop.volume*config.waterscale, matrix);
+    soil::phys::cascade<mat_type>(*this, drop.pos);
 
     if(map.oob(drop.pos))
       no_basin_track++;
 
-  }
-
-  for(auto [cell, pos]: map){
-    if(this->matrix(pos).is_water){
-      add(pos, -0.005, this->matrix(pos));
-      soil::phys::cascade<mat_type>(*this, pos);
-    }
   }
 
   //Update Fields
@@ -420,7 +408,7 @@ bool World::erode(){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
-  Vegetation::grow(*this);     //Grow Trees
+  //Vegetation::grow(*this);     //Grow Trees
 
   return true;
 

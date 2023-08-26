@@ -12,6 +12,8 @@
 
 struct cell {
   float height = 0.0f;
+  float discharge = 0.0f;
+  glm::vec4 albedo;
   glm::vec3 normal;
 };
 
@@ -25,8 +27,10 @@ int main(int argc, char *args[]) {
 
   // Load the Image First
 
-  soil::io::tiff height((path + "/height.tiff").c_str());
-  soil::io::png normal((path + "/normal.png").c_str());
+  soil::io::tiff height((path + "/subheight.tiff").c_str());
+  soil::io::tiff discharge((path + "/discharge.tiff").c_str());
+  soil::io::png albedo((path + "/albedo.png").c_str());
+  soil::io::png normal((path + "/subnormal.png").c_str());
 
   // Create Cell Pool, Map
 
@@ -36,7 +40,9 @@ int main(int argc, char *args[]) {
   // Fill Cell Pool w. Image
 
   for(auto [cell, pos]: map){
+    cell.albedo = albedo[pos];
     cell.height = height[pos];
+    cell.discharge = discharge[pos];
     cell.normal = glm::normalize(2.0f*glm::vec3(normal[pos])/255.0f - 1.0f);
     cell.normal = glm::vec3(cell.normal.x, cell.normal.z, cell.normal.y);
   }
@@ -59,30 +65,68 @@ int main(int argc, char *args[]) {
   soil::io::png image(height.width, height.height);
   image.fill([&](const glm::ivec2 pos){
 
-    glm::vec3 normal = map.get(pos)->normal;
+    const glm::vec3 normal = map.get(pos)->normal;
+
     float d = glm::dot(normal, glm::normalize(glm::vec3(-1, 2, -1)));
 
-    // Clamp
-    d = 0.05f + 0.9f*d;
+    if(map.get(pos)->albedo.x == 255){
 
-    // Flat-Toning
-    float flattone = 0.9f;
-    float weight = 1.0f-normal.y;
+      // Clamp
+      d = 0.05f + 0.9f*d;
 
-    float h = map.get(pos)->height;
-    weight = weight * (1.0f - h*h);
+      // Flat-Toning
+      float flattone = 0.9f;
+      float weight = 1.0f-normal.y;
 
-    d = (1.0f-weight) * d + weight*flattone;
+      float h = map.get(pos)->height;
+      weight = weight * (1.0f - h*h);
 
-  //  glm::vec3 color = glm::mix(glm::vec3(0.57, 0.87, 0.51), glm::vec3(0.87, 0.72, 0.51), 1.0f-(1.0f-h)*(1.0f-h));
+      d = (1.0f-weight) * d + weight*flattone;
 
-  // Arial Perspective
+    //  glm::vec3 color = glm::mix(glm::vec3(0.57, 0.87, 0.51), glm::vec3(0.87, 0.72, 0.51), 1.0f-(1.0f-h)*(1.0f-h));
 
-    glm::vec3 color = glm::vec3(1);
-    h = 1.0f-(1.0f-h)*(1.0f-h);
-    d = (1.0f-h)*0.9f + h*d;
+      // Arial Perspective
 
-    return 255.0f*glm::vec4(d*color, 1.0f);
+      glm::vec3 color = glm::vec3(1);
+
+      h = 1.0f-(1.0f-h)*(1.0f-h);
+      d = (1.0f-h)*0.9f + h*d;
+
+      float discharge = map.get(pos)->discharge;
+
+     // discharge = (1.0f-h)*0.9f + h*discharge;
+
+
+      glm::vec3 watercolor = glm::mix(glm::vec3(0.25,0.35,0.6), glm::vec3(0.75,0.85,0.9), h);
+      if(map.get(pos)->albedo.x != 255)
+        color = watercolor;
+
+      else color = glm::mix(color, watercolor, discharge);
+
+
+      return 255.0f*glm::vec4(d*color, 1.0f);
+
+    } else {
+
+      float h = map.get(pos)->height;
+
+
+      h = 1.0f-(1.0f-h)*(1.0f-h);
+      d = (1.0f-h)*0.9f + h*d;
+      
+    //  glm::vec3 color = glm::mix(glm::vec3(0.57, 0.87, 0.51), glm::vec3(0.87, 0.72, 0.51), 1.0f-(1.0f-h)*(1.0f-h));
+
+      // Arial Perspective
+
+      glm::vec3 watercolor = glm::mix(glm::vec3(0.25,0.35,0.6), glm::vec3(0.75,0.85,0.9), h);
+      glm::vec3 color = watercolor;
+
+      return 255.0f*glm::vec4(d*color, 1.0f);
+
+    }
+
+
+    
   });
   image.write("relief.png");
 

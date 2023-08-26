@@ -1,8 +1,8 @@
 lrate: 0.1
-scale: 80
+scale: 50
 max-cycles: 16384
 min-basin: 0.01
-water-scale: 5.0
+water-scale: 1.0
 map:
   max-depth: 16
   dimension:

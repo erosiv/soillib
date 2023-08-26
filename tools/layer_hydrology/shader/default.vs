@@ -37,19 +37,14 @@ void main(void) {
 
 	// Compute Color
 
-	ex_Color = vec4(0.40, 0.60, 0.25, 1.0f);
+	ex_Color = vec4(1.0f);
 
 	vec3 watercolor = vec3(0.27, 0.50, 0.54);
-	vec3 steepcolor = vec3(0.7);
-
-	if(normal.y < 0.8)
-		ex_Color = vec4(steepcolor, 1.0f);
-
 	vec3 lightpos = normalize(vec3(1, 1, 1));
 
 	if(gl_VertexID / int((dimension.x-1)*(dimension.y-1)*6) == 0){
 
-		float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.0, 1.0);	
+		float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.1, 0.9);	
 		float light = diffuse;
 
 	//	if(ex_Albedo != 1)
@@ -60,18 +55,18 @@ void main(void) {
 	
 	} else {
 
-		float diffuse = clamp(dot(normal, normalize(lightpos)), 0.0, 1.0);	
+		float diffuse = clamp(dot(normal, normalize(lightpos)), 0.1, 0.9);	
 		float light = 0.2 + diffuse;
 
 		if(ex_Albedo == 0){
-			ex_Color = mix(ex_Color, vec4(watercolor,1), discharge);
+			ex_Color = mix(ex_Color, vec4(vec3(0.4),1), discharge);
 			ex_Color = vec4(light*ex_Color.xyz, 1.0);
 		}
 		else{
 
 			ex_Color = mix(ex_Color, vec4(0.25,0.35,0.6,1), ex_Albedo);
 			ex_Color = vec4(light*ex_Color.xyz, 0.5);
-			ex_Color = mix(ex_Color, vec4(vec3(0.75,0.85,0.9),0.5), 0.2*discharge);
+			ex_Color = mix(ex_Color, vec4(vec3(1),0.5), 0.4*discharge);
 
 		}
 
