@@ -117,41 +117,12 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   const float discharge = world.discharge(ipos);
   const float resistance = world.resistance(ipos);
-  matrix = world.matrix(ipos);
+//  matrix = world.matrix(ipos);
 
   //Out-Of-Bounds
 
-  // Sediment Transport
+    // Water Transport
 
-  {
-
-    float h2;
-    if(world.oob(pos))
-      h2 = 0.99*world.subheight(ipos);
-    else
-      h2 = world.subheight(pos);
-
-
-    // Non-Negative Values
-
-    const float c_eq = glm::max(0.0f, (1.0f+param.entrainment*discharge)*(world.subheight(ipos)-h2));
-    const float effD = glm::max(0.0f, param.depositionRate*(1.0f - resistance));
-    
-    // Capped at Sediment
-
-    const float transfer = glm::min(sediment, effD*(sediment - c_eq*volume));
-
-    // Transfer
-
-    sediment -= transfer;
-    matrix.is_water = false;
-    world.add(ipos, transfer, matrix);
-
-  }
-
-  // Water Transport
-
-/*
   {
 
     float h2;
@@ -165,13 +136,13 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
     const glm::vec3 n = world.normal(ipos);
     const float hdiff = (world.height(ipos)-h2);
-    const float c_eq = glm::min(0.0f, 1.0f + discharge*hdiff/world.config.waterscale);
-    const float effD = 0.5f;//(hdiff > 0)?1.0f:0.0f;
+    const float c_eq = glm::max(0.0f, 1.0f);
+    const float effD = 1.0f;//(hdiff > 0)?1.0f:0.0f;
 
     // Capped at Volume
 
     float transfer = effD*(volume - c_eq);
-
+    
     if(transfer > 0){
       transfer = glm::min(volume, transfer);
     }
@@ -187,9 +158,39 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
     world.add(ipos, transfer*world.config.waterscale, matrix);
 
   }
-*/
 
-  volume *= (1.0f - world.config.water_config.evapRate);
+  // Sediment Transport
+
+  {
+
+    float h2;
+    if(world.oob(pos))
+      h2 = 0.99*world.subheight(ipos);
+    else
+      h2 = world.subheight(pos);
+
+
+    // Non-Negative Values
+
+    const float c_eq = glm::max(0.0f, (1.0f+param.entrainment*discharge)*(world.subheight(ipos)-h2));
+    
+    const float depth = exp(-1.0f*(world.height(ipos) - world.subheight(ipos)));
+    float effD = glm::max(0.0f, depth*param.depositionRate*(1.0f - resistance));
+    
+    // Capped at Sediment
+
+    const float transfer = glm::min(sediment, effD*(sediment - c_eq*volume));
+
+    // Transfer
+
+    sediment -= transfer;
+    matrix.is_water = false;
+    world.add(ipos, transfer, matrix);
+
+  }
+
+
+  volume *= (1.0f - world.config.water_config.evapRate/world.config.waterscale);
 
   age++;
   return true;

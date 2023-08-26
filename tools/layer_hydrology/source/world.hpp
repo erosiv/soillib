@@ -205,7 +205,7 @@ struct World {
 
   const inline float transfer(glm::ivec2 p){
     if(!map.oob(p))
-      return matrix(p).is_water?1.0f:1.0f;
+      return matrix(p).is_water?0.0f:1.0f;
     return 1.0f;
   }
 
@@ -218,6 +218,16 @@ struct World {
   inline mat_type matrix(glm::ivec2 p){
     if(!map.oob(p))
       return map.top(p)->matrix;
+    return mat_type();
+  }
+
+  inline mat_type submatrix(glm::ivec2 p){
+    if(!map.oob(p)){
+      if(map.top(p)->below == NULL)
+        return map.top(p)->matrix;
+      else 
+        return map.top(p)->below->matrix;
+    }
     return mat_type();
   }
 
@@ -399,6 +409,15 @@ bool World::erode(){
       no_basin_track++;
 
   }
+
+  
+  for(auto [cell, pos]: map){
+    if(matrix(pos).is_water){
+      add(pos, -config.water_config.evapRate, matrix(pos));
+      soil::phys::cascade<mat_type>(*this, pos);
+    }
+  }
+
 
   //Update Fields
   for(auto [cell, pos]: map){

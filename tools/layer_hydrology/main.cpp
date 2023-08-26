@@ -173,6 +173,10 @@ int main( int argc, char* args[] ) {
     return glm::vec4(world.matrix(p).is_water?1.0f:0.0f);
   }, world.map.dimension));
 
+  Texture hdiffMap(image::make([&](const glm::ivec2 p){
+    return glm::vec4(world.height(p) - world.subheight(p));
+  }, world.map.dimension));
+
   glm::vec3 treeColor = glm::vec3(70, 90, 50)/255.0f;
 
   Tiny::view.pipeline = [&](){                      //Setup Drawing Pipeline
@@ -186,6 +190,7 @@ int main( int argc, char* args[] ) {
     defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
     defaultShader.texture("subNormalMap", subNormalMap);            //View Projection Matrix
     defaultShader.texture("albedoMap", albedoMap);            //View Projection Matrix
+    defaultShader.texture("hdiffMap", hdiffMap);            //View Projection Matrix
   //  defaultShader.uniform("albedoRead", albedo_read);            //View Projection Matrix
     defaultShader.uniform("dimension", glm::vec2(world.map.dimension));           //View Projection Matrix
     mesh.render(GL_TRIANGLES);                          //Render Model with Lines
@@ -224,6 +229,10 @@ int main( int argc, char* args[] ) {
 
     albedoMap.raw(image::make([&](const glm::ivec2 p){
       return glm::vec4(world.matrix(p).is_water?1.0f:0.0f);
+    }, world.map.dimension));
+
+    hdiffMap.raw(image::make([&](const glm::ivec2 p){
+      return glm::vec4(world.height(p) - world.subheight(p))/float(world.config.scale);
     }, world.map.dimension));
 
     construct(world, positions, indices);               //Fill Buffers
