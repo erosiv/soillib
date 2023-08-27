@@ -204,8 +204,10 @@ struct World {
   }
 
   const inline float transfer(glm::ivec2 p){
-    if(!map.oob(p))
-      return matrix(p).is_water?0.0f:1.0f;
+    if(!map.oob(p)){
+      if(!matrix(p).is_water) return 1.0f;
+      return exp(-5.0f*(height(p) - subheight(p)));
+    }
     return 1.0f;
   }
 
@@ -392,17 +394,16 @@ bool World::erode(){
 
     }
 
-    // Dump Remaining Sediment
-
     mat_type matrix;
+
+    // Dump Remaining Sediment
     matrix.is_water = false;
     add(drop.pos, drop.sediment, matrix);
-    soil::phys::cascade<mat_type>(*this, drop.pos);
 
     // Dump Remaining Water
-
     matrix.is_water = true;
     add(drop.pos, drop.volume*config.waterscale, matrix);
+
     soil::phys::cascade<mat_type>(*this, drop.pos);
 
     if(map.oob(drop.pos))

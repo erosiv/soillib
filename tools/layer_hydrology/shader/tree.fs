@@ -9,8 +9,8 @@ void main(){
 
   vec3 lightpos = normalize(vec3(1, 1, 1));
 
-  float diffuse = clamp(dot(normalize(ex_Normal), normalize(lightpos)), 0.0, 1.0); 
-  float light = 0.2 + diffuse;
+  float diffuse = clamp(dot(normalize(ex_Normal), normalize(lightpos)), 0.1, 0.9); 
+  float light = 0.6 + diffuse;
 
   ex_Color = vec4(light*color, 1);
 

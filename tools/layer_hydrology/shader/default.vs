@@ -55,43 +55,48 @@ void main(void) {
 	if(gl_VertexID / int((dimension.x-1)*(dimension.y-1)*6) != 1){
 
 		ex_Color = vec4(flatColor, 1.0f);
-		if(snormal.y < 0.8)
+		if(snormal.y < 0.8 || ex_Albedo == 1)
 			ex_Color = vec4(steepColor, 1.0f);
 
 
-		float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.1, 0.9);	
-		float light = 0.4 + diffuse;
+		if(ex_Albedo == 0){ // Regular Land
 
-		ex_Color = mix(vec4(ex_Color), vec4(watercolor, 1.0), discharge);//;mix(ex_Color,, ex_Albedo);
-		ex_Color = mix(ex_Color, vec4(watercolor, 1.0), 1.0f - exp(-100*hdiff));
-		ex_Color = mix(ex_Color, vec4(0.1, 0.1, 0.1, 1.0), 1.0f - exp(-10*hdiff));
-		ex_Color = vec4(light*ex_Color.xyz, 1.0f);
+			ex_Color = mix(vec4(ex_Color), vec4(watercolor, 1.0), discharge);
+			float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.1, 0.9);	
+			float light = 0.6+diffuse;
+			ex_Color = vec4(light*ex_Color.xyz, 1.0f);
+
+		} else {	// Underwater
+
+			//ex_Color = vec4(watercolor, 1.0f);//smix(vec4(ex_Color), vec4(watercolor, 1.0), discharge);//;mix(ex_Color,, ex_Albedo);
+			ex_Color = mix(ex_Color, vec4(watercolor, 1.0), 1.0f - exp(-100*hdiff));
+
+			float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.1, 0.9);	
+			float ambient = 0.6;
+			float light = (ambient + diffuse)*exp(-10*hdiff);
+			ex_Color = vec4(light*ex_Color.xyz, 1.0f);
+
+		}
 
 		return;
 
-	}
+	} else { // Regular Surface
 
-	// Surface Coloring
+		if(ex_Albedo != 1){
 
-	float diffuse = clamp(dot(normal, normalize(lightpos)), 0.1, 0.9);	
-	float light = 0.4 + diffuse;
+			ex_Color = vec4(flatColor, 1.0f);
+			ex_Color = mix(vec4(ex_Color), vec4(watercolor, 1.0), discharge);
+			float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.1, 0.9);	
+			float light = 0.6+diffuse;
+			ex_Color = vec4(light*ex_Color.xyz, 1.0f);
+			ex_Color.a = 0;
+		
+		} else { // Water Surface
 
-	// Regular Land
+		ex_Color = vec4(watercolor, 0.1);
+		ex_Color = mix(ex_Color, vec4(watercolor, 1.0f), (exp(-50*hdiff))*discharge);
 
-	if(ex_Albedo != 1){
-
-		ex_Color = vec4(0.0f);//vec4(light*ex_Color.xyz, 1.0);
-
-	}
-	else{
-
-
-
-		ex_Color.xyz = watercolor;
-		float depth = 1.0f-exp(-100*hdiff);
-		ex_Color.xyz = mix(ex_Color.xyz, watercolor, depth);
-		ex_Color.a = 1.0f-exp(-10*hdiff);
-
+		}
 	}
 
 }

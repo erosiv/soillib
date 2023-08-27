@@ -121,7 +121,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   //Out-Of-Bounds
 
-    // Water Transport
+  // Water Transport
 
   {
 
@@ -144,18 +144,20 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
     float transfer = effD*(volume - c_eq);
     
     if(transfer > 0){
-      transfer = glm::min(volume, transfer);
+      transfer = glm::min(volume, transfer)*world.config.waterscale;
     }
 
     if(transfer < 0){
-      transfer = -world.maxremove(ipos, -transfer*world.config.waterscale)/world.config.waterscale;
+      transfer = -world.maxremove(ipos, -transfer*world.config.waterscale);
     }
 
     // Transfer
 
-    volume -= transfer;
+    if(world.config.waterscale > 0)
+      volume -= transfer/world.config.waterscale;
+    
     matrix.is_water = true;
-    world.add(ipos, transfer*world.config.waterscale, matrix);
+    world.add(ipos, transfer, matrix);
 
   }
 
@@ -174,7 +176,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
     const float c_eq = glm::max(0.0f, (1.0f+param.entrainment*discharge)*(world.subheight(ipos)-h2));
     
-    const float depth = exp(-100.0f*(world.height(ipos) - world.subheight(ipos)));
+    const float depth = world.transfer(ipos);
     float effD = glm::max(0.0f, depth*param.depositionRate*(1.0f - resistance));
     
     // Capped at Sediment
@@ -190,7 +192,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
   }
 
 
-  volume *= (1.0f - world.config.water_config.evapRate/world.config.waterscale);
+  volume *= (1.0f - world.config.water_config.evapRate);///world.config.waterscale);
 
   age++;
   return true;
