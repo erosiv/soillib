@@ -42,7 +42,7 @@ int main( int argc, char* args[] ) {
   // Fill Map
 
   for(auto [cell, pos]: map){
-    cell.height = 40.0f*height[pos];
+    cell.height = 80.0f*height[pos];
     cell.discharge = discharge[pos];
     cell.normal = glm::vec4(normal[pos]);
   }

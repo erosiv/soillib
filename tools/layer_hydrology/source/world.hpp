@@ -418,7 +418,6 @@ bool World::erode(){
     }
   }
 
-
   //Update Fields
   for(auto [cell, pos]: map){
     cell.discharge = (1.0f-config.lrate)*cell.discharge + config.lrate*cell.discharge_track;
@@ -427,7 +426,7 @@ bool World::erode(){
   }
 
   no_basin = (1.0f-config.lrate)*no_basin + config.lrate*no_basin_track;
-  //Vegetation::grow(*this);     //Grow Trees
+  Vegetation::grow(*this);     //Grow Trees
 
   return true;
 

@@ -97,6 +97,14 @@ void cascade(T& map, const glm::ivec2 ipos, const bool recascade = false){
       if(excess <= 0)  //No Excess
         continue;
 
+      if(map.matrix(tpos).is_water && map.matrix(bpos).is_water){
+
+        excess = abs(diff) - sn[i].d*tmatrix.maxdiff()*0.1;
+        if(excess <= 0)  //No Excess
+          continue;
+
+      }
+
       float transfer = tmatrix.settling() * excess / 2.0f;
       transfer *= (1.0f - map.resistance(tpos));
       //transfer = map.maxremove(tpos, transfer);

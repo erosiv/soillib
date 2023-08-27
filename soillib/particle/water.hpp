@@ -174,7 +174,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
     const float c_eq = glm::max(0.0f, (1.0f+param.entrainment*discharge)*(world.subheight(ipos)-h2));
     
-    const float depth = exp(-1.0f*(world.height(ipos) - world.subheight(ipos)));
+    const float depth = exp(-100.0f*(world.height(ipos) - world.subheight(ipos)));
     float effD = glm::max(0.0f, depth*param.depositionRate*(1.0f - resistance));
     
     // Capped at Sediment

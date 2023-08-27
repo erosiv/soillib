@@ -47,12 +47,20 @@ void main(void) {
 
 
 
+	vec3 flatColor = vec3(50, 81, 33)/255.0f;
+	vec3 steepColor = vec3(115, 115, 95)/255.0f;
+
 	// Sub-Surface Coloring
 
 	if(gl_VertexID / int((dimension.x-1)*(dimension.y-1)*6) != 1){
 
+		ex_Color = vec4(flatColor, 1.0f);
+		if(snormal.y < 0.8)
+			ex_Color = vec4(steepColor, 1.0f);
+
+
 		float diffuse = clamp(dot(snormal, normalize(lightpos)), 0.1, 0.9);	
-		float light = 0.2 + diffuse;
+		float light = 0.4 + diffuse;
 
 		ex_Color = mix(vec4(ex_Color), vec4(watercolor, 1.0), discharge);//;mix(ex_Color,, ex_Albedo);
 		ex_Color = mix(ex_Color, vec4(watercolor, 1.0), 1.0f - exp(-100*hdiff));
@@ -61,31 +69,28 @@ void main(void) {
 
 		return;
 
-	} 
+	}
 
 	// Surface Coloring
 
 	float diffuse = clamp(dot(normal, normalize(lightpos)), 0.1, 0.9);	
-	float light = 0.2 + diffuse;
+	float light = 0.4 + diffuse;
 
 	// Regular Land
 
 	if(ex_Albedo != 1){
 
-		ex_Color = mix(ex_Color, vec4(watercolor,1), discharge);
-		ex_Color = vec4(light*ex_Color.xyz, 1.0);
+		ex_Color = vec4(0.0f);//vec4(light*ex_Color.xyz, 1.0);
 
 	}
 	else{
 
-		float depth = 1.0f-exp(-10*hdiff);
 
 
 		ex_Color.xyz = watercolor;
+		float depth = 1.0f-exp(-100*hdiff);
 		ex_Color.xyz = mix(ex_Color.xyz, watercolor, depth);
-		ex_Color.a = depth;
-	//	ex_Color = mix(ex_Color, vec4(watercolor, 1.0f), discharge);
-//		ex_Color = vec4(watercolor, 0.5);
+		ex_Color.a = 1.0f-exp(-10*hdiff);
 
 	}
 
