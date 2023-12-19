@@ -11,7 +11,7 @@ DIRNAME = soillib
 
 # Compiler Settings
 
-CC = g++-10 -std=c++20
+CC = g++ -std=c++20
 CF = -Wfatal-errors -O2
 
 # OS Specific Configuration

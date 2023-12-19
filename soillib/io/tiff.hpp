@@ -30,13 +30,21 @@ struct tiff: soil::io::img<T> {
 template<typename T>
 bool tiff<T>::read(const char* filename){
 
+  std::cout<<"AYY"<<std::endl;
+
   TIFF* tif = TIFFOpen(filename, "r");
 
   uint32_t width;
   uint32_t height;
 
+  std::cout<<"AYY"<<std::endl;
+
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
+
+  std::cout<<"AYY"<<std::endl;
+
+
 
   if(width != this->width || height != this->height || this->data == NULL){
     this->width = width;
@@ -48,11 +56,17 @@ bool tiff<T>::read(const char* filename){
     allocate();
   }
 
+  std::cout<<"WIDTH "<<this->width<<std::endl;
+  std::cout<<"HEIGHT "<<this->height<<std::endl;
+  std::cout<<"AYY"<<std::endl;
+
   T* buf = this->data;
   for (size_t row = 0; row < this->height; row++){
     TIFFReadScanline(tif, buf, row);
     buf += this->width;
   }
+
+  std::cout<<"AYY"<<std::endl;
 
   return true;
 
