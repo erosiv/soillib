@@ -39,7 +39,7 @@ struct world_t {
 
 };
 
-typedef double value_t;
+typedef float value_t;
 typedef soil::io::geotiff<value_t> geovalue_t;
 
 struct dem_t {
@@ -79,15 +79,6 @@ int main( int argc, char* args[] ) {
   for(auto& image: images){
     image.img.read(image.name.c_str());
 
-    std::cout<<image.img.coords[1].x<<std::endl;
-    std::cout<<image.img.coords[1].y<<std::endl;
-    std::cout<<image.img.coords[1].z<<std::endl;
-    std::cout<<image.img.scale.x<<std::endl;
-    std::cout<<image.img.scale.y<<std::endl;
-    std::cout<<image.img.scale.z<<std::endl;
-    std::cout<<image.img.width<<std::endl;
-    std::cout<<image.img.height<<std::endl;
-
     const glm::vec2 imdim = glm::vec2(image.img.width, image.img.height);
 
     const glm::vec2 immin = glm::vec2(image.img.coords[1]);
@@ -105,11 +96,8 @@ int main( int argc, char* args[] ) {
 
   // Create Map
 
-  const int mapscale = 1.0;
-  const int downscale = 5;
-  glm::ivec2 mapdim = (max - min) / glm::vec2(mapscale) / glm::vec2(downscale);
-
-  std::cout<<mapdim.x<<" "<<mapdim.y<<std::endl;
+  const int downscale = 50;
+  glm::ivec2 mapdim = (max - min) / glm::vec2(0.5) / glm::vec2(downscale);
 
   world_t world(mapdim);
   for(auto [cell, pos]: world.map){
@@ -118,10 +106,10 @@ int main( int argc, char* args[] ) {
 
   // Load Images, Fill w. Height
 
-  const auto fill_img = [&](dem_t& image){
+  for(auto& image: images){
 
-    const int width = (image.img.width-1)/downscale;
-    const int height = (image.img.height-1)/downscale;
+    const int width = image.img.width/downscale;
+    const int height = image.img.height/downscale;
 
     for(size_t x = 0; x < width; x++)
     for(size_t y = 0; y < height; y++){
@@ -134,20 +122,12 @@ int main( int argc, char* args[] ) {
       mpos.y = mapdim.y - 1 - mpos.y;
       world.map.get(mpos)->height = test;
     }
-  };
-
-  fill_img(images[1]);
-  fill_img(images[0]);
-
-
-  //for(auto& image: images){
-
+  }
 
   float hmax = std::numeric_limits<value_t>::min();
   float hmin = std::numeric_limits<value_t>::max();
 
   for(auto [cell, pos]: world.map){
-    if(abs(cell.height) > 1E2) continue;
     if(cell.height < hmin) hmin = cell.height;
     if(cell.height > hmax) hmax = cell.height;
   }
@@ -162,7 +142,7 @@ int main( int argc, char* args[] ) {
   }
 
   for(auto [cell, pos]: world.map){
-    cell.height /= downscale * mapscale;
+    cell.height /= downscale * 0.5;
   }
 
 	Tiny::view.vsync = false;
