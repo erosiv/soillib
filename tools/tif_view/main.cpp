@@ -63,6 +63,10 @@ int main( int argc, char* args[] ) {
   for(const auto& entry: std::filesystem::directory_iterator(path)){
     geovalue_t dem;
     dem.meta(entry.path().c_str());
+    if(dem.coords[1].x <= 23749.8) continue;
+    if(dem.coords[1].x >= 38750.2) continue;
+    if(dem.coords[1].y <= 294000) continue;
+    if(dem.coords[1].y >= 309001) continue;
     images.push_back({
       entry.path(),
       dem
@@ -96,13 +100,16 @@ int main( int argc, char* args[] ) {
 
   // Create Map
 
-  const int downscale = 50;
+  const int downscale = 2;
   glm::ivec2 mapdim = (max - min) / glm::vec2(0.5) / glm::vec2(downscale);
 
   world_t world(mapdim);
   for(auto [cell, pos]: world.map){
     cell.height = 0.0f;
   }
+
+  std::cout<<"Map: ";
+  std::cout<<"("<<mapdim.x<<" "<<mapdim.y<<")"<<std::endl;
 
   // Load Images, Fill w. Height
 
@@ -144,6 +151,19 @@ int main( int argc, char* args[] ) {
   for(auto [cell, pos]: world.map){
     cell.height /= downscale * 0.5;
   }
+
+
+  soil::io::tiff<value_t> output(mapdim);
+  for(auto [cell, pos]: world.map){
+    output[pos] = cell.height;
+  }
+
+  output.write("output.tiff");
+
+
+
+
+  return 0;
 
 	Tiny::view.vsync = false;
 	Tiny::window("soillib geotiff viewer", 1200, 1000);			//Open Window

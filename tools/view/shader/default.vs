@@ -24,9 +24,14 @@ void main(void) {
 	float diffuse = dot(normalize(ex_Normal), normalize(vec3(1, 2, 1)));
 	diffuse = clamp(diffuse, 0.05, 0.95);
 
-	float light = 0.1 + 0.9*diffuse;
-	
 	vec3 ex_Albedo = vec3(1);
+	float light = 0.1 + 0.9*diffuse;
 	ex_Color = vec4(light*ex_Albedo, 1.0f);
-	//ex_Color = vec4(ex_Normal, 1.0f);
+	
+	/*
+	vec3 normal = ex_Normal;
+	normal = 0.5*normal + 0.5;
+	normal.yz = normal.zy;
+	ex_Color = vec4(normal, 1.0f);
+	*/
 }

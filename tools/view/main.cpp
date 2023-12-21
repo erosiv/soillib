@@ -46,7 +46,7 @@ int main( int argc, char* args[] ) {
 
   // Load Image Data
 
-  soil::io::tiff height((path + "/height.tiff").c_str());
+  soil::io::tiff height(path.c_str());
   //soil::io::tiff discharge((path + "/discharge.tiff").c_str());
   //soil::io::png normal((path + "/normal.png").c_str());
   //soil::io::png albedo((path + "/albedo.png").c_str());

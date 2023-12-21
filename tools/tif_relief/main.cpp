@@ -4,16 +4,37 @@
 #include <soillib/map/basic.hpp>
 #include <soillib/model/surface.hpp>
 #include <soillib/io/png.hpp>
-#include <soillib/io/tiff.hpp>
+#include <soillib/io/geotiff.hpp>
 
 #include <iostream>
 
 //#include <soillib/model/cascade.hpp>
 
 struct cell {
-  float height = 0.0f;
+  float height;
   glm::vec3 normal;
 };
+
+struct world_t {
+
+  const glm::ivec2 dim;
+  soil::map::basic<cell> map;
+
+  world_t(const glm::ivec2 dim)
+    :dim(dim),map(dim){}
+
+  const inline bool oob(glm::vec2 p){
+    return map.oob(p);
+  }
+
+  const inline float height(glm::vec2 p){
+    return map.get(p)->height;
+  }
+
+};
+
+typedef float value_t;
+typedef soil::io::geotiff<value_t> geovalue_t;
 
 int main(int argc, char *args[]) {
 
@@ -25,32 +46,33 @@ int main(int argc, char *args[]) {
 
   // Load the Image First
 
-  soil::io::tiff<double> height((path + "/height.tiff").c_str());
-  soil::io::png normal((path + "/normal.png").c_str());
+  geovalue_t height(path.c_str());
 
   // Create Cell Pool, Map
 
   const glm::ivec2 dim = glm::ivec2(height.width, height.height);
-  soil::map::basic<cell> map(dim);
+  world_t world(dim);
 
   // Fill Cell Pool w. Image
 
-  for(auto [cell, pos]: map){
+  for(auto [cell, pos]: world.map){
     cell.height = height[pos];
-    cell.normal = glm::normalize(2.0f*glm::vec3(normal[pos])/255.0f - 1.0f);
-    cell.normal = glm::vec3(cell.normal.x, cell.normal.z, cell.normal.y);
+  }
+
+  for(auto [cell, pos]: world.map){
+    cell.normal = soil::surface::normal(world, pos);
   }
 
   // Normalize Height Map
 
   float min = 0.0f;
   float max = 0.0f;
-  for(auto [cell, pos]: map){
+  for(auto [cell, pos]: world.map){
     if(cell.height < min) min = cell.height;
     if(cell.height > max) max = cell.height;
   }
 
-  for(auto [cell, pos]: map){
+  for(auto [cell, pos]: world.map){
     cell.height = (cell.height - min)/(max - min);
   }
 
@@ -59,17 +81,18 @@ int main(int argc, char *args[]) {
   soil::io::png image(height.width, height.height);
   image.fill([&](const glm::ivec2 pos){
 
-    glm::vec3 normal = map.get(pos)->normal;
-    float d = glm::dot(normal, glm::normalize(glm::vec3(-1, 2, -1)));
+    glm::vec3 normal = world.map.get(pos)->normal;
+    float d = glm::dot(normal, glm::normalize(glm::vec3(1, 2, 1)));
 
     // Clamp
+    if(d < 0) d = 0;
     d = 0.05f + 0.9f*d;
 
     // Flat-Toning
     float flattone = 0.9f;
     float weight = 1.0f-normal.y;
 
-    float h = map.get(pos)->height;
+    float h = world.map.get(pos)->height;
     weight = weight * (1.0f - h*h);
 
     d = (1.0f-weight) * d + weight*flattone;
