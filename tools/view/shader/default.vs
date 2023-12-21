@@ -21,11 +21,12 @@ void main(void) {
 	gl_Position = vp * vec4(ex_FragPos, 1.0f); // Screen Space
 	
 	vec3 ex_Normal = texture(normalMap, in_Position.xz/dimension).xyz;
-	float diffuse = dot(normalize(ex_Normal), normalize(vec3(0, 0, 1)));
+	float diffuse = dot(normalize(ex_Normal), normalize(vec3(1, 2, 1)));
 	diffuse = clamp(diffuse, 0.05, 0.95);
 
-	float light = 0.4 + diffuse;
+	float light = 0.1 + 0.9*diffuse;
 	
 	vec3 ex_Albedo = vec3(1);
 	ex_Color = vec4(light*ex_Albedo, 1.0f);
+	//ex_Color = vec4(ex_Normal, 1.0f);
 }
