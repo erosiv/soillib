@@ -6,7 +6,6 @@ in vec3 in_Normal;
 uniform mat4 model;
 uniform mat4 vp;
 
-uniform sampler2D normalMap;
 uniform vec2 dimension;
 
 out vec4 ex_Color;
@@ -32,5 +31,5 @@ void main(void) {
 	ex_Normal = 1.0-ex_Normal;
 //	ex_Color = vec4(vec3(light), 1.0);
 	ex_Color = vec4(light*vec3(1.0), 1.0f);
-	ex_Color = vec4(ex_Normal, 1.0f);
+//	ex_Color = vec4(ex_Normal, 1.0f);
 }

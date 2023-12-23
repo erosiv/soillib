@@ -128,7 +128,6 @@ public:
 
 Vertexpool(int k, int n):Vertexpool(){
   reserve(k, n);
-	index();
 }
 
 ~Vertexpool(){
@@ -291,10 +290,12 @@ void order(F function, Args&&... args){
 
 }
 
-void resize(const uint* index, const int newsize){
+void resize(const uint* index, const int newsize, const int indstart){
 
-	if(index != NULL && *index < N)
+	if(index != NULL && *index < N){
 		indirect[*index].cnt = newsize;
+		indirect[*index].start = indstart;
+	}
 
 }
 
@@ -302,18 +303,59 @@ void resize(const uint* index, const int newsize){
 ================================================================================
           OpenGL Buffer Updating for Indexing and Indirect Calls
 ================================================================================
+#### ####
+#### ####
+#### ####
+#### ####
 */
 
-void index(){
+void index(glm::ivec2 tsize){
 
-	for(size_t j = 0; j < K; j++){
-		indices.push_back(j*4+0);
-		indices.push_back(j*4+1);
-		indices.push_back(j*4+2);
-		indices.push_back(j*4+2);
-		indices.push_back(j*4+1);
-		indices.push_back(j*4+3);
-	}
+	/*
+	const auto level = [&](int s){
+
+		for(size_t x = 0; x < tsize.x/s - 1; x++)
+		for(size_t y = 0; y < tsize.y/s - 1; y++){
+
+			glm::ivec2 p = s*glm::ivec2(x, y);
+
+			indices.push_back((p.x + 0)*s*tsize.y + (p.y + 0));
+			indices.push_back((p.x + s)*s*tsize.y + (p.y + 0));
+			indices.push_back((p.x + 0)*s*tsize.y + (p.y + s));
+
+			indices.push_back((p.x + 0)*s*tsize.y + (p.y + s));
+			indices.push_back((p.x + s)*s*tsize.y + (p.y + 0));
+			indices.push_back((p.x + s)*s*tsize.y + (p.y + s));
+
+		}
+
+	};
+	*/
+
+	const auto level = [&](int s){
+
+		for(size_t x = 0; x < tsize.x/s; x++)
+		for(size_t y = 0; y < tsize.y/s; y++){
+
+			glm::ivec2 p = s*glm::ivec2(x, y);
+
+			indices.push_back((p.x + 0)*(tsize.y+1) + (p.y + 0));
+			indices.push_back((p.x + s)*(tsize.y+1) + (p.y + 0));
+			indices.push_back((p.x + 0)*(tsize.y+1) + (p.y + s));
+
+			indices.push_back((p.x + 0)*(tsize.y+1) + (p.y + s));
+			indices.push_back((p.x + s)*(tsize.y+1) + (p.y + 0));
+			indices.push_back((p.x + s)*(tsize.y+1) + (p.y + s));
+
+		}
+
+	};
+
+	level(1);
+	level(2);
+	level(4);
+	level(8);
+	level(16);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size()*sizeof(GLuint), &indices[0], GL_STATIC_DRAW);

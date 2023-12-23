@@ -64,12 +64,6 @@ int main( int argc, char* args[] ) {
   for(const auto& entry: std::filesystem::directory_iterator(path)){
     geovalue_t dem;
     dem.meta(entry.path().c_str());
-    /*
-    if(dem.coords[1].x <= 23749.8) continue;
-    if(dem.coords[1].x >= 38750.2) continue;
-    if(dem.coords[1].y <= 294000) continue;
-    if(dem.coords[1].y >= 309001) continue;
-    */
     images.push_back({
       entry.path(),
       dem
@@ -103,7 +97,7 @@ int main( int argc, char* args[] ) {
 
   // Create Map
 
-  const int downscale = 20;
+  const int downscale = 10;
   glm::ivec2 mapdim = (max - min) / glm::vec2(0.5) / glm::vec2(downscale);
 
   world_t world(mapdim);
@@ -133,6 +127,8 @@ int main( int argc, char* args[] ) {
       world.map.get(mpos)->height = test;
     }
   }
+
+  images.clear();
 
   float hmax = std::numeric_limits<value_t>::min();
   float hmin = std::numeric_limits<value_t>::max();
@@ -174,90 +170,67 @@ int main( int argc, char* args[] ) {
 	cam::init(0.75, cam::ORTHO);
 	cam::update();
 
-	Tiny::event.handler = cam::handler;								//Event Handler
-	Tiny::view.interface = [&](){ };				//No Interface
+  size_t trigger = false;
 
-  /*
-	Buffer positions, indices;												//Define Buffers
-	construct(world, positions, indices);						    //Fill Buffers
-  */
+	Tiny::event.handler = [&](){
 
-  Vertexpool<Vertex> vertexpool(mapdim.x*mapdim.y*4, 1);
-  auto section = vertexpool.section(mapdim.x*mapdim.y*4);
-  for(size_t x = 0; x < mapdim.x-1; x++)
-  for(size_t y = 0; y < mapdim.y-1; y++){
+    if(!Tiny::event.press.empty() && Tiny::event.press.back() == SDLK_m){
+      trigger = true;
+    }
 
-    glm::ivec2 p = glm::ivec2(x, y);
-    size_t ind = p.x*mapdim.y + p.y;
+    cam::handler();								//Event Handler
+  };
+  // Construct the Vertexpool
 
-    if(world.map.get(p)->height == 0)
-      continue;
+  const glm::ivec2 tiledim = glm::ivec2(128);
+  const size_t tilesize = (tiledim.x + 1)*(tiledim.y + 1);
 
-    if(world.map.get(p+glm::ivec2(0, 1))->height == 0)
-      continue;
+  const glm::ivec2 tilenum = mapdim / tiledim;
+  const size_t ntiles = tilenum.x*tilenum.y;
 
-    if(world.map.get(p+glm::ivec2(1, 1))->height == 0)
-      continue;
+  Vertexpool<Vertex> vertexpool(tilesize, ntiles);
+  std::vector<uint*> sections;
 
-    if(world.map.get(p+glm::ivec2(1, 1))->height == 0)
-      continue;
+  for(size_t tx = 0; tx < tilenum.x; tx++)
+  for(size_t ty = 0; ty < tilenum.y; ty++){
 
-    vertexpool.fill(section, 4*ind+0,
-      glm::vec3(p.x, world.map.get(p)->height, p.y),
-      world.map.get(p)->normal
-    );
+    const glm::ivec2 origin = tiledim*glm::ivec2(tx, ty);
 
-    vertexpool.fill(section, 4*ind+1,
-      glm::vec3(p.x, world.map.get(p+glm::ivec2(0, 1))->height, p.y+1),
-      world.map.get(p)->normal
-    );
+    auto section = vertexpool.section(tilesize);
+    sections.push_back(section);
+    
+    for(size_t x = 0; x < tiledim.x + 1; x++)
+    for(size_t y = 0; y < tiledim.y + 1; y++){
 
-    vertexpool.fill(section, 4*ind+2,
-      glm::vec3(p.x+1, world.map.get(p+glm::ivec2(1, 0))->height, p.y),
-      world.map.get(p)->normal
-    );
+      glm::ivec2 tpos = glm::ivec2(x, y);
+      size_t ind = tpos.y*(tiledim.x+1) + tpos.x;
 
-    vertexpool.fill(section, 4*ind+3,
-      glm::vec3(p.x+1, world.map.get(p+glm::ivec2(1, 1))->height, p.y+1),
-      world.map.get(p)->normal
-    );
+      glm::ivec2 wpos = origin + tpos;
 
+      if(world.oob(wpos)){
+        vertexpool.fill(section, ind,
+          glm::vec3(wpos.x, 0, wpos.y),
+          world.map.get(wpos)->normal
+        );
+      }
+      else 
+      vertexpool.fill(section, ind,
+        glm::vec3(wpos.x, world.map.get(wpos)->height, wpos.y),
+        world.map.get(wpos)->normal
+      );
+    }
   }
 
+  vertexpool.index(tiledim);
+  for(auto& section: sections){
+    vertexpool.resize(section, tiledim.x*tiledim.y*6, 0);
+  }
 
   vertexpool.update();
 
-  /*
-	Model mesh({"in_Position"});					//Create Model with 2 Properties
-	mesh.bind<glm::vec3>("in_Position", &positions);	//Bind Buffer to Property
-	mesh.index(&indices);
-	mesh.model = glm::translate(glm::mat4(1.0f), glm::vec3(-world.map.dimension.x/2, -15.0, -world.map.dimension.y/2));
-  */
-
   glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-world.map.dimension.x/2, -15.0, -world.map.dimension.y/2));
 
-
-
 	Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position", "in_Normal"});
-
-  // Textures
-
-  Texture normalMap(world.map.dimension.x, world.map.dimension.y, {GL_RGBA32F, GL_RGBA, GL_FLOAT});
-  
-  auto data = new glm::vec4[world.map.dimension.x*world.map.dimension.y];
-  for(size_t x = 0; x < world.map.dimension.x; x++)
-  for(size_t y = 0; y < world.map.dimension.y; y++){
-    data[y*world.map.dimension.x + x] = glm::vec4(world.map.get(glm::ivec2(x, y))->normal, 1.0f);
-  }
-
-  glBindTexture(GL_TEXTURE_2D, normalMap.texture);
-
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, world.map.dimension.x, world.map.dimension.y, 0, GL_RGBA, GL_FLOAT, data);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glBindTexture(GL_TEXTURE_2D, 0);
-  delete[] data;
 
 	Tiny::view.pipeline = [&](){											//Setup Drawing Pipeline
 
@@ -266,15 +239,34 @@ int main( int argc, char* args[] ) {
 		defaultShader.use();														//Prepare Shader
 		defaultShader.uniform("model", model);			//Set Model Matrix
     defaultShader.uniform("vp", cam::vp);						//View Projection Matrix
-    defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
     defaultShader.uniform("dimension", glm::vec2(world.map.dimension));						//View Projection Matrix
     vertexpool.render(GL_TRIANGLES);                          //Render Model with Lines
-    //vertexpool.render(GL_LINES);                          //Render Model with Lines
 
 	};
 
+  size_t LOD = 2;
+  trigger = true;
 	Tiny::loop([&](){ //Autorotate Camera
 	//	cam::pan(0.1f);
+
+    if(trigger){
+
+      LOD = (LOD + 1)%4;
+
+    for(auto& section: sections){
+
+      if(LOD == 0) vertexpool.resize(section, tiledim.x*tiledim.y*6, 0);
+      if(LOD == 1) vertexpool.resize(section, tiledim.x*tiledim.y*6/4, tiledim.x*tiledim.y*6);
+      if(LOD == 2) vertexpool.resize(section, tiledim.x*tiledim.y*6/16, tiledim.x*tiledim.y*6 + tiledim.x*tiledim.y*6/4);
+      if(LOD == 3) vertexpool.resize(section, tiledim.x*tiledim.y*6/64, tiledim.x*tiledim.y*6 + tiledim.x*tiledim.y*6/4 + tiledim.x*tiledim.y*6/16);
+    }
+
+      vertexpool.update();
+
+
+      trigger = false;
+    }
+
 	});
 
 	Tiny::quit();

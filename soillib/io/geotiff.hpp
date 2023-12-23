@@ -35,9 +35,9 @@ static const TIFFFieldInfo xtiffFieldInfo[] = {
   { TIFFTAG_GEOASCIIPARAMS, -1,-1, TIFF_ASCII, FIELD_CUSTOM,
     true, false,  "GeoASCIIParams" },
   { TIFFTAG_GDAL_METADATA, -1,-1, TIFF_ASCII, FIELD_CUSTOM,
-    true, false,  "GeoGDALMetaData" },
+    true, false,  "GDAL_METADATA" },
   { TIFFTAG_GDAL_NODATA, -1,-1, TIFF_ASCII, FIELD_CUSTOM,
-    true, false,  "GeoGDALNoData" },    
+    true, false,  "GDAL_NODATA" },    
 };
 
 static TIFFExtendProc _ParentExtender = NULL;
@@ -81,6 +81,8 @@ struct geotiff: soil::io::tiff<T> {
   glm::tvec2<uint32_t> tiledim;
   glm::tvec2<uint32_t> tilenum;
 
+  bool nodata = false;
+
 };
 
 // Implementations
@@ -105,12 +107,18 @@ bool geotiff<T>::meta(const char* filename){
   && TIFFGetField(tif, TIFFTAG_TILELENGTH, &theight)){
     tiled = true;
     tiledim = glm::tvec2<uint32_t>(twidth, theight);
-    tilenum = (glm::tvec2<uint32_t>(width, height) - glm::tvec2<uint32_t>(1))/tiledim + glm::tvec2<uint32_t>(1);
+    tilenum = (glm::tvec2<uint32_t>(width, height) + tiledim - glm::tvec2<uint32_t>(1))/tiledim;
+  }
+
+  int count = 0;
+  char* text_ptr = NULL;
+  if(TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &text_ptr)){
+    std::cout<<"COUNT "<<count<<std::endl;
+    std::cout<<"TEXT "<<text_ptr<<std::endl;
   }
 
   // Read Meta-Data
 
-  int count;
   double* values;
   TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values);
   scale.x = values[0];
@@ -164,29 +172,35 @@ bool geotiff<T>::read(const char* filename){
     T* buf = this->data;
     T* nbuf = new T[this->tiledim.x*this->tiledim.y];
 
-    for(size_t tx = 0; tx < this->width; tx += this->tiledim.x)
-    for(size_t ty = 0; ty < this->height; ty += this->tiledim.y){
-      
-      if(!TIFFReadTile(tif, nbuf, tx, ty, 0, 0)){
-        std::cout<<"FAILED TO READ TILE"<<std::endl;
-      }
+    for(size_t nx = 0; nx < this->tilenum.x; ++nx)
+    for(size_t ny = 0; ny < this->tilenum.y; ++ny){
 
-      glm::ivec2 ipos = glm::ivec2(tx, ty);
+      glm::ivec2 npos(nx, ny);
+      glm::ivec2 norg = npos*glm::ivec2(this->tiledim);
+
+      if(!TIFFReadTile(tif, nbuf, norg.x, norg.y, 0, 0)){
+        continue;
+      }
 
       for(size_t ix = 0; ix < this->tiledim.x; ix++)
       for(size_t iy = 0; iy < this->tiledim.y; iy++){
 
         glm::ivec2 tpos = glm::ivec2(ix, iy);
-        glm::ivec2 fpos = ipos + tpos;
+        glm::ivec2 fpos = norg + tpos;
 
-        if(fpos.x >= this->width) continue;
-        if(fpos.y >= this->height) continue;
+       if(fpos.x >= this->width) continue;
+       if(fpos.y >= this->height) continue;
 
-        buf[fpos.y * this->width + fpos.x] = nbuf[iy * this->tiledim.x + ix];
+        if(buf[fpos.y * this->width + fpos.x] == 0){
+
+          buf[fpos.y * this->width + fpos.x] = nbuf[iy * this->tiledim.x + ix];
+        }
+
       }
-
     }
+
     delete[] nbuf;
+
   }
 
   TIFFClose(tif);
