@@ -102,7 +102,7 @@ int main( int argc, char* args[] ) {
 
   // Create Map
 
-  const int downscale = 50;
+  const int downscale = 20;
   glm::ivec2 mapdim = (max - min) / glm::vec2(0.5) / glm::vec2(downscale);
 
   world_t world(mapdim);

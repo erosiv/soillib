@@ -6,10 +6,9 @@
 namespace soil {
 namespace io {
 
-// GeoTIFF Specification
+// GeoTIFF Specification w. GDAL Extension
 
-#define TRUE true
-#define FALSE false
+#define N(a) (sizeof (a) / sizeof (a[0]))
 #define TIFFTAG_GEOPIXELSCALE         33550
 #define TIFFTAG_INTERGRAPH_MATRIX     33920
 #define TIFFTAG_GEOTIEPOINTS          33922
@@ -17,23 +16,28 @@ namespace io {
 #define TIFFTAG_GEOKEYDIRECTORY       34735
 #define TIFFTAG_GEODOUBLEPARAMS       34736
 #define TIFFTAG_GEOASCIIPARAMS        34737
-#define N(a) (sizeof (a) / sizeof (a[0]))
+#define TIFFTAG_GDAL_METADATA         42112
+#define TIFFTAG_GDAL_NODATA           42113
 
 static const TIFFFieldInfo xtiffFieldInfo[] = {
-    { TIFFTAG_GEOPIXELSCALE,  -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
-      TRUE, TRUE,   "GeoPixelScale" },
-    { TIFFTAG_INTERGRAPH_MATRIX,-1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
-      TRUE, TRUE,   "Intergraph TransformationMatrix" },
-    { TIFFTAG_GEOTRANSMATRIX, -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
-      TRUE, TRUE,   "GeoTransformationMatrix" },
-    { TIFFTAG_GEOTIEPOINTS, -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
-      TRUE, TRUE,   "GeoTiePoints" },
-    { TIFFTAG_GEOKEYDIRECTORY,-1,-1, TIFF_SHORT,  FIELD_CUSTOM,
-      TRUE, TRUE,   "GeoKeyDirectory" },
-    { TIFFTAG_GEODOUBLEPARAMS,  -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
-      TRUE, TRUE,   "GeoDoubleParams" },
-    { TIFFTAG_GEOASCIIPARAMS, -1,-1, TIFF_ASCII,  FIELD_CUSTOM,
-      TRUE, FALSE,  "GeoASCIIParams" }
+  { TIFFTAG_GEOPIXELSCALE,  -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
+    true, true,   "GeoPixelScale" },
+  { TIFFTAG_INTERGRAPH_MATRIX,-1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
+    true, true,   "Intergraph TransformationMatrix" },
+  { TIFFTAG_GEOTRANSMATRIX, -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
+    true, true,   "GeoTransformationMatrix" },
+  { TIFFTAG_GEOTIEPOINTS, -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
+    true, true,   "GeoTiePoints" },
+  { TIFFTAG_GEOKEYDIRECTORY,-1,-1, TIFF_SHORT,  FIELD_CUSTOM,
+    true, true,   "GeoKeyDirectory" },
+  { TIFFTAG_GEODOUBLEPARAMS,  -1,-1, TIFF_DOUBLE, FIELD_CUSTOM,
+    true, true,   "GeoDoubleParams" },
+  { TIFFTAG_GEOASCIIPARAMS, -1,-1, TIFF_ASCII, FIELD_CUSTOM,
+    true, false,  "GeoASCIIParams" },
+  { TIFFTAG_GDAL_METADATA, -1,-1, TIFF_ASCII, FIELD_CUSTOM,
+    true, false,  "GeoGDALMetaData" },
+  { TIFFTAG_GDAL_NODATA, -1,-1, TIFF_ASCII, FIELD_CUSTOM,
+    true, false,  "GeoGDALNoData" },    
 };
 
 static TIFFExtendProc _ParentExtender = NULL;
@@ -72,6 +76,11 @@ struct geotiff: soil::io::tiff<T> {
   glm::dvec3 scale;
   glm::dvec3 coords[2];
 
+  // Tiling Handling
+  bool tiled = false;
+  glm::tvec2<uint32_t> tiledim;
+  glm::tvec2<uint32_t> tilenum;
+
 };
 
 // Implementations
@@ -89,14 +98,15 @@ bool geotiff<T>::meta(const char* filename){
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
 
- // uint32_t twidth;
-  //uint32_t theight;
+  uint32_t twidth = 0;
+  uint32_t theight = 0;
 
-  //TIFFGetField(tif, TIFFTAG_TILEWIDTH, &twidth);
-  //TIFFGetField(tif, TIFFTAG_TILELENGTH, &theight);
-
-  //std::cout<<twidth<<std::endl;
-  //std::cout<<theight<<std::endl;
+  if(TIFFGetField(tif, TIFFTAG_TILEWIDTH, &twidth) 
+  && TIFFGetField(tif, TIFFTAG_TILELENGTH, &theight)){
+    tiled = true;
+    tiledim = glm::tvec2<uint32_t>(twidth, theight);
+    tilenum = (glm::tvec2<uint32_t>(width, height) - glm::tvec2<uint32_t>(1))/tiledim + glm::tvec2<uint32_t>(1);
+  }
 
   // Read Meta-Data
 
@@ -143,10 +153,40 @@ bool geotiff<T>::read(const char* filename){
     allocate();
   }
 
-  T* buf = this->data;
-  for (size_t row = 0; row < this->height; row++){
-    TIFFReadScanline(tif, buf, row);
-    buf += this->width;
+  if(!tiled){
+    T* buf = this->data;
+    for (size_t row = 0; row < this->height; row++){
+      TIFFReadScanline(tif, buf, row);
+      buf += this->width;
+    }
+  } else {
+
+    T* buf = this->data;
+    T* nbuf = new T[this->tiledim.x*this->tiledim.y];
+
+    for(size_t tx = 0; tx < this->width; tx += this->tiledim.x)
+    for(size_t ty = 0; ty < this->height; ty += this->tiledim.y){
+      
+      if(!TIFFReadTile(tif, nbuf, tx, ty, 0, 0)){
+        std::cout<<"FAILED TO READ TILE"<<std::endl;
+      }
+
+      glm::ivec2 ipos = glm::ivec2(tx, ty);
+
+      for(size_t ix = 0; ix < this->tiledim.x; ix++)
+      for(size_t iy = 0; iy < this->tiledim.y; iy++){
+
+        glm::ivec2 tpos = glm::ivec2(ix, iy);
+        glm::ivec2 fpos = ipos + tpos;
+
+        if(fpos.x >= this->width) continue;
+        if(fpos.y >= this->height) continue;
+
+        buf[fpos.y * this->width + fpos.x] = nbuf[iy * this->tiledim.x + ix];
+      }
+
+    }
+    delete[] nbuf;
   }
 
   TIFFClose(tif);

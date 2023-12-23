@@ -21,10 +21,10 @@ void construct(T& world, Buffer& positions, Buffer& indices){
     float hc = world.map.get(pos + glm::ivec2(0, 1))->height;
     float hd = world.map.get(pos + glm::ivec2(1, 1))->height;
 
-    if(std::abs(ha) > 1E3) continue;
-    if(std::abs(hb) > 1E3) continue;
-    if(std::abs(hc) > 1E3) continue;
-    if(std::abs(hd) > 1E3) continue;
+   // if(std::abs(ha) > 1E3) continue;
+   // if(std::abs(hb) > 1E3) continue;
+   // if(std::abs(hc) > 1E3) continue;
+   // if(std::abs(hd) > 1E3) continue;
     
     //Add to Position Vector
     glm::vec3 a = glm::vec3(pos.x, cell.height, pos.y);

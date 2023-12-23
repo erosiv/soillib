@@ -17,3 +17,8 @@ IO:
 - Images should be able to load at a sub-resolution
 	- This means we don't have to load the whole thing!!!
 	- OpenGL Textures should operate more nicely with these!!!
+- Tiff should load tiled images as well!!!
+
+Tools:
+- Write a Proper Merge Tool
+- Write a Proper Relief-Shade Tool
