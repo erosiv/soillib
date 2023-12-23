@@ -27,11 +27,15 @@ void main(void) {
 	vec3 ex_Albedo = vec3(1);
 	float light = 0.1 + 0.9*diffuse;
 	ex_Color = vec4(light*ex_Albedo, 1.0f);
+
+	if(ex_Normal.y > 0.9975)
+		ex_Color = vec4(92, 133, 142, 255.0f)/255.0f;
 	
-	
+	/*
 	vec3 normal = ex_Normal;
 	normal = 0.5*normal + 0.5;
 	normal.yz = normal.zy;
 	ex_Color = vec4(normal, 1.0f);
+	*/
 	
 }
