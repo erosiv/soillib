@@ -14,6 +14,7 @@
 #include <limits>
 #include <filesystem>
 
+#include "vertexpool.cpp"
 #include "model.hpp"
 
 struct cell {
@@ -137,6 +138,12 @@ int main( int argc, char* args[] ) {
   float hmin = std::numeric_limits<value_t>::max();
 
   for(auto [cell, pos]: world.map){
+
+    //std::cout<<cell.height<<std::endl;
+
+    //if(cell.height = -999)
+    //  continue;
+
     if(cell.height < hmin) hmin = cell.height;
     if(cell.height > hmax) hmax = cell.height;
   }
@@ -170,15 +177,68 @@ int main( int argc, char* args[] ) {
 	Tiny::event.handler = cam::handler;								//Event Handler
 	Tiny::view.interface = [&](){ };				//No Interface
 
+  /*
 	Buffer positions, indices;												//Define Buffers
 	construct(world, positions, indices);						    //Fill Buffers
+  */
 
+  Vertexpool<Vertex> vertexpool(mapdim.x*mapdim.y*4, 1);
+  auto section = vertexpool.section(mapdim.x*mapdim.y*4);
+  for(size_t x = 0; x < mapdim.x-1; x++)
+  for(size_t y = 0; y < mapdim.y-1; y++){
+
+    glm::ivec2 p = glm::ivec2(x, y);
+    size_t ind = p.x*mapdim.y + p.y;
+
+    if(world.map.get(p)->height == 0)
+      continue;
+
+    if(world.map.get(p+glm::ivec2(0, 1))->height == 0)
+      continue;
+
+    if(world.map.get(p+glm::ivec2(1, 1))->height == 0)
+      continue;
+
+    if(world.map.get(p+glm::ivec2(1, 1))->height == 0)
+      continue;
+
+    vertexpool.fill(section, 4*ind+0,
+      glm::vec3(p.x, world.map.get(p)->height, p.y),
+      world.map.get(p)->normal
+    );
+
+    vertexpool.fill(section, 4*ind+1,
+      glm::vec3(p.x, world.map.get(p+glm::ivec2(0, 1))->height, p.y+1),
+      world.map.get(p)->normal
+    );
+
+    vertexpool.fill(section, 4*ind+2,
+      glm::vec3(p.x+1, world.map.get(p+glm::ivec2(1, 0))->height, p.y),
+      world.map.get(p)->normal
+    );
+
+    vertexpool.fill(section, 4*ind+3,
+      glm::vec3(p.x+1, world.map.get(p+glm::ivec2(1, 1))->height, p.y+1),
+      world.map.get(p)->normal
+    );
+
+  }
+
+
+  vertexpool.update();
+
+  /*
 	Model mesh({"in_Position"});					//Create Model with 2 Properties
 	mesh.bind<glm::vec3>("in_Position", &positions);	//Bind Buffer to Property
 	mesh.index(&indices);
 	mesh.model = glm::translate(glm::mat4(1.0f), glm::vec3(-world.map.dimension.x/2, -15.0, -world.map.dimension.y/2));
+  */
 
-	Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position"});
+  glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-world.map.dimension.x/2, -15.0, -world.map.dimension.y/2));
+
+
+
+	Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position", "in_Normal"});
 
   // Textures
 
@@ -204,11 +264,12 @@ int main( int argc, char* args[] ) {
 		Tiny::view.target(color::white);								//Target Screen
 
 		defaultShader.use();														//Prepare Shader
-		defaultShader.uniform("model", mesh.model);			//Set Model Matrix
+		defaultShader.uniform("model", model);			//Set Model Matrix
     defaultShader.uniform("vp", cam::vp);						//View Projection Matrix
     defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
     defaultShader.uniform("dimension", glm::vec2(world.map.dimension));						//View Projection Matrix
-		mesh.render(GL_TRIANGLES);													//Render Model with Lines
+    vertexpool.render(GL_TRIANGLES);                          //Render Model with Lines
+    //vertexpool.render(GL_LINES);                          //Render Model with Lines
 
 	};
 
