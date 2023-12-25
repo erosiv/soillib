@@ -67,14 +67,6 @@ struct geotiff: soil::io::tiff<T> {
 
   glm::dvec3 scale;
   glm::dvec3 coords[2];
-
-  // Tiling Handling
-  bool tiled = false;
-  glm::tvec2<uint32_t> tiledim;
-  glm::tvec2<uint32_t> tilenum;
-
-  bool nodata = false;
-
 };
 
 // Implementations
