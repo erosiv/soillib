@@ -35,14 +35,27 @@ struct world_t {
 
 };
 
+// Utilization Instructions
+
+const char* help = R""""(
+Usage:
+  ./main <file.tiff|dir>
+
+Description:
+  Render a .tiff file as a height-map, or render a directory of .tiff files
+  as a merged height-map. Note that in order to render a directory of .tiff
+  files, they must have GeoTIFF tags for computing their relative position.
+)"""";
+
 int main(int argc, char* args[]){
 
   // Parse Arguments
 
   if(argc < 2){
-    std::cout<<"please specify input directory for dataset"<<std::endl;
+    puts(help);
     return 0;
   }
+
   std::string path = args[1];
 
   // Load Image Data, Create Map
@@ -83,10 +96,12 @@ int main(int argc, char* args[]){
   cam::rot = 0.0f;
   cam::roty = 45.0f;
   cam::turnrate = 1.0f;
+  cam::zoomrate *= 2.0f;
   cam::init(10, cam::ORTHO);
   cam::update();
 
-  const glm::vec3 center = glm::vec3(-world.dim.x/2, -15.0, -world.dim.y/2);
+  const float cheight = world.map.get(world.dim/2)->height;
+  const glm::vec3 center = glm::vec3(-world.dim.x/2, -cheight, -world.dim.y/2);
   const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(100.0f/sqrt(world.dim.x*world.dim.y)));
   const glm::mat4 model = glm::translate(scale, center);
 
