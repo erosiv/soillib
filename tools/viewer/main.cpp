@@ -11,6 +11,7 @@
 #include <soillib/model/surface.hpp>
 
 #include "model.hpp"
+#include <limits>
 #include <filesystem>
 
 // Map Structs
@@ -40,7 +41,8 @@ struct world_t {
 
 // Image Structs
 
-typedef soil::io::geotiff<float> geotiff_t;
+typedef float value_t;
+typedef soil::io::geotiff<value_t> geotiff_t;
 
 struct image_t {
   std::string name;
@@ -91,23 +93,86 @@ int main(int argc, char* args[]){
     });
   }
 
-  for(auto& image: images)
+ // Compute Bounding Box
+
+  glm::vec2 min = glm::vec2(std::numeric_limits<value_t>::max());
+  glm::vec2 max = glm::vec2(std::numeric_limits<value_t>::min());
+
+  for(auto& image: images){
+    min = glm::min(min, glm::vec2(image.tiff->min()));
+    max = glm::max(max, glm::vec2(image.tiff->max()));
+  }
+
+  std::cout<<"Bounds: ";
+  std::cout<<"("<<min.x<<" "<<min.y<<"), ";
+  std::cout<<"("<<max.x<<" "<<max.y<<")"<<std::endl;
+
+  // Construct Map  
+
+  const glm::vec2 pscale = glm::vec2(1, 1); // In Meters
+  const float hscale = 1.0f;
+  glm::ivec2 mapdim = (max - min) / pscale;
+
+  std::cout<<"Map: ";
+  std::cout<<"("<<mapdim.x<<" "<<mapdim.y<<")"<<std::endl;
+
+  world_t world(mapdim);
+  for(auto [cell, pos]: world.map){
+    cell.height = 0.0f;
+  }
+
+  // Load Images, Fill w. Height
+
+  for(auto& image: images){
+
     image.tiff->read(image.name.c_str());
 
-  // Construct the World
+    // Tile Dimension in Map-Units
+    const glm::vec2 tdim = image.tiff->scale() * image.tiff->dim() / pscale;
+    const glm::vec2 tmin = (image.tiff->min() - min) / pscale;
+    const glm::vec2 idim = image.tiff->dim();
 
-  std::cout<<images.size()<<std::endl;
+    for(size_t tx = 0; tx < tdim.x; tx++)
+    for(size_t ty = 0; ty < tdim.y; ty++){
 
-  geotiff_t& dem = *images[0].tiff;
-  world_t world(dem.dim());
+      const glm::vec2 ipos = glm::vec2(tx, ty) * pscale / image.tiff->scale();
+      const float value = image.tiff->operator[](glm::vec2(ipos.x, idim.y - 1 - ipos.y));
 
-  // Fill Map
+      glm::vec2 tpos = tmin + glm::vec2(tx, ty);
+      tpos.y = mapdim.y - 1 - tpos.y;
 
-  for(auto [cell, pos]: world.map)
-    cell.height = dem[pos];
+      if(!world.map.oob(tpos))
+        world.map.get(tpos)->height = value;
 
-  for(auto [cell, pos]: world.map)
+    }
+  } 
+  
+  for(auto& image: images){
+    delete image.tiff;
+  }
+
+  images.clear();
+
+  float hmax = std::numeric_limits<value_t>::min();
+  float hmin = std::numeric_limits<value_t>::max();
+
+  for(auto [cell, pos]: world.map){
+    if(cell.height < hmin) hmin = cell.height;
+    if(cell.height > hmax) hmax = cell.height;
+  }
+
+  for(auto [cell, pos]: world.map){
+    cell.height -= hmin;
+  }
+
+  for(auto [cell, pos]: world.map){
+    cell.height /= hscale;
+  }
+
+  // Fill Normal
+  for(auto [cell, pos]: world.map){
     cell.normal = soil::surface::normal(world, pos);
+  }
 
   // Visualize Data
 
@@ -140,8 +205,8 @@ int main(int argc, char* args[]){
 
   const float cheight = world.map.get(world.dim/2)->height;
   const glm::vec3 center = glm::vec3(-world.dim.x/2, -cheight, -world.dim.y/2);
-  const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(100.0f/sqrt(world.dim.x*world.dim.y)));
-  const glm::mat4 model = glm::translate(scale, center);
+  const glm::mat4 _scale = glm::scale(glm::mat4(1.0f), glm::vec3(100.0f/sqrt(world.dim.x*world.dim.y)));
+  const glm::mat4 model = glm::translate(_scale, center);
 
   // Execute
 

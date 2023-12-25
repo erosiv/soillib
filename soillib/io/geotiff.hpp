@@ -65,8 +65,17 @@ struct geotiff: soil::io::tiff<T> {
   bool read(const char* filename);
   bool write(const char* filename);
 
-  glm::dvec3 scale{0};
-  glm::dvec3 coords[2]{glm::dvec3{0}, glm::dvec3{0}};
+  // Projection
+
+  inline glm::vec2 scale() const { return glm::vec2(_scale); }
+  inline glm::vec2 dim() const   { return glm::vec2(this->width, this->height); }
+  inline glm::vec2 min() const   { return glm::vec2(_coords[1]); }
+  inline glm::vec2 max() const   { return min() + scale()*dim(); }
+  inline glm::vec2 map(const glm::vec2 p) const { return min() + scale()*p; }
+
+private:
+  glm::vec3 _scale{1};
+  glm::vec3 _coords[2]{glm::vec3{0}, glm::vec3{0}};
 };
 
 // Implementations
@@ -89,18 +98,18 @@ bool geotiff<T>::meta(const char* filename){
 
   double* values;
   if(TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values)){
-    scale.x = values[0];
-    scale.y = values[1];
-    scale.z = values[2];
+    _scale.x = values[0];
+    _scale.y = values[1];
+    _scale.z = values[2];
   }
 
   if(TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &count, &values)){
-    coords[0].x = values[0];
-    coords[0].y = values[1];
-    coords[0].z = values[2];
-    coords[1].x = values[3];
-    coords[1].y = values[4];
-    coords[1].z = values[5];
+    _coords[0].x = values[0];
+    _coords[0].y = values[1];
+    _coords[0].z = values[2];
+    _coords[1].x = values[3];
+    _coords[1].y = values[4];
+    _coords[1].z = values[5];
   }
 
   TIFFClose(tif);
