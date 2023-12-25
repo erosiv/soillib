@@ -53,12 +53,16 @@ struct image_t {
 
 const char* help = R""""(
 Usage:
-  ./main <file.tiff|dir>
+  ./main <file.tiff|dir> [scale]
 
 Description:
+
+  [scale] scale in meters
+
   Render a .tiff file as a height-map, or render a directory of .tiff files
   as a merged height-map. Note that in order to render a directory of .tiff
   files, they must have GeoTIFF tags for computing their relative position.
+
 )"""";
 
 int main(int argc, char* args[]){
@@ -109,8 +113,13 @@ int main(int argc, char* args[]){
 
   // Construct Map  
 
-  const glm::vec2 pscale = glm::vec2(1, 1); // In Meters
-  const float hscale = 1.0f;
+  float mscale = 1.0f;
+  if(argc == 3){
+    mscale = std::stof(args[2]);
+  }
+
+  const glm::vec2 pscale = glm::vec2(mscale); // In Meters
+  const float hscale = mscale;
   glm::ivec2 mapdim = (max - min) / pscale;
 
   std::cout<<"Map: ";
