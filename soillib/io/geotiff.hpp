@@ -65,8 +65,8 @@ struct geotiff: soil::io::tiff<T> {
   bool read(const char* filename);
   bool write(const char* filename);
 
-  glm::dvec3 scale;
-  glm::dvec3 coords[2];
+  glm::dvec3 scale{0};
+  glm::dvec3 coords[2]{glm::dvec3{0}, glm::dvec3{0}};
 };
 
 // Implementations
@@ -88,18 +88,20 @@ bool geotiff<T>::meta(const char* filename){
   // Read Meta-Data
 
   double* values;
-  TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values);
-  scale.x = values[0];
-  scale.y = values[1];
-  scale.z = values[2];
+  if(TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values)){
+    scale.x = values[0];
+    scale.y = values[1];
+    scale.z = values[2];
+  }
 
-  TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &count, &values);
-  coords[0].x = values[0];
-  coords[0].y = values[1];
-  coords[0].z = values[2];
-  coords[1].x = values[3];
-  coords[1].y = values[4];
-  coords[1].z = values[5];
+  if(TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &count, &values)){
+    coords[0].x = values[0];
+    coords[0].y = values[1];
+    coords[0].z = values[2];
+    coords[1].x = values[3];
+    coords[1].y = values[4];
+    coords[1].z = values[5];
+  }
 
   TIFFClose(tif);
   return true;
