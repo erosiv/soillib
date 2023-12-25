@@ -6,18 +6,38 @@
 #include <soillib/util/pool.hpp>
 #include <soillib/util/index.hpp>
 #include <soillib/map/basic.hpp>
-#include <soillib/io/tiff.hpp>
-#include <soillib/io/png.hpp>
+#include <soillib/io/geotiff.hpp>
+
+#include <soillib/model/surface.hpp>
 
 #include "model.hpp"
 
 struct cell {
   float height;
-  float discharge;
-  glm::vec4 normal;
+  glm::vec3 normal;
 };
 
-int main( int argc, char* args[] ) {
+struct world_t {
+
+  const glm::ivec2 dim;
+  soil::map::basic<cell> map;
+
+  world_t(const glm::ivec2 dim)
+    :dim(dim),map(dim){}
+
+  const inline bool oob(glm::vec2 p){
+    return map.oob(p);
+  }
+
+  const inline float height(glm::vec2 p){
+    return map.get(p)->height;
+  }
+
+};
+
+int main(int argc, char* args[]){
+
+  // Parse Arguments
 
   if(argc < 2){
     std::cout<<"please specify input directory for dataset"<<std::endl;
@@ -25,84 +45,66 @@ int main( int argc, char* args[] ) {
   }
   std::string path = args[1];
 
-  // Load Image Data
+  // Load Image Data, Create Map
 
-  soil::io::tiff height((path + "/height.tiff").c_str());
-  soil::io::tiff discharge((path + "/discharge.tiff").c_str());
-  soil::io::png normal((path + "/normal.png").c_str());
-  soil::io::png albedo((path + "/albedo.png").c_str());
-
-  // Create Map
-
-  const glm::ivec2 dim = glm::ivec2(height.width, height.height);
-  soil::map::basic<cell> map(dim);
+  soil::io::geotiff dem(path.c_str());
+  world_t world(dem.dim());
 
   // Fill Map
 
-  for(auto [cell, pos]: map){
-    cell.height = 80.0f*height[pos];
-    cell.discharge = discharge[pos];
-    cell.normal = glm::vec4(normal[pos]);
-  }
+  for(auto [cell, pos]: world.map)
+    cell.height = dem[pos];
 
-	Tiny::view.vsync = false;
+  for(auto [cell, pos]: world.map)
+    cell.normal = soil::surface::normal(world, pos);
+
+  // Visualize Data
+
+	Tiny::view.vsync = true;
 	Tiny::window("soillib dataset viewer", 1200, 800);			//Open Window
-
-	cam::near = -500.0f;
-	cam::far = 500.0f;
-	cam::rot = 45.0f;
-	cam::roty = 45.0f;
-  cam::turnrate = 0.1f;
-	cam::init(10, cam::ORTHO);
-	cam::update();
 
 	Tiny::event.handler = cam::handler;								//Event Handler
 	Tiny::view.interface = [&](){ /* ... */ };				//No Interface
 
-	Buffer positions, indices;												//Define Buffers
-	construct(map, positions, indices);						    //Fill Buffers
+  Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position", "in_Normal"});
 
-	Model mesh({"in_Position"});					//Create Model with 2 Properties
-	mesh.bind<glm::vec3>("in_Position", &positions);	//Bind Buffer to Property
+	Buffer positions, normals, indices;								//Define Buffers
+	construct(world, positions, normals, indices);    //Fill Buffers
+
+	Model mesh({"in_Position", "in_Normal"});					//Create Model with 2 Properties
+  mesh.bind<glm::vec3>("in_Position", &positions);  //Bind Buffer to Property
+  mesh.bind<glm::vec3>("in_Normal", &normals);      //Bind Buffer to Property
 	mesh.index(&indices);
-	mesh.model = glm::translate(glm::mat4(1.0f), glm::vec3(-map.dimension.x/2, -15.0, -map.dimension.y/2));
 
-	Shader defaultShader({"shader/default.vs", "shader/default.fs"}, {"in_Position"});
+  // View Configuration
 
-  // Textures
+  cam::near = -100.0f;
+  cam::far = 100.0f;
+  cam::rot = 0.0f;
+  cam::roty = 45.0f;
+  cam::turnrate = 1.0f;
+  cam::init(10, cam::ORTHO);
+  cam::update();
 
-  Texture dischargeMap(image::make([&](const glm::ivec2 p){
-    return glm::vec4(discharge[p]);
-  }, map.dimension));
+  const glm::vec3 center = glm::vec3(-world.dim.x/2, -15.0, -world.dim.y/2);
+  const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(100.0f/sqrt(world.dim.x*world.dim.y)));
+  const glm::mat4 model = glm::translate(scale, center);
 
-  Texture normalMap(image::make([&](const glm::ivec2 p){
-    return glm::vec4(normal[p]);
-  }, map.dimension));
+  // Execute
 
-  Texture albedoMap(image::make([&](const glm::ivec2 p){
-    return glm::vec4(albedo[p]);
-  }, map.dimension));
+	Tiny::view.pipeline = [&](){
 
-	Tiny::view.pipeline = [&](){											//Setup Drawing Pipeline
-
-		Tiny::view.target(color::white);								//Target Screen
-
-		defaultShader.use();														//Prepare Shader
-		defaultShader.uniform("model", mesh.model);			//Set Model Matrix
-    defaultShader.uniform("vp", cam::vp);						//View Projection Matrix
-    defaultShader.texture("dischargeMap", dischargeMap);						//View Projection Matrix
-    defaultShader.texture("normalMap", normalMap);            //View Projection Matrix
-    defaultShader.texture("albedoMap", albedoMap);            //View Projection Matrix
-    defaultShader.uniform("dimension", glm::vec2(map.dimension));						//View Projection Matrix
-		mesh.render(GL_TRIANGLES);													//Render Model with Lines
+		Tiny::view.target(color::white);        // Target Screen
+		defaultShader.use();                    // Bind Shader
+		defaultShader.uniform("model", model);  // Model Matrix
+    defaultShader.uniform("vp", cam::vp);   // View-Projection Matrix
+		mesh.render(GL_TRIANGLES);              // Render Model
 
 	};
 
-	Tiny::loop([&](){ //Autorotate Camera
-	//	cam::pan(0.1f);
-	});
-
+	Tiny::loop([](){});
 	Tiny::quit();
 
 	return 0;
+
 }
