@@ -26,4 +26,5 @@ void main(void) {
 	float light = 0.3 + 0.8*diffuse;
 	ex_Color = vec4(vec3(light), 1.0);
 	ex_Color = vec4(light*ex_Albedo, 1.0f);
+	//ex_Color = vec4(0.5*in_Normal+0.5, 1.0f);
 }
