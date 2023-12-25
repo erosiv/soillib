@@ -142,6 +142,5 @@ int main(int argc, char *args[]) {
  // iso_export(5.0f);
  // iso_export(10.0f);
  // iso_export(25.0f);
- // iso_export(50.0f);
-
+  iso_export(50.0f);
 }

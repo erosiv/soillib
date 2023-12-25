@@ -113,8 +113,6 @@ bool geotiff<T>::meta(const char* filename){
   int count = 0;
   char* text_ptr = NULL;
   if(TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &text_ptr)){
-    std::cout<<"COUNT "<<count<<std::endl;
-    std::cout<<"TEXT "<<text_ptr<<std::endl;
   }
 
   // Read Meta-Data
