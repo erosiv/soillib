@@ -11,6 +11,9 @@
 #include <soillib/model/surface.hpp>
 
 #include "model.hpp"
+#include <filesystem>
+
+// Map Structs
 
 struct cell {
   float height;
@@ -35,6 +38,15 @@ struct world_t {
 
 };
 
+// Image Structs
+
+typedef soil::io::geotiff<float> geotiff_t;
+
+struct image_t {
+  std::string name;
+  geotiff_t* tiff;
+};
+
 // Utilization Instructions
 
 const char* help = R""""(
@@ -56,11 +68,37 @@ int main(int argc, char* args[]){
     return 0;
   }
 
-  std::string path = args[1];
-
   // Load Image Data, Create Map
 
-  soil::io::geotiff dem(path.c_str());
+  std::vector<image_t> images;
+
+  const auto path = std::filesystem::path(args[1]);
+  if(!std::filesystem::is_directory(path)){
+    geotiff_t* dem = new geotiff_t();
+    dem->meta(path.c_str());
+    images.push_back({
+      path.string(),
+      dem
+    });
+  }
+
+  else for(const auto& entry: std::filesystem::directory_iterator(path)){
+    geotiff_t* dem = new geotiff_t();
+    dem->meta(entry.path().c_str());
+    images.push_back({
+      entry.path(),
+      dem
+    });
+  }
+
+  for(auto& image: images)
+    image.tiff->read(image.name.c_str());
+
+  // Construct the World
+
+  std::cout<<images.size()<<std::endl;
+
+  geotiff_t& dem = *images[0].tiff;
   world_t world(dem.dim());
 
   // Fill Map
