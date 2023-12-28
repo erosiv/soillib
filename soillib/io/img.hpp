@@ -16,7 +16,7 @@ struct img {
 
   img(){};
   
-  img(const size_t width, const size_t height):
+  img(const uint32_t width, const uint32_t height):
   width{width},height{height}{ 
     allocate();
   }

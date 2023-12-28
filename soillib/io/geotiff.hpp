@@ -57,7 +57,7 @@ struct geotiff: soil::io::tiff<T> {
   using soil::io::tiff<T>::operator[];
 
   geotiff(){};
-  geotiff(const char* filename){ read(filename); };
+  geotiff(const char* filename){ meta(filename); read(filename); };
   geotiff(const size_t width, const size_t height):img<T>(width, height){}
   geotiff(const glm::ivec2 res):img<T>(res){}
 

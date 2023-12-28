@@ -4,63 +4,92 @@
 #include <soillib/map/basic.hpp>
 #include <soillib/model/surface.hpp>
 #include <soillib/io/png.hpp>
-#include <soillib/io/tiff.hpp>
+#include <soillib/io/geotiff.hpp>
 
 #include <iostream>
+#include <filesystem>
+#include <limits>
 
-//#include <soillib/model/cascade.hpp>
+// Map Structs
 
 struct cell {
-  float height = 0.0f;
+  float height;
   glm::vec3 normal;
 };
 
+struct world_t {
+
+  const glm::ivec2 dim;
+  soil::map::basic<cell> map;
+
+  world_t(const glm::ivec2 dim)
+    :dim(dim),map(dim){}
+
+  const inline bool oob(glm::vec2 p){
+    return map.oob(p);
+  }
+
+  const inline float height(glm::vec2 p){
+    return map.get(p)->height;
+  }
+
+};
+
+// Utilization Instructions
+
+const char* help = R""""(
+Usage:
+  ./main <file.tiff>
+
+Description:
+
+  Render a .tiff file as a relief-shaded map. Output is a .png image.
+
+)"""";
+
 int main(int argc, char *args[]) {
 
+  // Parse Arguments
+
   if(argc < 2){
-    std::cout<<"please specify input directory for dataset"<<std::endl;
+    puts(help);
     return 0;
   }
-  std::string path = args[1];
 
-  // Load the Image First
+  // Load Image Data, Create Map
 
-  soil::io::tiff height((path + "/height.tiff").c_str());
-  soil::io::png normal((path + "/normal.png").c_str());
-
-  // Create Cell Pool, Map
-
-  const glm::ivec2 dim = glm::ivec2(height.width, height.height);
-  soil::map::basic<cell> map(dim);
+  const auto path = std::filesystem::path(args[1]);
+  soil::io::geotiff dem(path.c_str());
+  world_t world(dem.dim());
 
   // Fill Cell Pool w. Image
 
-  for(auto [cell, pos]: map){
-    cell.height = height[pos];
-    cell.normal = glm::normalize(2.0f*glm::vec3(normal[pos])/255.0f - 1.0f);
-    cell.normal = glm::vec3(cell.normal.x, cell.normal.z, cell.normal.y);
-  }
+  for(auto [cell, pos]: world.map)
+    cell.height = dem[pos];
+
+  for(auto [cell, pos]: world.map)
+    cell.normal = soil::surface::normal(world, pos);
 
   // Normalize Height Map
 
-  float min = 0.0f;
-  float max = 0.0f;
-  for(auto [cell, pos]: map){
+  float min = std::numeric_limits<float>::max();
+  float max = std::numeric_limits<float>::min();
+  for(auto [cell, pos]: world.map){
     if(cell.height < min) min = cell.height;
     if(cell.height > max) max = cell.height;
   }
 
-  for(auto [cell, pos]: map){
+  for(auto [cell, pos]: world.map){
     cell.height = (cell.height - min)/(max - min);
   }
 
   // Export a Shaded Relief Map
 
-  soil::io::png image(height.width, height.height);
+  soil::io::png image(dem.dim());
   image.fill([&](const glm::ivec2 pos){
 
-    glm::vec3 normal = map.get(pos)->normal;
-    float d = glm::dot(normal, glm::normalize(glm::vec3(-1, 2, -1)));
+    glm::vec3 normal = world.map.get(pos)->normal;
+    float d = glm::dot(normal, glm::normalize(glm::vec3(1, 2, 1)));
 
     // Clamp
     d = 0.05f + 0.9f*d;
@@ -69,7 +98,7 @@ int main(int argc, char *args[]) {
     float flattone = 0.9f;
     float weight = 1.0f-normal.y;
 
-    float h = map.get(pos)->height;
+    float h = world.map.get(pos)->height;
     weight = weight * (1.0f - h*h);
 
     d = (1.0f-weight) * d + weight*flattone;
@@ -79,9 +108,6 @@ int main(int argc, char *args[]) {
   // Arial Perspective
 
     glm::vec3 color = glm::vec3(1);
-    h = 1.0f-(1.0f-h)*(1.0f-h);
-    d = (1.0f-h)*0.9f + h*d;
-
     return 255.0f*glm::vec4(d*color, 1.0f);
   });
   image.write("relief.png");
