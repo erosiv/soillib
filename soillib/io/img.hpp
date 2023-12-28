@@ -9,6 +9,12 @@
 namespace soil {
 namespace io {
 
+//! img<T> is a generic, strict-typed image base class.
+//!
+//! It implements the owned raw data-buffer, access and
+//! construction methods, but not the file-system IO,
+//! which is dependent on the disk format and library.
+//!
 template<typename T>
 struct img {
 

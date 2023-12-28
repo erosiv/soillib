@@ -31,6 +31,8 @@ static const TIFFFieldInfo xtiffFieldInfo[] = {
   { TIFFTAG_GDAL_NODATA,        -1, -1, TIFF_ASCII,   FIELD_CUSTOM, true, false,  (char*)"GDAL_NODATA" },    
 };
 
+// Custom Tiff-Tag Handling Initializer Hook
+
 static TIFFExtendProc _ParentExtender = NULL;
 
 static void _XTIFFDefaultDirectory(TIFF *tif){
@@ -47,8 +49,17 @@ static void _XTIFFInitialize(void) {
   _ParentExtender = TIFFSetTagExtender(_XTIFFDefaultDirectory);
 }
 
-// GeoTIFF Implementation
-
+//! geotiff<T> is a generic, strict-typed .tiff interface
+//! for loading and saving images w. GeoTIFF information.
+//!
+//! File meta-data such as size, scale and position can be
+//! loaded before the raw image data is loaded for better
+//! optimization. geotiff<T> also implements GDAL meta-data.
+//!
+//! GeoTIFF implements geo-spatial meta functions, e.g.
+//! map to world-space or min and max extent in world-space
+//! for convenience.
+//!
 template<typename T = float>
 struct geotiff: soil::io::tiff<T> {
 
