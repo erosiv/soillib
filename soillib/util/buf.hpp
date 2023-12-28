@@ -5,21 +5,21 @@
 
 namespace soil {
 
-/************************************************
-buf is an owning raw-data extent,
-with a built-in iterator. This acts as a basis
-for a nuber of memory-pooling concepts.
-************************************************/
-
 template<typename T> struct buf_iterator;
+
+//! buf<T> is a strict-typed, owning raw-data
+//! extent with a built-in iterator.
+//!
+//! buf<T> is intended as a low-level base
+//! structure for memory-pooled applications.
+//!
 template<typename T> struct buf {
 
   T* start = NULL;
   size_t size = 0;
 
-  buf(size_t size):size(size){
-    start = new T[size];
-  }
+  buf(size_t size):
+    size(size),start{new T[size]}{}
 
   ~buf(){
     delete[] start;

@@ -7,7 +7,12 @@
 namespace soil {
 namespace io {
 
-//! Strong-Typed TIFF Implementation
+//! tiff<T> is a generic, strict-typed .tiff interface
+//! for reading and writing generic image data to disk.
+//!
+//! tiff<T> supports multiple different bit-depths, as
+//! well as the reading of tiled .tiff images.
+//!
 template<typename T = float>
 struct tiff: soil::io::img<T> {
 

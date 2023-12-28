@@ -46,19 +46,19 @@ int main( int argc, char* args[] ) {
 
   // Export Images
 
-  soil::io::tiff discharge(world.map.dimension);
+  soil::io::tiff<float> discharge(world.map.dimension);
   discharge.fill([&](const glm::ivec2 pos){
     return world.discharge(pos);
   });
   discharge.write("out/discharge.tiff");
 
-  soil::io::tiff height(world.map.dimension);
+  soil::io::tiff<float> height(world.map.dimension);
   height.fill([&](const glm::ivec2 pos){
     return world.height(pos)/world.config.scale;
   });
   height.write("out/height.tiff");
 
-  soil::io::tiff vegetation(world.map.dimension);
+  soil::io::tiff<float> vegetation(world.map.dimension);
   vegetation.fill([&](const glm::ivec2 pos){
     return world.map.get(pos)->rootdensity;
   });

@@ -71,3 +71,18 @@ Install the library headers using the `Makefile`.
 ```bash
 make all
 ```
+
+##### ToDo
+
+This is a list of changes I would like to integrate into `soillib`. If you are reading this and motivated to implement any of these, I would be happy to accept any pull requests.
+
+- `soillib/io`:
+	- Add a convenience image iterator
+	- Strict-Typed (Templated) Image Types w. Run-Time Deduction after Image Loading and Bit-Depth Determination, using e.g. `std::variant`. E.g. determine whether a `.tiff` is `float32` or `float64`, but yield a strict-type.
+	- Pre-Determined templated image types
+	- Convenient but decoupled interoperability w. OpenGL textures through `TinyEngine` somehow.
+	- Better image reallocation handling w. alignment and bit-masks.
+	- Unified "GDAL No Data" point handling in `GeoTIFF`, including a meshing concept.
+- `soillib/util`
+	- Add a CRTP based buffer memory allocation tracker for debugging, to determine the total amount of memory consumed by `soillib`
+	- Extend the memory pool to allow for paging through a tree.
