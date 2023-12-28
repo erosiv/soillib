@@ -8,33 +8,33 @@ Based on concepts developed by and maintained by [Nicholas McDonald](https://git
 <img alt="Heightmap with Normal Shading" src="https://github.com/erosiv/soillib/assets/6532707/51cd9ef0-13a1-4831-8e12-0806fad1580d" width="75%" align="center"/>
 </p>
 
-Normal Shaded Heightmap, 3D View (see: `tools/view`)
+Normal Shaded Heightmap, 3D View (see: `tool/viewer`)
 
 <p align="center">
 <img alt="Relief Shaded Heightmap with Aerial Perspective" src="https://github.com/erosiv/soillib/assets/6532707/b6bd03eb-ccb5-4287-8499-5948895652ac" width="75%" align="center"/>
 </p>
 
-Relief Shaded Heightmap with Aerial Perspective (see: `tools/map_relief`)
+Relief Shaded Heightmap with Aerial Perspective (see: `tool/relief`)
 
 <p align="center">
 <img alt="Erosion Normal Map with Non-Regular Map Shape" src="https://github.com/erosiv/soillib/assets/6532707/737d417d-a308-48cd-94f4-eef43a02bd1b" width="75%" align="center"/>
 </p>
 
-Irregular Map Shape Normal Map (see: `tools/quad_hydrology`)
+Irregular Map Shape Normal Map (see: `model/quad_hydrology`)
 
 <p align="center">
 <img alt="Erosion Normal Map with Non-Regular Map Shape" src="https://github.com/erosiv/soillib/assets/6532707/86b7e873-bd4c-4035-8b8e-fe37dde62a71" width="75%" align="center"/>
 </p>
 
-Binary Soil-Mixture Transport Albedo Map (see: `tools/basic_hydrology_mixture`)
+Binary Soil-Mixture Transport Albedo Map (see: `model/basic_hydrology_mixture`)
 
 ## Description
 
 `soillib` is a unified C++20 library for procedural geomorphology simulation.
 
-`soillib` provides modularized and unified concepts for many aspects of geomorphological simulations, from high-performance map structures to unified particle physics and a unified data import and export interface.
+`soillib` provides modularized and unified concepts for many aspects of geomorphological simulations, from high-performance map structures to unified particle physics and a unified data import and export interfaces, including native `GeoTIFF` support.
 
-Overall, this allows for creating complex geomorphological simulations through a thin implementation layer with predictable results and without requiring re-implementation. Examples can be found in the `tools` directory.
+Overall, this allows for creating complex geomorphological simulations through a thin implementation layer with predictable results and without requiring re-implementation. Example implementations can be found in the `model` directory. Utility programs for the manipulation of data can be found in the `tool` directory.
 
 `soillib` is inspired by a number of predecessor systems and the difficulty of maintaining them all at the same time as concepts evolve. This allows for the maintenance of a single library, and re-implementing these programs on top of this library.
 
@@ -46,6 +46,17 @@ Overall, this allows for creating complex geomorphological simulations through a
 - Configurability of all core data-structures using `yaml`. No need to recompile, just update a single configuration file to change all simulation parameters. This is functional but still WIP and will be improved more in the futur.
 
 This allows you to do things like e.g. using a morton-order indexed map with a fixed memory chunk, so that you can operate on contiguous segments which are spatially separated in parallel.
+
+#### Tools and Models
+
+| Tool          | Description |
+| ----          | ----------- |
+| `tool/viewer` | View a floating-point `.tiff` height-map (or directory) as a shaded 3D model. Note that for a directory, they must have `GeoTIFF` metadata for relative positioning. |
+| `tool/relief` | Render a relief-shaded `.png` for a single `.tiff` height-map.
+
+| Model                   | Description |
+| -----                   | ----------- |
+| `model/basic_hydrology` | Basic rectangular map hydrology model for meandering river erosion simulation. |
 
 #### Why C++20?
 
