@@ -7,12 +7,13 @@
 
 namespace soil {
 
-/************************************************
-slice is an nD, iterable data-view which utilizes
-an actual indexing methodology. Therefore, get
-and put operations are based on positions in space.
-************************************************/
-
+//! slice<T, I> is an n-dimensional, iterable data-view
+//! which combines a buffer with an indexing procedure.
+//!
+//! It implements index-based bound- checking, safe and
+//! un-safe access operators and forward-iteration w.
+//! structured bindings to retrieve position and value.
+//!
 template<typename T, soil::index_t Index> struct slice_iterator;
 template<typename T, soil::index_t Index>
 struct slice {

@@ -8,24 +8,14 @@
 
 namespace soil {
 
-/*************************************************
-pool is a basic fixed-size allocation memory pool
-for retrieving individual elements through in-place
-construction.
-
-todo:
-- use crtp to register the overall size of all
-  pools, for static estimation of whether or not
-  the program will run out of memory. maybe?
-- add a set sorting to make fewer fragmented data
-  segments
-*************************************************/
-
+//! pool<T> is a fixed-size allocation, owning memory pool,
+//! for single-element retrieval and in-place construction.
+//!
 template<typename T>
 struct pool {
 
-  soil::buf<T> root;          // Owning Memory Segment
-  std::deque<T*> free;         // Reference to Available Memory
+  soil::buf<T> root;    //!< Memory Buffer (Owning)
+  std::deque<T*> free;  //!< Available Memory Reference
 
   pool(){}
   pool(size_t size):root(size){

@@ -83,3 +83,6 @@ This is a list of changes I would like to integrate into `soillib`. If you are r
 	- Convenient but decoupled interoperability w. OpenGL textures through `TinyEngine` somehow.
 	- Better image reallocation handling w. alignment and bit-masks.
 	- Unified "GDAL No Data" point handling in `GeoTIFF`, including a meshing concept.
+- `soillib/util`
+	- Add a CRTP based buffer memory allocation tracker for debugging, to determine the total amount of memory consumed by `soillib`
+	- Extend the memory pool to allow for paging through a tree.
