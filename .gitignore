@@ -38,3 +38,6 @@
 **/*.tiff
 **/*.png
 **/*.zip
+
+todo.md
+**/imgui.ini
