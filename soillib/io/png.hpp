@@ -5,18 +5,17 @@
 #include <stdio.h>
 #include <png.h>
 
-/*
-todo:
-- make some default color space typedefs
-- improve reallocation / bad allocation handling
-    e.g. tvec4<uint8_t> trying to read 24 bit depth image
-*/
-
-// PNG Implementation
-
 namespace soil {
 namespace io {
 
+// PNG Implementation
+
+//! png<T> is a generic, strict-typed .png interface
+//! for reading and writing images to and from disk.
+//!
+//! It utilizes libpng as the underlying implementation.
+//! By default, png<T> assumed a 4-channal 8-byte image.
+//!
 template<typename T = glm::tvec4<uint8_t>>
 struct png: soil::io::img<T> {
 
