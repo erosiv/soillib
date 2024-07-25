@@ -39,5 +39,5 @@
 **/*.png
 **/*.zip
 
-todo.md
+_todo.md
 **/imgui.ini
