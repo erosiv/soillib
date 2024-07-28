@@ -1,7 +1,7 @@
 #include <soillib/soillib.hpp>
 
 #include <soillib/io/png.hpp>
-#include <soillib/io/tiff.hpp>
+#include <soillib/io/geotiff.hpp>
 
 #include <soillib/map/basic.hpp>
 #include <soillib/util/pool.hpp>
@@ -46,7 +46,7 @@ int main(int argc, char *args[]) {
 
   // Load the Image First
 
-  soil::io::tiff<double> height(path.c_str());
+  soil::io::geotiff<float> height(path.c_str());
   
   // Create World w. Cell Pool
 

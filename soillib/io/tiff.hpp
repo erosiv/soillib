@@ -21,6 +21,9 @@ struct tiff: soil::io::img<T> {
   using soil::io::img<T>::allocate;
   using soil::io::img<T>::operator[];
 
+  using soil::io::img<T>::width;
+  using soil::io::img<T>::height;
+
   tiff(const char* filename){ read(filename); };
 
   bool meta(const char* filename);  //!< Load TIFF Metadata
