@@ -20,16 +20,7 @@ struct tiff {
 
   soil::nnn::buf _buf;
 
-  /*
-  using soil::io::img<T>::value_t;
-  using soil::io::img<T>::img;
-  using soil::io::img<T>::allocate;
-  using soil::io::img<T>::operator[];
-
-  using soil::io::img<T>::width;
-  using soil::io::img<T>::height;
-  */
-
+  tiff(){}
   tiff(const char* filename){ read(filename); };
 
   bool meta(const char* filename);  //!< Load TIFF Metadata
@@ -49,12 +40,9 @@ private:
 };
 
 //! Load TIFF Metadata
-//template<typename T>
 bool tiff::meta(const char* filename){
 
   TIFF* tif = TIFFOpen(filename, "r");
-
-  // Meta-Data
 
   if(!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &this->width))
     return false;
@@ -79,18 +67,12 @@ bool tiff::meta(const char* filename){
 }
 
 //! Read TIFF Raw Data
-//template<typename T>
 bool tiff::read(const char* filename){
 
   if(!meta_loaded){
     this->meta(filename);
   }
 
-  TIFF* tif = TIFFOpen(filename, "r");
-
-  std::cout<<this->bits<<std::endl;
-
-  //this->buf.allocate();
   if(this->bits == 32){
     this->_buf.emplace("float", this->width * this->height);
   }
@@ -98,32 +80,16 @@ bool tiff::read(const char* filename){
     this->_buf.emplace("double", this->width * this->height);
   }
 
-  std::cout<<"AYY"<<std::endl;
-  std::cout<<"AYY"<<std::endl;
-  std::cout<<this->_buf.elem()<<std::endl;
+  TIFF* tif = TIFFOpen(filename, "r");
 
   // Load Tiled / Non-Tiled Images
-
   if(!this->tiled_image){
 
-    if(this->_buf.data() == NULL){
-      std::cout<<"NULL"<<std::endl;
-    }
-
-    std::cout<<"WHAT"<<std::endl;
-
-
     uint8_t* buf = (uint8_t*)this->_buf.data();
-
-    std::cout<<buf<<std::endl;
-    std::cout<<this->width<<std::endl;
-
     for(size_t row = 0; row < this->height; row++){
       TIFFReadScanline(tif, buf, row);
       buf += this->width*(this->bits / 8);
     }
-
-    std::cout<<"WHAT"<<std::endl;
 
   }
   
@@ -171,9 +137,7 @@ bool tiff::read(const char* filename){
 
 
   TIFFClose(tif);
-  std::cout<<"AYY"<<std::endl;
   return true;
-
 }
 
 //template<typename T>

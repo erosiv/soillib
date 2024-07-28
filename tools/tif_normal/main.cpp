@@ -1,13 +1,10 @@
 #include <soillib/soillib.hpp>
 
-#include <soillib/io/png.hpp>
-#include <soillib/io/geotiff.hpp>
-
+#include <soillib/util/new/buf.hpp>
+#include <soillib/util/new/geotiff.hpp>
 #include <soillib/map/basic.hpp>
-#include <soillib/util/pool.hpp>
-
+#include <soillib/io/png.hpp>
 #include <soillib/model/surface.hpp>
-#include <soillib/model/cascade.hpp>
 
 #include <iostream>
 
@@ -44,22 +41,31 @@ int main(int argc, char *args[]) {
   }
   std::string path = args[1];
 
-  // Load the Image First
-
-  soil::io::geotiff<float> height(path.c_str());
-  
-  // Create World w. Cell Pool
+  soil::io::geotiff height(path.c_str());
 
   world_t world(glm::ivec2(height.width, height.height));
 
   // Fill Cell Pool w. Image Data
 
-  for(auto [cell, pos]: world.map){
-    cell.height = height[pos];
-    cell.height *= 1.0f;
+  if(height.bits == 32){
+
+    auto tr = height._buf.as<float>();
+    for(auto [cell, pos]: world.map){
+      cell.height = tr[pos.y * height.width + pos.x];
+      cell.height *= 1.0f;
+    }
+
   }
 
-  // Export a Shaded Relief Map
+  if(height.bits == 64){
+
+    auto tr = height._buf.as<double>();
+    for(auto [cell, pos]: world.map){
+      cell.height = tr[pos.y * height.width + pos.x];
+      cell.height *= 1.0f;
+    }
+
+  }
 
   soil::io::png normal(world.dim);
   normal.fill([&](const glm::ivec2 pos){

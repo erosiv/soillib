@@ -2,6 +2,7 @@
 #define SOILLIB_UTIL_BUF_NEW
 
 #include <soillib/soillib.hpp>
+#include <iostream>
 
 namespace soil {
 namespace nnn {
@@ -16,11 +17,18 @@ namespace nnn {
 struct buf_base {
 
   buf_base() = default;
-  buf_base(buf_base& rhs){  //! Copy-Constructor: Non-Owning
+  virtual ~buf_base() = default;
+
+  buf_base(buf_base& rhs){
     this->_owns = false;
   }
 
-  virtual ~buf_base() = default;
+  buf_base(buf_base&& rhs){
+    this->_owns = rhs.owns();
+    rhs._owns = false;
+  }
+
+  virtual bool owns() const = 0;    //!< Retrieve Memory Ownership Flag
 
   virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
   virtual void deallocate()                 = 0;  //!< De-Allocate Memory Buffer
@@ -29,13 +37,13 @@ struct buf_base {
   virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
   virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
 
-  bool _owns = true;
-//protected:
+protected:
+  bool _owns = false; //!< Raw Data Ownership Flag
 };
 
 //! buf_t<T> is a strict-typed, owning raw-data extent.
 //! 
-template<typename T> 
+template<typename T>
 struct buf_t: buf_base {
 
   buf_t() = default;
@@ -45,7 +53,9 @@ struct buf_t: buf_base {
     this->allocate(size);
   }
 
-  ~buf_t(){ this->deallocate(); }
+  ~buf_t(){
+    this->deallocate(); 
+  }
 
   // Allocator / Deallocator
 
@@ -54,13 +64,17 @@ struct buf_t: buf_base {
       throw std::runtime_error("can't allocate over allocated buffer");
     this->_data = new T[size];
     this->_size = size;
+    this->_owns = true;
   }
 
   void deallocate(){
-    if(this->_data == NULL) return;
-    if(!this->_owns) return;
+    if(this->_data == NULL) 
+      return;
+    if(!this->_owns) 
+      return;
     delete[] this->_data;
     this->_size = 0;
+    this->_owns = false;
   }
 
   T& operator[](const size_t index){
@@ -71,13 +85,14 @@ struct buf_t: buf_base {
 
   // Member Function Implementations
 
-  inline void* data()        { return (void*)this->_data; }
-  inline size_t size() const { return sizeof(T) * this->_size; }
-  inline size_t elem() const { return this->_size; }
+  inline bool owns()    const { return this->_owns; }
+  inline void* data()         { return (void*)this->_data; }
+  inline size_t size()  const { return sizeof(T) * this->_size; }
+  inline size_t elem()  const { return this->_size; }
 
 private:
-  T* _data = NULL;  //!< Raw Data Pointer Member
-  size_t _size = 0; //!< Data Size in Bytes Member
+  T* _data = NULL;    //!< Raw Data Pointer Member
+  size_t _size = 0;   //!< Data Size in Bytes Member
 };
 
 //! buf is a polymorphic dynamically typed buffer container
@@ -90,9 +105,11 @@ struct buf {
 
   buf() = default;
 
+  /*
   template<typename ...Args>
   buf(const char* type, Args&& ...args):
     _buf(make(type, std::forward<Args>(args)...)){}
+  */
 
   ~buf(){
     if(this->_buf != NULL){
@@ -112,14 +129,15 @@ struct buf {
 
   template<typename ...Args>
   void emplace(const char* type, Args&& ...args){
-    if(type == "int")     this->_buf = new buf_t<int>(std::forward<Args>(args)...);
-    if(type == "float")   this->_buf = new buf_t<float>(std::forward<Args>(args)...);
-    if(type == "double")  this->_buf = new buf_t<double>(std::forward<Args>(args)...);
+    if(this->_buf != NULL)
+      throw std::runtime_error("buffer is already allocated");
+    this->_buf = buf::make(type, std::forward<Args>(args)...);
   }
 
   //! Strict-Typed Buffer Implementation Retrieval
   template<typename T> buf_t<T> as(){
-    return *dynamic_cast<buf_t<T>*>(_buf);
+    buf_t<T> copy = *dynamic_cast<buf_t<T>*>(_buf);
+    return copy;
   }
 
   // Type Overriding
