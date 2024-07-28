@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <glm/glm.hpp>
 #include <type_traits>
+#include <stdexcept>
 
 namespace soil {
 
