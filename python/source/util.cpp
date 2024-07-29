@@ -10,6 +10,8 @@
 namespace py = pybind11;
 
 #include <soillib/util/new/buf.hpp>
+#include <soillib/util/new/tiff.hpp>
+#include <soillib/util/new/geotiff.hpp>
 
 //! Templated Buffer-Type Binding
 template<typename T>
@@ -60,59 +62,36 @@ using buf_v = std::variant<
   soil::buf_t<double>
 >;
 
-buffer.def("ast", [](soil::buffer& buf, std::string type) {
-  return buf.as<float>();
-  /*
-  if(type == "int") return buf_v(buf.as<int>());
-  // if(type == "float") return {buf.as<float>()};
-  // if(type == "double") return {buf.as<double>()};
-  */
+buffer.def("to", [](soil::buffer& buf, std::string type) -> buf_v {
+  if(type == "int") return buf_v{buf.as<int>()};
+  if(type == "float") return buf_v{buf.as<float>()};
+  if(type == "double") return buf_v{buf.as<double>()};
   throw std::invalid_argument("invalid argument for type");
 });
 
-/*
+//! TIFF Datatype
 
-auto cam_orthogonal = py::class_<Tiny::cam::orthogonal>(module, "cam_orthogonal");
-cam_orthogonal.def(py::init<glm::vec2, glm::vec2, float>());
-cam_orthogonal.def("hook", &Tiny::cam::orthogonal::hook);
-cam_orthogonal.def("update", &Tiny::cam::orthogonal::update);
-cam_orthogonal.def("proj", &Tiny::cam::orthogonal::proj);
+auto tiff = py::class_<soil::io::tiff>(module, "tiff");
+tiff.def(py::init<const char*>());
 
-auto cam_orbit = py::class_<Tiny::cam::orbit>(module, "cam_orbit");
-cam_orbit.def(py::init<glm::vec3, glm::vec3>());
-cam_orbit.def("hook", &Tiny::cam::orbit::hook);
-cam_orbit.def("update", &Tiny::cam::orbit::update);
-cam_orbit.def("view", &Tiny::cam::orbit::view);
+tiff.def_readonly("width", &soil::io::tiff::width);
+tiff.def_readonly("height", &soil::io::tiff::height);
 
-using cam_ortho_orbit_t = Tiny::camera<Tiny::cam::orthogonal, Tiny::cam::orbit>;
-auto cam_ortho_orbit = py::class_<cam_ortho_orbit_t>(module, "cam_ortho_orbit");
-cam_ortho_orbit.def("vp", &cam_ortho_orbit_t::vp);
-cam_ortho_orbit.def("hook", &cam_ortho_orbit_t::hook);
-cam_ortho_orbit.def("update", &cam_ortho_orbit_t::update);
+tiff.def("buf", [](soil::io::tiff& tiff){
+  return tiff._buf;
+}, py::return_value_policy::reference);
 
-module.def("camera", [](const Tiny::cam::orthogonal& ortho, const Tiny::cam::orbit& orbit){
-  return Tiny::camera(ortho, orbit);
-}, py::keep_alive<0, 1>(), py::keep_alive<0, 2>());
+//! GeoTIFF Datatype
 
-// Image Bindings
+auto geotiff = py::class_<soil::io::geotiff, soil::io::tiff>(module, "geotiff");
+geotiff.def(py::init<const char*>());
 
-using png_dat_t = glm::tvec4<uint8_t>;
-using png_t = Tiny::png<png_dat_t>;
-auto png = py::class_<png_t>(module, "png");
+geotiff.def_readonly("width", &soil::io::geotiff::width);
+geotiff.def_readonly("height", &soil::io::geotiff::height);
 
-png.def(py::init<>());
-png.def(py::init<const char*>());
-png.def(py::init<const size_t, const size_t>());
-png.def(py::init<const glm::ivec2>());
-
-png.def_property_readonly("width", [](const png_t& png){ return png.width(); });
-png.def_property_readonly("height", [](const png_t& png){ return png.height(); });
-png.def_property_readonly("data", [](const png_t& png){ return std::unique_ptr<const png_t::value_t>(png.data()); });
-
-png.def("allocate", &png_t::allocate);
-png.def("read", &png_t::read);
-png.def("write", &png_t::write);
-*/
+geotiff.def("buf", [](soil::io::geotiff& tiff){
+  return tiff._buf;
+}, py::return_value_policy::reference);
 
 }
 

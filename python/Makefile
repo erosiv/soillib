@@ -4,7 +4,7 @@
 INCPATH = -I$(HOME)/.local/include
 LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
-LINKLIB = 
+LINKLIB = -ltiff
 
 CC = g++ -std=c++20
 CF = -Wfatal-errors -O3
