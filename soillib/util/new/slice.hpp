@@ -19,6 +19,52 @@ That way an image is just a slice<2D> + Buf,
 and we can generate everything dynamically if we want to.
 */
 
+/*
+How do we implement slices on top of these generic buffers?
+I suppose that each 
+*/
+
+template<typename T>
+struct slice {
+
+  slice(buf){
+  //   ... store the slice
+  }
+
+  // generate an iterator of a given shape
+  // this is basically an iterable memory view
+
+  // 
+  inline size_t elem(){
+    return /// ... the total number of elements of a type
+  }
+
+};
+
+/*
+buffer* buf = buffer::make("float", 64);
+slice<float, glm::ivec2> s(buf, {1, 2});
+
+for(auto& [value, pos]: slice<float, glm::ivec2>(buf, {1, 2})){
+
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 //! slice<T, I> is an n-dimensional, iterable data-view
 //! which combines a buffer with an indexing procedure.
 //!
@@ -91,6 +137,9 @@ struct slice_iterator {
   };
 
 };
+
+*/
+
 
 }; // end of namespace
 

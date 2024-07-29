@@ -49,7 +49,7 @@ int main(int argc, char *args[]) {
 
   if(height.bits == 32){
 
-    auto tr = height._buf.as<float>();
+    auto tr = height._buf->as<float>();
     for(auto [cell, pos]: world.map){
       cell.height = tr[pos.y * height.width + pos.x];
       cell.height *= 1.0f;
@@ -59,7 +59,7 @@ int main(int argc, char *args[]) {
 
   if(height.bits == 64){
 
-    auto tr = height._buf.as<double>();
+    auto tr = height._buf->as<double>();
     for(auto [cell, pos]: world.map){
       cell.height = tr[pos.y * height.width + pos.x];
       cell.height *= 1.0f;

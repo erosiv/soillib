@@ -18,10 +18,15 @@ namespace io {
 //!
 struct tiff {
 
-  soil::nnn::buf _buf;
+  soil::buffer* _buf = NULL;
 
   tiff(){}
   tiff(const char* filename){ read(filename); };
+
+  ~tiff(){
+    if(this->_buf != NULL)
+      delete _buf;
+  }
 
   bool meta(const char* filename);  //!< Load TIFF Metadata
   bool read(const char* filename);  //!< Read TIFF Raw Data
@@ -74,10 +79,10 @@ bool tiff::read(const char* filename){
   }
 
   if(this->bits == 32){
-    this->_buf.emplace("float", this->width * this->height);
+    this->_buf = soil::buffer::make("float", this->width * this->height);
   }
   if(this->bits == 64){
-    this->_buf.emplace("double", this->width * this->height);
+    this->_buf = soil::buffer::make("double", this->width * this->height);
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
@@ -85,7 +90,7 @@ bool tiff::read(const char* filename){
   // Load Tiled / Non-Tiled Images
   if(!this->tiled_image){
 
-    uint8_t* buf = (uint8_t*)this->_buf.data();
+    uint8_t* buf = (uint8_t*)this->_buf->data();
     for(size_t row = 0; row < this->height; row++){
       TIFFReadScanline(tif, buf, row);
       buf += this->width*(this->bits / 8);
@@ -163,7 +168,7 @@ bool tiff::write(const char *filename) {
   */
 
   //T* buf = this->data;
-  uint8_t* buf = (uint8_t*)this->_buf.data();
+  uint8_t* buf = (uint8_t*)this->_buf->data();
   for (uint32_t row = 0; row < this->height; row++) {
     if (TIFFWriteScanline(out, buf, row, 0) < 0)
       break;

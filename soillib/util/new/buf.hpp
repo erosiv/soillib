@@ -5,30 +5,53 @@
 #include <iostream>
 
 namespace soil {
-namespace nnn {
 
-//! buf_base is an abstract polymorphic buffer type
+template<typename T> struct buf_t;
+
+//! buffer is an abstract polymorphic buffer type,
+//! which handles ownership tracking by move semantics.
 //!
-//! buf_base allows for specialization of strict-typed
+//! buffer allows for specialization of strict-typed
 //! buffer types, which implement memory safe operations.
-//! 
-//! buf_base additionally handles ownership tracking.
 //!
-struct buf_base {
+struct buffer {
 
-  buf_base() = default;
-  virtual ~buf_base() = default;
+  buffer() = default;
+  virtual ~buffer() = default;
 
-  buf_base(buf_base& rhs){
+  template<typename ...Args>
+  buffer(const char* type, Args&& ...args){
+    *this = buffer::make(type, std::forward<Args>(args)...);
+  }
+
+  buffer(buffer& rhs){
     this->_owns = false;
   }
 
-  buf_base(buf_base&& rhs){
+  buffer(buffer&& rhs){
     this->_owns = rhs.owns();
     rhs._owns = false;
   }
 
-  virtual bool owns() const = 0;    //!< Retrieve Memory Ownership Flag
+  inline bool owns() const {  //!< Retrieve Memory Ownership Flag
+    return this->_owns;
+  }
+
+protected:
+  bool _owns = false; //!< Raw Data Ownership Flag
+
+public:
+
+  //! Specialized Buffer Factory Function
+  template<typename ...Args>
+  static buffer* make(const char* type, Args&& ...args);
+
+  //! Strict-Typed Buffer Implementation Retrieval
+  template<typename T> buf_t<T> as(){
+    return *dynamic_cast<buf_t<T>*>(this);
+  }
+
+  // Virtual Buffer Interface
 
   virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
   virtual void deallocate()                 = 0;  //!< De-Allocate Memory Buffer
@@ -36,15 +59,12 @@ struct buf_base {
   virtual void*  data() = 0;        //!< Retrieve Raw Data Pointer
   virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
   virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
-
-protected:
-  bool _owns = false; //!< Raw Data Ownership Flag
 };
 
 //! buf_t<T> is a strict-typed, owning raw-data extent.
 //! 
 template<typename T>
-struct buf_t: buf_base {
+struct buf_t: buffer {
 
   buf_t() = default;
   buf_t(const size_t size){
@@ -52,6 +72,8 @@ struct buf_t: buf_base {
       throw std::invalid_argument("size must be greater than 0");
     this->allocate(size);
   }
+
+  //
 
   ~buf_t(){
     this->deallocate(); 
@@ -95,78 +117,16 @@ private:
   size_t _size = 0;   //!< Data Size in Bytes Member
 };
 
-//! buf is a polymorphic dynamically typed buffer container
-//!
-//! buf contains a strict-typed, memory-safe buffer struct,
-//! and provides and interface so that underlying type is
-//! runtime constructable for dynamic memory typing.
-//!
-struct buf {
+// Factory Function Implementation
 
-  buf() = default;
-
-  /*
-  template<typename ...Args>
-  buf(const char* type, Args&& ...args):
-    _buf(make(type, std::forward<Args>(args)...)){}
-  */
-
-  ~buf(){
-    if(this->_buf != NULL){
-      delete this->_buf;
-    }
-  }
-
-  // Generic Forwarding Factory Function
-
-  template<typename ...Args>
-  static buf_base* make(const char* type, Args&& ...args){
-    if(type == "int")     return new buf_t<int>(std::forward<Args>(args)...);
-    if(type == "float")   return new buf_t<float>(std::forward<Args>(args)...);
-    if(type == "double")  return new buf_t<double>(std::forward<Args>(args)...);
-    return NULL;
-  }
-
-  template<typename ...Args>
-  void emplace(const char* type, Args&& ...args){
-    if(this->_buf != NULL)
-      throw std::runtime_error("buffer is already allocated");
-    this->_buf = buf::make(type, std::forward<Args>(args)...);
-  }
-
-  //! Strict-Typed Buffer Implementation Retrieval
-  template<typename T> buf_t<T> as(){
-    buf_t<T> copy = *dynamic_cast<buf_t<T>*>(_buf);
-    return copy;
-  }
-
-  // Type Overriding
-
-  void allocate(const size_t size){
-    this->_buf->allocate(size);
-  }
-
-  void deallocate(const size_t size){
-    this->_buf->deallocate();
-  }
-
-  size_t size() const { 
-    return this->_buf->size(); 
-  }
-
-  size_t elem() const {
-    return this->_buf->elem();
-  }
-
-  void* data() { 
-    return this->_buf->data(); 
-  }
-
-private:
-  buf_base* _buf = NULL;
-};
-
+template<typename ...Args>
+buffer* buffer::make(const char* type, Args&& ...args){
+  if(type == "int")     return new buf_t<int>(std::forward<Args>(args)...);
+  if(type == "float")   return new buf_t<float>(std::forward<Args>(args)...);
+  if(type == "double")  return new buf_t<double>(std::forward<Args>(args)...);
+  return NULL;
 }
+
 }
 
 #endif
