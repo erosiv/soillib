@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import soillib as soil
-import numpy as np
 import matplotlib.pyplot as plt
 
 data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-70.tif"

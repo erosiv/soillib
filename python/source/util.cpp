@@ -10,8 +10,6 @@
 namespace py = pybind11;
 
 #include <soillib/util/new/buf.hpp>
-#include <soillib/util/new/tiff.hpp>
-#include <soillib/util/new/geotiff.hpp>
 
 //! Templated Buffer-Type Binding
 template<typename T>
@@ -68,30 +66,6 @@ buffer.def("to", [](soil::buffer& buf, std::string type) -> buf_v {
   if(type == "double") return buf_v{buf.as<double>()};
   throw std::invalid_argument("invalid argument for type");
 });
-
-//! TIFF Datatype
-
-auto tiff = py::class_<soil::io::tiff>(module, "tiff");
-tiff.def(py::init<const char*>());
-
-tiff.def_readonly("width", &soil::io::tiff::width);
-tiff.def_readonly("height", &soil::io::tiff::height);
-
-tiff.def("buf", [](soil::io::tiff& tiff){
-  return tiff._buf;
-}, py::return_value_policy::reference);
-
-//! GeoTIFF Datatype
-
-auto geotiff = py::class_<soil::io::geotiff, soil::io::tiff>(module, "geotiff");
-geotiff.def(py::init<const char*>());
-
-geotiff.def_readonly("width", &soil::io::geotiff::width);
-geotiff.def_readonly("height", &soil::io::geotiff::height);
-
-geotiff.def("buf", [](soil::io::geotiff& tiff){
-  return tiff._buf;
-}, py::return_value_policy::reference);
 
 }
 

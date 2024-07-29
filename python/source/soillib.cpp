@@ -14,6 +14,7 @@ namespace py = pybind11;
 
 // Bind Function Declarations
 
+void bind_io(py::module& module);
 void bind_util(py::module& module);
 
 // Module Main Function
@@ -22,6 +23,7 @@ PYBIND11_MODULE(soillib, module){
 
 module.doc() = "Soillib Python Module";
 
+bind_io (module);
 bind_util(module);
 
 }
