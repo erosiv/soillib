@@ -24,7 +24,7 @@ endif
 
 all:
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
-	@$(CC) $(CF) $(LF) \
+	@$(CC) $(CF) $(LF) $(INCPATH) $(LIBPATH) \
 		source/soillib.cpp \
 		source/util.cpp \
 	$(LINKLIB) -shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
