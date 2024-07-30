@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include <soillib/soillib.hpp>
+#include <soillib/util/new/shape.hpp>
 
 namespace soil {
 

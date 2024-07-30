@@ -9,6 +9,9 @@
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
+#define SHAPE_IMPL
+
+#include <soillib/util/new/shape.hpp>
 #include <soillib/util/new/buf.hpp>
 
 //! Templated Buffer-Type Binding
@@ -38,8 +41,55 @@ buffer.def("numpy", [](buf_t& buf){
 
 }
 
+//! Templated Dimension-Type Binding
+template<size_t N>
+void bind_shape_t(py::module& module, const char* name){
+
+// using dim_t = soil::dim_t<N>;
+// auto dim = py::class_<dim_t>(module, name);
+
+using shape_t = soil::shape_t<N>;
+auto shape = py::class_<shape_t, soil::shape>(module, name);
+
+shape.def(py::init<const size_t>());
+shape.def("elem", &shape_t::elem);
+shape.def("flat", &shape_t::flat);
+shape.def("__getitem__", [](shape_t& shape, const size_t index) -> size_t {
+  return shape[index];
+});
+
+shape.def("__iter__", [](shape_t& shape){
+  return py::make_iterator(shape.begin(), shape.end());
+}, py::keep_alive<0, 1>());
+
+shape.def("__repr__", [](shape_t& shape){
+  return "shape(" + std::to_string(shape.n_dim) +")";
+});
+
+}
+
 //! General Util Binding Function
 void bind_util(py::module& module){
+
+// Shape Type Binding
+
+auto shape = py::class_<soil::shape>(module, "shape");
+
+bind_shape_t<1>(module, "shape_1");
+bind_shape_t<2>(module, "shape_2");
+bind_shape_t<3>(module, "shape_3");
+
+shape.def("elem", &soil::shape::elem);
+
+shape.def(py::init([](std::vector<size_t> v){
+  if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
+  if(v.size() == 1) return soil::shape::make(v[0]);
+  if(v.size() == 2) return soil::shape::make(v[0], v[1]);
+  if(v.size() == 3) return soil::shape::make(v[0], v[1], v[2]);
+throw std::invalid_argument("vector has invalid size");
+}));
+
+// Buffer Type Binding
 
 auto buffer = py::class_<soil::buffer>(module, "buffer");
 

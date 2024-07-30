@@ -4,6 +4,15 @@ import os
 import soillib as soil
 import matplotlib.pyplot as plt
 
+'''
+What do we do at this point?
+Basically we can load our image as a buffer.
+Regularly I would load it into a slice of some dimension,
+then I would have the normal operation just run on the slice?
+
+Let's try that.
+'''
+
 def main(path):
 
   path = os.fsencode(path)

@@ -2,8 +2,8 @@
 #define SOILLIB_UTIL_SLICE
 
 #include <soillib/soillib.hpp>
-#include <soillib/util/buf.hpp>
-#include <soillib/util/index.hpp>
+#include <soillib/util/new/buf.hpp>
+//#include <soillib/util/index.hpp>
 
 namespace soil {
 
@@ -22,10 +22,56 @@ and we can generate everything dynamically if we want to.
 /*
 How do we implement slices on top of these generic buffers?
 I suppose that each 
+
+What is a slice? Just the generator?
+Do we deduce from the actual type what to do?
+
+Or is the slice just a view-wrapper that we can plug any buffer into?
 */
+
+/*
+In reality, I don't care about single buffers. I don't want to have to construct it.
+I just want to be able to make a slice of a given size. So the slice is what should allow...
+What if I just give the buffers "shape" and iterators from there?
+
+Instead of wrapping in a slice?
+
+Then we can just implement "layers" directly as virtual or memory based.
+
+buf = soil::buffer::make("float", 256)
+slice = soil::slice::make("float", {256, 256})
+*/
+
+struct slice1D {
+
+  const size_t _start;
+  const size_t _end;
+
+  // define the slice, then iterate over the buffer inside?
+  
+  // basically this should always yield the correct output value
+  // 
+
+  void operator()(soil::buffer* buf){
+    // -> generates the iterator!
+  }
+
+};
+
+struct slice2D {
+
+  const glm::ivec2 _start;
+  const glm::ivec2 _end;
+
+};
+
+
+
 
 template<typename T>
 struct slice {
+
+
 
   slice(buf){
   //   ... store the slice
