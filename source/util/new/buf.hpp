@@ -22,21 +22,17 @@ struct buffer {
   buffer() = default;
   virtual ~buffer() = default;
 
+  // Factory Constructor
+
   template<typename ...Args>
   buffer(std::string type, Args&& ...args){
-    *this = buffer::make(type, std::forward<Args>(args)...);
+    *this = make(type, std::forward<Args>(args)...);
   }
 
-  //! Specialized Buffer Factory Function
   template<typename ...Args>
   static buffer* make(std::string type, Args&& ...args);
 
-  //! Strict-Typed Buffer Implementation Retrieval
-  template<typename T> buf_t<T> as(){
-    return *dynamic_cast<buf_t<T>*>(this);
-  }
-
-  // Virtual Buffer Interface
+  // Virtual Interface
 
   virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
   virtual void deallocate()                 = 0;  //!< De-Allocate Memory Buffer
@@ -44,6 +40,14 @@ struct buffer {
   virtual void*  data() = 0;        //!< Retrieve Raw Data Pointer
   virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
   virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
+
+  virtual soil::shape* shape() = 0;
+
+  //! Strict-Typed Buffer Implementation Retrieval
+  template<typename T> buf_t<T> as(){
+    return *dynamic_cast<buf_t<T>*>(this);
+  }
+
 };
 
 //! buf_t<T> is a strict-typed, owning raw-data extent.
@@ -54,20 +58,36 @@ struct buf_t: buffer {
   // Constructors / Destructor
 
   buf_t() = default;
-  buf_t(const size_t size){
+
+  buf_t(std::vector<size_t> v){
+    
+    this->_shape = std::shared_ptr<soil::shape>(soil::shape::make(v));
+
+    std::cout<<this->_shape->dims()<<std::endl;
+
+    const size_t size = this->_shape->elem();
     if(size == 0)
       throw std::invalid_argument("size must be greater than 0");
     this->allocate(size);
   }
 
+  /*
+  template<typename ...Args>
+  buf_t(Args&& ...args){
+
+  }
+  */
+
   buf_t(buf_t& rhs){
     this->_data = rhs._data;
     this->_size = rhs._size;
+    this->_shape = rhs._shape;
   }
 
   buf_t(buf_t&& rhs){
     this->_data = rhs._data;
     this->_size = rhs._size;
+    this->_shape = rhs._shape;
   }
 
   ~buf_t(){
@@ -84,6 +104,7 @@ struct buf_t: buffer {
   }
 
   void deallocate(){
+    this->_shape = NULL;
     this->_data = NULL;
     this->_size = 0;
   }
@@ -98,6 +119,10 @@ struct buf_t: buffer {
   inline void zero(){
     this->fill(T(0));
   }
+
+  soil::shape* shape() {
+    return this->_shape.get();
+  };
 
   // Subscript Operator
 
@@ -114,8 +139,10 @@ struct buf_t: buffer {
   inline size_t elem()  const { return this->_size; }
 
 private:
-  std::shared_ptr<T[]> _data = NULL;  //!< Raw Data Pointer Member 
-  size_t _size = 0;                   //!< Data Size in Bytes Member
+  std::shared_ptr<soil::shape> _shape;
+  //soil::shape* _shape = NULL;
+  std::shared_ptr<T[]> _data = NULL;          //!< Raw Data Pointer Member 
+  size_t _size = 0;                           //!< Data Size in Bytes Member
 };
 
 // Factory Function Implementation

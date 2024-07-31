@@ -78,11 +78,13 @@ bool tiff::read(const char* filename){
     this->meta(filename);
   }
 
+  //auto shape = soil::shape_t<2>(this->width, this->height);
+
   if(this->bits == 32){
-    this->_buf = soil::buffer::make("float", this->width * this->height);
+    this->_buf = soil::buffer::make("float", std::vector<size_t>{this->width, this->height});
   }
   if(this->bits == 64){
-    this->_buf = soil::buffer::make("double", this->width * this->height);
+    this->_buf = soil::buffer::make("double", std::vector<size_t>{this->width, this->height});
   }
 
   TIFF* tif = TIFFOpen(filename, "r");

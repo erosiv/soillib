@@ -9,6 +9,8 @@
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
+#define TESTTEST
+
 #include <soillib/util/new/shape.hpp>
 #include <soillib/util/new/buf.hpp>
 
@@ -34,6 +36,7 @@ buffer.def("numpy", [](buf_t& buf){
   py::array_t<T> array(buf.elem());
   py::buffer_info info = array.request();
   std::memcpy(info.ptr, buf.data(), buf.size());
+  array.reshape((std::vector<long int>)*(buf.shape()));
   return array;
 });
 
@@ -103,12 +106,18 @@ bind_buf_t<int>(module, "buffer_int");
 bind_buf_t<float>(module, "buffer_float");
 bind_buf_t<double>(module, "buffer_double");
 
-buffer.def(py::init<>([](std::string type, size_t size){
-  return soil::buffer::make(type, size);
+buffer.def(py::init<>([](std::string type, std::vector<size_t> vec){
+  return soil::buffer::make(type, vec);
 }));
 
 buffer.def("size", &soil::buffer::size);
 buffer.def("elem", &soil::buffer::elem);
+buffer.def("shape", [](soil::buffer& buf){
+  auto s = buf.shape();
+  if(s == NULL)
+    std::cout<<"ITS NULL"<<std::endl;
+  return s;
+}, py::return_value_policy::reference);
 
 using buf_v = std::variant<
   soil::buf_t<int>, 

@@ -29,10 +29,16 @@ struct shape {
   shape() = default;
   virtual ~shape() = default;
 
+  // Factory Constructor
+
   //template<typename ...Args>
-  //shape(Args&& ...args){
-  //  *this = shape::make(std::forward<Args>(args)...);
-  //}
+  // shape(std::vector<size_t> v){
+  //   this = make(v);
+  // }
+
+  static shape* make(std::vector<size_t> v);
+
+  // Virtual Interface
 
   virtual size_t dims() const = 0;        //!< Number of Dimensions
   virtual size_t elem() const = 0;        //!< Number of Elements
@@ -40,6 +46,14 @@ struct shape {
 
   //! Dimension Extent Lookup
   virtual size_t operator[](const size_t d) const = 0;
+
+  explicit operator std::vector<long int>() {
+    std::vector<long int> out;
+    for(size_t d = 0; d < this->dims(); ++d)
+      out.push_back(this->operator[](d));
+    return out;
+  }
+
 };
 
 //! shape_t is a strict-typed, dimensioned shape type.
@@ -105,6 +119,21 @@ struct shape_t: shape {
 private:
   const dim_t _extent;
 };
+
+
+//  template<typename ...Args>
+//  static shape* make(Args&& ...args);
+
+#ifdef TESTTEST
+//template<>
+shape* shape::make(std::vector<size_t> v){
+  if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
+  if(v.size() == 1) return new soil::shape_t<1>({v[0]});
+  if(v.size() == 2) return new soil::shape_t<2>({v[0], v[1]});
+  if(v.size() == 3) return new soil::shape_t<3>({v[0], v[1], v[2]});
+  throw std::invalid_argument("vector has invalid size");
+}
+#endif
 
 } // end of namespace soil
 
