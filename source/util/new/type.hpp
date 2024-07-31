@@ -5,15 +5,19 @@
 
 namespace soil {
 
-struct type {
+//! typedesc is a generic compile-time type descriptor,
+//! which provides common properties like string names,
+//! or statically related types for specific purposes. 
+//!
+template<typename T> struct typedesc;
 
-  // we can probably wrap most of this behavior
-  // in some kind of typeinfo structure.
-  // this should probably be as constexpr as possible,
-  // with static pre-defined types, so that it is easy
-  // to construct different polymorphic dynamic containers.
-
+template<>
+struct typedesc<float> {
+  typedef float value_t;
+  const char* name = "float"; 
 };
+
+// ...
 
 }
 

@@ -2,259 +2,109 @@
 #define SOILLIB_SHAPE
 
 #include <soillib/soillib.hpp>
+//#include <soillib/util/new/type.hpp>
+#include <soillib/util/new/yield.hpp>
 
 #include <vector>
 #include <iostream>
 
 namespace soil {
 
-namespace {
-
-//! dim_t is a recursive N-dimensional extent template
-//!
-//! dim_t implements a number of convenient operations
-//! for an N-dimensional spatial extent.
-//!
-template<size_t N> 
-struct dim_t {
-
-  //! \todo replace this with a template recursive version
-  dim_t(size_t d0):val(d0),sub(d0){}
-  dim_t(size_t d0, size_t d1):sub(d0),val(d1){}
-  dim_t(size_t d0, size_t d1, size_t d2):sub(d0,d1),val(d2){}
-
-  inline size_t prod() const {
-    return val * sub.prod();
-  }
-
-  inline size_t& last() {
-    return this->val;
-  }
-
-  inline size_t flat(dim_t<N> mod) const {
-    return val + mod.val * sub.flat(mod.sub);
-  }
-
-  inline bool isbit() const {
-    return this->sub.isbit();
-  }
-
-  // Operator Definitions
-
-  inline size_t operator[](size_t n) const {
-    if(n == N-1) return val;
-    return sub[n];
-  }
-
-  inline bool operator==(const dim_t<N> rhs) const {
-    return this->val == rhs.val && this->sub == rhs.sub;
-  }
-
-  dim_t<N>& operator++() noexcept {
-    ++this->val;
-    return *this;
-  }
-
-  inline dim_t<N>& operator%=(dim_t<N> mod) {
-    // execute the modulo capping!
-    if(this->val >= mod.val){
-      ++this->sub;
-      this->val = 0;
-    }
-    this->sub %= mod.sub;
-    return *this;
-  }
-
-protected:
-  dim_t<N-1> sub;
-  size_t val;
-};
-
-template<> struct dim_t<0> {
-
-  dim_t(){}
-  dim_t(size_t val){}
-
-  inline bool operator==(const dim_t<0> rhs) const {
-    return true;
-  }
-
-  inline dim_t<0>& operator%=(dim_t<0> mod) {
-    return *this;
-  }
-
-  inline dim_t<0>& operator++() {
-    this->bit = 1;
-    return *this;
-  }
-
-  inline bool isbit() const {
-    return this->bit;
-  }
-
-  inline size_t flat(dim_t<0> mod) const { return 0; }
-  inline size_t prod() const { return 1; }
-  inline size_t operator[](size_t n) const {
-    throw std::invalid_argument("argument out of range");
-  }
-
-protected:
-  bool bit = 0;
-};
-
-}
-
-
-
-
-/*
-Shape struct:
-- Should allow for complex indexing
-- Should allow for safe "re-shaping", i.e. casting as a different shape
-
-Once buffers are given shape, they can then be iterable directly from the shape generator.
-The choice of shape basically generates indices which are used for lookup.
-
-Finally the concept of a memory and a virtual memory layer can be introduced.
-
-Basically now I need to test the generation of indices.
-How should I best do it? with a generator? with an iterator?
-
-Then I can implement the re-shape mechanism.
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 template<size_t D> struct shape_t;
 
+//! shape is an abstract polymorphic shape type,
+//! from which fixed-size shape types are derived.
+//!
+//! a shape is considered static, and doesn't
+//! itself implement re-shaping. Instead, it only
+//! provides methods to test broadcastability.
+//!
+//! shape provides a flat index generator, which is
+//! iterable and emits the indices for lookup in a
+//! hypothetical flat buffer. This takes into account
+//! any permutation.
+//!
 struct shape {
 
   shape() = default;
   virtual ~shape() = default;
 
-  inline virtual size_t operator[](const size_t d) const;
-  inline virtual size_t elem() const;
+  //template<typename ...Args>
+  //shape(Args&& ...args){
+  //  *this = shape::make(std::forward<Args>(args)...);
+  //}
 
-  static shape* make(size_t a);//{ return shape_t<1>}
-  static shape* make(size_t a, size_t b);//{ return shape_t<1>}
-  static shape* make(size_t a, size_t b, size_t c);//{ return shape_t<1>}
+  virtual size_t dims() const = 0;        //!< Number of Dimensions
+  virtual size_t elem() const = 0;        //!< Number of Elements
+  virtual yield<size_t> iter() const = 0; //!< Flat Index Generator
+
+  //! Dimension Extent Lookup
+  virtual size_t operator[](const size_t d) const = 0;
 };
 
-template<size_t D> struct shape_iter_t;
-
+//! shape_t is a strict-typed, dimensioned shape type.
+//!
+//! shape_t implements the different procedures for a
+//! fixed number of dimensions D.
+//!
 template<size_t D>
 struct shape_t: shape {
 
-  static constexpr size_t n_dim = D; //!< Number of Dimensions
+  typedef size_t dim_t[D];
 
   shape_t() = default;
-  shape_t(dim_t<D> _extent):
-    _extent{_extent}{}
+
+  template<typename... Args>
+  shape_t(Args&&... args):
+    _extent(std::forward<Args>(args)...){}
 
   // 
 
-  //! Total Number of Elements
+  size_t dims() const {
+    return D;
+  }
+
+  //! Number of Elements
   size_t elem() const {
-    return this->_extent.prod();
+    size_t v = 1;
+    for(size_t d = 0; d < D; ++d)
+      v *= this->_extent[d];
+    return v;
   }
 
   inline size_t flat(const shape_t mod) const {
-    return this->_extent.flat(mod._extent);
+    return 0;
+    //    return val + mod.val * sub.flat(mod.sub);
+    //return this->_extent.flat(mod._extent);
   }
 
   // 
 
   //! Shape Dimension Lookup
   size_t operator[](const size_t d) const {
+    if(d >= D) 
+      throw std::invalid_argument("index is out of bounds");
     return this->_extent[d];
   }
 
-  //
-
   //! Iterator Generator
-  
-  shape_iter_t<D> begin(){
-    auto max = this->_extent;
-    max %= this->_extent;
-
-    return shape_iter_t<D>{ dim_t<D>(0), this->_extent };
-  }
-
-  shape_iter_t<D> end(){
-    auto max = this->_extent;
-    max %= this->_extent;
-
-    return shape_iter_t<D>{ max, this->_extent };
-  }
-
-private:
-  const dim_t<D> _extent;
-};
-
-template<size_t D>
-struct shape_iter_t {
-
-  shape_iter_t(dim_t<D> _pos, dim_t<D> _mod):
-    _pos{_pos},_mod{_mod}{}
-
-  const shape_iter_t<D>& operator++() noexcept {
-    ++_pos;
-    _pos %= _mod;
-    return *this;
-  };
-
-  const bool operator==(const shape_iter_t<D>& other) const noexcept {
-    return this->_pos.isbit() == other._pos.isbit();
-  //  return this->_pos == other._pos;
-    //return this->_pos == other._pos && this->_mod == other._mod;
-  };
-
-  const bool operator!=(const shape_iter_t<D>& other) const noexcept {
-    return !(*this == other);
-  };
-
-  // Operators
-
-  shape_t<D> operator*() noexcept {
-    return shape_t<D>{_pos};
+  //!
+  //! \todo consider whether this should actually emit some kind
+  //! of vector type instead, which can then in turn be trivially
+  //! flattened by the shape into the correctly ordered index.
+  //!
+  //! this has the advantage of providing the spatial information.
+  //!
+  yield<size_t> iter() const {
+    for(size_t i = 0; i < this->elem(); ++i){
+      co_yield i;
+    }
+    co_return;
   };
 
 private:
-  dim_t<D> _pos; //!< Current Position
-  dim_t<D> _mod; //!< Mod Position
+  const dim_t _extent;
 };
-
-
-#ifdef SHAPE_IMPL
-
-shape* shape::make(size_t a){
-  return new shape_t<1>(dim_t<1>(a));
-}
-
-shape* shape::make(size_t a, size_t b){
-  return new shape_t<2>(dim_t<2>(a, b));
-}
-
-shape* shape::make(size_t a, size_t b, size_t c){
-  return new shape_t<3>(dim_t<3>(a, b, c));
-}
-
-#endif
 
 } // end of namespace soil
 
