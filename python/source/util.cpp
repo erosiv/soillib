@@ -36,7 +36,7 @@ buffer.def("numpy", [](buf_t& buf){
   py::array_t<T> array(buf.elem());
   py::buffer_info info = array.request();
   std::memcpy(info.ptr, buf.data(), buf.size());
-  array.reshape((std::vector<long int>)*(buf.shape()));
+  array.reshape((std::vector<long int>)buf.shape());
   return array;
 });
 
@@ -88,6 +88,10 @@ shape.def("iter", [](soil::shape& shape){
   return shape.iter();
 }, py::keep_alive<0, 1>());
 
+shape.def(py::init<std::vector<size_t>>());
+
+/*
+
 shape.def(py::init([](std::vector<size_t> v) -> soil::shape* {
   if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
   if(v.size() == 1) return new soil::shape_t<1>({v[0]});
@@ -95,6 +99,7 @@ shape.def(py::init([](std::vector<size_t> v) -> soil::shape* {
   if(v.size() == 3) return new soil::shape_t<3>({v[0], v[1], v[2]});
 throw std::invalid_argument("vector has invalid size");
 }));
+*/
 
 //
 // Buffer Type Binding
@@ -112,10 +117,13 @@ buffer.def(py::init<>([](std::string type, std::vector<size_t> vec){
 
 buffer.def("size", &soil::buffer::size);
 buffer.def("elem", &soil::buffer::elem);
+//buffer.def("shape", &soil::buffer::shape, );
+
+
 buffer.def("shape", [](soil::buffer& buf){
   auto s = buf.shape();
-  if(s == NULL)
-    std::cout<<"ITS NULL"<<std::endl;
+  //if(s == NULL)
+  //  std::cout<<"ITS NULL"<<std::endl;
   return s;
 }, py::return_value_policy::reference);
 

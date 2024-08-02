@@ -12,7 +12,7 @@ namespace soil {
 
 template<size_t D> struct shape_t;
 
-//! shape is an abstract polymorphic shape type,
+//! shape_base is an abstract polymorphic shape type,
 //! from which fixed-size shape types are derived.
 //!
 //! a shape is considered static, and doesn't
@@ -24,10 +24,10 @@ template<size_t D> struct shape_t;
 //! hypothetical flat buffer. This takes into account
 //! any permutation.
 //!
-struct shape {
+struct shape_base {
 
-  shape() = default;
-  virtual ~shape() = default;
+  shape_base() = default;
+  virtual ~shape_base() = default;
 
   // Factory Constructor
 
@@ -36,7 +36,7 @@ struct shape {
   //   this = make(v);
   // }
 
-  static shape* make(std::vector<size_t> v);
+  static shape_base* make(std::vector<size_t> v);
 
   // Virtual Interface
 
@@ -47,13 +47,6 @@ struct shape {
   //! Dimension Extent Lookup
   virtual size_t operator[](const size_t d) const = 0;
 
-  explicit operator std::vector<long int>() {
-    std::vector<long int> out;
-    for(size_t d = 0; d < this->dims(); ++d)
-      out.push_back(this->operator[](d));
-    return out;
-  }
-
 };
 
 //! shape_t is a strict-typed, dimensioned shape type.
@@ -62,7 +55,7 @@ struct shape {
 //! fixed number of dimensions D.
 //!
 template<size_t D>
-struct shape_t: shape {
+struct shape_t: shape_base {
 
   typedef size_t dim_t[D];
 
@@ -121,19 +114,83 @@ private:
 };
 
 
+
+
+struct shape {
+
+  shape(std::vector<size_t> v):
+    _shape{make(v)}{}
+
+  shape(shape& _shape):shape((std::vector<size_t>)_shape){}
+
+  shape(shape&& _shape):
+    _shape(_shape._shape){
+      _shape._shape = NULL;
+    }
+
+  ~shape(){
+    if(this->_shape != NULL)
+      delete this->_shape;
+  }
+
+  // Interface Implementation
+
+  inline size_t dims() {
+    return this->_shape->dims();
+  }
+
+  inline size_t elem() {
+    return this->_shape->elem();
+  }
+
+  inline yield<size_t> iter() {
+    return this->_shape->iter();
+  }
+
+  inline size_t operator[](const size_t d) {
+    return this->_shape->operator[](d);
+  }
+
+  // Casting Operators
+
+  explicit operator std::vector<long int>() {
+    std::vector<long int> out;
+    for(size_t d = 0; d < this->dims(); ++d)
+      out.push_back(this->operator[](d));
+    return out;
+  }
+
+  explicit operator std::vector<size_t>() {
+    std::vector<size_t> out;
+    for(size_t d = 0; d < this->dims(); ++d)
+      out.push_back(this->operator[](d));
+    return out;
+  }
+  
+  //   virtual size_t dims() const = 0;        //!< Number of Dimensions
+  // virtual size_t elem() const = 0;        //!< Number of Elements
+  // virtual yield<size_t> iter() const = 0; //!< Flat Index Generator
+
+  //! Dimension Extent Lookup
+  //virtual size_t operator[](const size_t d) const = 0;
+
+  // Factory Functions
+
 //  template<typename ...Args>
 //  static shape* make(Args&& ...args);
+  static shape_base* make(std::vector<size_t> v){
 
-#ifdef TESTTEST
-//template<>
-shape* shape::make(std::vector<size_t> v){
-  if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
-  if(v.size() == 1) return new soil::shape_t<1>({v[0]});
-  if(v.size() == 2) return new soil::shape_t<2>({v[0], v[1]});
-  if(v.size() == 3) return new soil::shape_t<3>({v[0], v[1], v[2]});
-  throw std::invalid_argument("vector has invalid size");
-}
-#endif
+    if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
+    if(v.size() == 1) return new soil::shape_t<1>({v[0]});
+    if(v.size() == 2) return new soil::shape_t<2>({v[0], v[1]});
+    if(v.size() == 3) return new soil::shape_t<3>({v[0], v[1], v[2]});
+    throw std::invalid_argument("vector has invalid size");
+
+  }
+
+private:
+  shape_base* _shape;
+};
 
 } // end of namespace soil
 
