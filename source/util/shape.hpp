@@ -2,8 +2,7 @@
 #define SOILLIB_SHAPE
 
 #include <soillib/soillib.hpp>
-//#include <soillib/util/new/type.hpp>
-#include <soillib/util/new/yield.hpp>
+#include <soillib/util/yield.hpp>
 
 #include <vector>
 #include <iostream>

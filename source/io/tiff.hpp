@@ -1,8 +1,10 @@
 #ifndef SOILLIB_IO_TIFF
 #define SOILLIB_IO_TIFF
 
-#include <soillib/io/img.hpp>
+#include <soillib/util/array.hpp>
+
 #include <tiffio.h>
+#include <iostream>
 
 namespace soil {
 namespace io {
@@ -13,37 +15,38 @@ namespace io {
 //! tiff<T> supports multiple different bit-depths, as
 //! well as the reading of tiled .tiff images.
 //!
-template<typename T = float>
-struct tiff: soil::io::img<T> {
+struct tiff {
 
-  using soil::io::img<T>::value_t;
-  using soil::io::img<T>::img;
-  using soil::io::img<T>::allocate;
-  using soil::io::img<T>::operator[];
+  soil::buffer* _buf = NULL;
 
-  using soil::io::img<T>::width;
-  using soil::io::img<T>::height;
-
+  tiff(){}
   tiff(const char* filename){ read(filename); };
+
+  ~tiff(){
+    if(this->_buf != NULL)
+      delete _buf;
+  }
 
   bool meta(const char* filename);  //!< Load TIFF Metadata
   bool read(const char* filename);  //!< Read TIFF Raw Data
   bool write(const char* filename); //!< Write TIFF Raw Data
 
+  uint32_t width = 0;
+  uint32_t height = 0;
+  uint32_t bits = 0;
+
 private:
   bool meta_loaded = false;
   bool tiled_image = false;
+
   uint32_t twidth = 0;
   uint32_t theight = 0;
 };
 
 //! Load TIFF Metadata
-template<typename T>
-bool tiff<T>::meta(const char* filename){
+bool tiff::meta(const char* filename){
 
   TIFF* tif = TIFFOpen(filename, "r");
-
-  // Meta-Data
 
   if(!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &this->width))
     return false;
@@ -51,6 +54,9 @@ bool tiff<T>::meta(const char* filename){
   if(!TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &this->height))
     return false;
 
+  if(!TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &this->bits))
+    return false;
+  
   if(TIFFGetField(tif, TIFFTAG_TILEWIDTH, &this->twidth))
     this->tiled_image = true;
 
@@ -65,32 +71,36 @@ bool tiff<T>::meta(const char* filename){
 }
 
 //! Read TIFF Raw Data
-template<typename T>
-bool tiff<T>::read(const char* filename){
+bool tiff::read(const char* filename){
 
   if(!meta_loaded){
     this->meta(filename);
   }
 
+  //auto shape = soil::shape_t<2>(this->width, this->height);
+
+  if(this->bits == 32){
+    this->_buf = soil::buffer::make("float", std::vector<size_t>{this->width, this->height});
+  }
+  if(this->bits == 64){
+    this->_buf = soil::buffer::make("double", std::vector<size_t>{this->width, this->height});
+  }
+
   TIFF* tif = TIFFOpen(filename, "r");
 
-  if(this->data != NULL){
-    delete[] this->data;
-    this->data = NULL;
-  }
-  allocate();
-
   // Load Tiled / Non-Tiled Images
-
   if(!this->tiled_image){
 
-    T* buf = this->data;
-    for (size_t row = 0; row < this->height; row++){
+    uint8_t* buf = (uint8_t*)this->_buf->data();
+    for(size_t row = 0; row < this->height; row++){
       TIFFReadScanline(tif, buf, row);
-      buf += this->width;
+      buf += this->width*(this->bits / 8);
     }
 
-  } else {
+  }
+  
+  /*
+  else {
 
     const size_t tsize = this->twidth * this->theight;
     const size_t nwidth = (this->width + this->twidth - 1)/this->twidth;
@@ -129,32 +139,42 @@ bool tiff<T>::read(const char* filename){
     delete[] nbuf;
 
   }
+  */
+
 
   TIFFClose(tif);
   return true;
-
 }
 
-template<typename T>
-bool tiff<T>::write(const char *filename) {
+//template<typename T>
+bool tiff::write(const char *filename) {
   
   TIFF *out= TIFFOpen(filename, "w");
 
   TIFFSetField(out, TIFFTAG_IMAGEWIDTH, this->width);
   TIFFSetField(out, TIFFTAG_IMAGELENGTH, this->height);
   TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
-  TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, 8*sizeof(T));
+  TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, this->bits);
   TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
   TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
   TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
   TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width));
 
-  T* buf = this->data;
+  /*
+  for(size_t row = 0; row < this->height; row++){
+    TIFFReadScanline(tif, buf, row);
+    buf += this->width*(this->bits / 8);
+  }
+  */
+
+  //T* buf = this->data;
+  uint8_t* buf = (uint8_t*)this->_buf->data();
   for (uint32_t row = 0; row < this->height; row++) {
     if (TIFFWriteScanline(out, buf, row, 0) < 0)
       break;
-    buf += this->width;
+    buf += this->width*(this->bits / 8);
+    //buf += this->width;
   }
 
   TIFFClose(out);

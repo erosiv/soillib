@@ -60,17 +60,17 @@ static void _XTIFFInitialize(void) {
 //! map to world-space or min and max extent in world-space
 //! for convenience.
 //!
-template<typename T = float>
-struct geotiff: soil::io::tiff<T> {
+//template<typename T = float>
+struct geotiff: soil::io::tiff {
 
-  using soil::io::tiff<T>::tiff;
-  using soil::io::tiff<T>::allocate;
-  using soil::io::tiff<T>::operator[];
+  using soil::io::tiff::tiff;
+  //using soil::io::tiff<T>::allocate;
+  //using soil::io::tiff<T>::operator[];
 
   geotiff(){};
   geotiff(const char* filename){ meta(filename); read(filename); };
-  geotiff(const size_t width, const size_t height):img<T>(width, height){}
-  geotiff(const glm::ivec2 res):img<T>(res){}
+  //geotiff(const size_t width, const size_t height):img<T>(width, height){}
+  //geotiff(const glm::ivec2 res):img<T>(res){}
 
   bool meta(const char* filename);
   bool read(const char* filename);
@@ -91,12 +91,12 @@ private:
 
 // Implementations
 
-template<typename T>
-bool geotiff<T>::meta(const char* filename){
+//template<typename T>
+bool geotiff::meta(const char* filename){
 
   _XTIFFInitialize();
 
-  if(!tiff<T>::meta(filename))
+  if(!tiff::meta(filename))
     return false;
 
   TIFF* tif = TIFFOpen(filename, "r");
@@ -128,15 +128,15 @@ bool geotiff<T>::meta(const char* filename){
 
 }
 
-template<typename T>
-bool geotiff<T>::read(const char* filename){
+//template<typename T>
+bool geotiff::read(const char* filename){
   _XTIFFInitialize();
-  return tiff<T>::read(filename);
+  return tiff::read(filename);
 }
 
-template<typename T>
-bool geotiff<T>::write(const char *filename) {
-  return tiff<T>::write(filename);
+//template<typename T>
+bool geotiff::write(const char *filename) {
+  return tiff::write(filename);
 }
 
 }; // end of namespace io

@@ -9,10 +9,8 @@
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
-#define TESTTEST
-
-#include <soillib/util/new/shape.hpp>
-#include <soillib/util/new/buf.hpp>
+#include <soillib/util/shape.hpp>
+#include <soillib/util/array.hpp>
 
 //! Templated Buffer-Type Binding
 template<typename T>

@@ -7,8 +7,8 @@
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
-#include <soillib/util/new/tiff.hpp>
-#include <soillib/util/new/geotiff.hpp>
+#include <soillib/io/tiff.hpp>
+#include <soillib/io/geotiff.hpp>
 
 void bind_io(py::module& module){
 
