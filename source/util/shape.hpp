@@ -9,42 +9,33 @@
 
 namespace soil {
 
+// a shape is a multi-dimensional extent struct.
+// 
+// a shape is considered static, and doesn't
+// itself implement re-shaping. Instead, it only
+// provides methods to test broadcastability.
+//
+// shape provides a flat index generator, which is
+// iterable and emits the indices for lookup in a
+// hypothetical flat buffer. This takes into account
+// any permutation.
+
 template<size_t D> struct shape_t;
 
-//! shape_base is an abstract polymorphic shape type,
+//! shape_b is an polymorphic shape base type,
 //! from which fixed-size shape types are derived.
 //!
-//! a shape is considered static, and doesn't
-//! itself implement re-shaping. Instead, it only
-//! provides methods to test broadcastability.
-//!
-//! shape provides a flat index generator, which is
-//! iterable and emits the indices for lookup in a
-//! hypothetical flat buffer. This takes into account
-//! any permutation.
-//!
-struct shape_base {
+struct shape_b {
 
-  shape_base() = default;
-  virtual ~shape_base() = default;
-
-  // Factory Constructor
-
-  //template<typename ...Args>
-  // shape(std::vector<size_t> v){
-  //   this = make(v);
-  // }
-
-  static shape_base* make(std::vector<size_t> v);
+  shape_b() = default;
+  virtual ~shape_b() = default;
 
   // Virtual Interface
 
-  virtual size_t dims() const = 0;        //!< Number of Dimensions
-  virtual size_t elem() const = 0;        //!< Number of Elements
-  virtual yield<size_t> iter() const = 0; //!< Flat Index Generator
-
-  //! Dimension Extent Lookup
-  virtual size_t operator[](const size_t d) const = 0;
+  virtual size_t dims() const = 0;                      //!< Number of Dimensions
+  virtual size_t elem() const = 0;                      //!< Number of Elements
+  virtual yield<size_t> iter() const = 0;               //!< Flat Index Generator
+  virtual size_t operator[](const size_t d) const = 0;  //!< Dimension Extent Lookup
 
 };
 
@@ -54,9 +45,7 @@ struct shape_base {
 //! fixed number of dimensions D.
 //!
 template<size_t D>
-struct shape_t: shape_base {
-
-  typedef size_t dim_t[D];
+struct shape_t: shape_b {
 
   shape_t() = default;
 
@@ -64,7 +53,7 @@ struct shape_t: shape_base {
   shape_t(Args&&... args):
     _extent(std::forward<Args>(args)...){}
 
-  // 
+  // Virtual Interface Implementation
 
   size_t dims() const {
     return D;
@@ -109,12 +98,14 @@ struct shape_t: shape_base {
   };
 
 private:
+  typedef size_t dim_t[D];
   const dim_t _extent;
 };
 
-
-
-
+//! shape is a wrapper-type which contains the base type pointer,
+//! to guarantee RAII correctness. Additionally, it provides
+//! convenience constructors and and cast operators.
+//!
 struct shape {
 
   shape(std::vector<size_t> v):
@@ -166,18 +157,11 @@ struct shape {
     return out;
   }
   
-  //   virtual size_t dims() const = 0;        //!< Number of Dimensions
-  // virtual size_t elem() const = 0;        //!< Number of Elements
-  // virtual yield<size_t> iter() const = 0; //!< Flat Index Generator
-
-  //! Dimension Extent Lookup
-  //virtual size_t operator[](const size_t d) const = 0;
-
   // Factory Functions
 
 //  template<typename ...Args>
 //  static shape* make(Args&& ...args);
-  static shape_base* make(std::vector<size_t> v){
+  static shape_b* make(std::vector<size_t> v){
 
     if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
     if(v.size() == 1) return new soil::shape_t<1>({v[0]});
@@ -188,7 +172,7 @@ struct shape {
   }
 
 private:
-  shape_base* _shape;
+  shape_b* _shape;
 };
 
 } // end of namespace soil

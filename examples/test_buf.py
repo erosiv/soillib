@@ -28,14 +28,14 @@ for d in shape:
 '''
 
 
-buf = soil.buffer("float", [4, 4]).to("float")
-print(buf.shape())
-print(buf.shape())
-print(buf.elem())
-print(buf.size())
+buf = soil.array("float", [4, 4]).to("float")
+# print(buf.shape())
+# print(buf.shape())
+# print(buf.elem())
+# print(buf.size())
 
-for test in buf.shape().iter():
-  print(test)
+# for test in buf.shape().iter():
+#   print(test)
 
 buf.fill(3.14)
 numpy = buf.numpy()

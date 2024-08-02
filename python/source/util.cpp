@@ -14,10 +14,10 @@ namespace py = pybind11;
 
 //! Templated Buffer-Type Binding
 template<typename T>
-void bind_buf_t(py::module& module, const char* name){
+void bind_array_t(py::module& module, const char* name){
 
-using buf_t = soil::buf_t<T>;
-auto buffer = py::class_<buf_t, soil::buffer>(module, name);
+using buf_t = soil::array_t<T>;
+auto buffer = py::class_<buf_t, soil::array_b>(module, name);
 
 buffer.def("zero", &buf_t::zero);
 buffer.def("fill", &buf_t::fill);
@@ -34,7 +34,7 @@ buffer.def("numpy", [](buf_t& buf){
   py::array_t<T> array(buf.elem());
   py::buffer_info info = array.request();
   std::memcpy(info.ptr, buf.data(), buf.size());
-  array.reshape((std::vector<long int>)buf.shape());
+  //array.reshape((std::vector<long int>)buf.shape());
   return array;
 });
 
@@ -103,35 +103,31 @@ throw std::invalid_argument("vector has invalid size");
 // Buffer Type Binding
 //
 
-auto buffer = py::class_<soil::buffer>(module, "buffer");
+auto array = py::class_<soil::array>(module, "array");
+auto array_b = py::class_<soil::array_b>(module, "array_b");
 
-bind_buf_t<int>(module, "buffer_int");
-bind_buf_t<float>(module, "buffer_float");
-bind_buf_t<double>(module, "buffer_double");
+bind_array_t<int>(module, "array_int");
+bind_array_t<float>(module, "array_float");
+bind_array_t<double>(module, "array_double");
 
-buffer.def(py::init<>([](std::string type, std::vector<size_t> vec){
-  return soil::buffer::make(type, vec);
+array.def(py::init<>([](std::string type, std::vector<size_t> vec){
+  return soil::array(type, vec);
 }));
 
-buffer.def("size", &soil::buffer::size);
-buffer.def("elem", &soil::buffer::elem);
-//buffer.def("shape", &soil::buffer::shape, );
-
-
-buffer.def("shape", [](soil::buffer& buf){
+array.def("size", &soil::array::size);
+array.def("elem", &soil::array::elem);
+array.def("shape", [](soil::array& buf){
   auto s = buf.shape();
-  //if(s == NULL)
-  //  std::cout<<"ITS NULL"<<std::endl;
   return s;
 }, py::return_value_policy::reference);
 
 using buf_v = std::variant<
-  soil::buf_t<int>, 
-  soil::buf_t<float>,
-  soil::buf_t<double>
+  soil::array_t<int>, 
+  soil::array_t<float>,
+  soil::array_t<double>
 >;
 
-buffer.def("to", [](soil::buffer& buf, std::string type) -> buf_v {
+array.def("to", [](soil::array& buf, std::string type) -> buf_v {
   if(type == "int") return buf_v{buf.as<int>()};
   if(type == "float") return buf_v{buf.as<float>()};
   if(type == "double") return buf_v{buf.as<double>()};

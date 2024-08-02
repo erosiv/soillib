@@ -9,91 +9,46 @@
 
 namespace soil {
 
-template<typename T> struct buf_t;
+template<typename T> struct array_t;
 
-//! buffer is an abstract polymorphic buffer type,
+//! array_b is an abstract polymorphic array base type,
 //! which handles ownership tracking by move semantics.
 //!
-//! buffer allows for specialization of strict-typed
-//! buffer types, which implement memory safe operations.
+//! array allows for specialization of strict-typed
+//! array types, which implement memory safe operations.
 //!
-struct buffer {
+struct array_b {
 
-  buffer() = default;
-  virtual ~buffer() = default;
-
-  // Factory Constructor
-
-  template<typename ...Args>
-  buffer(std::string type, Args&& ...args){
-    *this = make(type, std::forward<Args>(args)...);
-  }
-
-  template<typename ...Args>
-  static buffer* make(std::string type, Args&& ...args);
+  array_b() = default;
+  virtual ~array_b() = default;
 
   // Virtual Interface
-
-  virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
-  virtual void deallocate()                 = 0;  //!< De-Allocate Memory Buffer
 
   virtual void*  data() = 0;        //!< Retrieve Raw Data Pointer
   virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
   virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
 
-  virtual soil::shape shape() = 0;
-
-  //! Strict-Typed Buffer Implementation Retrieval
-  template<typename T> buf_t<T> as(){
-    return *dynamic_cast<buf_t<T>*>(this);
-  }
+protected:
+  virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
+  virtual void deallocate()                 = 0;  //!< De-Allocate Memory Buffer
 
 };
 
 //! buf_t<T> is a strict-typed, owning raw-data extent.
 //! 
 template<typename T>
-struct buf_t: buffer {
+struct array_t: array_b {
 
   // Constructors / Destructor
 
-  buf_t() = default;
-
-  buf_t(std::vector<size_t> v):
-    _shape(v){
-    
-    //this->_shape = std::shared_ptr<soil::shape>(soil::shape::make(v));
-
-    //std::cout<<this->_shape->dims()<<std::endl;
-
-    const size_t size = this->_shape.elem();
-    if(size == 0)
+  array_t() = default;
+  array_t(const size_t _size){
+    if(_size == 0)
       throw std::invalid_argument("size must be greater than 0");
-    this->allocate(size);
+    this->allocate(_size);
   }
 
-  /*
-  template<typename ...Args>
-  buf_t(Args&& ...args){
-
-  }
-  */
-
-  buf_t(buf_t& rhs):
-    _shape(rhs._shape){
-    this->_data = rhs._data;
-    this->_size = rhs._size;
-    //this->_shape = rhs._shape;
-  }
-
-  buf_t(buf_t&& rhs):
-    _shape(rhs._shape){
-    this->_data = rhs._data;
-    this->_size = rhs._size;
-    //this->_shape = rhs._shape;
-  }
-
-  ~buf_t(){
+  ~array_t(){
     this->deallocate(); 
   }
 
@@ -122,10 +77,6 @@ struct buf_t: buffer {
     this->fill(T(0));
   }
 
-  inline soil::shape shape() {
-    return this->_shape;
-  };
-
   // Subscript Operator
 
   T& operator[](const size_t index){
@@ -141,22 +92,48 @@ struct buf_t: buffer {
   inline size_t elem()  const { return this->_size; }
 
 private:
-  soil::shape _shape;
-  //std::shared_ptr<soil::shape> _shape;
-  //soil::shape* _shape = NULL;
-  std::shared_ptr<T[]> _data = NULL;          //!< Raw Data Pointer Member 
-  size_t _size = 0;                           //!< Data Size in Bytes Member
+  std::shared_ptr<T[]> _data = NULL;  //!< Raw Data Pointer Member 
+  size_t _size = 0;                   //!< Data Size in Bytes Member
 };
 
-// Factory Function Implementation
+struct array {
 
-template<typename ...Args>
-buffer* buffer::make(std::string type, Args&& ...args){
-  if(type == "int")     return new buf_t<int>(std::forward<Args>(args)...);
-  if(type == "float")   return new buf_t<float>(std::forward<Args>(args)...);
-  if(type == "double")  return new buf_t<double>(std::forward<Args>(args)...);
-  throw std::invalid_argument("invalid argument for type");
-}
+  array(std::string type, std::vector<size_t> v):
+    _shape(v){
+    _array = std::shared_ptr<array_b>(make(type, _shape.elem()));
+  }
+
+  // Factory Function Implementation
+
+  template<typename ...Args>
+  static array_b* make(std::string type, Args&& ...args){
+    if(type == "int")     return new array_t<int>(std::forward<Args>(args)...);
+    if(type == "float")   return new array_t<float>(std::forward<Args>(args)...);
+    if(type == "double")  return new array_t<double>(std::forward<Args>(args)...);
+    throw std::invalid_argument("invalid argument for type");
+  }
+
+  // Virtual Interface Implementation
+
+  inline void* data() { return this->_array->data(); }
+  inline size_t size() const { return this->_array->size(); }
+  inline size_t elem() const { return this->_array->elem(); }
+
+  // Shape Related Methods
+
+  inline soil::shape shape() { return this->_shape; };
+
+  // Casting / Re-Interpretation
+
+  //! Strict-Typed Buffer Implementation Retrieval
+  template<typename T> array_t<T> as(){
+    return *dynamic_cast<array_t<T>*>(this->_array.get());
+  }
+
+private:
+  std::shared_ptr<array_b> _array;
+  soil::shape _shape;
+};
 
 }
 

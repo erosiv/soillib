@@ -17,7 +17,7 @@ namespace io {
 //!
 struct tiff {
 
-  soil::buffer* _buf = NULL;
+  soil::array* _buf = NULL;
 
   tiff(){}
   tiff(const char* filename){ read(filename); };
@@ -80,10 +80,10 @@ bool tiff::read(const char* filename){
   //auto shape = soil::shape_t<2>(this->width, this->height);
 
   if(this->bits == 32){
-    this->_buf = soil::buffer::make("float", std::vector<size_t>{this->width, this->height});
+    this->_buf = new soil::array("float", std::vector<size_t>{this->width, this->height});
   }
   if(this->bits == 64){
-    this->_buf = soil::buffer::make("double", std::vector<size_t>{this->width, this->height});
+    this->_buf = new soil::array("double", std::vector<size_t>{this->width, this->height});
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
