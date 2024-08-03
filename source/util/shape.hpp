@@ -121,6 +121,11 @@ private:
 //!
 struct shape {
 
+  // Copy / Move Constructors:
+  // Shape is intended to be copied, therefore
+  // the implementation pointer is cloned for
+  // copying and removed for moving.
+
   shape(shape& other):
     _shape(other._shape->clone()){}
 
@@ -136,6 +141,8 @@ struct shape {
     if(this->_shape != NULL)
       delete this->_shape;
   }
+
+  // Constructors
 
   shape(std::vector<size_t> v):
     _shape{make(v)}{}

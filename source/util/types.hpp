@@ -12,9 +12,21 @@ namespace soil {
 template<typename T> struct typedesc;
 
 template<>
+struct typedesc<int> {
+  typedef int value_t;
+  static constexpr const char* name = "int"; 
+};
+
+template<>
 struct typedesc<float> {
   typedef float value_t;
-  const char* name = "float"; 
+  static constexpr const char* name = "float"; 
+};
+
+template<>
+struct typedesc<double> {
+  typedef double value_t;
+  static constexpr const char* name = "double"; 
 };
 
 // ...

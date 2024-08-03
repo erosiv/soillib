@@ -6,6 +6,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/shape.hpp>
+#include <soillib/util/types.hpp>
 
 namespace soil {
 
@@ -22,10 +23,14 @@ struct array_b {
 
   // Virtual Interface
 
+  virtual const char* type() const = 0; //!< Retrieve Type String
+
   virtual soil::shape shape() = 0;  //!< Retrieve the full Shape Object
   virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
   virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
   virtual void*  data() = 0;        //!< Retrieve Raw Data Pointer
+
+  virtual void zero() = 0;  //!< Fill Array with Zeros
  
 protected:
   virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
@@ -83,6 +88,8 @@ struct array_t: array_b {
 
   // Data Inspection Member Functions
 
+  inline const char* type() const { return typedesc<T>::name; }
+
   inline soil::shape shape()  { return this->_shape; }
   inline size_t elem()  const { return this->_shape.elem(); }
   inline size_t size()  const { return this->elem() * sizeof(T); }
@@ -99,6 +106,31 @@ struct array {
     _array = std::shared_ptr<array_b>(make(type, v));
   }
 
+  // Virtual Interface Implementation
+
+  inline const char* type() const { return this->_array->type(); }
+
+  inline soil::shape shape()  { return this->_array->shape(); }
+  inline size_t elem() const  { return this->_array->elem(); }
+  inline size_t size() const  { return this->_array->size(); }
+  inline void* data()         { return this->_array->data(); }
+
+  inline void zero() { this->_array->zero(); }
+
+  // Casting / Re-Interpretation
+
+  //! Strict-Typed Buffer Implementation Retrieval
+  template<typename T> array_t<T> as(){
+    return *dynamic_cast<array_t<T>*>(this->_array.get());
+  }
+
+  template<typename T>
+  void fill(T value) {
+    if(this->type() == "int") this->as<int>().fill((int)value);
+    if(this->type() == "float") this->as<float>().fill((float)value);
+    if(this->type() == "double") this->as<double>().fill((double)value);
+  }
+
   // Factory Function Implementation
 
   template<typename ...Args>
@@ -107,20 +139,6 @@ struct array {
     if(type == "float")   return new array_t<float>(std::forward<Args>(args)...);
     if(type == "double")  return new array_t<double>(std::forward<Args>(args)...);
     throw std::invalid_argument("invalid argument for type");
-  }
-
-  // Virtual Interface Implementation
-
-  inline soil::shape shape()  { return this->_array->shape(); };
-  inline size_t elem() const  { return this->_array->elem(); }
-  inline size_t size() const  { return this->_array->size(); }
-  inline void* data()         { return this->_array->data(); }
-
-  // Casting / Re-Interpretation
-
-  //! Strict-Typed Buffer Implementation Retrieval
-  template<typename T> array_t<T> as(){
-    return *dynamic_cast<array_t<T>*>(this->_array.get());
   }
 
 private:

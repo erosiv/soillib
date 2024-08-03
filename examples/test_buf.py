@@ -27,15 +27,24 @@ for d in shape:
   #print(d.flat(shape))
 '''
 
-buf = soil.array("float", [4, 4]).to("float")
+buf = soil.array("float", [4, 4])#.to("float")
 print(buf.shape())
+print(buf.type())
 print(buf.elem())
 print(buf.size())
 
-for test in buf.shape().iter():
-  print(test)
+buf.zero()
+
+print(buf[0])
+
+# for test in buf.shape().iter():
+#   print(test)
 
 buf.fill(3.14)
+
+print(buf[0])
+
+
 numpy = buf.numpy()
 print(numpy)
 print(numpy.dtype)
