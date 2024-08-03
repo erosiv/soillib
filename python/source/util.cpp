@@ -106,6 +106,10 @@ throw std::invalid_argument("vector has invalid size");
 auto array = py::class_<soil::array>(module, "array");
 auto array_b = py::class_<soil::array_b>(module, "array_b");
 
+array_b.def("elem", &soil::array_b::elem);
+array_b.def("size", &soil::array_b::size);
+array_b.def("shape", &soil::array_b::shape);
+
 bind_array_t<int>(module, "array_int");
 bind_array_t<float>(module, "array_float");
 bind_array_t<double>(module, "array_double");

@@ -4,6 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/yield.hpp>
 
+#include <array>
 #include <vector>
 #include <iostream>
 
@@ -20,8 +21,6 @@ namespace soil {
 // hypothetical flat buffer. This takes into account
 // any permutation.
 
-template<size_t D> struct shape_t;
-
 //! shape_b is an polymorphic shape base type,
 //! from which fixed-size shape types are derived.
 //!
@@ -30,13 +29,16 @@ struct shape_b {
   shape_b() = default;
   virtual ~shape_b() = default;
 
+  // Pointer Mangling Interface
+
+  virtual shape_b* clone() const = 0; //!< Virtual Pointer Clone Function
+
   // Virtual Interface
 
   virtual size_t dims() const = 0;                      //!< Number of Dimensions
   virtual size_t elem() const = 0;                      //!< Number of Elements
   virtual yield<size_t> iter() const = 0;               //!< Flat Index Generator
   virtual size_t operator[](const size_t d) const = 0;  //!< Dimension Extent Lookup
-
 };
 
 //! shape_t is a strict-typed, dimensioned shape type.
@@ -47,39 +49,50 @@ struct shape_b {
 template<size_t D>
 struct shape_t: shape_b {
 
-  shape_t() = default;
+  // Copy / Move Constructors
 
-  template<typename... Args>
-  shape_t(Args&&... args):
-    _extent(std::forward<Args>(args)...){}
+  shape_t(shape_t& other):
+    _arr{other._arr}{}
+
+  shape_t(const shape_t& other):
+    _arr{other._arr}{}
+
+  // Actual Constructors
+
+  template<typename ...Args>
+  shape_t(Args&& ...args):
+    _arr{args...}{}
+
+  // Pointer Mangling Interface
+
+  shape_t* clone() const override {
+    return new shape_t(*this);
+  }
 
   // Virtual Interface Implementation
 
-  size_t dims() const {
-    return D;
-  }
+  size_t dims() const { return D; }
 
   //! Number of Elements
   size_t elem() const {
     size_t v = 1;
     for(size_t d = 0; d < D; ++d)
-      v *= this->_extent[d];
+      v *= this->_arr[d];
     return v;
   }
 
   inline size_t flat(const shape_t mod) const {
     return 0;
     //    return val + mod.val * sub.flat(mod.sub);
-    //return this->_extent.flat(mod._extent);
+    //return this->_arr.flat(mod._arr);
   }
 
   // 
 
   //! Shape Dimension Lookup
   size_t operator[](const size_t d) const {
-    if(d >= D) 
-      throw std::invalid_argument("index is out of bounds");
-    return this->_extent[d];
+    if(d >= D) throw std::invalid_argument("index is out of bounds");
+    return this->_arr[d];
   }
 
   //! Iterator Generator
@@ -98,8 +111,8 @@ struct shape_t: shape_b {
   };
 
 private:
-  typedef size_t dim_t[D];
-  const dim_t _extent;
+  typedef std::array<size_t, D> arr_t;
+  const arr_t _arr;
 };
 
 //! shape is a wrapper-type which contains the base type pointer,
@@ -108,14 +121,15 @@ private:
 //!
 struct shape {
 
-  shape(std::vector<size_t> v):
-    _shape{make(v)}{}
+  shape(shape& other):
+    _shape(other._shape->clone()){}
 
-  shape(shape& _shape):shape((std::vector<size_t>)_shape){}
+  shape(const shape& other):
+    _shape(other._shape->clone()){}
 
-  shape(shape&& _shape):
-    _shape(_shape._shape){
-      _shape._shape = NULL;
+  shape(shape&& other):
+    _shape(other._shape){
+      other._shape = NULL;
     }
 
   ~shape(){
@@ -123,15 +137,13 @@ struct shape {
       delete this->_shape;
   }
 
+  shape(std::vector<size_t> v):
+    _shape{make(v)}{}
+
   // Interface Implementation
 
-  inline size_t dims() {
-    return this->_shape->dims();
-  }
-
-  inline size_t elem() {
-    return this->_shape->elem();
-  }
+  inline size_t dims() const { return this->_shape->dims(); }
+  inline size_t elem() const { return this->_shape->elem(); }
 
   inline yield<size_t> iter() {
     return this->_shape->iter();
@@ -159,20 +171,16 @@ struct shape {
   
   // Factory Functions
 
-//  template<typename ...Args>
-//  static shape* make(Args&& ...args);
   static shape_b* make(std::vector<size_t> v){
-
     if(v.size() == 0) throw std::invalid_argument("vector can't have size 0");
     if(v.size() == 1) return new soil::shape_t<1>({v[0]});
     if(v.size() == 2) return new soil::shape_t<2>({v[0], v[1]});
     if(v.size() == 3) return new soil::shape_t<3>({v[0], v[1], v[2]});
     throw std::invalid_argument("vector has invalid size");
-
   }
 
 private:
-  shape_b* _shape;
+  const shape_b* _shape;
 };
 
 } // end of namespace soil
