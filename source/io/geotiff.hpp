@@ -78,6 +78,8 @@ struct geotiff: soil::io::tiff {
 
   // Projection
 
+//  inline std::array<float, 2> max() const { return _coords}
+
   inline glm::vec2 scale() const { return glm::vec2(_scale); }
   inline glm::vec2 dim() const   { return glm::vec2(this->width, this->height); }
   inline glm::vec2 min() const   { return glm::vec2(_coords[1]); }

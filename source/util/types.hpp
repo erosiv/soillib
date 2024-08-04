@@ -6,6 +6,14 @@
 
 namespace soil {
 
+template<typename T, size_t N> 
+struct vec_t;
+
+using fvec2 = std::array<float, 2>;
+
+//using fvec3 = vec_t<
+//using ivec3 = vec_t
+
 //! typedesc is a generic compile-time type descriptor,
 //! which provides common properties like string names,
 //! or statically related types for specific purposes. 

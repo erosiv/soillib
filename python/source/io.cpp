@@ -27,14 +27,30 @@ tiff.def("buf", [](soil::io::tiff& tiff){
 //! GeoTIFF Datatype
 
 auto geotiff = py::class_<soil::io::geotiff, soil::io::tiff>(module, "geotiff");
+
+geotiff.def(py::init<>());
 geotiff.def(py::init<const char*>());
+
+geotiff.def("meta", &soil::io::geotiff::meta);
+geotiff.def("read", &soil::io::geotiff::read);
 
 geotiff.def_readonly("width", &soil::io::geotiff::width);
 geotiff.def_readonly("height", &soil::io::geotiff::height);
 
-geotiff.def("buf", [](soil::io::geotiff& tiff){
-  return tiff._buf;
-}, py::return_value_policy::reference);
+geotiff.def_property_readonly("min", [](soil::io::geotiff& geotiff) -> soil::fvec2 {
+  auto min = geotiff.min();
+  return {min.x, min.y};
+});
+
+geotiff.def_property_readonly("max", [](soil::io::geotiff& geotiff) -> soil::fvec2 {
+  auto max = geotiff.max();
+  return {max.x, max.y};
+});
+
+geotiff.def_property_readonly("scale", [](soil::io::geotiff& geotiff) -> soil::fvec2 {
+  auto scale = geotiff.scale();
+  return {scale.x, scale.y};
+});
 
 }
 
