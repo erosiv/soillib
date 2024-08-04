@@ -80,10 +80,10 @@ bool tiff::read(const char* filename){
   //auto shape = soil::shape_t<2>(this->width, this->height);
 
   if(this->bits == 32){
-    this->_buf = new soil::array("float", std::vector<size_t>{this->width, this->height});
+    this->_buf = new soil::array("float", std::vector<size_t>{this->height, this->width});
   }
   if(this->bits == 64){
-    this->_buf = new soil::array("double", std::vector<size_t>{this->width, this->height});
+    this->_buf = new soil::array("double", std::vector<size_t>{this->height, this->width});
   }
 
   TIFF* tif = TIFFOpen(filename, "r");

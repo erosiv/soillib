@@ -3,6 +3,7 @@
 import os
 import soillib as soil
 import matplotlib.pyplot as plt
+import numpy as np
 
 def main(path):
 
@@ -14,10 +15,11 @@ def main(path):
   def show_tiff(path):
 
     img = soil.geotiff(path)
-    buf = img.buf()
-    data = buf.numpy()
+    #buf = img.buf()
 
-    data = data.reshape((img.height, img.width))
+    data = np.array(img.buf())
+
+    #data = data.reshape((img.height, img.width))
     print(data.shape, data.dtype)
 
     plt.imshow(data)
@@ -33,6 +35,6 @@ def main(path):
 
 if __name__ == "__main__":
 
-  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  # data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)
