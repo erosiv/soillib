@@ -1,14 +1,13 @@
 #ifndef SOILLIB_PYTHON_UTIL
 #define SOILLIB_PYTHON_UTIL
 
-#include <variant>
-
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
+#include <soillib/util/types.hpp>
 #include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
 
@@ -82,15 +81,17 @@ array.def("size", &soil::array::size);
 array.def("elem", &soil::array::elem);
 array.def("shape", &soil::array::shape);
 
+array.def("zero", &soil::array::zero);
+
 array.def("fill", &soil::array::fill<int>);
 array.def("fill", &soil::array::fill<float>);
 array.def("fill", &soil::array::fill<double>);
 
-array.def("zero", &soil::array::zero);
+array.def("__setitem__", &soil::array::set<int>);
+array.def("__setitem__", &soil::array::set<float>);
+array.def("__setitem__", &soil::array::set<double>);
 
-using val_v = std::variant<
-  int, float, double
->;
+using val_v = soil::multi;
 
 array.def("__getitem__", [](soil::array& a, const size_t index) -> val_v {
   if(a.type() == "int") return a.as<int>()[index];
@@ -99,15 +100,7 @@ array.def("__getitem__", [](soil::array& a, const size_t index) -> val_v {
   throw std::invalid_argument("invalid argument for type");
 });
 
-array.def("__setitem__", &soil::array::set<int>);
-array.def("__setitem__", &soil::array::set<float>);
-array.def("__setitem__", &soil::array::set<double>);
-
-using arr_v = std::variant<
-  py::array_t<int>, 
-  py::array_t<float>,
-  py::array_t<double>
->;
+using arr_v = soil::multi_t<py::array_t>;
 
 array.def("numpy", [](soil::array& a) -> arr_v {
   if(a.type() == "int") return make_numpy<int>(a);

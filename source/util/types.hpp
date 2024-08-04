@@ -2,6 +2,7 @@
 #define SOILLIB_UTIL_TYPE
 
 #include <soillib/soillib.hpp>
+#include <variant>
 
 namespace soil {
 
@@ -28,6 +29,23 @@ struct typedesc<double> {
   typedef double value_t;
   static constexpr const char* name = "double"; 
 };
+
+// variant forwarding:
+// multi_t is a template-template that accepts a templated type,
+// and returns a variant which is specialized by the base types.
+//
+// additionally, multi is just the regular base type variant.
+
+using multi = std::variant<
+  int, float, double
+>;
+
+template<template<class> class V>
+using multi_t = std::variant<
+  V<int>,
+  V<float>,
+  V<double>
+>;
 
 // ...
 
