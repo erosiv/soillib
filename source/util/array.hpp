@@ -88,6 +88,12 @@ struct array_t: array_b {
     return this->_data[index];
   }
 
+  T operator[](const size_t index) const {
+    if(index >= this->elem())
+      throw std::range_error("index is out of range");
+    return this->_data[index];
+  }
+
   // Data Inspection Member Functions
 
   inline const char* type() const { return typedesc<T>::name; }
@@ -118,7 +124,7 @@ struct array {
 
   inline const char* type() const { return this->_array->type(); }
 
-  inline soil::shape shape()  { return this->_array->shape(); }
+  inline soil::shape shape() const { return this->_array->shape(); }
   inline size_t elem() const  { return this->_array->elem(); }
   inline size_t size() const  { return this->_array->size(); }
   inline void* data()         { return this->_array->data(); }
@@ -134,6 +140,10 @@ struct array {
     return *dynamic_cast<array_t<T>*>(this->_array.get());
   }
 
+  template<typename T> const array_t<T> as() const {
+    return *dynamic_cast<array_t<T>*>(this->_array.get());
+  }
+
   template<typename T>
   void fill(T value) {
     if(this->type() == "int") this->as<int>().fill((int)value);
@@ -146,6 +156,19 @@ struct array {
     if(this->type() == "int") this->as<int>().operator[](index) = (int)value;
     if(this->type() == "float") this->as<float>().operator[](index) = (float)value;
     if(this->type() == "double") this->as<double>().operator[](index) = (double)value;
+  }
+
+  soil::multi get(const size_t index) const {
+    if(this->type() == "int")     return this->as<int>().operator[](index);
+    if(this->type() == "float")   return this->as<float>().operator[](index);
+    if(this->type() == "double")  return this->as<double>().operator[](index);
+    throw std::invalid_argument("invalid argument for type");
+  }
+
+  template<size_t D>
+  soil::multi get(const soil::shape_t<D>::arr_t pos) const {
+    const size_t index = this->shape().flat<D>(pos);
+    return this->get(index);
   }
 
   // Factory Function Implementation

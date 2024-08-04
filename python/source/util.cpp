@@ -133,12 +133,44 @@ array.def("__setitem__", &soil::array::set<double>);
 
 using val_v = soil::multi;
 
+array.def("__getitem__", [](soil::array& source, const size_t index){
+  return source.get(index);
+});
+
+array.def("__getitem__", [](soil::array& source, const soil::shape_t<1>::arr_t pos){
+  return source.get<1>(pos);
+});
+
+array.def("__getitem__", [](soil::array& source, const soil::shape_t<2>::arr_t pos){
+  return source.get<2>(pos);
+});
+
+array.def("__getitem__", [](soil::array& source, const soil::shape_t<3>::arr_t pos){
+  return source.get<3>(pos);
+});
+
+/*
+// array.def("__getitem__", &soil::array::get<soil::shape_t<1>::arr_t>);
+// array.def("__getitem__", &soil::array::get<soil::shape_t<2>::arr_t>);
+// array.def("__getitem__", &soil::array::get<soil::shape_t<3>::arr_t>);
+
 array.def("__getitem__", [](soil::array& a, const size_t index) -> val_v {
   if(a.type() == "int") return a.as<int>()[index];
   if(a.type() == "float") return a.as<float>()[index];
   if(a.type() == "double") return a.as<double>()[index];
   throw std::invalid_argument("invalid argument for type");
 });
+*/
+
+/*
+array.def("__getitem__", [](soil::array& a, const soil::shape_t<1>::
+ index) -> val_v {
+  if(a.type() == "int") return a.as<int>()[index];
+  if(a.type() == "float") return a.as<float>()[index];
+  if(a.type() == "double") return a.as<double>()[index];
+  throw std::invalid_argument("invalid argument for type");
+});
+*/
 
 array.def_buffer([](soil::array& array) -> py::buffer_info {
   if(array.type() == "int") return make_buffer<int>(array);
@@ -146,6 +178,27 @@ array.def_buffer([](soil::array& array) -> py::buffer_info {
   if(array.type() == "double") return make_buffer<double>(array);
   throw std::invalid_argument("invalid argument for type");
 });
+
+/*
+
+shape.def("iter", [](soil::shape& shape) -> shape_iter_t {
+  if(shape.dims() == 1) return shape.as<1>()->iter();
+  if(shape.dims() == 2) return shape.as<2>()->iter();
+  if(shape.dims() == 3) return shape.as<3>()->iter();
+  throw std::invalid_argument("too many dimensions?");
+}, py::keep_alive<0, 1>());
+
+using shape_iter_t = std::variant<
+  soil::yield<std::tuple<soil::shape_t<1>::arr_t, >,
+  soil::yield<soil::shape_t<2>::arr_t>,
+  soil::yield<soil::shape_t<3>::arr_t>
+>;
+
+array.def("iter", [](soil::array& array) -> {
+
+  yield<std::tuple<
+});
+*/
 
 }
 

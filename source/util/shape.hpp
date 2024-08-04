@@ -176,7 +176,7 @@ struct shape {
     return dynamic_cast<shape_t<D>*>(this->_shape.get());
   }
 
-  inline size_t operator[](const size_t d) {
+  inline size_t operator[](const size_t d) const {
     return this->_shape->operator[](d);
   }
 
@@ -197,7 +197,7 @@ struct shape {
   }
 
   template<size_t D>
-  inline size_t flat(soil::shape_t<D>::arr_t arr) const {
+  inline size_t flat(const soil::shape_t<D>::arr_t& arr) const {
     if(this->dims() != D)
       throw std::invalid_argument("mismatching dimensions");
     return this->as<D>()->flat(arr);
