@@ -131,6 +131,13 @@ struct array {
     if(this->type() == "double") this->as<double>().fill((double)value);
   }
 
+  template<typename T>
+  void set(const size_t index, T value){
+    if(this->type() == "int") this->as<int>().operator[](index) = (int)value;
+    if(this->type() == "float") this->as<float>().operator[](index) = (float)value;
+    if(this->type() == "double") this->as<double>().operator[](index) = (double)value;
+  }
+
   // Factory Function Implementation
 
   template<typename ...Args>

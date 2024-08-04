@@ -99,9 +99,9 @@ array.def("__getitem__", [](soil::array& a, const size_t index) -> val_v {
   throw std::invalid_argument("invalid argument for type");
 });
 
-//array.def("__setitem__", [](soil::array& buf, const size_t index, T value){
-//  buf[index] = value;
-//});
+array.def("__setitem__", &soil::array::set<int>);
+array.def("__setitem__", &soil::array::set<float>);
+array.def("__setitem__", &soil::array::set<double>);
 
 using arr_v = std::variant<
   py::array_t<int>, 
