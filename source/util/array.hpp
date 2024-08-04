@@ -25,7 +25,9 @@ struct array_b {
 
   virtual const char* type() const = 0; //!< Retrieve Type String
 
-  virtual soil::shape shape() = 0;  //!< Retrieve the full Shape Object
+  virtual soil::shape shape() = 0;              //!< Retrieve the full Shape Object
+  virtual void reshape(soil::shape shape) = 0;  //!< Re-Shape the Shape Object
+
   virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
   virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
   virtual void*  data() = 0;        //!< Retrieve Raw Data Pointer
@@ -95,6 +97,12 @@ struct array_t: array_b {
   inline size_t size()  const { return this->elem() * sizeof(T); }
   inline void* data()         { return (void*)this->_data.get(); }
 
+  inline void reshape(soil::shape shape) {
+    if(this->elem() != shape.elem())
+      throw std::invalid_argument("can't broadcast current shape to new shape");
+    else this->_shape = shape;
+  }
+
 private:
   std::shared_ptr<T[]> _data = NULL;  //!< Raw Data Pointer Member 
   soil::shape _shape;
@@ -114,6 +122,8 @@ struct array {
   inline size_t elem() const  { return this->_array->elem(); }
   inline size_t size() const  { return this->_array->size(); }
   inline void* data()         { return this->_array->data(); }
+
+  inline void reshape(soil::shape shape) { this->_array->reshape(shape); }
 
   inline void zero() { this->_array->zero(); }
 

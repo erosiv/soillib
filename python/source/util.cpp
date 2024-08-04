@@ -125,6 +125,8 @@ array.def("fill", &soil::array::fill<int>);
 array.def("fill", &soil::array::fill<float>);
 array.def("fill", &soil::array::fill<double>);
 
+array.def("reshape", &soil::array::reshape);
+
 array.def("__setitem__", &soil::array::set<int>);
 array.def("__setitem__", &soil::array::set<float>);
 array.def("__setitem__", &soil::array::set<double>);

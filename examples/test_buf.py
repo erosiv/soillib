@@ -31,10 +31,13 @@ def test_array():
 
   # Construction / General Properties
   array = soil.array("float", [3, 3, 3])
-  print("shape:", array.shape)
   print("type:", array.type)
   print("elem:", array.elem())
   print("size:", array.size())
+
+  print("shape:", array.shape)
+  array.reshape(soil.shape([3, 9]))
+  print("shape:", array.shape)
 
   # Assignment
   array.zero()
@@ -45,8 +48,6 @@ def test_array():
 
   # Numpy Interface
   numpy = np.array(array)
-  
-  #numpy = array.numpy()
   print(numpy)
   print(numpy.dtype)
 

@@ -153,6 +153,11 @@ struct shape {
       other._shape = NULL;
     }
 
+  shape& operator=(const soil::shape& shape){
+    this->_shape = shape._shape;
+    return *this;
+  }
+
   // Constructors
 
   shape(std::vector<size_t> v):
