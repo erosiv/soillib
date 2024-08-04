@@ -52,8 +52,8 @@ def test_array():
     val = array[pos]
     print(f"{pos}: {val}")
 
-  for pos, val in array.iter():
-    print(f"{pos}: {val}")
+  #for pos, val in array.iter():
+  #  print(f"{pos}: {val}")
 
   # Numpy Interface
   numpy = np.array(array)
