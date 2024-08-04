@@ -1,53 +1,54 @@
 #!/usr/bin/env python
 
 import soillib as soil
+import numpy as np
 
 def test_shape():
 
-  shape = soil.shape([4, 4])
-  print(shape)
-  print(shape.elem())
-
-  for t in shape.iter():
-    print(t)
-
-  # print(shape.elem())
-  # print(shape[0])
-  # print(shape[1])
-
   '''
-  #print(shape[1])
-  for d in shape:
-    print(d)
-    print(d[0])
-    #print(d[0], d[1])
-    #print(d.flat(shape))
+  define and test the soil.shape type interface
   '''
 
-def test_buf():
+  # Construction / General Properties
+  shape = soil.shape([3, 3, 3])
+  print("shape:", shape)
+  print("dims:", shape.dims())
+  print("elem:", shape.elem())
 
-  buf = soil.array("float", [4, 4])#.to("float")
-  print(buf.shape())
-  print(buf.type())
-  print(buf.elem())
-  print(buf.size())
+  # Print the Dimension Extents
+  for d in range(shape.dims()):
+    print(f"d:{d}, e:{shape[d]}")
 
-  buf.zero()
+  # Iterate over Dimension Extents
+  for pos in shape.iter():
+    print(f"i: {shape.flat(pos)}: {pos}")
 
-  print(buf[0])
+def test_array():
 
-  # for test in buf.shape().iter():
-  #   print(test)
+  '''
+  define and test the soil.array type interface
+  '''
 
-  buf.fill(3.14)
+  # Construction / General Properties
+  array = soil.array("float", [3, 3, 3])
+  print("shape:", array.shape)
+  print("type:", array.type)
+  print("elem:", array.elem())
+  print("size:", array.size())
 
+  # Assignment
+  array.zero()
+  print(array[0])
+  array.fill(3.14)
+  print(array[0])
+  array[0] = 1.
 
-  print(buf[0])
-  buf[0] = 1.
-
-  numpy = buf.numpy()
+  # Numpy Interface
+  numpy = np.array(array)
+  
+  #numpy = array.numpy()
   print(numpy)
   print(numpy.dtype)
 
-test_shape()
-test_buf()
+#test_shape()
+test_array()

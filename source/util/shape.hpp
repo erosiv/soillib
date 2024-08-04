@@ -4,6 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/yield.hpp>
 
+#include <memory>
 #include <array>
 #include <vector>
 #include <iostream>
@@ -37,7 +38,6 @@ struct shape_b {
 
   virtual size_t dims() const = 0;                      //!< Number of Dimensions
   virtual size_t elem() const = 0;                      //!< Number of Elements
-  virtual yield<size_t> iter() const = 0;               //!< Flat Index Generator
   virtual size_t operator[](const size_t d) const = 0;  //!< Dimension Extent Lookup
 };
 
@@ -48,6 +48,8 @@ struct shape_b {
 //!
 template<size_t D>
 struct shape_t: shape_b {
+
+  typedef std::array<size_t, D> arr_t;
 
   // Copy / Move Constructors
 
@@ -81,13 +83,14 @@ struct shape_t: shape_b {
     return v;
   }
 
-  inline size_t flat(const shape_t mod) const {
-    return 0;
-    //    return val + mod.val * sub.flat(mod.sub);
-    //return this->_arr.flat(mod._arr);
+  inline size_t flat(const arr_t pos) const {
+    size_t value = 0;
+    for(size_t d = 0; d < D; ++d){
+      value *= this->operator[](d);
+      value += pos[d];
+    }
+    return value;
   }
-
-  // 
 
   //! Shape Dimension Lookup
   size_t operator[](const size_t d) const {
@@ -95,23 +98,36 @@ struct shape_t: shape_b {
     return this->_arr[d];
   }
 
-  //! Iterator Generator
+  //! Position Generator
   //!
-  //! \todo consider whether this should actually emit some kind
-  //! of vector type instead, which can then in turn be trivially
-  //! flattened by the shape into the correctly ordered index.
-  //!
-  //! this has the advantage of providing the spatial information.
-  //!
-  yield<size_t> iter() const {
+  //! This returns a generator coroutine,
+  //! which iterates over the set of positions.
+  yield<arr_t> iter() const {
+
+    arr_t m_arr{0};   // Initial Condition
+    
+    // Generate Values: One Per Element!
     for(size_t i = 0; i < this->elem(); ++i){
-      co_yield i;
+
+      co_yield m_arr; // Yield Current Value
+      ++m_arr[D-1];   // Bump Active Dimension
+
+      // Propagate Overflow
+
+      for(size_t d = D-1; d > 0; d -= 1){
+
+        if(m_arr[d] >= this->_arr[d]){
+          m_arr[d] = 0;
+          ++m_arr[d-1];
+        }
+
+      }
+
     }
     co_return;
-  };
+  }
 
 private:
-  typedef std::array<size_t, D> arr_t;
   const arr_t _arr;
 };
 
@@ -137,11 +153,6 @@ struct shape {
       other._shape = NULL;
     }
 
-  ~shape(){
-    if(this->_shape != NULL)
-      delete this->_shape;
-  }
-
   // Constructors
 
   shape(std::vector<size_t> v):
@@ -152,8 +163,12 @@ struct shape {
   inline size_t dims() const { return this->_shape->dims(); }
   inline size_t elem() const { return this->_shape->elem(); }
 
-  inline yield<size_t> iter() {
-    return this->_shape->iter();
+  template<size_t D> shape_t<D>* as(){
+    return dynamic_cast<shape_t<D>*>(this->_shape.get());
+  }
+
+  template<size_t D> const shape_t<D>* as() const {
+    return dynamic_cast<shape_t<D>*>(this->_shape.get());
   }
 
   inline size_t operator[](const size_t d) {
@@ -175,6 +190,13 @@ struct shape {
       out.push_back(this->operator[](d));
     return out;
   }
+
+  template<size_t D>
+  inline size_t flat(soil::shape_t<D>::arr_t arr) const {
+    if(this->dims() != D)
+      throw std::invalid_argument("mismatching dimensions");
+    return this->as<D>()->flat(arr);
+  }
   
   // Factory Functions
 
@@ -187,7 +209,7 @@ struct shape {
   }
 
 private:
-  const shape_b* _shape;
+  std::shared_ptr<shape_b> _shape;
 };
 
 } // end of namespace soil
