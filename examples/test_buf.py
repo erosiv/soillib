@@ -68,6 +68,7 @@ def test_iter():
     for x in range(2048):
       for y in range(2048):
         pos = [x, y]
+        #index = x * 2048 + y
         #print(type(pos))
         #i = i+1
         pass
@@ -76,6 +77,7 @@ def test_iter():
   shape = soil.shape([2048, 2048])
   with soil.timer() as timer:
     for pos in shape.iter():
+      #index = shape.flat(pos)
       #print(type(pos))
       pass
 

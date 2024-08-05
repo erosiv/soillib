@@ -107,7 +107,8 @@ struct shape_t: shape_b {
     arr_t m_arr{0};   // Initial Condition
     
     // Generate Values: One Per Element!
-    for(size_t i = 0; i < this->elem(); ++i){
+    const size_t elem = this->elem();
+    for(size_t i = 0; i < elem; ++i){
 
       co_yield m_arr; // Yield Current Value
       ++m_arr[D-1];   // Bump Active Dimension
@@ -120,6 +121,7 @@ struct shape_t: shape_b {
           m_arr[d] = 0;
           ++m_arr[d-1];
         }
+        else break;
 
       }
 
@@ -169,11 +171,11 @@ struct shape {
   inline size_t elem() const { return this->_shape->elem(); }
 
   template<size_t D> shape_t<D>* as(){
-    return dynamic_cast<shape_t<D>*>(this->_shape.get());
+    return static_cast<shape_t<D>*>(this->_shape.get());
   }
 
   template<size_t D> const shape_t<D>* as() const {
-    return dynamic_cast<shape_t<D>*>(this->_shape.get());
+    return static_cast<shape_t<D>*>(this->_shape.get());
   }
 
   inline size_t operator[](const size_t d) const {

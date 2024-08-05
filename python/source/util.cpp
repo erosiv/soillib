@@ -51,7 +51,7 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 }
 
 //! General Util Binding Function
-void bind_util(py::module& module){\
+void bind_util(py::module& module){
 
 //
 // Timer Type Binding
