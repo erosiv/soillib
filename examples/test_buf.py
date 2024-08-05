@@ -48,10 +48,10 @@ def test_array():
   array[0] = 1.
 
   # Iterate over Shape and Retrieve Values
-  shape = array.shape
-  for pos in shape.iter():
-    val = array[pos]
-    print(f"{pos}: {val}")
+  # shape = array.shape
+  # for pos in shape.iter():
+  #   val = array[pos]
+  #   print(f"{pos}: {val}")
 
   #for pos, val in array.iter():
   #  print(f"{pos}: {val}")
@@ -100,4 +100,6 @@ def test_iter():
       pass
   '''
 
-test_iter()
+#test_shape()
+#test_iter()
+#test_array()

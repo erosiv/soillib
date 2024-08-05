@@ -16,42 +16,22 @@ namespace soil {
 //! array allows for specialization of strict-typed
 //! array types, which implement memory safe operations.
 //!
-struct array_b {
 
-  array_b() = default;
-  virtual ~array_b() = default;
-
-  // Virtual Interface
-
-  virtual const char* type() const = 0; //!< Retrieve Type String
-
-  virtual soil::shape shape() = 0;              //!< Retrieve the full Shape Object
-  virtual void reshape(soil::shape shape) = 0;  //!< Re-Shape the Shape Object
-
-  virtual size_t elem() const = 0;  //!< Retreive Number of Typed Elements
-  virtual size_t size() const = 0;  //!< Retrieve Size of Buffer in Bytes
-  virtual void*  data() = 0;        //!< Retrieve Raw Data Pointer
-
-  virtual void zero() = 0;  //!< Fill Array with Zeros
- 
-protected:
-  virtual void allocate(const size_t size)  = 0;  //!< Allocate Memory Buffer
-  virtual void deallocate()                 = 0;  //!< De-Allocate Memory Buffer
-};
-
-//! buf_t<T> is a strict-typed, owning raw-data extent.
+//! array_t<T> is a strict-typed, owning raw-data extent.
 //! 
 template<typename T>
-struct array_t: array_b {
+struct array_t {
 
   // Constructors / Destructor
 
-  array_t(const std::vector<size_t> v):_shape{v}{
-    auto _size = _shape.elem();
-    if(_size == 0)
-      throw std::invalid_argument("size must be greater than 0");
-    this->allocate(_size);
-  }
+  array_t() = default;
+  array_t(soil::shape _shape):
+    _shape{_shape}{
+      auto _size = this->elem();
+      if(_size == 0)
+        throw std::invalid_argument("size must be greater than 0");
+      this->allocate(_size);
+    }
 
   ~array_t(){
     this->deallocate(); 
@@ -96,15 +76,24 @@ struct array_t: array_b {
 
   // Data Inspection Member Functions
 
+  inline size_t elem() const {
+    return std::visit([](const auto&& shape){
+      return shape.elem();
+    }, this->shape());
+  }
+
   inline const char* type() const { return typedesc<T>::name; }
 
-  inline soil::shape shape()  { return this->_shape; }
-  inline size_t elem()  const { return this->_shape.elem(); }
+  inline soil::shape shape() const { return this->_shape; }
+
   inline size_t size()  const { return this->elem() * sizeof(T); }
   inline void* data()         { return (void*)this->_data.get(); }
 
   inline void reshape(soil::shape shape) {
-    if(this->elem() != shape.elem())
+    auto elem = std::visit([](auto&& shape){
+      return shape.elem();
+    }, shape);
+    if(this->elem() != elem)
       throw std::invalid_argument("can't broadcast current shape to new shape");
     else this->_shape = shape;
   }
@@ -114,77 +103,12 @@ private:
   soil::shape _shape;
 };
 
-struct array {
+using array = std::variant<
+  soil::array_t<int>,
+  soil::array_t<float>,
+  soil::array_t<double>  
+>;
 
-  array(std::string type, std::vector<size_t> v){
-    _array = std::shared_ptr<array_b>(make(type, v));
-  }
-
-  // Virtual Interface Implementation
-
-  inline const char* type() const { return this->_array->type(); }
-
-  inline soil::shape shape() const { return this->_array->shape(); }
-  inline size_t elem() const  { return this->_array->elem(); }
-  inline size_t size() const  { return this->_array->size(); }
-  inline void* data()         { return this->_array->data(); }
-
-  inline void reshape(soil::shape shape) { this->_array->reshape(shape); }
-
-  inline void zero() { this->_array->zero(); }
-
-  // Casting / Re-Interpretation
-
-  //! Strict-Typed Buffer Implementation Retrieval
-  template<typename T> array_t<T> as(){
-    return *dynamic_cast<array_t<T>*>(this->_array.get());
-  }
-
-  template<typename T> const array_t<T> as() const {
-    return *dynamic_cast<array_t<T>*>(this->_array.get());
-  }
-
-  template<typename T>
-  void fill(T value) {
-    if(this->type() == "int") this->as<int>().fill((int)value);
-    if(this->type() == "float") this->as<float>().fill((float)value);
-    if(this->type() == "double") this->as<double>().fill((double)value);
-  }
-
-  template<typename T>
-  void set(const size_t index, T value){
-    if(this->type() == "int") this->as<int>().operator[](index) = (int)value;
-    if(this->type() == "float") this->as<float>().operator[](index) = (float)value;
-    if(this->type() == "double") this->as<double>().operator[](index) = (double)value;
-  }
-
-  soil::multi get(const size_t index) const {
-    if(this->type() == "int")     return this->as<int>().operator[](index);
-    if(this->type() == "float")   return this->as<float>().operator[](index);
-    if(this->type() == "double")  return this->as<double>().operator[](index);
-    throw std::invalid_argument("invalid argument for type");
-  }
-
-  template<size_t D>
-  soil::multi get(const soil::shape_t<D>::arr_t pos) const {
-    const size_t index = this->shape().flat<D>(pos);
-    return this->get(index);
-  }
-
-  // Factory Function Implementation
-
-  template<typename ...Args>
-  static array_b* make(std::string type, Args&& ...args){
-    if(type == "int")     return new array_t<int>(std::forward<Args>(args)...);
-    if(type == "float")   return new array_t<float>(std::forward<Args>(args)...);
-    if(type == "double")  return new array_t<double>(std::forward<Args>(args)...);
-    throw std::invalid_argument("invalid argument for type");
-  }
-
-private:
-  std::shared_ptr<array_b> _array;
-};
-
-}
+} // end of namespace soil
 
 #endif

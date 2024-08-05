@@ -17,15 +17,10 @@ namespace io {
 //!
 struct tiff {
 
-  soil::array* _buf = NULL;
+  soil::array _buf;
 
   tiff(){}
   tiff(const char* filename){ read(filename); };
-
-  ~tiff(){
-    if(this->_buf != NULL)
-      delete _buf;
-  }
 
   bool meta(const char* filename);  //!< Load TIFF Metadata
   bool read(const char* filename);  //!< Read TIFF Raw Data
@@ -77,13 +72,12 @@ bool tiff::read(const char* filename){
     this->meta(filename);
   }
 
-  //auto shape = soil::shape_t<2>(this->width, this->height);
-
+  auto shape = soil::shape_t<2>({this->width, this->height});
   if(this->bits == 32){
-    this->_buf = new soil::array("float", std::vector<size_t>{this->height, this->width});
+    this->_buf = soil::array_t<float>(shape);
   }
   if(this->bits == 64){
-    this->_buf = new soil::array("double", std::vector<size_t>{this->height, this->width});
+    this->_buf = soil::array_t<double>(shape);
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
@@ -91,7 +85,11 @@ bool tiff::read(const char* filename){
   // Load Tiled / Non-Tiled Images
   if(!this->tiled_image){
 
-    uint8_t* buf = (uint8_t*)this->_buf->data();
+    auto data = std::visit([](auto&& args){
+      return args.data();
+    }, this->_buf);
+
+    uint8_t* buf = (uint8_t*)data;
     for(size_t row = 0; row < this->height; row++){
       TIFFReadScanline(tif, buf, row);
       buf += this->width*(this->bits / 8);
@@ -166,7 +164,6 @@ bool tiff::write(const char *filename) {
     TIFFReadScanline(tif, buf, row);
     buf += this->width*(this->bits / 8);
   }
-  */
 
   //T* buf = this->data;
   uint8_t* buf = (uint8_t*)this->_buf->data();
@@ -176,6 +173,7 @@ bool tiff::write(const char *filename) {
     buf += this->width*(this->bits / 8);
     //buf += this->width;
   }
+  */
 
   TIFFClose(out);
   return true; 

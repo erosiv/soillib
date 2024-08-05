@@ -12,31 +12,9 @@ namespace py = pybind11;
 #include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
 
-template<typename T>
-py::buffer_info make_buffer(soil::array& source){
-
-  std::vector<py::ssize_t> shape;
-  std::vector<py::ssize_t> strides;
-
-  for(size_t d = 0; d < source.shape().dims(); ++d){
-    shape.push_back(source.shape()[d]);
-  }
-
-  size_t s = sizeof(T) * source.shape().elem();
-  for(size_t d = 0; d < source.shape().dims(); ++d){
-    s = s / source.shape()[d];
-    strides.push_back(s);
-  }
-  
-  return py::buffer_info(
-    source.data(),
-    sizeof(T),
-    py::format_descriptor<T>::format(),
-    source.shape().dims(),
-    shape,
-    strides
-  );
-}
+//
+//
+//
 
 template<typename T>
 void bind_yield_t(py::module& module, const char* name){
@@ -50,6 +28,106 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 
 }
 
+//
+//
+//
+
+template<size_t N>
+void bind_shape_t(py::module& module, const char* name){
+
+using shape_t = soil::shape_t<N>;
+auto shape = py::class_<shape_t>(module, name);
+
+shape.def("dims", &shape_t::dims);
+shape.def("elem", &shape_t::elem);
+shape.def("flat", &shape_t::flat);
+shape.def("iter", &shape_t::iter, py::keep_alive<0, 1>());
+
+shape.def("__getitem__", [](const shape_t& shape, const size_t index){
+  return shape[index];
+});
+
+shape.def("__repr__", [](const shape_t& shape){
+  std::string str = "shape(" + std::to_string(shape.dims()) +")";
+  str += "[";
+  for(size_t d = 0; d < shape.dims(); d++)
+    str += std::to_string(shape[d]) + ",";
+  str += "]";
+  return str;
+});
+
+}
+
+//
+//
+//
+
+template<typename T>
+void bind_array_t(py::module& module, const char* name){
+
+using array_t = soil::array_t<T>;
+auto array = py::class_<array_t>(module, name, py::buffer_protocol());
+
+array.def("elem", &array_t::elem);
+array.def("size", &array_t::size);
+array.def("zero", &array_t::zero);
+array.def("fill", &array_t::fill);
+
+array.def_property_readonly("type", &array_t::type);
+array.def_property_readonly("shape", &array_t::shape);
+
+array.def("reshape", &array_t::reshape);
+
+array.def("__getitem__", [](const array_t& array, const size_t index){
+  return array[index];
+});
+
+array.def("__setitem__", [](array_t& array, const size_t index, const T& value){
+  array[index] = value;
+});
+
+array.def_buffer([](array_t& array) -> py::buffer_info {
+
+  std::vector<py::ssize_t> shape;
+  std::vector<py::ssize_t> strides;
+
+  const size_t dims = std::visit([](auto&& args){
+    return args.dims();    
+  }, array.shape());
+
+  auto get_d = [](const soil::shape& shape, const size_t d){
+    return std::visit([d](auto&& args){
+      return args[d];
+    }, shape);
+  };
+
+  for(size_t d = 0; d < dims; ++d){
+    shape.push_back(get_d(array.shape(), d));
+  }
+
+  size_t s = sizeof(T) * array.elem();
+  for(size_t d = 0; d < dims; ++d){
+    s = s / get_d(array.shape(), d);
+    strides.push_back(s);
+  }
+  
+  return py::buffer_info(
+    array.data(),
+    sizeof(T),
+    py::format_descriptor<T>::format(),
+    dims,
+    shape,
+    strides
+  );
+
+});
+
+}
+
+//
+//
+//
+
 //! General Util Binding Function
 void bind_util(py::module& module){
 
@@ -59,9 +137,11 @@ void bind_util(py::module& module){
 
 auto timer = py::class_<soil::timer>(module, "timer");
 timer.def(py::init<>());
+
 timer.def("__enter__", [](soil::timer& timer){
   timer.start();
 });
+
 timer.def("__exit__", [](soil::timer& timer,
   const std::optional<pybind11::type>& exc_type,
   const std::optional<pybind11::object>& exc_value,
@@ -83,64 +163,43 @@ bind_yield_t<soil::shape_t<3>::arr_t>(module, "yield_shape_t_arr_3");
 // Shape Type Binding
 //
 
-auto shape = py::class_<soil::shape>(module, "shape");
+bind_shape_t<1>(module, "shape_1");
+bind_shape_t<2>(module, "shape_2");
+bind_shape_t<3>(module, "shape_3");
 
-shape.def(py::init<std::vector<size_t>>());
-
-shape.def("elem", &soil::shape::elem);
-shape.def("dims", &soil::shape::dims);
-
-shape.def("flat", &soil::shape::flat<1>);
-shape.def("flat", &soil::shape::flat<2>);
-shape.def("flat", &soil::shape::flat<3>);
-
-using shape_iter_t = std::variant<
-  soil::yield<soil::shape_t<1>::arr_t>,
-  soil::yield<soil::shape_t<2>::arr_t>,
-  soil::yield<soil::shape_t<3>::arr_t>
->;
-
-shape.def("iter", [](soil::shape& shape) -> shape_iter_t {
-  if(shape.dims() == 1) return shape.as<1>()->iter();
-  if(shape.dims() == 2) return shape.as<2>()->iter();
-  if(shape.dims() == 3) return shape.as<3>()->iter();
+auto do_test = [](std::vector<size_t> v) -> soil::shape {
+  if(v.size() == 1) return soil::shape_t<1>{v};
+  if(v.size() == 2) return soil::shape_t<2>{v};
+  if(v.size() == 3) return soil::shape_t<3>{v};
   throw std::invalid_argument("too many dimensions?");
-}, py::keep_alive<0, 1>()); 
+};
+
+module.def("shape", do_test);
+
+//
+// Array Type Binding
+//
+
+bind_array_t<int>(module, "array_int");
+bind_array_t<float>(module, "array_float");
+bind_array_t<double>(module, "array_double");
+
+module.def("array", [&do_test](std::string type, std::vector<size_t> v) -> soil::array { 
+  soil::shape shape = do_test(v);
+  if(type == "int")     return soil::array_t<int>(shape);
+  if(type == "float")   return soil::array_t<float>(shape);
+  if(type == "double")  return soil::array_t<double>(shape);
+  throw std::invalid_argument("invalid type argument");
+});
+
 
 /*
-shape.def("__iter__", [](soil::shape& shape){
-  auto shape_t = shape.as<2>();//->begin();
-  return py::make_iterator(shape_t->begin(), shape_t->end());
- // if(shape.dims() == 1) return shape.as<1>()->begin();
-//  if(shape.dims() == 2) return ;
- // if(shape.dims() == 3) return shape.as<3>()->begin();
-  //return py::make_iterator(shape.begin(), shape.end());
-}, py::keep_alive<0, 1>());
-*/
-
-shape.def("__getitem__", [](soil::shape& shape, const size_t index){
-  return shape[index];
-});
-
-shape.def("__repr__", [](soil::shape& shape){
-  std::string str = "shape(" + std::to_string(shape.dims()) +")";
-  str += "[";
-  for(size_t d = 0; d < shape.dims(); d++)
-    str += std::to_string(shape[d]) + ",";
-  str += "]";
-  return str;
-});
-
-//
-// Buffer Type Binding
-//
-
 // Wrapper-Class Implementation
 
-auto array = py::class_<soil::array>(module, "array", py::buffer_protocol());
+auto array = py::class_<soil::array>(module, "array", );
 
-array.def(py::init<>([](std::string type, std::vector<size_t> vec){
-  return soil::array(type, vec);
+array.def(py::init<>([](std::string type, const soil::shape& shape){
+  return soil::array(type, shape);
 }));
 
 array.def("size", &soil::array::size);
@@ -167,17 +226,48 @@ array.def("__getitem__", [](soil::array& source, const size_t index){
   return source.get(index);
 });
 
-array.def("__getitem__", [](soil::array& source, const soil::shape_t<1>::arr_t pos){
-  return source.get<1>(pos);
+array.def("__setitem__", [](soil::array& source, py::tuple& tup, int value){
+  size_t index;
+  if(tup.size() == 1) index = source.shape().flat<1>({tup[0].cast<size_t>()});
+  if(tup.size() == 2) index = source.shape().flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
+  if(tup.size() == 3) index = source.shape().flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
+  source.set<int>(index, value);
 });
 
-array.def("__getitem__", [](soil::array& source, const soil::shape_t<2>::arr_t pos){
-  return source.get<2>(pos);
+array.def("__setitem__", [](soil::array& source, py::tuple& tup, float value){
+  size_t index;
+  if(tup.size() == 1) index = source.shape().flat<1>({tup[0].cast<size_t>()});
+  if(tup.size() == 2) index = source.shape().flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
+  if(tup.size() == 3) index = source.shape().flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
+  source.set<float>(index, value);
 });
 
-array.def("__getitem__", [](soil::array& source, const soil::shape_t<3>::arr_t pos){
-  return source.get<3>(pos);
+array.def("__setitem__", [](soil::array& source, py::tuple& tup, double value){
+  size_t index;
+  if(tup.size() == 1) index = source.shape().flat<1>({tup[0].cast<size_t>()});
+  if(tup.size() == 2) index = source.shape().flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
+  if(tup.size() == 3) index = source.shape().flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
+  source.set<double>(index, value);
 });
+
+array.def("__getitem__", [](soil::array& source, py::tuple& tup){
+  if(tup.size() == 1) return source.get<1>({tup[0].cast<size_t>()});
+  if(tup.size() == 2) return source.get<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
+  if(tup.size() == 3) return source.get<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
+  throw std::invalid_argument("invalid tuple size");
+});
+
+// array.def("__getitem__", [](soil::array& source, const soil::shape_t<1>::arr_t pos){
+//   return source.get<1>(pos);
+// });
+// 
+// array.def("__getitem__", [](soil::array& source, const soil::shape_t<2>::arr_t pos){
+//   return source.get<2>(pos);
+// });
+// 
+// array.def("__getitem__", [](soil::array& source, const soil::shape_t<3>::arr_t pos){
+//   return source.get<3>(pos);
+// });
 
 array.def_buffer([](soil::array& array) -> py::buffer_info {
   if(array.type() == "int") return make_buffer<int>(array);
@@ -185,6 +275,9 @@ array.def_buffer([](soil::array& array) -> py::buffer_info {
   if(array.type() == "double") return make_buffer<double>(array);
   throw std::invalid_argument("invalid argument for type");
 });
+
+*/
+
 
 }
 

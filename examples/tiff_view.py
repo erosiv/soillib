@@ -18,8 +18,7 @@ def main(path):
     #buf = img.buf()
 
     data = np.array(img.buf())
-
-    #data = data.reshape((img.height, img.width))
+    data = data.reshape((img.height, img.width))
     print(data.shape, data.dtype)
 
     plt.imshow(data)

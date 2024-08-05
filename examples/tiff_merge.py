@@ -87,8 +87,10 @@ def main(path):
     geotiff = soil.geotiff(tpath)
     # print(tpath)
 
-    buf = np.array(geotiff.buf(), copy=False)
-    
+    buf = geotiff.buf()
+    buf = np.array(buf)
+    buf = buf.reshape((geotiff.height, geotiff.width))
+  
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
     gscale = np.array(geotiff.scale)
@@ -107,33 +109,23 @@ def main(path):
     That would be better statically.
     '''
 
-    for x in range(pmin[0], pmax[0]):
-      for y in range(pmin[1], pmax[1]):
-        px = int((x - pmin[0]) / pscale)
-        py = int((pmin[1]-y-1) / pscale)
-        try:
+    shape = buf.shape
+
+    print(f"Merging: {file}")
+    with soil.timer() as timer:
+
+      for x in range(pmin[0], pmax[0]):
+        for y in range(pmin[1], pmax[1]):
+          px = int((x - pmin[0]) / pscale)
+          #px = int((pmax[0]-x-1) / pscale)
+          #py = int((y - pmin[1]) / pscale)
+          py = int((pmax[1]-y-1) / pscale)
+
           # TODO implement a more efficient indexing procedure here.
           # TODO we could actually fully implement the shape thing with visitors.
-          array[x, y] = buf[py, px] # TODO figure why this is flipped. seems silly.
-        except:
-          pass
+          # TODO figure why this is flipped. seems silly.
 
-    '''
-    for pos in buf.shape.iter():
-      #
-
-      print(pos)
-
-      # world position
-
-      wpos = 
-      apos = pscale * (wpos - wmin) / wscale
-      apos = apos.astype(np.int64)
-
-      index = shape.flat(apos)
-      array[index] = buf[pos]
-
-    '''
+          array[x, pixels[1] - y - 1] = buf[py, px]
 
   show_array(array)
 
