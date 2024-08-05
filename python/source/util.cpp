@@ -7,6 +7,7 @@
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
+#include <soillib/util/timer.hpp>
 #include <soillib/util/types.hpp>
 #include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
@@ -50,7 +51,25 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 }
 
 //! General Util Binding Function
-void bind_util(py::module& module){
+void bind_util(py::module& module){\
+
+//
+// Timer Type Binding
+//
+
+auto timer = py::class_<soil::timer>(module, "timer");
+timer.def(py::init<>());
+timer.def("__enter__", [](soil::timer& timer){
+  timer.start();
+});
+timer.def("__exit__", [](soil::timer& timer,
+  const std::optional<pybind11::type>& exc_type,
+  const std::optional<pybind11::object>& exc_value,
+  const std::optional<pybind11::object>& traceback
+){
+  timer.stop();
+  std::cout<<"Execution Time: "<<timer.count()<<" ms"<<std::endl;
+});
 
 //
 // Yield Type Binding

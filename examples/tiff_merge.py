@@ -5,37 +5,21 @@ import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
 
+def show_array(array):
+  data = np.array(array)
+  data = np.transpose(data)
+  plt.imshow(data)
+  plt.show()
+
 def main(path):
 
+  # Check Path Validity
+
   path = os.fsencode(path)
-  
   if not os.path.exists(path):
     raise RuntimeError("path does not exist")
 
-  def show_array(array):
-    data = np.array(array)
-    data = np.transpose(data)
-    plt.imshow(data)
-    plt.show()
-
-  '''
-  def show_tiff(path):
-
-    img = 
-    data = np.array(img.buf())
-    print(data.shape, data.dtype)
-
-    w_min = np.array(img.min)
-    w_max = np.array(img.max)
-    scale = np.array(img.scale)
-
-    print(w_min, w_max, scale)
-    print((w_max - w_min)/scale)
-  '''
-
-  '''
-  Determine the Data Extent
-  '''
+  # Single-File Handling
 
   if os.path.isfile(path):
     tpath = path
@@ -44,7 +28,9 @@ def main(path):
     geotiff.read(tpath)
     show_array(geotiff.buf())
     return
-  
+
+  # Determine World-Space Range of Data
+
   if not os.path.isdir(path):
     raise RuntimeError("path must be file or directory")
 
@@ -53,36 +39,46 @@ def main(path):
   wscale = None
 
   for file in os.listdir(path):
-    tpath = os.path.join(path, file)
   
+    # Get Geotiff / Metadata
+
+    tpath = os.path.join(path, file)
     geotiff = soil.geotiff()
     geotiff.meta(tpath)
-  
-    wmin = np.min([wmin, geotiff.min], axis=0)
-    wmax = np.max([wmax, geotiff.max], axis=0)
-    wscale = np.array(geotiff.scale)
 
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
     gscale = np.array(geotiff.scale)
+  
+    # Update Bounds Information
 
-    # print(geotiff.width)
-    # print(geotiff.height)
-    # print((gmax - gmin)/gscale)
+    wmin = np.min([wmin, gmin], axis=0)
+    wmax = np.max([wmax, gmax], axis=0)
+    wscale = gscale
+
+  # Determine Merged Image Size
+
+  '''
+  # TODO make sure that we can do this with the array type.
+
+  array.zero()
+  '''
+
+  '''
+
+
+  array = np.empty(pixels)
+  array[:] = np.nan
+
+  '''
 
   pscale = 0.1
   pixels = pscale * ((wmax - wmin)/wscale)
   pixels = pixels.astype(np.int64)
-  
-  '''
-  # TODO make sure that we can do this with the array type.
-  array = soil.array("float", pixels)
-  shape = array.shape
-  array.zero()
-  '''
 
-  array = np.empty(pixels)
-  array[:] = np.nan
+  array = soil.array("float", pixels)
+  array.fill(np.nan)
+  array = np.array(array)
   print(array.shape)
 
   for file in os.listdir(path):

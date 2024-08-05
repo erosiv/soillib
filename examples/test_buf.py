@@ -2,6 +2,7 @@
 
 import soillib as soil
 import numpy as np
+import time
 
 def test_shape():
 
@@ -60,5 +61,22 @@ def test_array():
   print(numpy)
   print(numpy.dtype)
 
-#test_shape()
-test_array()
+def test_iter():
+
+  print("Empty Python Range:")
+  with soil.timer() as timer:
+    for x in range(2048):
+      for y in range(2048):
+        pos = [x, y]
+        #print(type(pos))
+        #i = i+1
+        pass
+
+  print("Shape Generator Iterator:")
+  shape = soil.shape([2048, 2048])
+  with soil.timer() as timer:
+    for pos in shape.iter():
+      #print(type(pos))
+      pass
+
+test_iter()
