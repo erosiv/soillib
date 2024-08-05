@@ -107,6 +107,17 @@ shape.def("iter", [](soil::shape& shape) -> shape_iter_t {
   throw std::invalid_argument("too many dimensions?");
 }, py::keep_alive<0, 1>()); 
 
+/*
+shape.def("__iter__", [](soil::shape& shape){
+  auto shape_t = shape.as<2>();//->begin();
+  return py::make_iterator(shape_t->begin(), shape_t->end());
+ // if(shape.dims() == 1) return shape.as<1>()->begin();
+//  if(shape.dims() == 2) return ;
+ // if(shape.dims() == 3) return shape.as<3>()->begin();
+  //return py::make_iterator(shape.begin(), shape.end());
+}, py::keep_alive<0, 1>());
+*/
+
 shape.def("__getitem__", [](soil::shape& shape, const size_t index){
   return shape[index];
 });

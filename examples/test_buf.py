@@ -81,4 +81,23 @@ def test_iter():
       #print(type(pos))
       pass
 
+  arr = np.empty((2048, 2048))
+  print("Numpy Shape Iterator:")
+  with soil.timer() as timer:
+    for x in arr:
+      for y in x:
+        #t = [x, y]
+        #print(x, y)
+        pass
+
+  '''
+  print("Shape Classic Iterator:")
+  with soil.timer() as timer:
+    for pos in shape:
+      #rint(pos)
+      #index = shape.flat(pos)
+      #print(type(pos))
+      pass
+  '''
+
 test_iter()

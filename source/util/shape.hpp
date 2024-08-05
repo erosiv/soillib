@@ -109,7 +109,7 @@ struct shape_t: shape_b {
     // Generate Values: One Per Element!
     const size_t elem = this->elem();
     for(size_t i = 0; i < elem; ++i){
-
+      
       co_yield m_arr; // Yield Current Value
       ++m_arr[D-1];   // Bump Active Dimension
 
@@ -128,6 +128,50 @@ struct shape_t: shape_b {
     }
     co_return;
   }
+
+  struct iter_t {
+
+    iter_t(const size_t _elem, const arr_t _arr):
+      _elem{_elem},_arr{_arr}, m_arr{0}{}
+
+    bool operator==(const iter_t& other){
+      return this->_elem == other._elem;
+    }
+
+    bool operator!=(const iter_t& other){
+      return !(*this == other);
+    }
+
+    iter_t& operator++(){
+
+      ++m_arr[D-1];   // Bump Active Dimension
+      ++this->_elem;
+
+      for(size_t d = D-1; d > 0; d -= 1){
+
+        if(m_arr[d] >= this->_arr[d]){
+          m_arr[d] = 0;
+          ++m_arr[d-1];
+        }
+        else break;
+
+      }
+
+      return *this;
+    }
+
+    arr_t operator*(){
+      return this->m_arr;
+    }
+
+  private:
+    const arr_t _arr;
+    size_t _elem;
+    arr_t m_arr;
+  };
+
+  iter_t begin() const { return iter_t{0, this->_arr}; }
+  iter_t end()   const { return iter_t{this->elem(), this->_arr}; }
 
 private:
   const arr_t _arr;
@@ -171,11 +215,11 @@ struct shape {
   inline size_t elem() const { return this->_shape->elem(); }
 
   template<size_t D> shape_t<D>* as(){
-    return static_cast<shape_t<D>*>(this->_shape.get());
+    return dynamic_cast<shape_t<D>*>(this->_shape.get());
   }
 
   template<size_t D> const shape_t<D>* as() const {
-    return static_cast<shape_t<D>*>(this->_shape.get());
+    return dynamic_cast<shape_t<D>*>(this->_shape.get());
   }
 
   inline size_t operator[](const size_t d) const {
