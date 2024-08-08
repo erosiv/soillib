@@ -90,6 +90,7 @@ struct geotiff: soil::io::tiff {
   inline glm::vec2 map(const glm::vec2 p) const { return min() + scale()*p; }
 
 private:
+  std::string nodata = "";
   glm::vec3 _scale{1};
   glm::vec3 _coords[2]{glm::vec3{0}, glm::vec3{0}};
 };
@@ -106,12 +107,14 @@ bool geotiff::meta(const char* filename){
 
   TIFF* tif = TIFFOpen(filename, "r");
 
-  int count = 0;
-  char* text_ptr = NULL;
-  if(TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &text_ptr)){}
+  char* text_ptr;
+  if(TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &text_ptr)){
+    this->nodata = std::string(text_ptr);
+  }
 
   // Read Meta-Data
 
+  int count = 0;
   double* values;
   if(TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values)){
     _scale.x = values[0];
@@ -134,8 +137,35 @@ bool geotiff::meta(const char* filename){
 }
 
 bool geotiff::read(const char* filename){
-  _XTIFFInitialize();
-  return tiff::read(filename);
+  
+  geotiff::meta(filename);
+  if(!tiff::read(filename))
+    return false;
+
+  // Correct No-Data Scenario to NaN:
+  auto shape = std::visit([](auto&& args){
+    return args.shape();
+  }, this->_array);
+
+  if(this->bits() == 32){
+    auto array = std::get<soil::array_t<float>>(this->_array);
+    const float _nodata = std::stof(this->nodata);
+    for(size_t i = 0; i < array.elem(); ++i){
+      if(array[i] == _nodata) 
+        array[i] = std::numeric_limits<float>::quiet_NaN();
+    }
+  }
+
+  if(this->bits() == 64){
+    auto array = std::get<soil::array_t<double>>(this->_array);
+    const double _nodata = std::stof(this->nodata);
+    for(size_t i = 0; i < array.elem(); ++i){
+      if(array[i] == _nodata) 
+        array[i] = std::numeric_limits<double>::quiet_NaN();
+    }
+  }
+
+  return true;
 }
 
 bool geotiff::write(const char *filename) {
