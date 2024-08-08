@@ -14,12 +14,13 @@ def main(path):
 
   def show_tiff(path):
 
-    img = soil.geotiff(path)
+    # Load Image, Data Array
+    image = soil.geotiff(path)
+    array = image.array()
 
-    data = np.array(img.array())
-    print(data.shape, data.dtype)
-
-    plt.imshow(data)
+    # Output Meta-Data, Plot
+    print(array.shape, array.type)
+    plt.imshow(array)
     plt.show()
 
   if os.path.isfile(path):

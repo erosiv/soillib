@@ -32,40 +32,6 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 //
 //
 
-template<size_t N>
-void bind_shape_t(py::module& module, const char* name){
-
-using shape_t = soil::shape_t<N>;
-auto shape = py::class_<shape_t>(module, name);
-
-shape.def("dims", &shape_t::dims);
-shape.def("elem", &shape_t::elem);
-shape.def("flat", &shape_t::flat);
-shape.def("iter", &shape_t::iter, py::keep_alive<0, 1>());
-
-shape.def("__getitem__", [](const shape_t& shape, const size_t index){
-  return shape[index];
-});
-
-shape.def("__repr__", [](const shape_t& shape){
-  std::string str = "shape(" + std::to_string(shape.dims()) +")";
-  str += "[";
-  for(size_t d = 0; d < shape.dims(); d++)
-    str += std::to_string(shape[d]) + ",";
-  str += "]";
-  return str;
-});
-
-}
-
-// helper type for the visitor #4
-template<class... Ts>
-struct overloaded : Ts... { using Ts::operator()...; };
-
-//
-//
-//
-
 template<typename T>
 void bind_array_t(py::module& module, const char* name){
 
@@ -92,12 +58,11 @@ array.def("__setitem__", [](array_t& array, const size_t index, const T& value){
 
 array.def("__setitem__", [](array_t& array, const py::tuple& tup, const T& value){
 
-  size_t index = std::visit(overloaded{
-    [&tup](const soil::shape_t<1>& shape) { return shape.flat({tup[0].cast<size_t>()}); },
-    [&tup](const soil::shape_t<2>& shape) { return shape.flat({tup[0].cast<size_t>(), tup[1].cast<size_t>()}); },
-    [&tup](const soil::shape_t<3>& shape) { return shape.flat({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()}); }
-  }, array.shape());
-
+  std::vector<size_t> v;
+  for(auto& d: tup)
+    v.push_back(d.cast<size_t>());
+  
+  const size_t index = array.shape().flat(&v[0], v.size());
   array[index] = value;
 
 });
@@ -107,23 +72,15 @@ array.def_buffer([](array_t& array) -> py::buffer_info {
   std::vector<py::ssize_t> shape;
   std::vector<py::ssize_t> strides;
 
-  const size_t dims = std::visit([](auto&& args){
-    return args.dims();    
-  }, array.shape());
-
-  auto get_d = [](const soil::shape& shape, const size_t d){
-    return std::visit([d](auto&& args){
-      return args[d];
-    }, shape);
-  };
+  const size_t dims = array.shape().dims();
 
   for(size_t d = 0; d < dims; ++d){
-    shape.push_back(get_d(array.shape(), d));
+    shape.push_back(array.shape()[d]);
   }
 
   size_t s = sizeof(T) * array.elem();
   for(size_t d = 0; d < dims; ++d){
-    s = s / get_d(array.shape(), d);
+    s = s / array.shape()[d];
     strides.push_back(s);
   }
   
@@ -179,18 +136,26 @@ bind_yield_t<soil::shape_t<3>::arr_t>(module, "yield_shape_t_arr_3");
 // Shape Type Binding
 //
 
-bind_shape_t<1>(module, "shape_1");
-bind_shape_t<2>(module, "shape_2");
-bind_shape_t<3>(module, "shape_3");
+auto shape = py::class_<soil::shape>(module, "shape");
+shape.def(py::init<const std::vector<size_t>&>());
 
-auto do_test = [](std::vector<size_t> v) -> soil::shape {
-  if(v.size() == 1) return soil::shape_t<1>{v};
-  if(v.size() == 2) return soil::shape_t<2>{v};
-  if(v.size() == 3) return soil::shape_t<3>{v};
-  throw std::invalid_argument("too many dimensions?");
-};
+shape.def("dims", &soil::shape::dims);
+shape.def("elem", &soil::shape::elem);
+shape.def("iter", &soil::shape::iter);
+shape.def("flat", [](const soil::shape& shape, const std::vector<size_t>& v){
+  return shape.flat(&v[0], v.size());
+});
 
-module.def("shape", do_test);
+shape.def("__getitem__", &soil::shape::operator[]);
+
+shape.def("__repr__", [](const soil::shape& shape){
+  std::string str = "shape(" + std::to_string(shape.dims()) +")";
+  str += "[";
+  for(size_t d = 0; d < shape.dims(); d++)
+    str += std::to_string(shape[d]) + ",";
+  str += "]";
+  return str;
+});
 
 //
 // Array Type Binding
@@ -202,8 +167,8 @@ bind_array_t<double>(module, "array_double");
 bind_array_t<soil::fvec2>(module, "array_fvec2");
 bind_array_t<soil::fvec3>(module, "array_fvec3");
 
-module.def("array", [&do_test](std::string type, std::vector<size_t> v) -> soil::array { 
-  soil::shape shape = do_test(v);
+module.def("array", [](std::string type, std::vector<size_t> v) -> soil::array {
+  soil::shape shape(v);
   if(type == "int")     return soil::array_t<int>(shape);
   if(type == "float")   return soil::array_t<float>(shape);
   if(type == "double")  return soil::array_t<double>(shape);

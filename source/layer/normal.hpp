@@ -34,18 +34,9 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   // if(map.shape())
 
   auto _array = std::get<soil::array_t<float>>(array);
-  auto _shape = std::get<soil::shape_t<2>>(_array.shape());
-
-  /*
-  auto shape = [](const soil::array& array){
-    return std::visit([](auto&& args){
-      return args.shape();
-    }, array);
-  };
-  */
+  auto _shape = std::get<soil::shape_t<2>>(_array.shape()._shape);
 
   // std::cout<<p.x<<" "<<p.y<<std::endl;
-
 
   auto oob = [&](const glm::ivec2 pos) -> bool {
     return _shape.oob(pos);
@@ -155,16 +146,6 @@ glm::vec3 __normal(const soil::array& array, glm::ivec2 p){
 
 }
 
-
-
-
-
-
-
-
-
-
-
 struct normal: layer<array_t<float>, array_t<fvec3>> {
 
   using layer::layer;
@@ -174,52 +155,12 @@ struct normal: layer<array_t<float>, array_t<fvec3>> {
 
   using layer_t = layer<array_t<float>, array_t<fvec3>>;
 
-  /*
-
-  // whoat goes on where?
-
-  normal(){
-
-
-
-  }
-
-  // full operation is just a 
-  // basically the input could also be another node though...
-  // is this relevant? not sure right now. It could be e.g. warped.
-  // should I cache the in-node upon construction?
-
-  */
-
-private:
-  
-  /*
-  static out_t operator()(const in_t& in){
-    
-    soil::shape shape = in.shape();
-    out_t out = out_t{shape};
-    return std::move(out);
-
-  }
-  */
-
-public:
   out_t operator()(){
-  //  return normal::operator()(this->in);
 
     soil::shape shape = in.shape();
     out_t out = out_t{shape};
 
-    /*
-    auto _shape = std::get<soil::shape_t<2>>(shape);
-    for(const auto& pos: _shape.iter()){
-      const size_t index = _shape.flat(pos);
-      const float value = (in[index] - 607.7095) / (992.8845 - 607.7095);
-      out[index] = {value, value, value};
-    }
-    */
-
-    auto _shape = std::get<soil::shape_t<2>>(shape);
+    auto _shape = std::get<soil::shape_t<2>>(shape._shape);
     for(const auto& pos: _shape.iter()){
 
       const size_t index = _shape.flat(pos);
@@ -230,6 +171,7 @@ public:
     }
 
     return std::move(out);
+
   }
 
 };

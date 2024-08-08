@@ -81,7 +81,8 @@ bool tiff::read(const char* filename){
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
   
-  auto shape = soil::shape_t<2>({this->height(), this->width()});
+  auto shape = soil::shape({this->height(), this->width()});
+
   if(this->bits() == 32){
     this->_array = soil::array_t<float>(shape);
   }

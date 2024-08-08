@@ -76,24 +76,15 @@ struct array_t {
 
   // Data Inspection Member Functions
 
-  inline size_t elem() const {
-    return std::visit([](const auto&& shape){
-      return shape.elem();
-    }, this->shape());
-  }
-
   inline const char* type() const { return typedesc<T>::name; }
 
   inline soil::shape shape() const { return this->_shape; }
-
+  inline size_t elem()  const { return this->_shape.elem(); }
   inline size_t size()  const { return this->elem() * sizeof(T); }
   inline void* data()         { return (void*)this->_data.get(); }
 
   inline void reshape(soil::shape shape) {
-    auto elem = std::visit([](auto&& shape){
-      return shape.elem();
-    }, shape);
-    if(this->elem() != elem)
+    if(this->elem() != shape.elem())
       throw std::invalid_argument("can't broadcast current shape to new shape");
     else this->_shape = shape;
   }

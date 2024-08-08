@@ -109,11 +109,79 @@ private:
   arr_t _arr;
 };
 
-using shape = std::variant<
+using shape_v = std::variant<
   soil::shape_t<1>,
   soil::shape_t<2>,
   soil::shape_t<3>
 >;
+
+using shape_iter_v = std::variant<
+  yield<soil::shape_t<1>::arr_t>,
+  yield<soil::shape_t<2>::arr_t>,
+  yield<soil::shape_t<3>::arr_t>
+>;
+
+// helper type for the visitor #4
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+
+
+//! Merged Interface Shape Type
+struct shape {
+
+  shape(){}
+  shape(const std::vector<size_t>& v):
+    _shape(make(v)){}
+
+  // Forwarding Implementations
+
+  size_t dims() const {
+    return std::visit([](auto&& args){
+      return args.dims();
+    }, this->_shape);
+  }
+
+  size_t elem() const {
+    return std::visit([](auto&& args){
+      return args.elem();
+    }, this->_shape);
+  }
+
+  size_t operator[](const size_t d) const {
+    return std::visit([&d](auto&& args){
+      return args[d];
+    }, this->_shape);
+  }
+
+  shape_iter_v iter(){
+    return std::visit([](auto&& args) -> shape_iter_v {
+      return args.iter();
+    }, this->_shape);
+  }
+
+  size_t flat(const size_t* p, const size_t N) const {
+
+    if(N > this->dims())
+      throw std::invalid_argument("invalid flattening size");
+
+    return std::visit(overloaded{
+      [&p](const soil::shape_t<1>& shape) { return shape.flat({p[0]}); },
+      [&p](const soil::shape_t<2>& shape) { return shape.flat({p[0], p[1]}); },
+      [&p](const soil::shape_t<3>& shape) { return shape.flat({p[0], p[1], p[2]}); }
+    }, _shape);
+  }
+
+
+
+  shape_v make(const std::vector<size_t>& v){
+    if(v.size() == 1) return shape_t<1>(v);
+    if(v.size() == 2) return shape_t<2>(v);
+    if(v.size() == 3) return shape_t<3>(v);
+    throw std::invalid_argument("invalid shape size");
+  }
+
+  shape_v _shape;
+};
 
 } // end of namespace soil
 
