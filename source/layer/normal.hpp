@@ -5,22 +5,6 @@
 #include <soillib/util/array.hpp>
 #include <soillib/layer/layer.hpp>
 
-// 
-
-/*
-Normal Node: Takes a floating point node
-and returns a vec3 normal vector node.
-
-Should be indexable but also fully cachable.
-Basically this will make this almost differentiable...
-*/
-
-/*
-In theory, I could have a generic node that just takes a lambda right?
-Let's not do that for now though. In theory this could be done later
-for proper interactive nodes w. std::function?
-*/
-
 namespace soil {
 
 namespace {
@@ -100,9 +84,7 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
 
   glm::vec2 g = glm::vec2(0, 0);
 
-  // X-Element
-  /*
-  
+  // X-Element  
   if(!px[0].oob && !px[4].oob)
     g.x = (1.0f*px[0].height - 8.0f*px[1].height + 8.0f*px[3].height - 1.0f*px[4].height)/12.0f;
 
@@ -118,18 +100,18 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   else if(!px[2].oob && !px[4].oob)
     g.x = (-3.0f*px[2].height + 4.0f*px[3].height - 1.0f*px[4].height)/2.0f;
 
-  else */ if(!px[1].oob && !px[3].oob)
+  else if(!px[1].oob && !px[3].oob)
     g.x = (-1.0f*px[1].height + 1.0f*px[3].height)/2.0f;
 
   else if(!px[2].oob && !px[3].oob)
     g.x = (-1.0f*px[2].height + 1.0f*px[3].height)/1.0f;
 
-  else  if(!px[1].oob && !px[2].oob)
+  else if(!px[1].oob && !px[2].oob)
     g.x = (-1.0f*px[1].height + 1.0f*px[2].height)/1.0f;
 
   // Y-Element
 
-  /* if(!py[0].oob && !py[4].oob)
+  if(!py[0].oob && !py[4].oob)
     g.y = (1.0f*py[0].height - 8.0f*py[1].height + 8.0f*py[3].height - 1.0f*py[4].height)/12.0f;
 
   else if(!py[0].oob && !py[3].oob)
@@ -144,13 +126,13 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   else if(!py[2].oob && !py[4].oob)
     g.y = (-3.0f*py[2].height + 4.0f*py[3].height - 1.0f*py[4].height)/2.0f;
 
-  else */ if(!py[1].oob && !py[3].oob)
+  else if(!py[1].oob && !py[3].oob)
     g.y = (-1.0f*py[1].height + 1.0f*py[3].height)/2.0f;
 
   else if(!py[2].oob && !py[3].oob)
     g.y = (-1.0f*py[2].height + 1.0f*py[3].height)/1.0f;
 
-  else  if(!py[1].oob && !py[2].oob)
+  else if(!py[1].oob && !py[2].oob)
     g.y = (-1.0f*py[1].height + 1.0f*py[2].height)/1.0f;
 
   return g;
@@ -242,7 +224,7 @@ public:
 
       const size_t index = _shape.flat(pos);
       glm::vec3 n = __normal(in, glm::ivec2(pos[0], pos[1]));
-      n = glm::vec3(n.x, -n.z, n.y);
+      n = glm::vec3(-n.x, -n.z, n.y);
       n = 0.5f*n + 0.5f;
       out[index] = {n.x, n.y, n.z};
     }

@@ -21,6 +21,10 @@ so that we can define common operations and even one day autograd through them.
 /*
 Implementation: Does the layer have a strict-typed input and output? I think so.
 Does it store a reference to its underlying in type?
+
+In theory, I could have a generic node that just takes a lambda right?
+Let's not do that for now though. In theory this could be done later
+for proper interactive nodes w. std::function?
 */
 
 namespace soil {
