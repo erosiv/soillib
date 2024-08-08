@@ -5,46 +5,69 @@ import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
 
-def show_array(array):
-  data = np.array(array)
-  data = np.transpose(data)
-  plt.imshow(data)
-  plt.show()
+def relief_shade(h, n):
 
-def main(path):
+  # Regularize Height
+  h_min = np.min(h)
+  h_max = np.max(h)
+  h = (h - h_min)/(h_max - h_min)
 
-  # Check Path Validity
+  # Light Direction, Diffuse Lighting
+  light = np.array([-1, 1, 2])
+  light = light / np.linalg.norm(light)
+
+  diffuse = np.sum(light * n, axis=-1)
+  diffuse = 0.05 + 0.9*diffuse
+
+  # Flat-Toning
+  flattone = np.full(h.shape, 0.9)
+  weight = 1.0 - n[:,:,2]
+  weight = weight * (1.0 - h * h)
+
+  # Full Diffuse Shading Value
+  diffuse = (1.0 - weight) * diffuse + weight * flattone
+  return diffuse
+
+def iter_tiff(path):
+
+  '''
+  Generator for all Files in 
+  Directory, or a Single File
+  '''
 
   path = os.fsencode(path)
   if not os.path.exists(path):
     raise RuntimeError("path does not exist")
 
-  # Single-File Handling
-
   if os.path.isfile(path):
-    tpath = path
-    geotiff = soil.geotiff()
-    geotiff.meta(tpath)
-    geotiff.read(tpath)
-    show_array(geotiff.buf())
-    return
+    file = os.path.basename(path)
+    return file, path
 
-  # Determine World-Space Range of Data
+  elif os.path.isdir(path):
+    for file in os.listdir(path):
+      yield file, os.path.join(path, file)
 
-  if not os.path.isdir(path):
+  else:
     raise RuntimeError("path must be file or directory")
+
+def merge(input, pscale = 0.1):
+
+  '''
+  Generate a Merged Array from a Directory
+  '''
+
+  # Get World Extent
 
   wmin = np.array([np.finfo(np.float32).max, np.finfo(np.float32).max])
   wmax = np.array([np.finfo(np.float32).min, np.finfo(np.float32).min])
   wscale = None
 
-  for file in os.listdir(path):
+  for file, path in iter_tiff(input):
   
     # Get Geotiff / Metadata
 
-    tpath = os.path.join(path, file)
     geotiff = soil.geotiff()
-    geotiff.meta(tpath)
+    geotiff.meta(path)
 
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -55,38 +78,18 @@ def main(path):
     wmin = np.min([wmin, gmin], axis=0)
     wmax = np.max([wmax, gmax], axis=0)
     wscale = gscale
-
+  
   # Determine Merged Image Size
-
-  '''
-  # TODO make sure that we can do this with the array type.
-
-  array.zero()
-  '''
-
-  '''
-
-
-  array = np.empty(pixels)
-  array[:] = np.nan
-
-  '''
-
-  pscale = 0.1
+  # Create Merged Filling Array
+  
   pixels = pscale * ((wmax - wmin)/wscale)
   pixels = pixels.astype(np.int64)
-
   array = soil.array("float", pixels)
   array.fill(np.nan)
-  # array = np.array(array)
-  # print(array.shape)
 
-  for file in os.listdir(path):
+  for file, path in iter_tiff(input):
 
-    tpath = os.path.join(path, file)
-    geotiff = soil.geotiff(tpath)
-    # print(tpath)
-
+    geotiff = soil.geotiff(path)
     buf = geotiff.array()
     buf = np.array(buf)
   
@@ -96,18 +99,6 @@ def main(path):
     
     pmin = (pscale * (gmin - wmin) / wscale).astype(np.int64)
     pmax = (pscale * (gmax - wmin) / wscale).astype(np.int64)
-
-    # print(pmin, pmax)
-    # print(pmax - pmin)
-    # print(geotiff.width, geotiff.height)
-
-    '''
-    if we actually kept a shape variant inside the
-    array type, we could implement the lookup with
-    a visitor? that could potentially work.
-    That would be better statically.
-    '''
-
     shape = buf.shape
 
     print(f"Merging: {file}")
@@ -116,21 +107,41 @@ def main(path):
       for x in range(pmin[0], pmax[0]):
         for y in range(pmin[1], pmax[1]):
           px = int((x - pmin[0]) / pscale)
-          #px = int((pmax[0]-x-1) / pscale)
-          #py = int((y - pmin[1]) / pscale)
           py = int((pmax[1]-y-1) / pscale)
-
-          # TODO implement a more efficient indexing procedure here.
-          # TODO we could actually fully implement the shape thing with visitors.
-          # TODO figure why this is flipped. seems silly.
-
           array[x, pixels[1] - y - 1] = buf[py, px]
 
-  show_array(array)
+  return array
+
+def show_height(array):
+  data = np.array(array)
+  data = np.transpose(data)
+  plt.imshow(data)
+  plt.show()
+
+def show_normal(array):
+  normal = soil.normal(array)
+  data = np.array(normal())
+  data = np.transpose(data, (1, 0, 2))
+  plt.imshow(data)
+  plt.show()
+
+def show_relief(array):
+  normal = soil.normal(array)
+  normal_data = np.array(normal())
+  height_data = np.array(array)
+  relief = relief_shade(height_data, normal_data)
+  relief = np.transpose(relief, (1, 0))
+  plt.imshow(relief)
+  plt.show()
+
+def main(input):
+  array = merge(input)
+  # show_relief(array)
+  show_normal(array)
 
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   main(data)

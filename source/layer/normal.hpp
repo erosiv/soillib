@@ -148,8 +148,9 @@ struct normal: layer<array_t<float>, array_t<fvec3>> {
     for(const auto& pos: _shape.iter()){
       const size_t index = _shape.flat(pos);
       glm::vec3 n = __normal(in, glm::ivec2(pos[0], pos[1]));
+      n = { n.x, -n.z, n.y};
       n = 0.5f*n + 0.5f;
-      out[index] = {n.x, n.z, n.y};
+      out[index] = {n.x, n.y, n.z};
     }
 
     return std::move(out);

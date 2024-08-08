@@ -5,16 +5,30 @@ import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
 
-def main(path):
+def iter_tiff(path):
+
+  '''
+  Generator for all Files in 
+  Directory, or a Single File
+  '''
 
   path = os.fsencode(path)
-  
   if not os.path.exists(path):
     raise RuntimeError("path does not exist")
 
-  def show_tiff(path):
+  if os.path.isfile(path):
+    file = os.path.basename(path)
+    return file, path
 
-    # Load Image, Data Array
+  elif os.path.isdir(path):
+    for file in os.listdir(path):
+      yield file, os.path.join(path, file)
+
+def main(input):
+
+  for file, path in iter_tiff(input):
+
+    print(f"File: {file}")
     image = soil.geotiff(path)
     array = image.array()
 
@@ -23,16 +37,8 @@ def main(path):
     plt.imshow(array)
     plt.show()
 
-  if os.path.isfile(path):
-
-    show_tiff(path)
-
-  elif os.path.isdir(path):
-    for file in os.listdir(path):
-      show_tiff(os.path.join(path, file))
-
 if __name__ == "__main__":
 
-  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)
