@@ -8,12 +8,12 @@ import numpy as np
 def relief_shade(h, n):
 
   # Regularize Height
-  h_min = np.min(h)
-  h_max = np.max(h)
+  h_min = np.nanmin(h)
+  h_max = np.nanmax(h)
   h = (h - h_min)/(h_max - h_min)
 
   # Light Direction, Diffuse Lighting
-  light = np.array([-1, 1, 2])
+  light = np.array([ 1, 1, 2])
   light = light / np.linalg.norm(light)
 
   diffuse = np.sum(light * n, axis=-1)
@@ -131,19 +131,20 @@ def show_relief(array):
   height_data = np.array(array)
   relief = relief_shade(height_data, normal_data)
   relief = np.transpose(relief, (1, 0))
-  plt.imshow(relief)
+  plt.imshow(relief, cmap='gray')
   plt.show()
 
 def main(input):
   array = merge(input)
-  # show_relief(array)
-  show_normal(array)
+  #show_relief(array)
+  #show_normal(array)
+  show_height(array)
 
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   main(data)
