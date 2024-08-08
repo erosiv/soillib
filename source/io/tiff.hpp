@@ -106,49 +106,51 @@ bool tiff::read(const char* filename){
     }
 
   }
-  
-  /*
+
   else {
 
-    const size_t tsize = this->twidth * this->theight;
-    const size_t nwidth = (this->width + this->twidth - 1)/this->twidth;
-    const size_t nheight = (this->height + this->theight - 1)/this->theight;
+    const size_t tsize = this->_twidth * this->_theight;
+    const size_t nwidth = (this->width() + this->_twidth - 1)/this->_twidth;
+    const size_t nheight = (this->height() + this->_theight - 1)/this->_theight;
 
-    T* buf = this->data;
-    T* nbuf = new T[tsize];
+    auto data = std::visit([](auto&& args){
+      return args.data();
+    }, this->_array);
+
+    uint8_t* buf = (uint8_t*)data;
+    uint8_t* nbuf = new uint8_t[tsize * (this->bits() / 8)];
 
     for(size_t nx = 0; nx < nwidth; ++nx)
     for(size_t ny = 0; ny < nheight; ++ny){
 
       const glm::ivec2 npos(nx, ny);
-      const glm::ivec2 norg = npos*glm::ivec2(this->twidth, this->theight);
+      const glm::ivec2 norg = npos*glm::ivec2(this->_twidth, this->_theight);
 
       if(!TIFFReadTile(tif, nbuf, norg.x, norg.y, 0, 0)){
         continue;
       }
 
-      for(size_t ix = 0; ix < this->twidth; ix++)
-      for(size_t iy = 0; iy < this->theight; iy++){
+      for(size_t ix = 0; ix < this->_twidth; ix++)
+      for(size_t iy = 0; iy < this->_theight; iy++){
 
         glm::ivec2 tpos = glm::ivec2(ix, iy);
         glm::ivec2 fpos = norg + tpos;
 
-       if(fpos.x >= this->width) continue;
-       if(fpos.y >= this->height) continue;
+       if(fpos.x >= this->width()) continue;
+       if(fpos.y >= this->height()) continue;
 
-        if(buf[fpos.y * this->width + fpos.x] == 0){
-
-          buf[fpos.y * this->width + fpos.x] = nbuf[iy * this->twidth + ix];
+        const size_t shift = (this->bits() / 8);
+        for(size_t i = 0; i < shift; ++i){
+          if(buf[shift*(fpos.y * this->width() + fpos.x)+i] == 0){
+            buf[shift*(fpos.y * this->width() + fpos.x)+i] = nbuf[shift*(iy * this->_twidth + ix)+i];
+          }
         }
-
       }
     }
 
     delete[] nbuf;
 
   }
-  */
-
 
   TIFFClose(tif);
   return true;
