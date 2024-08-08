@@ -57,14 +57,11 @@ array.def("__setitem__", [](array_t& array, const size_t index, const T& value){
 });
 
 array.def("__setitem__", [](array_t& array, const py::tuple& tup, const T& value){
-
-  std::vector<size_t> v;
-  for(auto& d: tup)
-    v.push_back(d.cast<size_t>());
-  
-  const size_t index = array.shape().flat(&v[0], v.size());
+  size_t index;
+  if(tup.size() == 1) index = array.shape().template flat<1>({tup[0].cast<size_t>()});
+  if(tup.size() == 2) index = array.shape().template flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
+  if(tup.size() == 3) index = array.shape().template flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
   array[index] = value;
-
 });
 
 array.def_buffer([](array_t& array) -> py::buffer_info {
@@ -143,7 +140,11 @@ shape.def("dims", &soil::shape::dims);
 shape.def("elem", &soil::shape::elem);
 shape.def("iter", &soil::shape::iter);
 shape.def("flat", [](const soil::shape& shape, const std::vector<size_t>& v){
-  return shape.flat(&v[0], v.size());
+  if(v.size() == 1) return shape.flat<1>({v[0]});
+  if(v.size() == 2) return shape.flat<2>({v[0], v[1]});
+  if(v.size() == 3) return shape.flat<3>({v[0], v[1], v[2]});
+  throw std::invalid_argument("invalid size");
+  //return shape.flat(&v[0], v.size());
 });
 
 shape.def("__getitem__", &soil::shape::operator[]);

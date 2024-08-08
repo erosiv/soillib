@@ -31,43 +31,27 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   py[3].pos = p + glm::ivec2( 0, 1);
   py[4].pos = p + glm::ivec2( 0, 2);
 
-  // if(map.shape())
-
   auto _array = std::get<soil::array_t<float>>(array);
-  auto _shape = std::get<soil::shape_t<2>>(_array.shape()._shape);
-
-  // std::cout<<p.x<<" "<<p.y<<std::endl;
-
-  auto oob = [&](const glm::ivec2 pos) -> bool {
-    return _shape.oob(pos);
-  };
+  auto _shape = _array.shape();
 
   auto sample = [&](const glm::ivec2 pos) -> float {
-    const size_t index = _shape.flat({(size_t)pos.x, (size_t)pos.y});
-
-    //std::cout<<pos.x<<" "<<pos.y<<" "<<index<<std::endl;
-
+    const size_t index = _shape.flat<2>({(size_t)pos.x, (size_t)pos.y});
     return _array[index];
   };
 
   for(size_t i = 0; i < 5; i++){
-    if(!oob(px[i].pos)){
+
+    auto pos_x = px[i].pos;
+    auto pos_y = py[i].pos;
+
+    if(!_shape.oob<2>({(size_t)pos_x.x, (size_t)pos_x.y})){
       px[i].oob = false;
       px[i].height = sample(px[i].pos);
-
-     // std::cout<<i<<" "<<px[i].height<<std::endl;
-
     }
-  }
   
-  for(size_t i = 0; i < 5; i++){
-    if(!oob(py[i].pos)){
+    if(!_shape.oob<2>({(size_t)pos_y.x, (size_t)pos_y.y})){
       py[i].oob = false;
       py[i].height = sample(py[i].pos);
-
-
-     // std::cout<<i<<" "<<py[i].height<<std::endl;
-
     }
   }
 
@@ -162,16 +146,13 @@ struct normal: layer<array_t<float>, array_t<fvec3>> {
 
     auto _shape = std::get<soil::shape_t<2>>(shape._shape);
     for(const auto& pos: _shape.iter()){
-
       const size_t index = _shape.flat(pos);
       glm::vec3 n = __normal(in, glm::ivec2(pos[0], pos[1]));
-      n = glm::vec3(-n.x, -n.z, n.y);
       n = 0.5f*n + 0.5f;
-      out[index] = {n.x, n.y, n.z};
+      out[index] = {n.x, n.z, n.y};
     }
 
     return std::move(out);
-
   }
 
 };

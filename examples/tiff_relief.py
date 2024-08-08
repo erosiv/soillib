@@ -20,7 +20,7 @@ def main(path):
     h = (h - h_min)/(h_max - h_min)
 
     # Light Direction, Diffuse Lighting
-    light = np.array([ 1,-1, 2])
+    light = np.array([-1, 1, 2])
     light = light / np.linalg.norm(light)
 
     diffuse = np.sum(light * n, axis=-1)

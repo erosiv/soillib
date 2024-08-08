@@ -14,25 +14,17 @@
 
 namespace soil {
 
-// a shape is a multi-dimensional extent struct.
-// 
-// a shape is considered static, and doesn't
-// itself implement re-shaping. Instead, it only
-// provides methods to test broadcastability.
-//
-// shape provides a flat index generator, which is
-// iterable and emits the indices for lookup in a
-// hypothetical flat buffer. This takes into account
-// any permutation.
-
-//! shape_b is an polymorphic shape base type,
-//! from which fixed-size shape types are derived.
+//! a shape is a multi-dimensional extent struct.
+//! a shape represents a compact N-d region.
+//! 
+//! a shape is considered static, and doesn't
+//! itself implement re-shaping. Instead, it only
+//! provides methods to test broadcastability.
 //!
-//! shape_t is a strict-typed, dimensioned shape type.
-//!
-//! shape_t implements the different procedures for a
-//! fixed number of dimensions D.
-//!
+//! shape provides a flat index generator, which is
+//! iterable and emits the indices for lookup in a
+//! hypothetical flat buffer. This takes into account
+//! any permutation.
 template<size_t D>
 struct shape_t {
 
@@ -44,7 +36,10 @@ struct shape_t {
       this->_arr[i] = v[i];
   }
 
-  size_t dims() const { return D; }
+  //! Number of Dimensions
+  size_t dims() const { 
+    return D; 
+  }
 
   //! Number of Elements
   size_t elem() const {
@@ -54,7 +49,14 @@ struct shape_t {
     return v;
   }
 
-  inline size_t flat(const arr_t pos) const {
+  //! Shape Dimension Lookup
+  size_t operator[](const size_t d) const {
+    if(d >= D) throw std::invalid_argument("index is out of bounds");
+    return this->_arr[d];
+  }
+
+  //! Position Flattening Procedure
+  size_t flat(const arr_t pos) const {
     size_t value = 0;
     for(size_t d = 0; d < D; ++d){
       value *= this->operator[](d);
@@ -63,15 +65,12 @@ struct shape_t {
     return value;
   }
 
-  //! Shape Dimension Lookup
-  size_t operator[](const size_t d) const {
-    if(d >= D) throw std::invalid_argument("index is out of bounds");
-    return this->_arr[d];
-  }
-
-  inline bool oob(const glm::ivec2 pos) const {
-    if(this->dims() != 2) throw std::invalid_argument("invalid shape");
-    return pos.x < 0 || pos.y < 0 || pos.x >= this->_arr[0] || pos.y >= this->_arr[1];
+  //! Out-Of-Bounds Check (Compact)
+  bool oob(const arr_t pos) const {
+    for(size_t d = 0; d < D; ++d)
+      if(pos[d] < 0 || pos[d] >= this->operator[](d)) 
+        return true;
+    return false;
   }
 
   //! Position Generator
@@ -159,19 +158,29 @@ struct shape {
     }, this->_shape);
   }
 
-  size_t flat(const size_t* p, const size_t N) const {
+  // Templated Functions
 
-    if(N > this->dims())
+  template<size_t N>
+  size_t flat(const shape_t<N>::arr_t& arr) const {
+
+    if(N != this->dims())
       throw std::invalid_argument("invalid flattening size");
-
-    return std::visit(overloaded{
-      [&p](const soil::shape_t<1>& shape) { return shape.flat({p[0]}); },
-      [&p](const soil::shape_t<2>& shape) { return shape.flat({p[0], p[1]}); },
-      [&p](const soil::shape_t<3>& shape) { return shape.flat({p[0], p[1], p[2]}); }
-    }, _shape);
+    
+    auto tmp = std::get<shape_t<N>>(this->_shape);
+    return tmp.flat(arr);
+  
   }
 
+  template<size_t N>
+  size_t oob(const shape_t<N>::arr_t& arr) const {
 
+    if(N != this->dims())
+      throw std::invalid_argument("invalid flattening size");
+
+    auto tmp = std::get<shape_t<N>>(this->_shape);
+    return tmp.oob(arr);
+
+  }
 
   shape_v make(const std::vector<size_t>& v){
     if(v.size() == 1) return shape_t<1>(v);

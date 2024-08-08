@@ -1,5 +1,5 @@
-#ifndef SOILLIB_UTIL_BUF_NEW
-#define SOILLIB_UTIL_BUF_NEW
+#ifndef SOILLIB_UTIL_ARRAY
+#define SOILLIB_UTIL_ARRAY
 
 #include <memory>
 #include <iostream>
@@ -10,28 +10,15 @@
 
 namespace soil {
 
-//! array_b is an abstract polymorphic array base type,
-//! which handles ownership tracking by move semantics.
-//!
-//! array allows for specialization of strict-typed
-//! array types, which implement memory safe operations.
-//!
-
 //! array_t<T> is a strict-typed, owning raw-data extent.
 //! 
 template<typename T>
 struct array_t {
 
-  // Constructors / Destructor
-
   array_t() = default;
-  array_t(soil::shape _shape):
-    _shape{_shape}{
-      auto _size = this->elem();
-      if(_size == 0)
-        throw std::invalid_argument("size must be greater than 0");
-      this->allocate(_size);
-    }
+  array_t(const soil::shape& shape){
+    this->allocate(shape);
+  }
 
   ~array_t(){
     this->deallocate(); 
@@ -39,10 +26,13 @@ struct array_t {
 
   // Allocator / Deallocator
 
-  void allocate(const size_t size){
+  void allocate(const soil::shape& shape){
     if(this->_data != NULL)
       throw std::runtime_error("can't allocate over allocated buffer");
-    this->_data = std::make_shared<T[]>(size);
+    if(shape.elem() == 0)
+      throw std::invalid_argument("size must be greater than 0");
+    this->_data = std::make_shared<T[]>(shape.elem());
+    this->_shape = shape;
   }
 
   void deallocate(){
@@ -58,6 +48,12 @@ struct array_t {
 
   inline void zero(){
     this->fill(T{0});
+  }
+
+  inline void reshape(const soil::shape& shape){
+    if(this->elem() != shape.elem())
+      throw std::invalid_argument("can't broadcast current shape to new shape");
+    else this->_shape = shape;
   }
 
   // Subscript Operator
@@ -82,12 +78,6 @@ struct array_t {
   inline size_t elem()  const { return this->_shape.elem(); }
   inline size_t size()  const { return this->elem() * sizeof(T); }
   inline void* data()         { return (void*)this->_data.get(); }
-
-  inline void reshape(soil::shape shape) {
-    if(this->elem() != shape.elem())
-      throw std::invalid_argument("can't broadcast current shape to new shape");
-    else this->_shape = shape;
-  }
 
 private:
   std::shared_ptr<T[]> _data = NULL;  //!< Raw Data Pointer Member 
