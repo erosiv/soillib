@@ -100,6 +100,6 @@ def test_iter():
       pass
   '''
 
-#test_shape()
-#test_iter()
-#test_array()
+test_shape()
+test_iter()
+test_array()

@@ -3,15 +3,7 @@
 import os
 import soillib as soil
 import matplotlib.pyplot as plt
-
-'''
-What do we do at this point?
-Basically we can load our image as a buffer.
-Regularly I would load it into a slice of some dimension,
-then I would have the normal operation just run on the slice?
-
-Let's try that.
-'''
+import numpy as np
 
 def main(path):
 
@@ -23,10 +15,17 @@ def main(path):
   def show_tiff(path):
 
     img = soil.geotiff(path)
-    buf = img.buf()
-    data = buf.numpy()
 
-    data = data.reshape((img.height, img.width))
+    # Get the Buffer Type
+    height = img.buf()
+    height.reshape(soil.shape([img.height, img.width]))
+
+    normal = soil.normal(height)
+
+    # Extract Data
+    data = normal()
+    data = np.array(data)
+    # data = data.reshape((img.height, img.width, 3))
     print(data.shape, data.dtype)
 
     plt.imshow(data)
@@ -42,5 +41,6 @@ def main(path):
 
 if __name__ == "__main__":
 
+  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)

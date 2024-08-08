@@ -6,7 +6,7 @@ LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
 LINKLIB = -ltiff
 
-CC = g++ -std=c++20
+CC = g++ -std=c++23
 CF = -Wfatal-errors -O3
 
 # OS Specific Configuration
@@ -19,7 +19,7 @@ endif
 ifeq ($(UNAME), Darwin)			# Detect MacOS
 INCPATH = -I/opt/homebrew/include
 LIBPATH = -L/opt/homebrew/lib
-CC = g++-13 -std=c++20
+CC = g++-13 -std=c++23
 endif
 
 all:
@@ -27,6 +27,7 @@ all:
 	@$(CC) $(CF) $(LF) $(INCPATH) $(LIBPATH) \
 		source/soillib.cpp \
 		source/util.cpp \
+		source/layer.cpp \
 		source/io.cpp \
 	$(LINKLIB) -shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
 	@echo "soillib: installing python module..."

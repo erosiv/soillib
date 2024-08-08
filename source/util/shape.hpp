@@ -69,6 +69,11 @@ struct shape_t {
     return this->_arr[d];
   }
 
+  inline bool oob(const glm::ivec2 pos) const {
+    if(this->dims() != 2) throw std::invalid_argument("invalid shape");
+    return pos.x < 0 || pos.y < 0 || pos.x >= this->_arr[0] || pos.y >= this->_arr[1];
+  }
+
   //! Position Generator
   //!
   //! This returns a generator coroutine,

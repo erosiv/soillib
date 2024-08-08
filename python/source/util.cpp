@@ -58,6 +58,10 @@ shape.def("__repr__", [](const shape_t& shape){
 
 }
 
+// helper type for the visitor #4
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+
 //
 //
 //
@@ -84,6 +88,18 @@ array.def("__getitem__", [](const array_t& array, const size_t index){
 
 array.def("__setitem__", [](array_t& array, const size_t index, const T& value){
   array[index] = value;
+});
+
+array.def("__setitem__", [](array_t& array, const py::tuple& tup, const T& value){
+
+  size_t index = std::visit(overloaded{
+    [&tup](const soil::shape_t<1>& shape) { return shape.flat({tup[0].cast<size_t>()}); },
+    [&tup](const soil::shape_t<2>& shape) { return shape.flat({tup[0].cast<size_t>(), tup[1].cast<size_t>()}); },
+    [&tup](const soil::shape_t<3>& shape) { return shape.flat({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()}); }
+  }, array.shape());
+
+  array[index] = value;
+
 });
 
 array.def_buffer([](array_t& array) -> py::buffer_info {
@@ -183,6 +199,8 @@ module.def("shape", do_test);
 bind_array_t<int>(module, "array_int");
 bind_array_t<float>(module, "array_float");
 bind_array_t<double>(module, "array_double");
+bind_array_t<soil::fvec2>(module, "array_fvec2");
+bind_array_t<soil::fvec3>(module, "array_fvec3");
 
 module.def("array", [&do_test](std::string type, std::vector<size_t> v) -> soil::array { 
   soil::shape shape = do_test(v);
@@ -191,93 +209,6 @@ module.def("array", [&do_test](std::string type, std::vector<size_t> v) -> soil:
   if(type == "double")  return soil::array_t<double>(shape);
   throw std::invalid_argument("invalid type argument");
 });
-
-
-/*
-// Wrapper-Class Implementation
-
-auto array = py::class_<soil::array>(module, "array", );
-
-array.def(py::init<>([](std::string type, const soil::shape& shape){
-  return soil::array(type, shape);
-}));
-
-array.def("size", &soil::array::size);
-array.def("elem", &soil::array::elem);
-
-array.def_property_readonly("type", &soil::array::type);
-array.def_property_readonly("shape", &soil::array::shape);
-
-array.def("zero", &soil::array::zero);
-
-array.def("fill", &soil::array::fill<int>);
-array.def("fill", &soil::array::fill<float>);
-array.def("fill", &soil::array::fill<double>);
-
-array.def("reshape", &soil::array::reshape);
-
-array.def("__setitem__", &soil::array::set<int>);
-array.def("__setitem__", &soil::array::set<float>);
-array.def("__setitem__", &soil::array::set<double>);
-
-using val_v = soil::multi;
-
-array.def("__getitem__", [](soil::array& source, const size_t index){
-  return source.get(index);
-});
-
-array.def("__setitem__", [](soil::array& source, py::tuple& tup, int value){
-  size_t index;
-  if(tup.size() == 1) index = source.shape().flat<1>({tup[0].cast<size_t>()});
-  if(tup.size() == 2) index = source.shape().flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
-  if(tup.size() == 3) index = source.shape().flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
-  source.set<int>(index, value);
-});
-
-array.def("__setitem__", [](soil::array& source, py::tuple& tup, float value){
-  size_t index;
-  if(tup.size() == 1) index = source.shape().flat<1>({tup[0].cast<size_t>()});
-  if(tup.size() == 2) index = source.shape().flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
-  if(tup.size() == 3) index = source.shape().flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
-  source.set<float>(index, value);
-});
-
-array.def("__setitem__", [](soil::array& source, py::tuple& tup, double value){
-  size_t index;
-  if(tup.size() == 1) index = source.shape().flat<1>({tup[0].cast<size_t>()});
-  if(tup.size() == 2) index = source.shape().flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
-  if(tup.size() == 3) index = source.shape().flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
-  source.set<double>(index, value);
-});
-
-array.def("__getitem__", [](soil::array& source, py::tuple& tup){
-  if(tup.size() == 1) return source.get<1>({tup[0].cast<size_t>()});
-  if(tup.size() == 2) return source.get<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
-  if(tup.size() == 3) return source.get<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
-  throw std::invalid_argument("invalid tuple size");
-});
-
-// array.def("__getitem__", [](soil::array& source, const soil::shape_t<1>::arr_t pos){
-//   return source.get<1>(pos);
-// });
-// 
-// array.def("__getitem__", [](soil::array& source, const soil::shape_t<2>::arr_t pos){
-//   return source.get<2>(pos);
-// });
-// 
-// array.def("__getitem__", [](soil::array& source, const soil::shape_t<3>::arr_t pos){
-//   return source.get<3>(pos);
-// });
-
-array.def_buffer([](soil::array& array) -> py::buffer_info {
-  if(array.type() == "int") return make_buffer<int>(array);
-  if(array.type() == "float") return make_buffer<float>(array);
-  if(array.type() == "double") return make_buffer<double>(array);
-  throw std::invalid_argument("invalid argument for type");
-});
-
-*/
-
 
 }
 

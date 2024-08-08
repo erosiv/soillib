@@ -10,6 +10,7 @@ template<typename T, size_t N>
 struct vec_t;
 
 using fvec2 = std::array<float, 2>;
+using fvec3 = std::array<float, 3>;
 
 //using fvec3 = vec_t<
 //using ivec3 = vec_t
@@ -36,6 +37,18 @@ template<>
 struct typedesc<double> {
   typedef double value_t;
   static constexpr const char* name = "double"; 
+};
+
+template<>
+struct typedesc<fvec2> {
+  typedef fvec2 value_t;
+  static constexpr const char* name = "fvec2"; 
+};
+
+template<>
+struct typedesc<fvec3> {
+  typedef fvec3 value_t;
+  static constexpr const char* name = "fvec3"; 
 };
 
 // variant forwarding:

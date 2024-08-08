@@ -78,8 +78,8 @@ def main(path):
 
   array = soil.array("float", pixels)
   array.fill(np.nan)
-  array = np.array(array)
-  print(array.shape)
+  # array = np.array(array)
+  # print(array.shape)
 
   for file in os.listdir(path):
 
@@ -132,6 +132,6 @@ def main(path):
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   main(data)

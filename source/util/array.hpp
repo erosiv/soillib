@@ -57,7 +57,7 @@ struct array_t {
   }
 
   inline void zero(){
-    this->fill(T(0));
+    this->fill(T{0});
   }
 
   // Subscript Operator
@@ -106,7 +106,9 @@ private:
 using array = std::variant<
   soil::array_t<int>,
   soil::array_t<float>,
-  soil::array_t<double>  
+  soil::array_t<double>,
+  soil::array_t<fvec2>, 
+  soil::array_t<fvec3>
 >;
 
 } // end of namespace soil
