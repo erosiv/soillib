@@ -87,9 +87,8 @@ def main(path):
     geotiff = soil.geotiff(tpath)
     # print(tpath)
 
-    buf = geotiff.buf()
+    buf = geotiff.array()
     buf = np.array(buf)
-    buf = buf.reshape((geotiff.height, geotiff.width))
   
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)

@@ -9,15 +9,13 @@
 namespace soil {
 namespace io {
 
-//! tiff<T> is a generic, strict-typed .tiff interface
-//! for reading and writing generic image data to disk.
+//! tiff is a generic .tiff file interface for reading
+//! and writing generic image data to and from disk.
 //!
-//! tiff<T> supports multiple different bit-depths, as
+//! tiff supports multiple different bit-depths, as
 //! well as the reading of tiled .tiff images.
 //!
 struct tiff {
-
-  soil::array _buf;
 
   tiff(){}
   tiff(const char* filename){ read(filename); };
@@ -26,16 +24,24 @@ struct tiff {
   bool read(const char* filename);  //!< Read TIFF Raw Data
   bool write(const char* filename); //!< Write TIFF Raw Data
 
-  uint32_t width = 0;
-  uint32_t height = 0;
-  uint32_t bits = 0;
+  uint32_t bits()   const { return this->_bits; }
+  uint32_t width()  const { return this->_width; }
+  uint32_t height() const { return this->_height; }
 
-private:
-  bool meta_loaded = false;
-  bool tiled_image = false;
+  soil::array array() const { return this->_array; }
 
-  uint32_t twidth = 0;
-  uint32_t theight = 0;
+protected:
+  bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
+  bool tiled_image = false; //!< Flag: Is Image Tiled
+
+  uint32_t _width = 0;    //!< Image Width
+  uint32_t _height = 0;   //!< Image Height
+  uint32_t _bits = 0;     //!< Pixel Bit-Depth
+
+  uint32_t _twidth = 0;   //!< Tile Width
+  uint32_t _theight = 0;  //!< Tile Height
+
+  soil::array _array;     //!< Underlying Data Buffer
 };
 
 //! Load TIFF Metadata
@@ -43,19 +49,19 @@ bool tiff::meta(const char* filename){
 
   TIFF* tif = TIFFOpen(filename, "r");
 
-  if(!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &this->width))
+  if(!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &this->_width))
     return false;
 
-  if(!TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &this->height))
+  if(!TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &this->_height))
     return false;
 
-  if(!TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &this->bits))
+  if(!TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &this->_bits))
     return false;
   
-  if(TIFFGetField(tif, TIFFTAG_TILEWIDTH, &this->twidth))
+  if(TIFFGetField(tif, TIFFTAG_TILEWIDTH, &this->_twidth))
     this->tiled_image = true;
 
-  if(TIFFGetField(tif, TIFFTAG_TILELENGTH, &this->theight))
+  if(TIFFGetField(tif, TIFFTAG_TILELENGTH, &this->_theight))
     this->tiled_image = true;
 
   TIFFClose(tif);
@@ -72,12 +78,15 @@ bool tiff::read(const char* filename){
     this->meta(filename);
   }
 
-  auto shape = soil::shape_t<2>({this->width, this->height});
-  if(this->bits == 32){
-    this->_buf = soil::array_t<float>(shape);
+  // Note: TIFF is Column Major (See Reading Function Below)
+  //  Therefore,
+  
+  auto shape = soil::shape_t<2>({this->height(), this->width()});
+  if(this->bits() == 32){
+    this->_array = soil::array_t<float>(shape);
   }
-  if(this->bits == 64){
-    this->_buf = soil::array_t<double>(shape);
+  if(this->bits() == 64){
+    this->_array = soil::array_t<double>(shape);
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
@@ -87,12 +96,12 @@ bool tiff::read(const char* filename){
 
     auto data = std::visit([](auto&& args){
       return args.data();
-    }, this->_buf);
+    }, this->_array);
 
     uint8_t* buf = (uint8_t*)data;
-    for(size_t row = 0; row < this->height; row++){
+    for(size_t row = 0; row < this->height(); row++){
       TIFFReadScanline(tif, buf, row);
-      buf += this->width*(this->bits / 8);
+      buf += this->width()*(this->bits() / 8);
     }
 
   }
@@ -149,15 +158,15 @@ bool tiff::write(const char *filename) {
   
   TIFF *out= TIFFOpen(filename, "w");
 
-  TIFFSetField(out, TIFFTAG_IMAGEWIDTH, this->width);
-  TIFFSetField(out, TIFFTAG_IMAGELENGTH, this->height);
+  TIFFSetField(out, TIFFTAG_IMAGEWIDTH, this->width());
+  TIFFSetField(out, TIFFTAG_IMAGELENGTH, this->height());
   TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
-  TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, this->bits);
+  TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, this->bits());
   TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
   TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
   TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
-  TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width));
+  TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
 
   /*
   for(size_t row = 0; row < this->height; row++){

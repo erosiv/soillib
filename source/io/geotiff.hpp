@@ -64,6 +64,9 @@ static void _XTIFFInitialize(void) {
 struct geotiff: soil::io::tiff {
 
   using soil::io::tiff::tiff;
+  using soil::io::tiff::width;
+  using soil::io::tiff::height;
+  
   //using soil::io::tiff<T>::allocate;
   //using soil::io::tiff<T>::operator[];
 
@@ -81,7 +84,7 @@ struct geotiff: soil::io::tiff {
 //  inline std::array<float, 2> max() const { return _coords}
 
   inline glm::vec2 scale() const { return glm::vec2(_scale); }
-  inline glm::vec2 dim() const   { return glm::vec2(this->width, this->height); }
+  inline glm::vec2 dim() const   { return glm::vec2(this->width(), this->height()); }
   inline glm::vec2 min() const   { return glm::vec2(_coords[1]); }
   inline glm::vec2 max() const   { return min() + scale()*dim(); }
   inline glm::vec2 map(const glm::vec2 p) const { return min() + scale()*p; }
@@ -130,13 +133,11 @@ bool geotiff::meta(const char* filename){
 
 }
 
-//template<typename T>
 bool geotiff::read(const char* filename){
   _XTIFFInitialize();
   return tiff::read(filename);
 }
 
-//template<typename T>
 bool geotiff::write(const char *filename) {
   return tiff::write(filename);
 }

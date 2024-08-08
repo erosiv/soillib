@@ -40,8 +40,7 @@ def main(path):
     img = soil.geotiff(path)
 
     # Get the Buffer Type
-    height = img.buf()
-    height.reshape(soil.shape([img.height, img.width]))
+    height = img.array()
     normal = soil.normal(height)
 
     # Extract Data

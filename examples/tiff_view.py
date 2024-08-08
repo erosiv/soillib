@@ -15,10 +15,8 @@ def main(path):
   def show_tiff(path):
 
     img = soil.geotiff(path)
-    #buf = img.buf()
 
-    data = np.array(img.buf())
-    data = data.reshape((img.height, img.width))
+    data = np.array(img.array())
     print(data.shape, data.dtype)
 
     plt.imshow(data)
