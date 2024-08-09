@@ -30,8 +30,7 @@ def main(input):
 
     image = soil.geotiff(path)
     height = image.array()
-    normal = soil.normal(height)
-    data = normal()
+    data = soil.normal()(height)
 
     # Output Meta-Data, Plot
     print(data.shape, data.type)
@@ -40,6 +39,6 @@ def main(input):
 
 if __name__ == "__main__":
 
-  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)

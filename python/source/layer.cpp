@@ -18,10 +18,9 @@ namespace py = pybind11;
 void bind_layer(py::module& module){
 
   auto normal = py::class_<soil::normal>(module, "normal");
-  normal.def(py::init<soil::normal::in_t&>());
-
-  normal.def("__call__", &soil::normal::operator());
-
+  normal.def(py::init<>());
+  normal.def_static("__call__", py::overload_cast<const soil::array_t<float>&>(soil::normal::operator()));
+  normal.def_static("__call__", py::overload_cast<const soil::array_t<double>&>(soil::normal::operator()));
 }
 
 #endif

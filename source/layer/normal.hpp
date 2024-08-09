@@ -9,6 +9,7 @@ namespace soil {
 
 namespace {
 
+template<typename T>
 glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
 
   // Generate the Finite Difference Samples
@@ -16,7 +17,7 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   struct Point {
     glm::ivec2 pos;
     bool oob = true;
-    float height;
+    T height;
   } px[5], py[5];
 
   px[0].pos = p + glm::ivec2(-2, 0);
@@ -31,11 +32,11 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   py[3].pos = p + glm::ivec2( 0, 1);
   py[4].pos = p + glm::ivec2( 0, 2);
 
-  auto _array = std::get<soil::array_t<float>>(array);
+  auto _array = std::get<soil::array_t<T>>(array);
   auto _shape = _array.shape();
 
-  auto sample = [&](const glm::ivec2 pos) -> float {
-    const size_t index = _shape.flat<2>({(size_t)pos.x, (size_t)pos.y});
+  auto sample = [&](const glm::ivec2 pos) -> T {
+    const size_t index = _shape.template flat<2>({(size_t)pos.x, (size_t)pos.y});
     return _array[index];
   };
 
@@ -44,12 +45,12 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
     auto pos_x = px[i].pos;
     auto pos_y = py[i].pos;
 
-    if(!_shape.oob<2>({(size_t)pos_x.x, (size_t)pos_x.y})){
+    if(!_shape.template oob<2>({(size_t)pos_x.x, (size_t)pos_x.y})){
       px[i].oob = false;
       px[i].height = sample(px[i].pos);
     }
   
-    if(!_shape.oob<2>({(size_t)pos_y.x, (size_t)pos_y.y})){
+    if(!_shape.template oob<2>({(size_t)pos_y.x, (size_t)pos_y.y})){
       py[i].oob = false;
       py[i].height = sample(py[i].pos);
     }
@@ -116,10 +117,10 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
 
 // Surface Normal from Surface Gradient
 
-//template<surface_t T>
+template<typename T>
 glm::vec3 __normal(const soil::array& array, glm::ivec2 p){
 
-  const glm::vec2 g = gradient_detailed(array, p);
+  const glm::vec2 g = gradient_detailed<T>(array, p);
   glm::vec3 n = glm::vec3(-g.x, 1.0f, -g.y);
 
   if(length(n) > 0)
@@ -130,24 +131,47 @@ glm::vec3 __normal(const soil::array& array, glm::ivec2 p){
 
 }
 
-struct normal: layer<array_t<float>, array_t<fvec3>> {
+/*
+Basically, what is happening, is that we have a type that utilizes a function
+to execute on an input layer. We could also make it NON-CACHED which would let
+us template it further... That would also improve the API.
 
-  using layer::layer;
-  using layer::in_t;
-  using layer::out_t;
-  using layer::in;
+A cached layer would be something else for later...
+But the buffer exists... So we will think about that later.
+*/
 
-  using layer_t = layer<array_t<float>, array_t<fvec3>>;
+// In principle, normal can take multiple types.
+// This is where concepts become quite useful...
 
-  out_t operator()(){
+struct normal {
+
+  static array_t<fvec3> operator()(const array_t<float>& in){
 
     soil::shape shape = in.shape();
-    out_t out = out_t{shape};
+    array_t<fvec3> out = array_t<fvec3>{shape};
 
     auto _shape = std::get<soil::shape_t<2>>(shape._shape);
     for(const auto& pos: _shape.iter()){
       const size_t index = _shape.flat(pos);
-      glm::vec3 n = __normal(in, glm::ivec2(pos[0], pos[1]));
+      glm::vec3 n = __normal<float>(in, glm::ivec2(pos[0], pos[1]));
+      n = { n.x, -n.z, n.y};
+      n = 0.5f*n + 0.5f;
+      out[index] = {n.x, n.y, n.z};
+    }
+
+    return std::move(out);
+
+  }
+
+  static array_t<fvec3> operator()(const array_t<double>& in){
+
+    soil::shape shape = in.shape();
+    array_t<fvec3> out = array_t<fvec3>{shape};
+
+    auto _shape = std::get<soil::shape_t<2>>(shape._shape);
+    for(const auto& pos: _shape.iter()){
+      const size_t index = _shape.flat(pos);
+      glm::vec3 n = __normal<double>(in, glm::ivec2(pos[0], pos[1]));
       n = { n.x, -n.z, n.y};
       n = 0.5f*n + 0.5f;
       out[index] = {n.x, n.y, n.z};
