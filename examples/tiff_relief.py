@@ -27,8 +27,8 @@ def iter_tiff(path):
 def relief_shade(h, n):
 
   # Regularize Height
-  h_min = np.min(h)
-  h_max = np.max(h)
+  h_min = np.nanmin(h)
+  h_max = np.nanmax(h)
   h = (h - h_min)/(h_max - h_min)
 
   # Light Direction, Diffuse Lighting
@@ -54,8 +54,8 @@ def main(input):
     # Load Data
     img = soil.geotiff(path)
     height = img.array()
-    normal = soil.normal(height)
-    normal_data = np.array(normal())
+    normal = soil.normal()(height)
+    normal_data = np.array(normal)
     height_data = np.array(height)
 
     # Compute Shading
@@ -66,6 +66,6 @@ def main(input):
 
 if __name__ == "__main__":
 
-  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)

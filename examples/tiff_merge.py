@@ -119,15 +119,15 @@ def show_height(array):
   plt.show()
 
 def show_normal(array):
-  normal = soil.normal(array)
-  data = np.array(normal())
+  normal = soil.normal()(array)
+  data = np.array(normal)
   data = np.transpose(data, (1, 0, 2))
   plt.imshow(data)
   plt.show()
 
 def show_relief(array):
-  normal = soil.normal(array)
-  normal_data = np.array(normal())
+  normal = soil.normal()(array)
+  normal_data = np.array(normal)
   height_data = np.array(array)
   relief = relief_shade(height_data, normal_data)
   relief = np.transpose(relief, (1, 0))
@@ -136,9 +136,9 @@ def show_relief(array):
 
 def main(input):
   array = merge(input)
-  #show_relief(array)
+  show_relief(array)
   #show_normal(array)
-  show_height(array)
+  #show_height(array)
 
 if __name__ == "__main__":
 
