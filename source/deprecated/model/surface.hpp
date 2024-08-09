@@ -26,29 +26,6 @@ concept surface_t = requires(T t){
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
 };
 
-// Surface Map Function Implementations
-
-template<surface_t T>
-const static inline float height(T& map, glm::vec2 p){
-
-  if(map.oob(p))
-    return 0.0f;
-
-  glm::ivec2 m = p;
-
-  if(map.oob(m + glm::ivec2(1)))
-    return map.height(m);
-
-  glm::vec2 f = glm::fract(p);
-  float h00 = map.height(m + glm::ivec2(0, 0));
-  float h01 = map.height(m + glm::ivec2(0, 1));
-  float h10 = map.height(m + glm::ivec2(1, 0));
-  float h11 = map.height(m + glm::ivec2(1, 1));
-  return (1.0f-f.y)*(h00*(1.0f-f.x) + h01*f.x) + f.y*(h10*(1.0f-f.x) + h11*f.x);
-
-}
-
-
 template<surface_t T>
 const static inline glm::vec2 gradient(T& map, glm::ivec2 p){
 

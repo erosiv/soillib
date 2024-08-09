@@ -2,11 +2,19 @@
 #define SOILLIB_TIMER
 
 #include <chrono>
-//#include <iostream>
 
 namespace soil {
 
-//template<typename D>
+//! timer is a simple struct that wraps around
+//! std::chrono high-resolution clock to provide
+//! a benchmarking method.
+//!
+//! Exposed to python through the `with` operator,
+//! this provides a simple scope-based benchmark.
+//!
+//! \todo Add an option to specify the time unit.
+//!   -> with soil.timer('ms') as timer:
+//!
 struct timer {
 
   void start(){
