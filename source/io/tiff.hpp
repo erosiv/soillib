@@ -23,16 +23,11 @@ struct tiff {
 
   tiff(soil::array _array):_array{_array}{
 
-    auto shape = std::visit([](auto&& args){
-      return args.shape();
-    }, _array);
+    auto shape = _array.shape();
+    auto type = _array.type();
 
     this->_height = shape[0];
     this->_width = shape[1];
-
-    auto type = std::visit([](auto&& args){
-      return args.type();
-    }, _array);
 
     if(type == "float"){
       this->_bits = 32;
@@ -107,10 +102,10 @@ bool tiff::read(const char* filename){
   auto shape = soil::shape({this->height(), this->width()});
 
   if(this->bits() == 32){
-    this->_array = soil::array_t<float>(shape);
+    this->_array = soil::array("float", shape);
   }
   if(this->bits() == 64){
-    this->_array = soil::array_t<double>(shape);
+    this->_array = soil::array("double", shape);
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
@@ -118,11 +113,9 @@ bool tiff::read(const char* filename){
   // Load Tiled / Non-Tiled Images
   if(!this->tiled_image){
 
-    auto data = std::visit([](auto&& args){
-      return args.data();
-    }, this->_array);
-
+    auto data = this->_array.data();
     uint8_t* buf = (uint8_t*)data;
+
     for(size_t row = 0; row < this->height(); row++){
       TIFFReadScanline(tif, buf, row);
       buf += this->width()*(this->bits() / 8);
@@ -136,11 +129,9 @@ bool tiff::read(const char* filename){
     const size_t nwidth = (this->width() + this->_twidth - 1)/this->_twidth;
     const size_t nheight = (this->height() + this->_theight - 1)/this->_theight;
 
-    auto data = std::visit([](auto&& args){
-      return args.data();
-    }, this->_array);
-
+    auto data = this->_array.data();
     uint8_t* buf = (uint8_t*)data;
+
     uint8_t* nbuf = new uint8_t[tsize * (this->bits() / 8)];
 
     for(size_t nx = 0; nx < nwidth; ++nx)
@@ -194,15 +185,9 @@ bool tiff::write(const char *filename) {
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
   TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
 
-  std::cout<<this->bits()<<std::endl;
-  std::cout<<this->width()<<std::endl;
-  std::cout<<this->height()<<std::endl;
-
-  auto data = std::visit([](auto&& args){
-    return args.data();
-  }, this->_array);
-
+  auto data = this->_array.data();
   uint8_t* buf = (uint8_t*)data;
+
   for (uint32_t row = 0; row < this->height(); row++) {
     if (TIFFWriteScanline(out, buf, row, 0) < 0)
       break;

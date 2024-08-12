@@ -19,8 +19,7 @@ void bind_layer(py::module& module){
 
   auto normal = py::class_<soil::normal>(module, "normal");
   normal.def(py::init<>());
-  normal.def_static("__call__", py::overload_cast<const soil::array_t<float>&>(soil::normal::operator()));
-  normal.def_static("__call__", py::overload_cast<const soil::array_t<double>&>(soil::normal::operator()));
+  normal.def_static("__call__", soil::normal::operator());
 }
 
 #endif

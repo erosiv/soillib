@@ -32,72 +32,6 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 //
 //
 
-template<typename T>
-void bind_array_t(py::module& module, const char* name){
-
-using array_t = soil::array_t<T>;
-auto array = py::class_<array_t>(module, name, py::buffer_protocol());
-
-array.def("elem", &array_t::elem);
-array.def("size", &array_t::size);
-array.def("zero", &array_t::zero);
-array.def("fill", &array_t::fill);
-
-array.def_property_readonly("type", &array_t::type);
-array.def_property_readonly("shape", &array_t::shape);
-
-array.def("reshape", &array_t::reshape);
-
-array.def("__getitem__", [](const array_t& array, const size_t index){
-  return array[index];
-});
-
-array.def("__setitem__", [](array_t& array, const size_t index, const T& value){
-  array[index] = value;
-});
-
-array.def("__setitem__", [](array_t& array, const py::tuple& tup, const T& value){
-  size_t index;
-  if(tup.size() == 1) index = array.shape().template flat<1>({tup[0].cast<size_t>()});
-  if(tup.size() == 2) index = array.shape().template flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
-  if(tup.size() == 3) index = array.shape().template flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
-  array[index] = value;
-});
-
-array.def_buffer([](array_t& array) -> py::buffer_info {
-
-  std::vector<py::ssize_t> shape;
-  std::vector<py::ssize_t> strides;
-
-  const size_t dims = array.shape().dims();
-
-  for(size_t d = 0; d < dims; ++d){
-    shape.push_back(array.shape()[d]);
-  }
-
-  size_t s = sizeof(T) * array.elem();
-  for(size_t d = 0; d < dims; ++d){
-    s = s / array.shape()[d];
-    strides.push_back(s);
-  }
-  
-  return py::buffer_info(
-    array.data(),
-    sizeof(T),
-    py::format_descriptor<T>::format(),
-    dims,
-    shape,
-    strides
-  );
-
-});
-
-}
-
-//
-//
-//
-
 //! General Util Binding Function
 void bind_util(py::module& module){
 
@@ -162,18 +96,73 @@ shape.def("__repr__", [](const soil::shape& shape){
 // Array Type Binding
 //
 
-bind_array_t<int>(module, "array_int");
-bind_array_t<float>(module, "array_float");
-bind_array_t<double>(module, "array_double");
-bind_array_t<soil::fvec2>(module, "array_fvec2");
-bind_array_t<soil::fvec3>(module, "array_fvec3");
+auto array = py::class_<soil::array>(module, "array", py::buffer_protocol());
+array.def(py::init<const std::string, const soil::shape&>());
+array.def(py::init<>([](const std::string type, const std::vector<size_t>& v){
+  auto shape = soil::shape(v);
+  return soil::array(type, shape);
+}));
 
-module.def("array", [](std::string type, std::vector<size_t> v) -> soil::array {
-  soil::shape shape(v);
-  if(type == "int")     return soil::array_t<int>(shape);
-  if(type == "float")   return soil::array_t<float>(shape);
-  if(type == "double")  return soil::array_t<double>(shape);
-  throw std::invalid_argument("invalid type argument");
+array.def("elem", &soil::array::elem);
+array.def("size", &soil::array::size);
+array.def("zero", &soil::array::zero);
+array.def("fill", &soil::array::fill<int>);
+array.def("fill", &soil::array::fill<float>);
+array.def("fill", &soil::array::fill<double>);
+
+array.def_property_readonly("type", &soil::array::type);
+array.def_property_readonly("shape", &soil::array::shape);
+
+array.def("reshape", &soil::array::reshape);
+
+array.def_buffer([](soil::array& array) -> py::buffer_info {
+
+  std::vector<py::ssize_t> shape;
+  std::vector<py::ssize_t> strides;
+
+  const size_t dims = array.shape().dims();
+
+  for(size_t d = 0; d < dims; ++d){
+    shape.push_back(array.shape()[d]);
+  }
+
+  size_t s = array.size();
+  for(size_t d = 0; d < dims; ++d){
+    s = s / array.shape()[d];
+    strides.push_back(s);
+  }
+  
+  std::string format;
+  if(array.type() == "int") format = py::format_descriptor<int>::format();
+  if(array.type() == "float") format = py::format_descriptor<float>::format();
+  if(array.type() == "double") format = py::format_descriptor<double>::format();
+  if(array.type() == "fvec2") format = py::format_descriptor<soil::fvec2>::format();
+  if(array.type() == "fvec3") format = py::format_descriptor<soil::fvec3>::format();
+
+  return py::buffer_info(
+    array.data(),
+    array.size() / array.elem(),
+    format,
+    dims,
+    shape,
+    strides
+  );
+});
+
+array.def("__getitem__", &soil::array::operator[]);
+array.def("__setitem__", &soil::array::set<int>);
+array.def("__setitem__", &soil::array::set<float>);
+array.def("__setitem__", &soil::array::set<double>);
+
+array.def("__setitem__", [](soil::array& array, const py::tuple& tup, const py::object value){
+  size_t index;
+  if(tup.size() == 1) index = array.shape().template flat<1>({tup[0].cast<size_t>()});
+  if(tup.size() == 2) index = array.shape().template flat<2>({tup[0].cast<size_t>(), tup[1].cast<size_t>()});
+  if(tup.size() == 3) index = array.shape().template flat<3>({tup[0].cast<size_t>(), tup[1].cast<size_t>(), tup[2].cast<size_t>()});
+
+  if(array.type() == "int") array.set<int>(index, value.cast<int>());
+  if(array.type() == "float") array.set<float>(index, value.cast<float>());
+  if(array.type() == "double") array.set<double>(index, value.cast<double>());
 });
 
 }

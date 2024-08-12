@@ -58,14 +58,16 @@ struct typedesc<fvec3> {
 // additionally, multi is just the regular base type variant.
 
 using multi = std::variant<
-  int, float, double
+  int, float, double, fvec2, fvec3
 >;
 
 template<template<class> class V>
 using multi_t = std::variant<
   V<int>,
   V<float>,
-  V<double>
+  V<double>,
+  V<fvec2>,
+  V<fvec3>
 >;
 
 // ...

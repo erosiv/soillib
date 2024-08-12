@@ -32,7 +32,7 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   py[3].pos = p + glm::ivec2( 0, 1);
   py[4].pos = p + glm::ivec2( 0, 2);
 
-  auto _array = std::get<soil::array_t<T>>(array);
+  auto _array = std::get<soil::array_t<T>>(array._array);
   auto _shape = _array.shape();
 
   auto sample = [&](const glm::ivec2 pos) -> T {
@@ -145,7 +145,7 @@ But the buffer exists... So we will think about that later.
 
 struct normal {
 
-  static array_t<fvec3> operator()(const array_t<float>& in){
+  static soil::array operator()(const soil::array& in){
 
     soil::shape shape = in.shape();
     array_t<fvec3> out = array_t<fvec3>{shape};
@@ -153,16 +153,21 @@ struct normal {
     auto _shape = std::get<soil::shape_t<2>>(shape._shape);
     for(const auto& pos: _shape.iter()){
       const size_t index = _shape.flat(pos);
-      glm::vec3 n = __normal<float>(in, glm::ivec2(pos[0], pos[1]));
+
+      glm::vec3 n;
+      if(in.type() == "float")
+        n = __normal<float>(in, glm::ivec2(pos[0], pos[1]));
+      else if(in.type() == "double")
+        n = __normal<double>(in, glm::ivec2(pos[0], pos[1]));
       n = { n.x, -n.z, n.y};
       n = 0.5f*n + 0.5f;
       out[index] = {n.x, n.y, n.z};
     }
 
-    return std::move(out);
-
+    return std::move(soil::array(out));
   }
 
+  /*
   static array_t<fvec3> operator()(const array_t<double>& in){
 
     soil::shape shape = in.shape();
@@ -179,6 +184,7 @@ struct normal {
 
     return std::move(out);
   }
+  */
 
 };
 
