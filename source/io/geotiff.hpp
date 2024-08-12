@@ -83,13 +83,19 @@ struct geotiff: soil::io::tiff {
 
 //  inline std::array<float, 2> max() const { return _coords}
 
-  inline glm::vec2 scale() const { return glm::vec2(_scale); }
+  inline glm::vec2 scale() const { return glm::vec2(_scale.x, _scale.y); }
   inline glm::vec2 dim() const   { return glm::vec2(this->width(), this->height()); }
-  inline glm::vec2 min() const   { return glm::vec2(_coords[1]); }
-  inline glm::vec2 max() const   { return min() + scale()*dim(); }
+  inline glm::vec2 min() const   { return glm::min(glm::vec2(_coords[1]), glm::vec2(_coords[1]) + glm::vec2(_scale.x, _scale.y)*dim()); }
+  inline glm::vec2 max() const   { return glm::max(glm::vec2(_coords[1]), glm::vec2(_coords[1]) + glm::vec2(_scale.x, _scale.y)*dim()); }
+  // Vienna DGM: Requires User-Facing Ability to Alter Scle Cleanly...
+  //inline glm::vec2 min() const   { return glm::min(glm::vec2(_coords[1]), glm::vec2(_coords[1]) + glm::vec2(_scale.x, -_scale.y)*dim()); }
+  //inline glm::vec2 max() const   { return glm::max(glm::vec2(_coords[1]), glm::vec2(_coords[1]) + glm::vec2(_scale.x, -_scale.y)*dim()); }
   inline glm::vec2 map(const glm::vec2 p) const { return min() + scale()*p; }
 
 private:
+  
+  void setNaN();  //!< Set Available NoData Values to NaN=
+
   std::string nodata = "";
   glm::vec3 _scale{1};
   glm::vec3 _coords[2]{glm::vec3{0}, glm::vec3{0}};
@@ -142,35 +148,37 @@ bool geotiff::read(const char* filename){
   if(!tiff::read(filename))
     return false;
 
-  // Correct No-Data Scenario to NaN:
-  auto shape = std::visit([](auto&& args){
-    return args.shape();
-  }, this->_array);
-
-  if(this->bits() == 32){
-    auto array = std::get<soil::array_t<float>>(this->_array);
-    const float _nodata = std::stof(this->nodata);
-    for(size_t i = 0; i < array.elem(); ++i){
-      if(array[i] == _nodata) 
-        array[i] = std::numeric_limits<float>::quiet_NaN();
-    }
-  }
-
-  if(this->bits() == 64){
-    auto array = std::get<soil::array_t<double>>(this->_array);
-    const double _nodata = std::stof(this->nodata);
-    for(size_t i = 0; i < array.elem(); ++i){
-      if(array[i] == _nodata) 
-        array[i] = std::numeric_limits<double>::quiet_NaN();
-    }
-  }
-
+  geotiff::setNaN();
   return true;
 }
 
 bool geotiff::write(const char *filename) {
   return tiff::write(filename);
 }
+
+void geotiff::setNaN(){
+
+  if(this->bits() == 32){
+    auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto array = std::get<soil::array_t<float>>(this->_array);
+    const float _nodata = std::stof(this->nodata);
+    for(size_t i = 0; i < array.elem(); ++i){
+      if(array[i] == _nodata) 
+        array[i] = nan;
+    }
+  }
+
+  if(this->bits() == 64){
+    auto nan = std::numeric_limits<double>::quiet_NaN();
+    auto array = std::get<soil::array_t<double>>(this->_array);
+    const double _nodata = std::stof(this->nodata);
+    for(size_t i = 0; i < array.elem(); ++i){
+      if(array[i] == _nodata) 
+        array[i] = nan;
+    }
+  }
+
+} 
 
 }; // end of namespace io
 }; // end of namespace soil

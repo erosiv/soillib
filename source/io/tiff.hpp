@@ -5,6 +5,7 @@
 
 #include <tiffio.h>
 #include <iostream>
+#include <variant>
 
 namespace soil {
 namespace io {
@@ -19,6 +20,28 @@ struct tiff {
 
   tiff(){}
   tiff(const char* filename){ read(filename); };
+
+  tiff(soil::array _array):_array{_array}{
+
+    auto shape = std::visit([](auto&& args){
+      return args.shape();
+    }, _array);
+
+    this->_height = shape[0];
+    this->_width = shape[1];
+
+    auto type = std::visit([](auto&& args){
+      return args.type();
+    }, _array);
+
+    if(type == "float"){
+      this->_bits = 32;
+    }
+    else if(type == "double"){
+      this->_bits = 64;
+    }
+
+  }
 
   bool meta(const char* filename);  //!< Load TIFF Metadata
   bool read(const char* filename);  //!< Read TIFF Raw Data
@@ -156,7 +179,7 @@ bool tiff::read(const char* filename){
   return true;
 }
 
-//template<typename T>
+
 bool tiff::write(const char *filename) {
   
   TIFF *out= TIFFOpen(filename, "w");
@@ -171,21 +194,20 @@ bool tiff::write(const char *filename) {
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
   TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
 
-  /*
-  for(size_t row = 0; row < this->height; row++){
-    TIFFReadScanline(tif, buf, row);
-    buf += this->width*(this->bits / 8);
-  }
+  std::cout<<this->bits()<<std::endl;
+  std::cout<<this->width()<<std::endl;
+  std::cout<<this->height()<<std::endl;
 
-  //T* buf = this->data;
-  uint8_t* buf = (uint8_t*)this->_buf->data();
-  for (uint32_t row = 0; row < this->height; row++) {
+  auto data = std::visit([](auto&& args){
+    return args.data();
+  }, this->_array);
+
+  uint8_t* buf = (uint8_t*)data;
+  for (uint32_t row = 0; row < this->height(); row++) {
     if (TIFFWriteScanline(out, buf, row, 0) < 0)
       break;
-    buf += this->width*(this->bits / 8);
-    //buf += this->width;
+    buf += this->width()*(this->bits() / 8);
   }
-  */
 
   TIFFClose(out);
   return true; 

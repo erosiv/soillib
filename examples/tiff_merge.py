@@ -135,15 +135,24 @@ def show_relief(array):
   plt.show()
 
 def main(input):
-  array = merge(input)
+  array = merge(input, pscale=0.1)
+
+  '''
+  Can we construct a TIFF File from the Array? I suppose...
+  -> Let's do it and write it.
+  '''
+
+  image = soil.tiff(array)
+  image.write("./out.tiff")
+
   show_relief(array)
   #show_normal(array)
   #show_height(array)
 
 if __name__ == "__main__":
 
-  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"

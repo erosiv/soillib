@@ -16,9 +16,11 @@ void bind_io(py::module& module){
 
 auto tiff = py::class_<soil::io::tiff>(module, "tiff");
 tiff.def(py::init<const char*>());
+tiff.def(py::init<soil::array>());
 
 tiff.def("meta", &soil::io::tiff::meta);
 tiff.def("read", &soil::io::tiff::read);
+tiff.def("write", &soil::io::tiff::write);
 
 tiff.def_property_readonly("width", &soil::io::tiff::width);
 tiff.def_property_readonly("height", &soil::io::tiff::height);
