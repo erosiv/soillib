@@ -142,8 +142,8 @@ def main(input):
   -> Let's do it and write it.
   '''
 
-  image = soil.tiff(array)
-  image.write("./out.tiff")
+  # image = soil.tiff(array)
+  # image.write("./out.tiff")
 
   show_relief(array)
   #show_normal(array)
