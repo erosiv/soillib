@@ -81,6 +81,10 @@ shape.def("flat", [](const soil::shape& shape, const std::vector<size_t>& v){
   //return shape.flat(&v[0], v.size());
 });
 
+shape.def("oob2", [](const soil::shape& shape, const std::array<float, 2>& arr){
+  return shape.oob2(arr);
+});
+
 shape.def("__getitem__", &soil::shape::operator[]);
 
 shape.def("__repr__", [](const soil::shape& shape){

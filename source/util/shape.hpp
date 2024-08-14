@@ -182,6 +182,10 @@ struct shape {
 
   }
 
+  size_t oob2(const std::array<float, 2>& arr) const {
+    return this->oob<2>(std::array<size_t, 2>{(size_t)arr[0], (size_t)arr[1]});
+  }
+
   size_t oob(glm::ivec2 pos) const {
     return this->oob<2>(shape_t<2>::arr_t{(size_t)pos.x, (size_t)pos.y});
   }

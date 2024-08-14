@@ -6,28 +6,63 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 '''
-Basically, we construct an array with noise.
-Then we create a bunch of "layers", which provide
-the information that the model needs to work.
+Visualization Code:
+  Basic Relief Shade from Height, Normal
+  w. Matplotlib Plotting (Float64)
+'''
 
-Then we pack that into a structure and let the particles
-operate on it directly...
+def relief_shade(h, n):
 
-That should work right?
+  # Regularize Height
+  h_min = np.nanmin(h)
+  h_max = np.nanmax(h)
+  h = (h - h_min)/(h_max - h_min)
+
+  # Light Direction, Diffuse Lighting
+  light = np.array([-1, 1, 2])
+  light = light / np.linalg.norm(light)
+
+  diffuse = np.sum(light * n, axis=-1)
+  diffuse = 0.05 + 0.9*diffuse
+
+  # Flat-Toning
+  flattone = np.full(h.shape, 0.9)
+  weight = 1.0 - n[:,:,2]
+  weight = weight * (1.0 - h * h)
+
+  # Full Diffuse Shading Value
+  diffuse = (1.0 - weight) * diffuse + weight * flattone
+  return diffuse
+
+def render(model):
+
+  normal = soil.normal()(model.height)
+  normal_data = np.array(normal)
+  height_data = np.array(model.height)
+
+  # Compute Shading
+  relief = relief_shade(height_data, normal_data)
+  print(relief.shape, relief.dtype)
+  plt.imshow(relief, cmap='gray')
+  plt.show()
+
+'''
+Erosion Code
 '''
 
 def make_model(shape):
 
-  height = soil.array("float", shape).fill(0.0)
-  #discharge_volume = soil.array("float",).fill(0.0)
-  
+  '''
+  returns a model wrapper type,
+  which contains a set of layer
+  references required for the
+  hydraulic erosion model.
+  '''
+
+  height = soil.array("float", shape).fill(0.0)  
   discharge = soil.constant("float", 0.0)
-  momentum =  soil.constant("fvec2", [0.0, 0.5])
+  momentum =  soil.constant("fvec2", [0.0, 0.0])
   resistance = soil.constant("float", 0.0)
-  
-  #print(momentum(0))
-  
-  #discharge = soil.layer(lambda d: erf(d))
 
   return soil.water_model(
     shape,
@@ -37,92 +72,78 @@ def make_model(shape):
     resistance
   )
 
-def erode(model, n_cycles = 512):
+def erode(model, steps=512):
 
-  no_basin_track = 0.0
+  '''
+  Iterate over a maximum number of steps,
+  spawn a set of particles, descend them,
+  accumulate their properties and print
+  the fraction that successfully exits the map.
+  That fraction determines whether the
+  "basins" have been solved yet or not.
+  '''
 
-  for n in range(n_cycles):
+  n_particles = 512
 
-    print(f"Erosion Step ({n})")
+  for step in range(steps):
 
-    pos = 512*np.random.rand(2)
-    drop = soil.water(pos)
-    print(drop.pos)
+    # Fraction of "Exited" Particles
+    no_basin_track = 0.0
 
-    steps = 0
-    while(True):
+    for n in range(n_particles):
 
-      if not drop.move(model):
-        break
+      # Random Particle Position
+      pos = 512*np.random.rand(2)
+      drop = soil.water(pos)
 
-      # ... update the tracking maps ...
-      # discharge_track[particle.pos] += particle.volume
-      # momentum_track[particle.pos] += particle.volume * particle.speed
+      # Descend Particle
+      while(True):
 
-      if not drop.interact(model):
-        break
+        if not drop.move(model):
+          break
 
-      steps += 1
+        # ... update the tracking maps ...
+        # discharge_track[particle.pos] += particle.volume
+        # momentum_track[particle.pos] += particle.volume * particle.speed
 
-    print(steps)
-    print(drop.pos)
+        if not drop.interact(model):
+          break
 
-    '''
-    if oob(particle.pos):
-      no_basin_track += 1
-    '''
+      # Accumulate Exit Fraction
+      if model.shape.oob2(drop.pos):
+        no_basin_track += 1
 
-    # Update Fields...
-    # Execute the Tracking Update!!!
+      # Update Fields...
+      # Execute the Tracking Update!!!
 
-# Trackable / Updatable Layers!
-# Note: The Tracking Quantities should be 
-#discharge = soil.array("float", shape).fill(0.0)
-#discharge_track = soil.array("float", shape).fill(0.0)
+      # Trackable / Updatable Layers!
+      # Note: The Tracking Quantities should be 
+      #discharge = soil.array("float", shape).fill(0.0)
+      #discharge_track = soil.array("float", shape).fill(0.0)
 
-#momentum = soil.array("fvec2", shape).fill([0.0, 0.0])
-#momentum_track = soil.array("fvec2", shape).fill([0.0, 0.0])
+      #momentum = soil.array("fvec2", shape).fill([0.0, 0.0])
+      #momentum_track = soil.array("fvec2", shape).fill([0.0, 0.0])
 
-# Different Models for Constructing the Right
-# We could also say that a model wants a given set of layers,
-# and that the struct which it accepts is thereby fixed.
-# The only thing that has to happen is that the struct has
-# to be constructed. Subsequent "updates" and the erosion
-# "update" code could be handled explicitly in python afterwards...
+    exit_frac = (no_basin_track / n_particles)
+    print(f"{step} ({exit_frac:.3f})")
 
 def main():
 
-  '''
-  We construct a model from the shape that we want.
-  The model basically links all the data types together,
-  so that we have a structure that lets us compute the
-  various quantities that we are interested in.
+  shape = soil.shape([512, 512])  # Define Map Shape
+  model = make_model(shape)       # Construct Model
 
-  The model is passed to the particle, which can use it
-  to get the various quantities that it needs.
+  # Initial Condition
 
-  We should also make it so that the "tracking" property
-  of the layers, i.e. the state estimator model, is later
-  somehow elegantly integrated into the layer concept.
+  noise = soil.noise()
+  for pos in shape.iter():
+    index = shape.flat(pos)
+    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], 0.1])
+    model.height[index] = 80.0 * value
 
-  This will require some specification of the model though.
-  '''
+  # Run Erosion Code
 
-  shape = soil.shape([512, 512])
-  model = make_model(shape)
-
-
-  '''
-  Construct Initial Condition
-  '''
-
-
-
-
-  erode(model, n_cycles = 512)
-
-  #print(model)
-  #print(model.height[0])
+  erode(model, steps = 256)
+  render(model)
 
 if __name__ == "__main__":
   main()

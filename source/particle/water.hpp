@@ -48,7 +48,7 @@ struct water_particle_t {
 
   void add(const size_t index, const float value, const matrix_t matrix){
     auto _height = std::get<soil::array_t<float>>(this->height._array);
-    _height[index] += value / 80.0f;
+    _height[index] += value;// / 80.0f;
   }
 
 };

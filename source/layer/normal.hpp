@@ -179,7 +179,7 @@ struct normal {
         n = __normal<float>(in, pos);
       else if(in.type() == "double")
         n = __normal<double>(in, pos);
-      n = { n.x, -n.z, n.y};
+      //n = { n.x, -n.z, n.y};
       return n;
 
     }
