@@ -182,6 +182,14 @@ struct shape {
 
   }
 
+  size_t oob(glm::ivec2 pos) const {
+    return this->oob<2>(shape_t<2>::arr_t{(size_t)pos.x, (size_t)pos.y});
+  }
+
+  size_t flat(glm::ivec2 pos) const {
+    return this->flat<2>(shape_t<2>::arr_t{(size_t)pos.x, (size_t)pos.y});
+  }
+
   shape_v make(const std::vector<size_t>& v){
     if(v.size() == 1) return shape_t<1>(v);
     if(v.size() == 2) return shape_t<2>(v);

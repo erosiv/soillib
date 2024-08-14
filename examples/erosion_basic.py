@@ -5,7 +5,6 @@ import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 '''
 Basically, we construct an array with noise.
 Then we create a bunch of "layers", which provide
@@ -22,8 +21,8 @@ def make_model(shape):
   height = soil.array("float", shape).fill(0.0)
   #discharge_volume = soil.array("float",).fill(0.0)
   
-  discharge = soil.const("float", 0.0)
-  momentum =  soil.const("fvec2", [0.0, 0.5])
+  discharge = soil.constant("float", 0.0)
+  momentum =  soil.constant("fvec2", [0.0, 0.5])
   
   #print(momentum(0))
   
@@ -110,6 +109,8 @@ def main():
 
   shape = soil.shape([512, 512])
   model = make_model(shape)
+
+  print(model)
 
 if __name__ == "__main__":
   main()

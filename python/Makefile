@@ -26,10 +26,11 @@ all:
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
 	@$(CC) $(CF) $(LF) $(INCPATH) $(LIBPATH) \
 		source/soillib.cpp \
+		source/io.cpp \
 		source/util.cpp \
 		source/layer.cpp \
-		source/io.cpp \
 		source/matrix.cpp \
+		source/particle.cpp \
 	$(LINKLIB) -shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
 	@echo "soillib: installing python module..."
 	@mv ${MODULE} $(HOME)/.local/lib/python3.12/site-packages/${MODULE}

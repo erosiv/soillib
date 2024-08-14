@@ -167,24 +167,24 @@ struct normal {
     return std::move(soil::array(out));
   }
 
-  /*
-  static array_t<fvec3> operator()(const array_t<double>& in){
+  struct sub {
 
-    soil::shape shape = in.shape();
-    array_t<fvec3> out = array_t<fvec3>{shape};
+    static glm::vec3 operator()(const soil::array& in, const glm::ivec2 pos){
 
-    auto _shape = std::get<soil::shape_t<2>>(shape._shape);
-    for(const auto& pos: _shape.iter()){
-      const size_t index = _shape.flat(pos);
-      glm::vec3 n = __normal<double>(in, glm::ivec2(pos[0], pos[1]));
+      soil::shape shape = in.shape();
+      auto _shape = std::get<soil::shape_t<2>>(shape._shape);
+
+      glm::vec3 n;
+      if(in.type() == "float")
+        n = __normal<float>(in, pos);
+      else if(in.type() == "double")
+        n = __normal<double>(in, pos);
       n = { n.x, -n.z, n.y};
-      n = 0.5f*n + 0.5f;
-      out[index] = {n.x, n.y, n.z};
+      return n;
+
     }
 
-    return std::move(out);
-  }
-  */
+  };
 
 };
 

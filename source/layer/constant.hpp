@@ -11,9 +11,9 @@
 namespace soil {
 
 template<typename T>
-struct layer_const_t {
+struct constant_t {
 
-  layer_const_t(const T& value):
+  constant_t(const T& value):
     value{value}{}
 
   //! \todo Implement various lookup operators for layer types.
@@ -28,37 +28,38 @@ private:
   const T value;
 };
 
-using layer_const_v = std::variant<
-  layer_const_t<int>,
-  layer_const_t<float>,
-  layer_const_t<double>,
-  layer_const_t<fvec2>
+using constant_v = std::variant<
+  constant_t<int>,
+  constant_t<float>,
+  constant_t<double>,
+  constant_t<fvec2>
 >;
 
 //! Variant Wrapping Type:
 //! Let's us construct different const layer types directly.
 //! The type returned to python is a variant.
-struct layer_const {
+struct constant {
 
-  layer_const(const std::string type, const soil::multi& multi):
-    _layer_const{make(type, multi)}{}
+  constant(const std::string type, const soil::multi& multi):
+    _constant{make(type, multi)}{}
 
   soil::multi operator()(const size_t& index) const {
     return std::visit([&index](auto&& args) -> soil::multi {
       return args(index);
-    }, this->_layer_const);
+    }, this->_constant);
   }
 
-  static layer_const_v make(const std::string type, const soil::multi& multi){
-    if(type == "int")     return soil::layer_const_t<int>(std::get<int>(multi));
-    if(type == "float")   return soil::layer_const_t<float>(std::get<float>(multi));
-    if(type == "double")  return soil::layer_const_t<double>(std::get<double>(multi));
-    if(type == "fvec2")   return soil::layer_const_t<fvec2>(std::get<fvec2>(multi));
+  //! \todo Make this type of constructor automated somehow / generic / templated
+  static constant_v make(const std::string type, const soil::multi& multi){
+    if(type == "int")     return soil::constant_t<int>(std::get<int>(multi));
+    if(type == "float")   return soil::constant_t<float>(std::get<float>(multi));
+    if(type == "double")  return soil::constant_t<double>(std::get<double>(multi));
+    if(type == "fvec2")   return soil::constant_t<fvec2>(std::get<fvec2>(multi));
     throw std::invalid_argument("invalid type argument");
   }
 
 private:
-  layer_const_v _layer_const;
+  constant_v _constant;
 };
 
 } // end of namespace soil

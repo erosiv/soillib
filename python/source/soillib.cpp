@@ -18,6 +18,7 @@ void bind_io(py::module& module);
 void bind_util(py::module& module);
 void bind_layer(py::module& module);
 void bind_matrix(py::module& module);
+void bind_particle(py::module& module);
 
 // Module Main Function
 
@@ -29,6 +30,7 @@ bind_io (module);
 bind_util(module);
 bind_layer(module);
 bind_matrix(module);
+bind_particle(module);
 
 }
 

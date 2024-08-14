@@ -3,9 +3,18 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/particle/particle.hpp>
-#include <soillib/model/cascade.hpp>
+// #include <soillib/model/cascade.hpp>
+
+#include <soillib/layer/layer.hpp>
+#include <soillib/layer/constant.hpp>
+#include <soillib/layer/normal.hpp>
+
+#include <soillib/util/array.hpp>
+#include <soillib/matrix/matrix.hpp>
 
 namespace soil {
+
+/*
 
 // Hydrologically Erodable Map Constraints
 
@@ -19,6 +28,31 @@ concept WaterParticle_t = requires(T t){
   { t.discharge(glm::ivec2()) } -> std::same_as<float>;
   { t.momentum(glm::ivec2()) } -> std::convertible_to<glm::vec2>;
   { t.resistance(glm::ivec2()) } -> std::same_as<float>;
+};
+*/
+
+
+
+//! water_particle_t is a type that contains the references
+//! to all the layers that are required for executing hydraulic erosion.
+//! This is effectively similar to the previous map struct, except that
+//! the layers themselves provide the interface for sampling.
+//!
+struct water_particle_t {
+  
+  using matrix_t = soil::matrix::singular;
+
+  soil::shape shape;
+  soil::array& height;       //!< Height Array
+  soil::constant& momentum;  //!< Momentum Layer
+  soil::constant& discharge; //!< Discharge Layer
+  soil::constant& resistance; //!< Resistance Value
+
+  void add(const size_t index, const float value, const matrix_t matrix){
+    auto _height = std::get<soil::array_t<float>>(this->height._array);
+    _height[index] += value / 80.0f;
+  }
+
 };
 
 // WaterParticle Properties
@@ -37,12 +71,15 @@ struct WaterParticle_c {
 
 // WaterParticle Definition
 
-template<typename M>
 struct WaterParticle: soil::Particle {
+
+  //! \todo replace this with a variant (of course)
+  using model_t = soil::water_particle_t;
+  using matrix_t = soil::matrix::singular;
 
   WaterParticle(glm::vec2 pos)
     :pos(pos){}   // Construct at Position
-
+ 
   // Properties
 
   glm::vec2 pos;
@@ -51,45 +88,48 @@ struct WaterParticle: soil::Particle {
 
   float volume = 1.0;                   // Droplet Water Volume
   float sediment = 0.0;                 // Droplet Sediment Concentration
-  M matrix;
+  matrix_t matrix;
 
   // Main Methods
 
-  template<typename T>
-  bool move(T& world, WaterParticle_c& param);
+  //template<typename T>
+  bool move(model_t& model, WaterParticle_c& param);
 
-  template<typename T>
-  bool interact(T& world, WaterParticle_c& param);
+  //template<typename T>
+  bool interact(model_t& model, WaterParticle_c& param);
 
 };
 
-template<typename M>
-template<typename T>
-bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
+bool WaterParticle::move(model_t& model, WaterParticle_c& param){
 
   // Termination Checks
 
   const glm::ivec2 ipos = pos;
-  if(world.oob(ipos))
+  auto apos = std::array<size_t, 2>{(size_t)ipos.x, (size_t)ipos.y};
+  const size_t index = model.shape.flat<2>(apos);
+
+  if(model.shape.oob(ipos))
     return false;
 
   if(age > param.maxAge){
-    world.add(ipos, sediment, matrix);
-    soil::phys::cascade<M>(world, ipos);
+    model.add(index, sediment, matrix);
+    // soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
   if(volume < param.minVol){
-    world.add(ipos, sediment, matrix);
-    soil::phys::cascade<M>(world, ipos);
+    model.add(index, sediment, matrix);
+    // soil::phys::cascade<M>(world, ipos);
     return false;
   }
 
   // Apply Forces to Particle
 
-  const glm::vec3 n = world.normal(ipos);
-  const glm::vec2 fspeed = world.momentum(ipos);
-  const float discharge = world.discharge(ipos);
+  const glm::vec3 n = soil::normal::sub()(model.height, ipos);
+
+  const auto fspeed_ = std::get<fvec2>(model.momentum(index));
+  const glm::vec2 fspeed(fspeed_[0], fspeed_[1]);
+  const float discharge = std::get<float>(model.discharge(index));
 
   // Gravity Force
 
@@ -112,29 +152,31 @@ bool WaterParticle<M>::move(T& world, WaterParticle_c& param){
 
 }
 
-template<typename M>
-template<typename T>
-bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
+bool WaterParticle::interact(model_t& model, WaterParticle_c& param){
 
   // Termination Checks
 
   const glm::ivec2 ipos = opos;
-  if(world.oob(ipos))
+  const size_t index = model.shape.flat(ipos);
+
+  if(model.shape.oob(ipos))
     return false;
 
-  const float discharge = world.discharge(ipos);
-  const float resistance = world.resistance(ipos);
+  const float discharge = std::get<float>(model.discharge(index));
+  const float resistance = std::get<float>(model.resistance(index));
 
   //Out-Of-Bounds
 
   float h2;
-  if(world.oob(pos))
-    h2 = 0.99*world.height(ipos);
-  else
-    h2 = world.height(pos);
+  if(model.shape.oob(pos))
+    h2 = 0.99f*std::get<float>(model.height[index]);
+  else {
+    const size_t index = model.shape.flat(pos);
+    h2 = std::get<float>(model.height[index]);
+  }
 
   //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*discharge)*(world.height(ipos)-h2);
+  float c_eq = (1.0f+param.entrainment*discharge)*(std::get<float>(model.height[index])-h2);
   if(c_eq < 0)
     c_eq = 0;
 
@@ -157,14 +199,17 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   } else if(effD*cdiff > 0){
 
-    matrix = (matrix*sediment + world.matrix(ipos)*(effD*cdiff))/(sediment + effD*cdiff);
+    auto wmatrix = matrix_t{};
+    // wmatrix = world.matrix(ipos);
+
+    matrix = (matrix*sediment + wmatrix*(effD*cdiff))/(sediment + effD*cdiff);
 
   }
 
   // Add Sediment Mass to Map, Particle
 
   sediment += effD*cdiff;
-  world.add(ipos, -effD*cdiff, matrix);
+  model.add(index, -effD*cdiff, matrix);
 
   //Evaporate (Mass Conservative)
 
@@ -172,7 +217,7 @@ bool WaterParticle<M>::interact(T& world, WaterParticle_c& param){
 
   // New Position Out-Of-Bounds
 
-  soil::phys::cascade<M>(world, ipos);
+  // soil::phys::cascade<M>(world, ipos);
 
   age++;
   return true;
