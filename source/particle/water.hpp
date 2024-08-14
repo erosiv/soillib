@@ -31,8 +31,6 @@ concept WaterParticle_t = requires(T t){
 };
 */
 
-
-
 //! water_particle_t is a type that contains the references
 //! to all the layers that are required for executing hydraulic erosion.
 //! This is effectively similar to the previous map struct, except that
@@ -43,10 +41,10 @@ struct water_particle_t {
   using matrix_t = soil::matrix::singular;
 
   soil::shape shape;
-  soil::array& height;       //!< Height Array
-  soil::constant& momentum;  //!< Momentum Layer
-  soil::constant& discharge; //!< Discharge Layer
-  soil::constant& resistance; //!< Resistance Value
+  soil::array height;         //!< Height Array
+  soil::constant momentum;    //!< Momentum Layer
+  soil::constant discharge;   //!< Discharge Layer
+  soil::constant resistance;  //!< Resistance Value
 
   void add(const size_t index, const float value, const matrix_t matrix){
     auto _height = std::get<soil::array_t<float>>(this->height._array);
@@ -93,14 +91,14 @@ struct WaterParticle: soil::Particle {
   // Main Methods
 
   //template<typename T>
-  bool move(model_t& model, WaterParticle_c& param);
+  bool move(model_t& model, const WaterParticle_c& param);
 
   //template<typename T>
-  bool interact(model_t& model, WaterParticle_c& param);
+  bool interact(model_t& model, const WaterParticle_c& param);
 
 };
 
-bool WaterParticle::move(model_t& model, WaterParticle_c& param){
+bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   // Termination Checks
 
@@ -152,7 +150,7 @@ bool WaterParticle::move(model_t& model, WaterParticle_c& param){
 
 }
 
-bool WaterParticle::interact(model_t& model, WaterParticle_c& param){
+bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
 
   // Termination Checks
 

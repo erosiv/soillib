@@ -23,56 +23,57 @@ def make_model(shape):
   
   discharge = soil.constant("float", 0.0)
   momentum =  soil.constant("fvec2", [0.0, 0.5])
+  resistance = soil.constant("float", 0.0)
   
   #print(momentum(0))
   
   #discharge = soil.layer(lambda d: erf(d))
 
-  return None
+  return soil.water_model(
+    shape,
+    height,
+    momentum,
+    discharge,
+    resistance
+  )
 
-  '''
-  return soil.particle.water({
-    "normal": soil.normal(data),
-    "discharge": discharge,
-    "discharge_track": discharge_track,
-    "momentum": momentum,
-    "momentum_track": momentum_track
-  })
-  '''
-
-'''
-def erode(n_cycles = 512):
-
-  # Reset Tracking Buffers
-  # Note: I don't like this, this should be stream-lined.
-  discharge_track.fill(0.0)
-  momentum_track.fill([0.0, 0.0])
+def erode(model, n_cycles = 512):
 
   no_basin_track = 0.0
 
-  for i in range(n_cycles):
+  for n in range(n_cycles):
 
-    # spawn at random position in map...
-    particle = soil.particle.water(...)
+    print(f"Erosion Step ({n})")
 
+    pos = 512*np.random.rand(2)
+    drop = soil.water(pos)
+    print(drop.pos)
+
+    steps = 0
     while(True):
 
-      if not particle.move(model):
+      if not drop.move(model):
         break
 
       # ... update the tracking maps ...
-      discharge_track[particle.pos] += particle.volume
-      momentum_track[particle.pos] += particle.volume * particle.speed
+      # discharge_track[particle.pos] += particle.volume
+      # momentum_track[particle.pos] += particle.volume * particle.speed
 
-      if not particle.interact(model):
+      if not drop.interact(model):
         break
 
+      steps += 1
+
+    print(steps)
+    print(drop.pos)
+
+    '''
     if oob(particle.pos):
       no_basin_track += 1
+    '''
 
     # Update Fields...
     # Execute the Tracking Update!!!
-'''
 
 # Trackable / Updatable Layers!
 # Note: The Tracking Quantities should be 
@@ -110,7 +111,18 @@ def main():
   shape = soil.shape([512, 512])
   model = make_model(shape)
 
-  print(model)
+
+  '''
+  Construct Initial Condition
+  '''
+
+
+
+
+  erode(model, n_cycles = 512)
+
+  #print(model)
+  #print(model.height[0])
 
 if __name__ == "__main__":
   main()

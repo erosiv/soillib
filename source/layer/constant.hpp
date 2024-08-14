@@ -13,6 +13,7 @@ namespace soil {
 template<typename T>
 struct constant_t {
 
+  constant_t(){}
   constant_t(const T& value):
     value{value}{}
 
@@ -25,7 +26,7 @@ struct constant_t {
   }
 
 private:
-  const T value;
+  T value;
 };
 
 using constant_v = std::variant<
@@ -40,6 +41,7 @@ using constant_v = std::variant<
 //! The type returned to python is a variant.
 struct constant {
 
+  constant(){}
   constant(const std::string type, const soil::multi& multi):
     _constant{make(type, multi)}{}
 
