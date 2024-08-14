@@ -1,5 +1,5 @@
-#ifndef SOILLIB_PYTHON_UTIL
-#define SOILLIB_PYTHON_UTIL
+#ifndef SOILLIB_PYTHON_IO
+#define SOILLIB_PYTHON_IO
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

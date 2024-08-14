@@ -29,6 +29,7 @@ all:
 		source/util.cpp \
 		source/layer.cpp \
 		source/io.cpp \
+		source/matrix.cpp \
 	$(LINKLIB) -shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
 	@echo "soillib: installing python module..."
 	@mv ${MODULE} $(HOME)/.local/lib/python3.12/site-packages/${MODULE}

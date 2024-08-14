@@ -135,28 +135,31 @@ struct array {
     }, this->_array);
   }
 
-  void zero(){
-    std::visit([](auto&& _array){
-      _array.zero();
-    }, this->_array);
-  }
-
-  void reshape(const soil::shape& shape){
-    std::visit([&shape](auto&& _array){
-      _array.reshape(shape);
-    }, this->_array);
-  }
-
   soil::multi operator[](const size_t index) const {
     return std::visit([&index](auto&& _array) -> soil::multi {
       return _array[index];
     }, this->_array);
   }
 
+  array& zero(){
+    std::visit([](auto&& _array){
+      _array.zero();
+    }, this->_array);
+    return *this;
+  }
+
+  array& reshape(const soil::shape& shape){
+    std::visit([&shape](auto&& _array){
+      _array.reshape(shape);
+    }, this->_array);
+    return *this;
+  }
+
   template<typename T>
-  void fill(const T value){
+  array& fill(const T value){
     auto array = std::get<array_t<T>>(this->_array);
     array.fill(value);
+    return *this;
   }
 
   template<typename T>
