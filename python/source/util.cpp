@@ -82,8 +82,8 @@ shape.def("flat", [](const soil::shape& shape, const std::vector<size_t>& v){
   //return shape.flat(&v[0], v.size());
 });
 
-shape.def("oob2", [](const soil::shape& shape, const std::array<float, 2>& arr){
-  return shape.oob2(arr);
+shape.def("oob", [](const soil::shape& shape, const glm::ivec2 pos){
+  return shape.oob(pos);
 });
 
 shape.def("__getitem__", &soil::shape::operator[]);
@@ -143,8 +143,6 @@ array.def_buffer([](soil::array& array) -> py::buffer_info {
   if(array.type() == "double") format = py::format_descriptor<double>::format();
   if(array.type() == "vec2") format = py::format_descriptor<soil::vec2>::format();
   if(array.type() == "vec3") format = py::format_descriptor<soil::vec3>::format();
-
-  std::cout<<format<<std::endl;
 
   return py::buffer_info(
     array.data(),

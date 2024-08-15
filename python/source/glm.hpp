@@ -148,7 +148,16 @@ struct type_caster<glm::tvec4<T, P>> {
 template<size_t N, typename T>
 using vec = glm::vec<N, T, glm::qualifier::packed_highp>;
 
-#define glm_descriptor(N, T) template<> struct format_descriptor<vec<N, T>>: format_descriptor<std::array<T, N>>{}
+template<size_t N, typename T>
+struct format_descriptor_ {
+	static std::string format(){
+		using namespace detail;
+		static constexpr auto extents = const_name("(") + const_name<N>() + const_name(")");
+		return extents.text + format_descriptor<remove_all_extents_t<T>>::format();
+	}
+};
+
+#define glm_descriptor(N, T) template<> struct format_descriptor<vec<N, T>>: format_descriptor_<N, T>{}
 
 glm_descriptor(1, float);
 glm_descriptor(2, float);

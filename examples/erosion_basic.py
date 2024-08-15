@@ -96,9 +96,6 @@ def erode(model, steps=512):
       pos = 512*np.random.rand(2)
       drop = soil.water(pos)
 
-      print(drop.pos)
-      return
-
       # Descend Particle
       while(True):
 
@@ -113,7 +110,7 @@ def erode(model, steps=512):
           break
 
       # Accumulate Exit Fraction
-      if model.shape.oob2(drop.pos):
+      if model.shape.oob(drop.pos):
         no_basin_track += 1
 
       # Update Fields...
@@ -145,7 +142,7 @@ def main():
 
   # Run Erosion Code
 
-  erode(model, steps = 1024)
+  erode(model, steps = 64)
   render(model)
 
 if __name__ == "__main__":
