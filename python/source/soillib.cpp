@@ -10,8 +10,6 @@
 #include <pybind11/functional.h>
 namespace py = pybind11;
 
-#include <memory>
-
 // Bind Function Declarations
 
 void bind_io(py::module& module);

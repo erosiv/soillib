@@ -1,6 +1,8 @@
 #ifndef SOILLIB_UTIL_NOISE
 #define SOILLIB_UTIL_NOISE
 
+#pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
+
 #include <soillib/external/FastNoiseLite.h>
 #include <array>
 

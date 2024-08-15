@@ -10,6 +10,8 @@ namespace py = pybind11;
 #include <soillib/particle/particle.hpp>
 #include <soillib/particle/water.hpp>
 
+#include "glm.hpp"
+
 //
 // 
 //
@@ -53,8 +55,8 @@ void bind_particle(py::module& module){
     return water.interact(model, conf);
   });
 
-  water.def_property_readonly("pos", [](water_t& water) -> std::array<float, 2> {
-    return {water.pos.x, water.pos.y};
+  water.def_property_readonly("pos", [](water_t& water){
+    return water.pos;
   });
 }
 
