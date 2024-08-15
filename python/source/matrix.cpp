@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
+#include "glm.hpp"
 namespace py = pybind11;
 
 #include <soillib/matrix/matrix.hpp>

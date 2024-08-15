@@ -5,12 +5,11 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
+#include "glm.hpp"
 namespace py = pybind11;
 
 #include <soillib/particle/particle.hpp>
 #include <soillib/particle/water.hpp>
-
-#include "glm.hpp"
 
 //
 // 
@@ -41,8 +40,8 @@ void bind_particle(py::module& module){
 
   using water_t = soil::WaterParticle;
   auto water = py::class_<water_t>(module, "water");
-  water.def(py::init<>([](const soil::fvec2 pos){
-    return water_t(glm::vec2(pos[0], pos[1]));
+  water.def(py::init<>([](const soil::vec2 pos){
+    return water_t(pos);
   }));
 
   const soil::WaterParticle_c conf;

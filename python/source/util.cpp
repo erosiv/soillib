@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
+#include "glm.hpp"
 namespace py = pybind11;
 
 #include <soillib/util/timer.hpp>
@@ -140,8 +141,10 @@ array.def_buffer([](soil::array& array) -> py::buffer_info {
   if(array.type() == "int") format = py::format_descriptor<int>::format();
   if(array.type() == "float") format = py::format_descriptor<float>::format();
   if(array.type() == "double") format = py::format_descriptor<double>::format();
-  if(array.type() == "fvec2") format = py::format_descriptor<soil::fvec2>::format();
-  if(array.type() == "fvec3") format = py::format_descriptor<soil::fvec3>::format();
+  if(array.type() == "vec2") format = py::format_descriptor<soil::vec2>::format();
+  if(array.type() == "vec3") format = py::format_descriptor<soil::vec3>::format();
+
+  std::cout<<format<<std::endl;
 
   return py::buffer_info(
     array.data(),

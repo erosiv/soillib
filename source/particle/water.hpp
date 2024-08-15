@@ -125,7 +125,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   const glm::vec3 n = soil::normal::sub()(model.height, ipos);
 
-  const auto fspeed_ = std::get<fvec2>(model.momentum(index));
+  const auto fspeed_ = std::get<vec2>(model.momentum(index));
   const glm::vec2 fspeed(fspeed_[0], fspeed_[1]);
   const float discharge = std::get<float>(model.discharge(index));
 

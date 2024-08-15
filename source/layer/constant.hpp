@@ -29,12 +29,7 @@ private:
   T value;
 };
 
-using constant_v = std::variant<
-  constant_t<int>,
-  constant_t<float>,
-  constant_t<double>,
-  constant_t<fvec2>
->;
+using constant_v = soil::multi_t<constant_t>;
 
 //! Variant Wrapping Type:
 //! Let's us construct different const layer types directly.
@@ -56,7 +51,7 @@ struct constant {
     if(type == "int")     return soil::constant_t<int>(std::get<int>(multi));
     if(type == "float")   return soil::constant_t<float>(std::get<float>(multi));
     if(type == "double")  return soil::constant_t<double>(std::get<double>(multi));
-    if(type == "fvec2")   return soil::constant_t<fvec2>(std::get<fvec2>(multi));
+    if(type == "vec2")    return soil::constant_t<vec2>(std::get<vec2>(multi));
     throw std::invalid_argument("invalid type argument");
   }
 

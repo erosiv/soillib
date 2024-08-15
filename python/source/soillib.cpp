@@ -8,7 +8,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
+#include "glm.hpp"
 namespace py = pybind11;
+
 
 // Bind Function Declarations
 
@@ -21,6 +23,9 @@ void bind_particle(py::module& module);
 // Module Main Function
 
 PYBIND11_MODULE(soillib, module){
+
+// PYBIND11_NUMPY_DTYPE(glm::vec2, x, y);
+// PYBIND11_NUMPY_DTYPE(glm::vec3, x, y, z);
 
 module.doc() = "Soillib Python Module";
 

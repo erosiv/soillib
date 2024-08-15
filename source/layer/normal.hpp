@@ -148,7 +148,7 @@ struct normal {
   static soil::array operator()(const soil::array& in){
 
     soil::shape shape = in.shape();
-    array_t<fvec3> out = array_t<fvec3>{shape};
+    array_t<vec3> out = array_t<vec3>{shape};
 
     auto _shape = std::get<soil::shape_t<2>>(shape._shape);
     for(const auto& pos: _shape.iter()){

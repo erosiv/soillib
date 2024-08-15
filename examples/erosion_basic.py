@@ -61,7 +61,7 @@ def make_model(shape):
 
   height = soil.array("float", shape).fill(0.0)  
   discharge = soil.constant("float", 0.0)
-  momentum =  soil.constant("fvec2", [0.0, 0.0])
+  momentum =  soil.constant("vec2", [0.0, 0.0])
   resistance = soil.constant("float", 0.0)
 
   return soil.water_model(
@@ -124,8 +124,8 @@ def erode(model, steps=512):
       #discharge = soil.array("float", shape).fill(0.0)
       #discharge_track = soil.array("float", shape).fill(0.0)
 
-      #momentum = soil.array("fvec2", shape).fill([0.0, 0.0])
-      #momentum_track = soil.array("fvec2", shape).fill([0.0, 0.0])
+      #momentum = soil.array("vec2", shape).fill([0.0, 0.0])
+      #momentum_track = soil.array("vec2", shape).fill([0.0, 0.0])
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")

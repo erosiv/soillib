@@ -3,6 +3,7 @@
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 
+#include <soillib/util/types.hpp>
 #include <soillib/external/FastNoiseLite.h>
 #include <array>
 
@@ -61,7 +62,7 @@ struct sampler {
     source.SetFractalLacunarity(cfg.lacunarity);
   }
 
-  inline float get(const std::array<float, 3> pos) {
+  inline float get(const soil::vec3& pos) {
     float val = cfg.bias + cfg.scale * source.GetNoise(pos[0], pos[1], pos[2]);
     if(val < cfg.min) val = cfg.min;
     if(val > cfg.max) val = cfg.max;

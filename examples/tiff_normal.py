@@ -32,9 +32,16 @@ def main(input):
     height = image.array()
     data = soil.normal()(height)
 
+    print(type(data))
+    print("what")
+    print(data[0])
     # Output Meta-Data, Plot
-    print(data.shape, data.type)
+    data = np.array(data)
+    print(data.dtype)
+    print("what")
+
     plt.imshow(data)
+    #print("AYY")
     plt.show()
 
 if __name__ == "__main__":

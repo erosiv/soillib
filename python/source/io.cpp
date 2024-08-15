@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
+#include "glm.hpp"
 namespace py = pybind11;
 
 #include <soillib/io/tiff.hpp>
@@ -37,19 +38,16 @@ geotiff.def(py::init<const char*>());
 geotiff.def("meta", &soil::io::geotiff::meta);
 geotiff.def("read", &soil::io::geotiff::read);
 
-geotiff.def_property_readonly("min", [](soil::io::geotiff& geotiff) -> soil::fvec2 {
-  auto min = geotiff.min();
-  return {min.x, min.y};
+geotiff.def_property_readonly("min", [](soil::io::geotiff& geotiff){
+  return geotiff.min();
 });
 
-geotiff.def_property_readonly("max", [](soil::io::geotiff& geotiff) -> soil::fvec2 {
-  auto max = geotiff.max();
-  return {max.x, max.y};
+geotiff.def_property_readonly("max", [](soil::io::geotiff& geotiff){
+  return geotiff.max();
 });
 
-geotiff.def_property_readonly("scale", [](soil::io::geotiff& geotiff) -> soil::fvec2 {
-  auto scale = geotiff.scale();
-  return {scale.x, scale.y};
+geotiff.def_property_readonly("scale", [](soil::io::geotiff& geotiff){
+  return geotiff.scale();
 });
 
 }

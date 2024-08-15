@@ -85,13 +85,7 @@ private:
   soil::shape _shape;
 };
 
-using array_v = std::variant<
-  soil::array_t<int>,
-  soil::array_t<float>,
-  soil::array_t<double>,
-  soil::array_t<fvec2>, 
-  soil::array_t<fvec3>
->;
+using array_v = soil::multi_t<soil::array_t>;
 
 //! Array variant wrapper type: Implements visitors interface...
 struct array {
