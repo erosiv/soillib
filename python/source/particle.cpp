@@ -44,9 +44,7 @@ void bind_particle(py::module& module){
 
   using water_t = soil::WaterParticle;
   auto water = py::class_<water_t>(module, "water");
-  water.def(py::init<>([](const soil::vec2 pos){
-    return water_t(pos);
-  }));
+  water.def(py::init<soil::vec2>());
 
   const soil::WaterParticle_c conf;
 

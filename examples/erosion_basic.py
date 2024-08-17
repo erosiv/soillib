@@ -109,31 +109,33 @@ def erode(model, steps=512):
     discharge_track = soil.array("float", model.shape).fill(0.0)
     #momentum_track = soil.array("fvec2", model.shape).fill([0.0, 0.0])
 
-    for n in range(n_particles):
+    with soil.timer() as timer:
 
-      # Random Particle Position
-      pos = 512*np.random.rand(2)
-      drop = soil.water(pos)
+      for n in range(n_particles):
 
-      # Descend Particle
-      while(True):
+        # Random Particle Position
+        pos = 512*np.random.rand(2)
+        drop = soil.water(pos)
 
-        if not drop.move(model):
-          break
+        # Descend Particle
+        while(True):
 
-        # Update Tracking Values:
+          if not drop.move(model):
+            break
 
-        # if not model.shape.oob(drop.pos):
-        #   index = model.shape.flat(drop.pos)
-        #   discharge_track[index] += drop.volume
-        #   # momentum_track[particle.pos] += particle.volume * particle.speed
+          # Update Tracking Values:
 
-        if not drop.interact(model):
-          break
+          # if not model.shape.oob(drop.pos):
+          #   index = model.shape.flat(drop.pos)
+          #   discharge_track[index] += drop.volume
+          #   # momentum_track[particle.pos] += particle.volume * particle.speed
 
-      # Accumulate Exit Fraction
-      if model.shape.oob(drop.pos):
-        no_basin_track += 1
+          if not drop.interact(model):
+            break
+
+        # Accumulate Exit Fraction
+        if model.shape.oob(drop.pos):
+          no_basin_track += 1
 
       # Update Fields...
       # Execute the Tracking Update!!!
