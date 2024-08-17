@@ -26,7 +26,7 @@ void bind_particle(nb::module_& module){
     soil::shape,
     soil::array,
     soil::constant,
-    soil::constant,
+    soil::array,
     soil::constant,
     soil::constant,
     soil::constant

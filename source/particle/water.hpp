@@ -44,7 +44,8 @@ struct water_particle_t {
   soil::shape shape;
   soil::array height;         //!< Height Array
   soil::constant momentum;    //!< Momentum Layer
-  soil::constant discharge;   //!< Discharge Layer
+  soil::array discharge;         //!< Height Array
+  ///soil::constant discharge;   //!< Discharge Layer
   soil::constant resistance;  //!< Resistance Value
   soil::constant maxdiff;
   soil::constant settling;
@@ -145,7 +146,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
   const glm::vec3 n = soil::normal::sub()(model.height, ipos);
 
   const glm::vec2 fspeed = model.momentum.get<vec2>()(index);
-  const float discharge = model.discharge.get<float>()(index);
+  const float discharge = erf(0.4f * std::get<float>(model.discharge[index]));
 
   // Gravity Force
 
@@ -178,7 +179,7 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   if(model.shape.oob(ipos))
     return false;
 
-  const float discharge = std::get<float>(model.discharge(index));
+  const float discharge = erf(0.4f * std::get<float>(model.discharge[index]));
   const float resistance = std::get<float>(model.resistance(index));
 
   //Out-Of-Bounds

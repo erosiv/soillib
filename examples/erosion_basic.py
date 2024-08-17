@@ -69,7 +69,7 @@ def make_model(shape):
   '''
 
   height = soil.array("float", shape).fill(0.0)  
-  discharge = soil.constant("float", 0.0)
+  discharge = soil.array("float",shape).fill(0.0)
   momentum =  soil.constant("vec2", [0.0, 0.0])
   resistance = soil.constant("float", 0.0)
 
@@ -97,7 +97,6 @@ def erode(model, steps=512):
   "basins" have been solved yet or not.
   '''
 
-  discharge_actual = soil.array("float", model.shape).fill(0.0)
   n_particles = 512
 
   for step in range(steps):
@@ -144,12 +143,12 @@ def erode(model, steps=512):
       # Execute the Tracking Update!!!
 
       # Update Trackable Quantities:
-      discharge_actual.track_float(discharge_track, lrate)
+      model.discharge.track_float(discharge_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
 
-  d = discharge_actual.numpy()
+  d = model.discharge.numpy()
   d = sigmoid(d)
   plt.imshow(d)
   plt.show()
@@ -173,7 +172,7 @@ def main():
 
   # Run Erosion Code
 
-  erode(model, steps = 256)
+  erode(model, steps = 512)
   render(model)
 
 if __name__ == "__main__":
