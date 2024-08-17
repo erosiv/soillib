@@ -3,6 +3,7 @@
 import os
 import soillib as soil
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 
 '''
@@ -44,15 +45,16 @@ def render(model):
   normal = soil.normal()(model.height)
   normal_data = normal.numpy()
   height_data = model.height.numpy()
+  relief = relief_shade(height_data, normal_data)
+
+  discharge_data = sigmoid(model.discharge.numpy())
 
   # Compute Shading
-  relief = relief_shade(height_data, normal_data)
-  print(relief.shape, relief.dtype)
-  # plt.imshow(relief, cmap='gray')
-  plt.imshow(normal_data)
-  
-  # d = sigmoid(0.8 * np.array(d))
-  #plt.imshow(d)
+  fig, ax = plt.subplots(2, 2, figsize=(16, 16))
+  ax[0, 0].imshow(discharge_data)
+  ax[0, 1].imshow(height_data)
+  ax[1, 0].imshow(relief, cmap='gray')
+  ax[1, 1].imshow(normal_data)
   plt.show()
 
 '''
@@ -69,8 +71,8 @@ def make_model(shape):
   '''
 
   height = soil.array("float", shape).fill(0.0)  
-  discharge = soil.array("float",shape).fill(0.0)
-  momentum =  soil.constant("vec2", [0.0, 0.0])
+  discharge = soil.array("float", shape).fill(0.0)
+  momentum =  soil.array("vec2", shape).fill([0.0, 0.0])
   resistance = soil.constant("float", 0.0)
 
   maxdiff = soil.constant("float", 0.8)
@@ -106,7 +108,7 @@ def erode(model, steps=512):
 
     # Tracking Values:
     discharge_track = soil.array("float", model.shape).fill(0.0)
-    #momentum_track = soil.array("fvec2", model.shape).fill([0.0, 0.0])
+    momentum_track = soil.array("vec2", model.shape).fill([0.0, 0.0])
 
     with soil.timer() as timer:
 
@@ -129,7 +131,9 @@ def erode(model, steps=512):
           #print(model.shape)
           if not model.shape.oob(drop.pos):
             index = model.shape.flat(drop.pos)
-            discharge_track[index] += drop.volume
+
+            discharge_track.add_float(index, drop.volume)
+            momentum_track.add_vec2(index, drop.volume, drop.speed)
 
           if not drop.interact(model):
             break
@@ -144,17 +148,11 @@ def erode(model, steps=512):
 
       # Update Trackable Quantities:
       model.discharge.track_float(discharge_track, lrate)
+      model.momentum.track_vec2(momentum_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
-
-  d = model.discharge.numpy()
-  d = sigmoid(d)
-  plt.imshow(d)
-  plt.show()
-
-  # model.discharge = discharge_actual
-  # return discharge_actual
+    yield model.height, model.discharge
 
 def main():
 
@@ -172,7 +170,9 @@ def main():
 
   # Run Erosion Code
 
-  erode(model, steps = 512)
+  for h, d in erode(model, steps = 312):
+    pass
+
   render(model)
 
 if __name__ == "__main__":

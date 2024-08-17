@@ -152,6 +152,7 @@ array.def("zero", &soil::array::zero);
 array.def("fill", &soil::array::fill<int>);
 array.def("fill", &soil::array::fill<float>);
 array.def("fill", &soil::array::fill<double>);
+array.def("fill", &soil::array::fill<soil::vec2>);
 
 array.def_prop_ro("type", &soil::array::type);
 array.def_prop_ro("shape", &soil::array::shape);
@@ -175,6 +176,7 @@ array.def("__getitem__", &soil::array::operator[]);
 array.def("__setitem__", &soil::array::set<int>);
 array.def("__setitem__", &soil::array::set<float>);
 array.def("__setitem__", &soil::array::set<double>);
+array.def("__setitem__", &soil::array::set<soil::vec2>);
 
 array.def("__setitem__", [](soil::array& array, glm::ivec2 pos, const nb::object value){
   size_t index = array.shape().flat(pos);
@@ -196,12 +198,29 @@ array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::
 });
 */
 
+array.def("add_float", [](soil::array& lhs, const size_t index, const float value){
+  const float lhs_value = std::get<float>(lhs[index]);
+  lhs.set<float>(index, lhs_value + value);
+});
+
+array.def("add_vec2", [](soil::array& lhs, const size_t index, const float s, const soil::vec2 value){
+  const soil::vec2 lhs_value = std::get<soil::vec2>(lhs[index]);
+  lhs.set<soil::vec2>(index, lhs_value + s*value);
+});
 
 array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
   for(size_t i = 0; i < lhs.shape().elem(); ++i){
     float lhs_value = std::get<float>(lhs[i]);
     float rhs_value = std::get<float>(rhs[i]);
     lhs.set<float>(i, lhs_value * (1.0 - lrate) + rhs_value * lrate);
+  }
+});
+
+array.def("track_vec2", [](soil::array& lhs, soil::array& rhs, const float lrate){
+  for(size_t i = 0; i < lhs.shape().elem(); ++i){
+    soil::vec2 lhs_value = std::get<soil::vec2>(lhs[i]);
+    soil::vec2 rhs_value = std::get<soil::vec2>(rhs[i]);
+    lhs.set<soil::vec2>(i, lhs_value * (1.0f - lrate) + rhs_value * lrate);
   }
 });
 

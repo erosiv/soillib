@@ -25,7 +25,7 @@ void bind_particle(nb::module_& module){
   model.def(nb::init<
     soil::shape,
     soil::array,
-    soil::constant,
+    soil::array,
     soil::array,
     soil::constant,
     soil::constant,

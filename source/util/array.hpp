@@ -174,6 +174,7 @@ struct array {
     if(type == "int")     return soil::array_t<int>(shape);
     if(type == "float")   return soil::array_t<float>(shape);
     if(type == "double")  return soil::array_t<double>(shape);
+    if(type == "vec2")    return soil::array_t<vec2>(shape);
     throw std::invalid_argument("invalid type argument");
   }
 
