@@ -125,10 +125,12 @@ def erode(model, steps=512):
 
           # Update Tracking Values:
 
-          # if not model.shape.oob(drop.pos):
-          #   index = model.shape.flat(drop.pos)
-          #   discharge_track[index] += drop.volume
-          #   # momentum_track[particle.pos] += particle.volume * particle.speed
+          #oob = model.shape.oob(drop.pos)
+          #test = ''
+          #print(model.shape)
+          if not model.shape.oob(drop.pos):
+            index = model.shape.flat(drop.pos)
+            discharge_track[index] += drop.volume
 
           if not drop.interact(model):
             break
@@ -142,10 +144,15 @@ def erode(model, steps=512):
       # Execute the Tracking Update!!!
 
       # Update Trackable Quantities:
-      # discharge_actual.track_float(discharge_track, lrate)
+      discharge_actual.track_float(discharge_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
+
+  d = discharge_actual.numpy()
+  d = sigmoid(d)
+  plt.imshow(d)
+  plt.show()
 
   # model.discharge = discharge_actual
   # return discharge_actual

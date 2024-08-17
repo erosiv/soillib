@@ -111,6 +111,10 @@ shape.def("flat", [](const soil::shape& shape, const std::vector<int>& v){
   //return shape.flat(&v[0], v.size());
 });
 
+shape.def("flat", [](const soil::shape& shape, glm::vec2 pos){
+  return shape.flat(pos);
+});
+
 shape.def("oob", [](const soil::shape& shape, const glm::ivec2 pos){
   return shape.oob(pos);
 });
