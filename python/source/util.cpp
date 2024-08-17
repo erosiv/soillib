@@ -18,6 +18,8 @@ namespace nb = nanobind;
 #include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
 
+#include "glm.hpp"
+
 //
 //
 //
@@ -44,9 +46,13 @@ nb::ndarray<nb::numpy, T, nb::ndim<N>> make_numpy(soil::array& array){
     _shape[d] = array.shape()[d];
   };
 
-  return nb::ndarray<nb::numpy, float, nb::ndim<N>>(
+  if(N == 3){
+    _shape[2] = 3;
+  }
+
+  return nb::ndarray<nb::numpy, T, nb::ndim<N>>(
     array.data(),
-    dims,
+    N,
     _shape,
     nb::handle()
   );
@@ -144,8 +150,16 @@ array.def_prop_ro("shape", &soil::array::shape);
 
 array.def("reshape", &soil::array::reshape);
 
-array.def("numpy", [](soil::array& array) {
+
+using test = std::variant<
+  nb::ndarray<nb::numpy, float, nb::ndim<2>>,
+  nb::ndarray<nb::numpy, float, nb::ndim<3>>
+>;
+
+array.def("numpy", [](soil::array& array) -> test {
+  std::cout<<array.type()<<std::endl;
   if(array.type() == "float") return make_numpy<float, 2>(array);
+  if(array.type() == "vec3")  return make_numpy<float, 3>(array);
   throw std::invalid_argument("I don't know how to make this into numpy!");
 });
 
@@ -153,6 +167,13 @@ array.def("__getitem__", &soil::array::operator[]);
 array.def("__setitem__", &soil::array::set<int>);
 array.def("__setitem__", &soil::array::set<float>);
 array.def("__setitem__", &soil::array::set<double>);
+
+array.def("__setitem__", [](soil::array& array, glm::ivec2 pos, const nb::object value){
+  size_t index = array.shape().flat(pos);
+  if(array.type() == "int") array.set<int>(index, nb::cast<int>(value));
+  if(array.type() == "float") array.set<float>(index, nb::cast<float>(value));
+  if(array.type() == "double") array.set<double>(index, nb::cast<double>(value));
+});
 
 /*
 array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::object value){
@@ -166,6 +187,7 @@ array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::
   if(array.type() == "double") array.set<double>(index, value.cast<double>());
 });
 */
+
 
 array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
   for(size_t i = 0; i < lhs.shape().elem(); ++i){

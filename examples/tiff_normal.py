@@ -33,18 +33,14 @@ def main(input):
     data = soil.normal()(height)
 
     print(type(data))
-    print("what")
-    print(data[0])
-    # Output Meta-Data, Plot
-    data = np.array(data)
+    data = data.numpy()
     print(data.dtype)
-    print("what")
 
     plt.imshow(data)
     plt.show()
 
 if __name__ == "__main__":
 
-  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)

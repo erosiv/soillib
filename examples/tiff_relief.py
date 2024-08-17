@@ -22,7 +22,7 @@ def iter_tiff(path):
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
-      yield file, os.path.join(path, file)
+      yield file, os.path.join(path, file).decode('utf-8')
 
 def relief_shade(h, n):
 
@@ -55,8 +55,8 @@ def main(input):
     img = soil.geotiff(path)
     height = img.array()
     normal = soil.normal()(height)
-    normal_data = np.array(normal)
-    height_data = np.array(height)
+    normal_data = normal.numpy()
+    height_data = height.numpy()
 
     # Compute Shading
     relief = relief_shade(height_data, normal_data)
@@ -66,6 +66,6 @@ def main(input):
 
 if __name__ == "__main__":
 
-  data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   main(data)

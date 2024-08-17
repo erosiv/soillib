@@ -45,7 +45,7 @@ def iter_tiff(path):
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
-      yield file, os.path.join(path, file)
+      yield file, os.path.join(path, file).decode('utf-8')
 
   else:
     raise RuntimeError("path must be file or directory")
@@ -91,7 +91,7 @@ def merge(input, pscale = 0.1):
 
     geotiff = soil.geotiff(path)
     buf = geotiff.array()
-    buf = np.array(buf)
+    buf = buf.numpy()
   
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -113,22 +113,22 @@ def merge(input, pscale = 0.1):
   return array
 
 def show_height(array):
-  data = np.array(array)
+  data = array.numpy()
   data = np.transpose(data)
   plt.imshow(data)
   plt.show()
 
 def show_normal(array):
   normal = soil.normal()(array)
-  data = np.array(normal)
+  data = normal.numpy()
   data = np.transpose(data, (1, 0, 2))
   plt.imshow(data)
   plt.show()
 
 def show_relief(array):
   normal = soil.normal()(array)
-  normal_data = np.array(normal)
-  height_data = np.array(array)
+  normal_data = normal.numpy()
+  height_data = array.numpy()
   relief = relief_shade(height_data, normal_data)
   relief = np.transpose(relief, (1, 0))
   plt.imshow(relief, cmap='gray')
