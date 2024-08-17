@@ -39,7 +39,7 @@ def relief_shade(h, n):
   diffuse = (1.0 - weight) * diffuse + weight * flattone
   return diffuse
 
-def render(model, d):
+def render(model):
 
   normal = soil.normal()(model.height)
   normal_data = np.array(normal)
@@ -49,10 +49,10 @@ def render(model, d):
   relief = relief_shade(height_data, normal_data)
   print(relief.shape, relief.dtype)
   # plt.imshow(relief, cmap='gray')
-  #plt.imshow(normal_data)
+  plt.imshow(normal_data)
   
-  d = sigmoid(0.8 * np.array(d))
-  plt.imshow(d)
+  # d = sigmoid(0.8 * np.array(d))
+  #plt.imshow(d)
   plt.show()
 
 '''
@@ -123,10 +123,10 @@ def erode(model, steps=512):
 
         # Update Tracking Values:
 
-        if not model.shape.oob(drop.pos):
-          index = model.shape.flat(drop.pos)
-          discharge_track[index] += drop.volume
-          # momentum_track[particle.pos] += particle.volume * particle.speed
+        # if not model.shape.oob(drop.pos):
+        #   index = model.shape.flat(drop.pos)
+        #   discharge_track[index] += drop.volume
+        #   # momentum_track[particle.pos] += particle.volume * particle.speed
 
         if not drop.interact(model):
           break
@@ -139,12 +139,13 @@ def erode(model, steps=512):
       # Execute the Tracking Update!!!
 
       # Update Trackable Quantities:
-      discharge_actual.track_float(discharge_track, lrate)
+      # discharge_actual.track_float(discharge_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
 
-  return discharge_actual
+  # model.discharge = discharge_actual
+  # return discharge_actual
 
 def main():
 
@@ -161,8 +162,8 @@ def main():
 
   # Run Erosion Code
 
-  d = erode(model, steps = 128)
-  render(model, d)
+  erode(model, steps = 128)
+  render(model)
 
 if __name__ == "__main__":
   main()
