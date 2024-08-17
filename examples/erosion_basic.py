@@ -42,8 +42,8 @@ def relief_shade(h, n):
 def render(model):
 
   normal = soil.normal()(model.height)
-  normal_data = np.array(normal)
-  height_data = np.array(model.height)
+  normal_data = normal.numpy()
+  height_data = model.height.numpy()
 
   # Compute Shading
   relief = relief_shade(height_data, normal_data)

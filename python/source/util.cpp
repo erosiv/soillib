@@ -115,6 +115,10 @@ shape.def("oob", [](const soil::shape& shape, const glm::ivec2 pos){
   return shape.oob(pos);
 });
 
+shape.def("oob", [](const soil::shape& shape, const glm::vec2 pos){
+  return shape.oob(glm::ivec2(pos));
+});
+
 shape.def("__getitem__", &soil::shape::operator[]);
 
 shape.def("__repr__", [](const soil::shape& shape){

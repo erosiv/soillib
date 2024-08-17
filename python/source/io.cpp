@@ -2,21 +2,14 @@
 #define SOILLIB_PYTHON_IO
 
 #include <nanobind/nanobind.h>
-#include <nanobind/stl/string.h>
-#include "glm.hpp"
-
 namespace nb = nanobind;
 
-/*
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
-#include <pybind11/functional.h>
-
-namespace py = pybind11;
-*/
+#include <nanobind/stl/string.h>
 
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/geotiff.hpp>
+
+#include "glm.hpp"
 
 void bind_io(nb::module_& module){
 
