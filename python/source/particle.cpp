@@ -61,6 +61,14 @@ void bind_particle(py::module& module){
   water.def_property_readonly("pos", [](water_t& water){
     return water.pos;
   });
+
+  water.def_property_readonly("speed", [](water_t& water){
+    return water.speed;
+  });
+
+  water.def_property_readonly("volume", [](water_t& water){
+    return water.volume;
+  });
 }
 
 #endif

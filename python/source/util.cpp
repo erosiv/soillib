@@ -170,6 +170,14 @@ array.def("__setitem__", [](soil::array& array, const py::tuple& tup, const py::
   if(array.type() == "double") array.set<double>(index, value.cast<double>());
 });
 
+array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
+  for(size_t i = 0; i < lhs.shape().elem(); ++i){
+    float lhs_value = std::get<float>(lhs[i]);
+    float rhs_value = std::get<float>(rhs[i]);
+    lhs.set<float>(i, lhs_value * (1.0 - lrate) + rhs_value * lrate);
+  }
+});
+
 }
 
 #endif
