@@ -55,6 +55,11 @@ struct constant {
     throw std::invalid_argument("invalid type argument");
   }
 
+  template<typename T>
+  constant_t<T>& get(){
+    return std::get<constant_t<T>>(this->_constant);
+  }
+
 private:
   constant_v _constant;
 };

@@ -134,6 +134,7 @@ def erode(model, steps=512):
             break
 
         # Accumulate Exit Fraction
+
         if model.shape.oob(drop.pos):
           no_basin_track += 1
 
@@ -151,6 +152,7 @@ def erode(model, steps=512):
 
 def main():
 
+  np.random.seed(0)
   shape = soil.shape([512, 512])  # Define Map Shape
   model = make_model(shape)       # Construct Model
 
@@ -164,7 +166,7 @@ def main():
 
   # Run Erosion Code
 
-  erode(model, steps = 128)
+  erode(model, steps = 256)
   render(model)
 
 if __name__ == "__main__":
