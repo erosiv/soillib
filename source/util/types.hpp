@@ -27,6 +27,11 @@ using ivec2 = glm::vec<2, int, defaultp>;
 using ivec3 = glm::vec<3, int, defaultp>;
 using ivec4 = glm::vec<4, int, defaultp>;
 
+
+// helper type for the visitor #4
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+
 //! typedesc is a generic compile-time type descriptor,
 //! which provides common properties like string names,
 //! or statically related types for specific purposes. 

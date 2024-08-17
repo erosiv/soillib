@@ -3,6 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/yield.hpp>
+#include <soillib/util/types.hpp>
 
 #include <memory>
 #include <array>
@@ -28,10 +29,10 @@ namespace soil {
 template<size_t D>
 struct shape_t {
 
-  typedef std::array<size_t, D> arr_t;
+  typedef std::array<int, D> arr_t;
 
   shape_t() = default;
-  shape_t(const std::vector<size_t>& v){
+  shape_t(const std::vector<int>& v){
     for(size_t i = 0; i < v.size(); ++i)
       this->_arr[i] = v[i];
   }
@@ -50,14 +51,14 @@ struct shape_t {
   }
 
   //! Shape Dimension Lookup
-  size_t operator[](const size_t d) const {
+  size_t operator[](const int d) const {
     if(d >= D) throw std::invalid_argument("index is out of bounds");
     return this->_arr[d];
   }
 
   //! Position Flattening Procedure
   size_t flat(const arr_t pos) const {
-    size_t value = 0;
+    int value = 0;
     for(size_t d = 0; d < D; ++d){
       value *= this->operator[](d);
       value += pos[d];
@@ -120,16 +121,11 @@ using shape_iter_v = std::variant<
   yield<soil::shape_t<3>::arr_t>
 >;
 
-// helper type for the visitor #4
-template<class... Ts>
-struct overloaded : Ts... { using Ts::operator()...; };
-
-
 //! Merged Interface Shape Type
 struct shape {
 
   shape(){}
-  shape(const std::vector<size_t>& v):
+  shape(const std::vector<int>& v):
     _shape(make(v)){}
 
   // Forwarding Implementations
@@ -182,19 +178,15 @@ struct shape {
 
   }
 
-  size_t oob2(const std::array<float, 2>& arr) const {
-    return this->oob<2>(std::array<size_t, 2>{(size_t)arr[0], (size_t)arr[1]});
-  }
-
   size_t oob(glm::ivec2 pos) const {
-    return this->oob<2>(shape_t<2>::arr_t{(size_t)pos.x, (size_t)pos.y});
+    return this->oob<2>(shape_t<2>::arr_t{pos.x, pos.y});
   }
 
   size_t flat(glm::ivec2 pos) const {
-    return this->flat<2>(shape_t<2>::arr_t{(size_t)pos.x, (size_t)pos.y});
+    return this->flat<2>(shape_t<2>::arr_t{pos.x, pos.y});
   }
 
-  shape_v make(const std::vector<size_t>& v){
+  shape_v make(const std::vector<int>& v){
     if(v.size() == 1) return shape_t<1>(v);
     if(v.size() == 2) return shape_t<2>(v);
     if(v.size() == 3) return shape_t<3>(v);

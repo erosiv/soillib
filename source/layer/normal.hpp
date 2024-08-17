@@ -36,7 +36,7 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
   auto _shape = _array.shape();
 
   auto sample = [&](const glm::ivec2 pos) -> T {
-    const size_t index = _shape.template flat<2>({(size_t)pos.x, (size_t)pos.y});
+    const size_t index = _shape.template flat<2>({pos.x, pos.y});
     return _array[index];
   };
 
@@ -45,12 +45,12 @@ glm::vec2 gradient_detailed(const soil::array& array, glm::ivec2 p){
     auto pos_x = px[i].pos;
     auto pos_y = py[i].pos;
 
-    if(!_shape.template oob<2>({(size_t)pos_x.x, (size_t)pos_x.y})){
+    if(!_shape.template oob<2>({pos_x.x, pos_x.y})){
       px[i].oob = false;
       px[i].height = sample(px[i].pos);
     }
   
-    if(!_shape.template oob<2>({(size_t)pos_y.x, (size_t)pos_y.y})){
+    if(!_shape.template oob<2>({pos_y.x, pos_y.y})){
       py[i].oob = false;
       py[i].height = sample(py[i].pos);
     }
