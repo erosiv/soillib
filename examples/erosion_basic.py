@@ -64,12 +64,17 @@ def make_model(shape):
   momentum =  soil.constant("vec2", [0.0, 0.0])
   resistance = soil.constant("float", 0.0)
 
+  maxdiff = soil.constant("float", 0.8)
+  settling = soil.constant("float", 1.0)
+
   return soil.water_model(
     shape,
     height,
     momentum,
     discharge,
-    resistance
+    resistance,
+    maxdiff,
+    settling
   )
 
 def erode(model, steps=512):
@@ -142,7 +147,7 @@ def main():
 
   # Run Erosion Code
 
-  erode(model, steps = 64)
+  erode(model, steps = 256)
   render(model)
 
 if __name__ == "__main__":

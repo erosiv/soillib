@@ -3,6 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/particle/particle.hpp>
+#include <soillib/particle/cascade.hpp>
 // #include <soillib/model/cascade.hpp>
 
 #include <soillib/layer/layer.hpp>
@@ -45,6 +46,8 @@ struct water_particle_t {
   soil::constant momentum;    //!< Momentum Layer
   soil::constant discharge;   //!< Discharge Layer
   soil::constant resistance;  //!< Resistance Value
+  soil::constant maxdiff;
+  soil::constant settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
     auto _height = std::get<soil::array_t<float>>(this->height._array);
@@ -111,13 +114,29 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   if(age > param.maxAge){
     model.add(index, sediment, matrix);
-    // soil::phys::cascade<M>(world, ipos);
+
+    cascade_model_t casc{
+      model.shape,
+      model.height,
+      model.maxdiff,
+      model.settling
+    };
+    soil::cascade(casc, ipos);
+
     return false;
   }
 
   if(volume < param.minVol){
     model.add(index, sediment, matrix);
-    // soil::phys::cascade<M>(world, ipos);
+    
+    cascade_model_t casc{
+      model.shape,
+      model.height,
+      model.maxdiff,
+      model.settling
+    };
+    soil::cascade(casc, ipos);
+
     return false;
   }
 
@@ -214,8 +233,13 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   volume *= (1.0-param.evapRate);
 
   // New Position Out-Of-Bounds
-
-  // soil::phys::cascade<M>(world, ipos);
+  cascade_model_t casc{
+    model.shape,
+    model.height,
+    model.maxdiff,
+    model.settling
+  };
+  soil::cascade(casc, ipos);
 
   age++;
   return true;

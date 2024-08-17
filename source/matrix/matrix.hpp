@@ -26,6 +26,7 @@ struct singular {
   const singular operator/(const float rhs) const { return *this; }
   const singular operator*(const float rhs) const { return *this; }
 
+  /*
   // Concept Implementations
 
   const float maxdiff() const noexcept {
@@ -35,6 +36,7 @@ struct singular {
   const float settling() const noexcept {
     return 1.0f;
   }
+  */
 
 };
 

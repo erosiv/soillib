@@ -29,6 +29,8 @@ void bind_particle(py::module& module){
     soil::array,
     soil::constant,
     soil::constant,
+    soil::constant,
+    soil::constant,
     soil::constant
   >());
 
@@ -37,6 +39,8 @@ void bind_particle(py::module& module){
   model.def_property_readonly("momentum", [](model_t& model){ return model.momentum; });
   model.def_property_readonly("discharge", [](model_t& model){ return model.discharge; });
   model.def_property_readonly("resistance", [](model_t& model){ return model.resistance; });
+  model.def_property_readonly("maxdiff", [](model_t& model){ return model.maxdiff; });
+  model.def_property_readonly("settling", [](model_t& model){ return model.settling; });
 
   using water_t = soil::WaterParticle;
   auto water = py::class_<water_t>(module, "water");
