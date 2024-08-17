@@ -13,14 +13,18 @@
 //! Based on work by Patrik Huber 2016,
 //! adapted for latest Pybind11 / C++23 
 
-#include "pybind11/numpy.h"
+#include <nanobind/stl/array.h>
 #include "glm/gtc/type_ptr.hpp"
+
+// #include "pybind11/numpy.h"
 
 #include <iostream>
 #include <cstddef>
 
-namespace pybind11 {
+namespace nanobind {
 namespace detail {
+
+/*
 
 template<typename T, glm::precision P>
 struct type_caster<glm::tvec2<T, P>> {
@@ -143,8 +147,12 @@ struct type_caster<glm::tvec4<T, P>> {
 
 };
 
+*/
+
+
 }	// end of namespace detail
 
+/*
 template<size_t N, typename T>
 using vec = glm::vec<N, T, glm::qualifier::packed_highp>;
 
@@ -174,6 +182,9 @@ glm_descriptor(2, int);
 glm_descriptor(3, int);
 glm_descriptor(4, int);
 
-}	// end of namespace pybind11
+*/
+
+
+}
 
 #endif

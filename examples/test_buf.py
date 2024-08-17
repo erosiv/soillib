@@ -46,6 +46,7 @@ def test_array():
   array.fill(3.14)
   print(array[0])
   array[0] = 1.
+  print(array[0])
 
   # Iterate over Shape and Retrieve Values
   # shape = array.shape
@@ -57,7 +58,7 @@ def test_array():
   #  print(f"{pos}: {val}")
 
   # Numpy Interface
-  numpy = np.array(array)
+  numpy = array.numpy()
   print(numpy)
   print(numpy.dtype)
 

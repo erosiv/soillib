@@ -22,7 +22,7 @@ def iter_tiff(path):
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
-      yield file, os.path.join(path, file)
+      yield file, os.path.join(path, file).decode('utf-8')
 
 def main(input):
 
@@ -34,7 +34,7 @@ def main(input):
 
     # Output Meta-Data, Plot
     print(array.shape, array.type)
-    plt.imshow(array)
+    plt.imshow(array.numpy())
     plt.show()
 
 if __name__ == "__main__":

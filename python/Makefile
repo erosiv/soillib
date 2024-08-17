@@ -4,7 +4,7 @@
 INCPATH = -I$(HOME)/.local/include
 LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
-LINKLIB = -ltiff
+LINKLIB = -ltiff -lnanobind
 
 CC = g++ -std=c++23
 CF = -Wfatal-errors -O3
@@ -22,15 +22,44 @@ LIBPATH = -L/opt/homebrew/lib
 CC = g++-13 -std=c++23
 endif
 
+
+# $ CXXFLAGS="-std=c++17 -fvisibility=hidden \
+# 		-DNDEBUG -DNB_COMPACT_ASSERTIONS \
+# 		`python3-config --includes` -fPIC \
+# 		-I $NB_DIR/include \
+# 		-I $NB_DIR/ext/robin_map/include"
+
+CF += -fvisibility=hidden \
+    	-DNDEBUG -DNB_COMPACT_ASSERTIONS \
+    	`python3-config --includes` -fPIC \
+			-O3 -fno-strict-aliasing \
+      -ffunction-sections -fdata-sections
+
 all:
+#	Compile the Extension Code
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
-	@$(CC) $(CF) $(LF) $(INCPATH) $(LIBPATH) \
-		source/soillib.cpp \
-		source/io.cpp \
-		source/util.cpp \
-		source/layer.cpp \
-		source/matrix.cpp \
-		source/particle.cpp \
-	$(LINKLIB) -shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
-	@echo "soillib: installing python module..."
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp $(LINKLIB) -Os -c -o soillib.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp $(LINKLIB) -Os -c -o io.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp $(LINKLIB) -Os -c -o util.o
+	@echo "Linking..."
+	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff \
+			soillib.o \
+			io.o \
+			util.o \
+		$(HOME)/.local/lib/libnanobind.o -o ${MODULE}
 	@mv ${MODULE} $(HOME)/.local/lib/python3.12/site-packages/${MODULE}
+	@rm ./*.o
+	
+#	-shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
+
+# 	
+# 	@$(CC) $(CF) $(LF) $(INCPATH) $(LIBPATH) \
+# 		source/soillib.cpp \
+# 		source/io.cpp \
+# 		source/util.cpp \
+# 		source/layer.cpp \
+# 		source/matrix.cpp \
+# 		source/particle.cpp \
+# 	$(LINKLIB) -shared -fPIC $(shell python3 -m pybind11 --includes) -o ${MODULE}
+# 	@echo "soillib: installing python module..."
+# 	@mv ${MODULE} $(HOME)/.local/lib/python3.12/site-packages/${MODULE}

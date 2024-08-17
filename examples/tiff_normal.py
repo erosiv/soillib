@@ -22,7 +22,7 @@ def iter_tiff(path):
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
-      yield file, os.path.join(path, file)
+      yield file, os.path.join(path, file).decode('utf-8')
 
 def main(input):
 
@@ -41,7 +41,6 @@ def main(input):
     print("what")
 
     plt.imshow(data)
-    #print("AYY")
     plt.show()
 
 if __name__ == "__main__":

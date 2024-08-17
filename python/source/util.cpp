@@ -1,12 +1,17 @@
 #ifndef SOILLIB_PYTHON_UTIL
 #define SOILLIB_PYTHON_UTIL
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
-#include <pybind11/functional.h>
-#include "glm.hpp"
-namespace py = pybind11;
+#include <nanobind/nanobind.h>
+namespace nb = nanobind;
+
+#include <nanobind/ndarray.h>
+#include <nanobind/make_iterator.h>
+
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/array.h>   //! \todo TRY TO ELIMINATE
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/variant.h>
+#include <nanobind/stl/optional.h>
 
 #include <soillib/util/timer.hpp>
 #include <soillib/util/types.hpp>
@@ -18,15 +23,33 @@ namespace py = pybind11;
 //
 
 template<typename T>
-void bind_yield_t(py::module& module, const char* name){
+void bind_yield_t(nb::module_& module, const char* name){
 
 using yield_t = soil::yield<T>;
-auto yield = py::class_<yield_t>(module, name);
+auto yield = nb::class_<yield_t>(module, name);
 
 yield.def("__iter__", [](soil::yield<T>& iter){
-  return py::make_iterator(iter.begin(), iter.end());
-}, py::keep_alive<0, 1>());
+  return nb::make_iterator(nb::type<soil::yield<T>>(), "iterator",
+    iter.begin(), iter.end());
+}, nb::keep_alive<0, 1>());
 
+}
+
+template<typename T, size_t N>
+nb::ndarray<nb::numpy, T, nb::ndim<N>> make_numpy(soil::array& array){
+
+  const size_t dims = array.shape().dims();
+  size_t _shape[N];
+  for(size_t d = 0; d < dims; ++d){
+    _shape[d] = array.shape()[d];
+  };
+
+  return nb::ndarray<nb::numpy, float, nb::ndim<N>>(
+    array.data(),
+    dims,
+    _shape,
+    nb::handle()
+  );
 }
 
 //
@@ -34,27 +57,27 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 //
 
 //! General Util Binding Function
-void bind_util(py::module& module){
+void bind_util(nb::module_& module){
 
 //
 // Timer Type Binding
 //
 
-auto timer = py::class_<soil::timer>(module, "timer");
-timer.def(py::init<>());
+auto timer = nb::class_<soil::timer>(module, "timer");
+timer.def(nb::init<>());
 
 timer.def("__enter__", [](soil::timer& timer){
   timer.start();
 });
 
 timer.def("__exit__", [](soil::timer& timer,
-  const std::optional<pybind11::type>& exc_type,
-  const std::optional<pybind11::object>& exc_value,
-  const std::optional<pybind11::object>& traceback
+   std::optional<nb::handle>,
+   std::optional<nb::object>,
+   std::optional<nb::object>
 ){
   timer.stop();
   std::cout<<"Execution Time: "<<timer.count()<<" ms"<<std::endl;
-});
+}, nb::arg().none(), nb::arg().none(), nb::arg().none());
 
 //
 // Yield Type Binding
@@ -68,8 +91,8 @@ bind_yield_t<soil::shape_t<3>::arr_t>(module, "yield_shape_t_arr_3");
 // Shape Type Binding
 //
 
-auto shape = py::class_<soil::shape>(module, "shape");
-shape.def(py::init<const std::vector<int>&>());
+auto shape = nb::class_<soil::shape>(module, "shape");
+shape.def(nb::init<const std::vector<int>&>());
 
 shape.def("dims", &soil::shape::dims);
 shape.def("elem", &soil::shape::elem);
@@ -101,12 +124,13 @@ shape.def("__repr__", [](const soil::shape& shape){
 // Array Type Binding
 //
 
-auto array = py::class_<soil::array>(module, "array", py::buffer_protocol());
-array.def(py::init<const std::string, const soil::shape&>());
-array.def(py::init<>([](const std::string type, const std::vector<int>& v){
+auto array = nb::class_<soil::array>(module, "array");
+array.def(nb::init<const std::string, const soil::shape&>());
+array.def(nb::init<>());
+array.def("__init__", [](soil::array* array, const std::string type, const std::vector<int>& v){ 
   auto shape = soil::shape(v);
-  return soil::array(type, shape);
-}));
+  new (array) soil::array(type, shape);
+});
 
 array.def("elem", &soil::array::elem);
 array.def("size", &soil::array::size);
@@ -115,43 +139,14 @@ array.def("fill", &soil::array::fill<int>);
 array.def("fill", &soil::array::fill<float>);
 array.def("fill", &soil::array::fill<double>);
 
-array.def_property_readonly("type", &soil::array::type);
-array.def_property_readonly("shape", &soil::array::shape);
+array.def_prop_ro("type", &soil::array::type);
+array.def_prop_ro("shape", &soil::array::shape);
 
 array.def("reshape", &soil::array::reshape);
 
-array.def_buffer([](soil::array& array) -> py::buffer_info {
-
-  std::vector<py::ssize_t> shape;
-  std::vector<py::ssize_t> strides;
-
-  const size_t dims = array.shape().dims();
-
-  for(size_t d = 0; d < dims; ++d){
-    shape.push_back(array.shape()[d]);
-  }
-
-  size_t s = array.size();
-  for(size_t d = 0; d < dims; ++d){
-    s = s / array.shape()[d];
-    strides.push_back(s);
-  }
-  
-  std::string format;
-  if(array.type() == "int") format = py::format_descriptor<int>::format();
-  if(array.type() == "float") format = py::format_descriptor<float>::format();
-  if(array.type() == "double") format = py::format_descriptor<double>::format();
-  if(array.type() == "vec2") format = py::format_descriptor<soil::vec2>::format();
-  if(array.type() == "vec3") format = py::format_descriptor<soil::vec3>::format();
-
-  return py::buffer_info(
-    array.data(),
-    array.size() / array.elem(),
-    format,
-    dims,
-    shape,
-    strides
-  );
+array.def("numpy", [](soil::array& array) {
+  if(array.type() == "float") return make_numpy<float, 2>(array);
+  throw std::invalid_argument("I don't know how to make this into numpy!");
 });
 
 array.def("__getitem__", &soil::array::operator[]);
@@ -159,7 +154,8 @@ array.def("__setitem__", &soil::array::set<int>);
 array.def("__setitem__", &soil::array::set<float>);
 array.def("__setitem__", &soil::array::set<double>);
 
-array.def("__setitem__", [](soil::array& array, const py::tuple& tup, const py::object value){
+/*
+array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::object value){
   size_t index;
   if(tup.size() == 1) index = array.shape().template flat<1>({tup[0].cast<int>()});
   if(tup.size() == 2) index = array.shape().template flat<2>({tup[0].cast<int>(), tup[1].cast<int>()});
@@ -169,6 +165,7 @@ array.def("__setitem__", [](soil::array& array, const py::tuple& tup, const py::
   if(array.type() == "float") array.set<float>(index, value.cast<float>());
   if(array.type() == "double") array.set<double>(index, value.cast<double>());
 });
+*/
 
 array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
   for(size_t i = 0; i < lhs.shape().elem(); ++i){
