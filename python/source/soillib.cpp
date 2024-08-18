@@ -19,6 +19,8 @@ void bind_particle(nb::module_& module);
 
 NB_MODULE(soillib, module){
 
+nb::set_leak_warnings(false);
+
 module.doc() = "Soillib Python Module";
 
 bind_io (module);

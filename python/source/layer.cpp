@@ -51,8 +51,8 @@ void bind_layer(nb::module_& module){
   auto computed = nb::class_<soil::computed>(module, "computed");
   computed.def("type", &soil::computed::type);
 
-  computed.def("__init__", [](soil::computed* computed, const soil::dtype type, const nb::object object){
-    soil::typeselect(type, [type, computed, &object]<typename T>(){
+  computed.def("__init__", [](soil::computed* computed, const soil::dtype type, const nb::callable object){
+    soil::typeselect(type, [type, computed, object]<typename T>(){
       using func_t = std::function<T(const size_t)>;
       func_t func = nb::cast<func_t>(object);
       new (computed) soil::computed(type, func);

@@ -6,31 +6,31 @@ import time
 
 def test_layer():
 
-  '''
-  height =      soil.array(soil.float32, shape).fill(0.0)  
-  discharge =   soil.array(soil.float32, shape).fill(0.0)
-  momentum =    soil.array(soil.vec2, shape).fill([0.0, 0.0])
-
-  resistance =  soil.constant(soil.float32, 0.0)
-  maxdiff =     soil.constant(soil.float32, 0.8)
-  settling =    soil.constant(soil.float32, 1.0)
-  '''
-
-  x = 1.0
-  j = 0.0
-  print("Computed Value:")
-  with soil.timer() as timer:
-    comp = soil.computed(soil.float32, lambda index: x)
-    for i in range(2**18):
-      j = comp(0)
-  print(j)
-
-  j = 0.0
   print("Constant Value:")
+  j = 0.0
   with soil.timer() as timer:
     const = soil.constant(soil.float32, 1.0)
     for i in range(2**18):
       j = const(0)
+  print(j)
+
+  print("Computed Value:")
+  x = 1.0
+  j = 0.0
+  with soil.timer() as timer:
+    comp = soil.computed(soil.float32, lambda i: 0.0)
+    for i in range(2**18):
+      j = comp(0)
+  print(j)
+
+  print("Coupled Layers:")
+  with soil.timer() as timer:
+    const1 = soil.constant(soil.float32, 3.14)
+    const2 = soil.constant(soil.float32, 3.14)
+    comp = soil.computed(soil.float32, lambda index:
+      const1(index) + const2(index))
+    for i in range(2**18):
+      j = comp(0)
   print(j)
 
 test_layer()
