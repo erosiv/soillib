@@ -24,9 +24,9 @@ void bind_particle(nb::module_& module){
   model.def(nb::init<>());
   model.def(nb::init<
     soil::shape,
-    soil::cached,
-    soil::cached,
-    soil::cached,
+    soil::layer,
+    soil::layer,
+    soil::layer,
     soil::layer,
     soil::layer,
     soil::layer

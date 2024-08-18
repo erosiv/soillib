@@ -35,6 +35,13 @@ void bind_layer(nb::module_& module){
   layer.def(nb::init<soil::constant&&>());
   layer.def(nb::init<soil::computed&&>());
 
+  layer.def("array", [](soil::layer& layer){
+    auto cached = std::get<soil::cached>(layer._layer);
+    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::array {
+      return soil::array(cached.as<T>().array);
+    });
+  });
+
   //
   // Cache-Valued Layer, i.e. Lookup Table
   //

@@ -57,7 +57,6 @@ struct layer {
     }, this->_layer);
   }
 
-private:
   layer_v _layer;
 };
 

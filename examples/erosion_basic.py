@@ -88,9 +88,9 @@ def make_model(shape, seed=0.0):
 
   return soil.water_model(
     shape,
-    height,
-    momentum,
-    discharge,
+    soil.layer(height),
+    soil.layer(momentum),
+    soil.layer(discharge),
     soil.layer(resistance),
     soil.layer(maxdiff),
     soil.layer(settling)
@@ -167,7 +167,7 @@ def main():
   np.random.seed(0)
   shape = soil.shape([512, 512])
   model = make_model(shape, seed = 1.0)
-  for h, d in erode(model, steps = 750):
+  for h, d in erode(model, steps = 256):
     pass
 
   render(model)

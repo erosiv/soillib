@@ -44,16 +44,16 @@ struct water_particle_t {
   using matrix_t = soil::matrix::singular;
 
   soil::shape shape;
-  soil::cached height;        //!< Height Array
-  soil::cached momentum;      //!< Momentum Array
-  soil::cached discharge;     //!< Discharge Array
+  soil::layer height;     //!< Height Array
+  soil::layer momentum;    //!< Momentum Array
+  soil::layer discharge;   //!< Discharge Array
   soil::layer resistance;  //!< Resistance Value
   soil::layer maxdiff;
   soil::layer settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
-      auto height = self->height.as<float>();
+      auto height = std::get<soil::cached>(self->height._layer).as<float>();
       height.array[index] += value;
     });
   }
@@ -146,7 +146,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   // Apply Forces to Particle
 
-  const glm::vec3 n = soil::normal::sub()(model.height.as<float>().array, ipos);
+  const glm::vec3 n = soil::normal::sub()(std::get<soil::cached>(model.height._layer).as<float>().array, ipos);
 
   const glm::vec2 fspeed = model.momentum.template operator()<vec2>(index);
   const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));

@@ -28,13 +28,13 @@ struct cascade_model_t {
   using matrix_t = soil::matrix::singular;
 
   soil::shape shape;
-  soil::cached height;
+  soil::layer height;
   soil::layer maxdiff;
   soil::layer settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
-      auto height = self->height.as<float>();
+      auto height = std::get<soil::cached>(self->height._layer).as<float>();
       height.array[index] += value;
     });
   }
