@@ -70,7 +70,7 @@ struct computed {
       [self=this, index]<typename S>() -> T {
         if constexpr (std::convertible_to<S, T>){
           return (T)self->as<S>().operator()(index);
-        } else throw std::invalid_argument("BLABLA");
+        } else throw soil::error::cast_error<S, T>{}();
       }
     );
   }
@@ -84,9 +84,7 @@ struct computed {
         return new soil::computed_t<S>([func](const size_t index){
           return (S)func(index);
         });
-      } else {
-        throw std::invalid_argument("BLABLA");
-      }
+      } else throw soil::error::cast_error<T, S>{}();
     });
   }
 

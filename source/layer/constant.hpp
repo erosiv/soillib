@@ -64,7 +64,7 @@ struct constant {
       [self=this, index]<typename S>() -> T {
         if constexpr (std::convertible_to<S, T>){
           return (T)self->as<S>().operator()(index);
-        } else throw std::invalid_argument("BLABLA");
+        } else throw soil::error::cast_error<S, T>{}();
       }
     );
   }
@@ -74,9 +74,7 @@ struct constant {
     return typeselect(type, [value]<typename S>() -> typedbase* {
       if constexpr (std::convertible_to<T, S>){
         return new soil::constant_t<S>(S(value));
-      } else {
-        throw std::invalid_argument("BLABLA");
-      }
+      } else throw soil::error::cast_error<T, S>{}();
     });
   }
 

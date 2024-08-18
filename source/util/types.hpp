@@ -3,6 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <variant>
+#include <format>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -54,30 +55,46 @@ enum dtype {
 template<typename T> struct typedesc;
 
 template<> struct typedesc<int> {
-  static constexpr const char* name = "int"; 
+  static constexpr std::string name = "int"; 
   static constexpr dtype type = INT;
 };
 
 template<> struct typedesc<float> {
-  static constexpr const char* name = "float"; 
+  static constexpr std::string name = "float"; 
   static constexpr dtype type = FLOAT32;
 };
 
 template<> struct typedesc<double> {
-  static constexpr const char* name = "double"; 
+  static constexpr std::string name = "double"; 
   static constexpr dtype type = FLOAT64;
 };
 
 template<> struct typedesc<vec2> {
-  static constexpr const char* name = "vec2"; 
+  static constexpr std::string name = "vec2"; 
   static constexpr dtype type = VEC2;
 };
 
 template<> struct typedesc<vec3> {
-  static constexpr const char* name = "vec3";
+  static constexpr std::string name = "vec3";
   static constexpr dtype type = VEC3;
 };
 
+// Error Messages
+//! \todo this is exemplary, clean this up.
+
+namespace error {
+
+template<typename From, typename To>
+struct cast_error {
+  static std::invalid_argument operator()(){
+    return std::invalid_argument(value());
+  }
+  static std::string value(){
+    return std::format("invalid cast from <{}> to <{}>", typedesc<From>::name, typedesc<To>::name);
+  }
+};
+
+}
 
 // I have a nagging feeling that I should be using concepts again...
 
