@@ -70,13 +70,13 @@ def make_model(shape):
   hydraulic erosion model.
   '''
 
-  height = soil.array(soil.float32, shape).fill(0.0)  
-  discharge = soil.array(soil.float32, shape).fill(0.0)
-  momentum =  soil.array(soil.vec2, shape).fill([0.0, 0.0])
-  resistance = soil.constant(soil.float32, 0.0)
-
-  maxdiff = soil.constant(soil.float32, 0.8)
-  settling = soil.constant(soil.float32, 1.0)
+  height =      soil.array(soil.float32, shape).fill(0.0)  
+  discharge =   soil.array(soil.float32, shape).fill(0.0)
+  momentum =    soil.array(soil.vec2, shape).fill([0.0, 0.0])
+  
+  resistance =  soil.constant(soil.float32, 0.0)
+  maxdiff =     soil.constant(soil.float32, 0.8)
+  settling =    soil.constant(soil.float32, 1.0)
 
   return soil.water_model(
     shape,
@@ -165,7 +165,7 @@ def main():
   noise = soil.noise()
   for pos in shape.iter():
     index = shape.flat(pos)
-    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], 0.2])
+    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], 0.0])
     model.height[index] = 80.0 * value
 
   # Run Erosion Code

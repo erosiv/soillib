@@ -182,7 +182,7 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
     return false;
 
   const float discharge = erf(0.4f * std::get<float>(model.discharge[index]));
-  const float resistance = std::get<float>(model.resistance(index));
+  const float resistance = model.resistance.template operator()<float>(index);
 
   //Out-Of-Bounds
 

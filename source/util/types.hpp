@@ -78,17 +78,66 @@ template<> struct typedesc<vec3> {
   static constexpr dtype type = VEC3;
 };
 
-// variant forwarding:
-// multi_t is a template-template that accepts a templated type,
-// and returns a variant which is specialized by the base types.
-//
-// additionally, multi is just the regular base type variant.
+
+// I have a nagging feeling that I should be using concepts again...
+
+/*
+With this polymorphism idiom:
+
+- Implementations are Strict-Typed
+- Implementations derive from a type which provide the typing interface.
+- A wrapper class stores a pointer to the arbitrary typed guy,
+  and after checking is static_cast to the correct type.
+- Retrieving the actual type requires a single virtual function call,
+  subsequently requires a switch-case for the type and then the rest
+  is actually strict-typed using the lambda concept.
+  It's like an STD visit, but I actually have a template parameter
+  instead of just a lambda that requires each type to implement smth.
+- If I know the type, I can just get the guy directly.
+
+*/
+
+
+namespace {
+
+#pragma GCC diagnostic ignored "-Wsubobject-linkage"
+
+struct typedbase {
+  constexpr virtual soil::dtype type() const noexcept {
+    return {};
+  }
+};
+
+}
 
 //! Templated Visitor Selector
 template<class... Ts>
 struct overloaded: Ts... { 
   using Ts::operator()...; 
 };
+
+//! typeselect accepts a type enumerator and a templated lambda,
+//! which it subsequently calls with a strict-typed evaluation.
+//!
+//! this effectively instantiates every required template of the
+//! desired lambda expression, and executes the runtime selection.
+template<typename F, typename... Args>
+auto typeselect(const soil::dtype type, F lambda, Args&&... args){
+  switch(type){
+    case soil::INT:     return lambda.template operator()<int>    (std::forward<Args>(args)...);
+    case soil::FLOAT32: return lambda.template operator()<float>  (std::forward<Args>(args)...);
+    case soil::FLOAT64: return lambda.template operator()<double> (std::forward<Args>(args)...);
+    case soil::VEC2:    return lambda.template operator()<vec2>   (std::forward<Args>(args)...);
+    case soil::VEC3:    return lambda.template operator()<vec3>   (std::forward<Args>(args)...);
+    default: throw std::invalid_argument("type not supported");
+  }
+}
+
+// variant forwarding:
+// multi_t is a template-template that accepts a templated type,
+// and returns a variant which is specialized by the base types.
+//
+// additionally, multi is just the regular base type variant.
 
 using multi = std::variant<
   int, float, double, vec2, vec3

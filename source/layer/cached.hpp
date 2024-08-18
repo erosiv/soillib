@@ -3,8 +3,7 @@
 
 namespace soil {
 
-struct stored {
-};
+struct stored {};
 
 } // end of namespace soil
 

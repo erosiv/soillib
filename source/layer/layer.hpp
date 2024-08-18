@@ -4,35 +4,27 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/types.hpp>
 
-#include <soillib/layer/constant.hpp>
-#include <soillib/layer/stored.hpp>
+// #include <soillib/layer/stored.hpp>
 
+namespace soil {
 
+//! A layer represents constant, stored or computed
+//! quantity distributed over the domain.
+//!
+//! Layers are modular and can be composed to yield
+//! user-defined quantities, which are necessary for
+//! executing any dynamic transport model.
+//! 
+//! Layers can also cache and pre-compute results for
+//! efficient deferred computation.
 
-/*
-Layer Concept:
+template<typename T>
+struct layer_t {
 
-Like in GIMP, or Photoshop, a full model consists of multiple layers of information.
-This name might be subject to change, since they are not necessarily "vertically layered".
+  //! Compute the Output Quantity
+  virtual T operator()(const size_t index) noexcept;
 
-The idea is that these act as generic maps, which take the data from an array or another
-spatially organizing structure and allow for computing maps directly, caching results and
-returning fully pre-computed arrays on request.
-
-We will try to implement this for now and later refine the concept to be more modular.
-This can later also be used to have a node-based synthesis model, but primarily exists
-so that we can define common operations and even one day autograd through them.
-*/
-
-/*
-Implementation: Does the layer have a strict-typed input and output? I think so.
-Does it store a reference to its underlying in type?
-
-In theory, I could have a generic node that just takes a lambda right?
-Let's not do that for now though. In theory this could be done later
-for proper interactive nodes w. std::function?
-*/
-namespace {
+};
 
 /*
 enum TEST {

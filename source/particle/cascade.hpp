@@ -103,14 +103,17 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
     const size_t tindex = model.shape.flat(tpos);
     const size_t bindex = model.shape.flat(bpos);
 
+    const float maxdiff = model.maxdiff.template operator()<float>(tindex);
+    const float settling = model.settling.template operator()<float>(tindex);
+
     //The Amount of Excess Difference!
     float excess = 0.0f;
-    excess = abs(diff) - sn[i].d*std::get<float>(model.maxdiff(tindex));
+    excess = abs(diff) - sn[i].d*maxdiff;
     if(excess <= 0)  //No Excess
       continue;
 
     //Actual Amount Transferred
-    float transfer = std::get<float>(model.settling(tindex)) * excess / 2.0f;
+    float transfer = settling * excess / 2.0f;
     model.add(tindex, -transfer, tmatrix);
     model.add(bindex,  transfer, tmatrix);
 
