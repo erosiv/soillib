@@ -45,11 +45,11 @@ struct water_particle_t {
 
   soil::shape shape;
   soil::layer height;     //!< Height Array
-  soil::layer momentum;    //!< Momentum Array
-  soil::layer discharge;   //!< Discharge Array
-  soil::layer resistance;  //!< Resistance Value
-  soil::layer maxdiff;
-  soil::layer settling;
+  soil::layer momentum;   //!< Momentum Array
+  soil::layer discharge;  //!< Discharge Array
+  soil::layer resistance; //!< Resistance Value
+  soil::layer maxdiff;    //!< Maximum Settling Height Difference
+  soil::layer settling;   //!< Settling Rate
 
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
@@ -116,7 +116,10 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
   if(model.shape.oob(ipos))
     return false;
 
+
   if(age > param.maxAge){
+
+    /*
     model.add(index, sediment, matrix);
 
     cascade_model_t casc{
@@ -126,6 +129,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
       model.settling
     };
     soil::cascade(casc, ipos);
+    */
 
     return false;
   }
@@ -146,7 +150,8 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   // Apply Forces to Particle
 
-  const glm::vec3 n = soil::normal::sub()(std::get<soil::cached>(model.height._layer).as<float>().array, ipos);
+  static auto normal = soil::normal(model.shape, model.height);
+  const glm::vec3 n = normal(ipos);
 
   const glm::vec2 fspeed = model.momentum.template operator()<vec2>(index);
   const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));

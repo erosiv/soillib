@@ -42,7 +42,7 @@ def relief_shade(h, n):
 
 def render(model):
 
-  normal = soil.normal()(model.height.array())
+  normal = soil.normal(model.shape, model.height).full()
   normal_data = normal.numpy()
   height_data = model.height.array().numpy()
   relief = relief_shade(height_data, normal_data)
@@ -132,27 +132,16 @@ def erode(model, steps=512):
           if not drop.move(model):
             break
 
-          # Update Tracking Values:
-
-          #oob = model.shape.oob(drop.pos)
-          #test = ''
-          #print(model.shape)
           if not model.shape.oob(drop.pos):
             index = model.shape.flat(drop.pos)
-
             discharge_track.add_float(index, drop.volume)
             momentum_track.add_vec2(index, drop.volume, drop.speed)
 
           if not drop.interact(model):
             break
 
-        # Accumulate Exit Fraction
-
         if model.shape.oob(drop.pos):
           no_basin_track += 1
-
-      # Update Fields...
-      # Execute the Tracking Update!!!
 
       # Update Trackable Quantities:
       model.discharge.array().track_float(discharge_track, lrate)
@@ -166,8 +155,8 @@ def main():
 
   np.random.seed(0)
   shape = soil.shape([512, 512])
-  model = make_model(shape, seed = 1.0)
-  for h, d in erode(model, steps = 256):
+  model = make_model(shape, seed = 0.0)
+  for h, d in erode(model, steps = 128):
     pass
 
   render(model)

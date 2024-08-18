@@ -117,8 +117,8 @@ void bind_layer(nb::module_& module){
   //
 
   auto normal = nb::class_<soil::normal>(module, "normal");
-  normal.def(nb::init<>());
-  normal.def_static("__call__", soil::normal::operator());
+  normal.def(nb::init<const soil::shape&, const soil::layer&>());
+  normal.def("full", &soil::normal::full);
 
   //
   // Noise Sampler Type
