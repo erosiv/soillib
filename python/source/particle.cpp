@@ -29,6 +29,8 @@ void bind_particle(nb::module_& module){
     soil::layer,
     soil::layer,
     soil::layer,
+    soil::layer,
+    soil::layer,
     soil::layer
   >());
 
@@ -40,6 +42,9 @@ void bind_particle(nb::module_& module){
   model.def_prop_ro("maxdiff", [](model_t& model){ return model.maxdiff; });
   model.def_prop_ro("settling", [](model_t& model){ return model.settling; });
 
+  model.def_prop_ro("momentum_track", [](model_t& model){ return model.momentum_track; });
+  model.def_prop_ro("discharge_track", [](model_t& model){ return model.discharge_track; });
+
   using water_t = soil::WaterParticle;
   auto water = nb::class_<water_t>(module, "water");
   water.def(nb::init<soil::vec2>());
@@ -49,6 +54,8 @@ void bind_particle(nb::module_& module){
   water.def("move", [conf](water_t& water, model_t& model){
     return water.move(model, conf);
   });
+
+  water.def("track", &soil::WaterParticle::track);
 
   water.def("interact", [conf](water_t& water, model_t& model){
     return water.interact(model, conf);

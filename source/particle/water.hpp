@@ -46,7 +46,9 @@ struct water_particle_t {
   soil::shape shape;
   soil::layer height;     //!< Height Array
   soil::layer momentum;   //!< Momentum Array
+  soil::layer momentum_track;
   soil::layer discharge;  //!< Discharge Array
+  soil::layer discharge_track;
   soil::layer resistance; //!< Resistance Value
   soil::layer maxdiff;    //!< Maximum Settling Height Difference
   soil::layer settling;   //!< Settling Rate
@@ -103,6 +105,7 @@ struct WaterParticle: soil::Particle {
   //template<typename T>
   bool interact(model_t& model, const WaterParticle_c& param);
 
+  void track(model_t& model);
 };
 
 bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
@@ -174,6 +177,27 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
   pos  += speed;
 
   return true;
+
+}
+
+void WaterParticle::track(model_t& model){
+
+  if(model.shape.oob(this->pos))
+    return;
+
+  const size_t index = model.shape.flat(this->pos);
+
+  {
+    auto cached = std::get<soil::cached>(model.discharge_track._layer);
+    soil::array_t<float> array = cached.as<float>().array;
+    array[index] += this->volume;
+  }
+
+  {
+    auto cached = std::get<soil::cached>(model.momentum_track._layer);
+    soil::array_t<vec2> array = cached.as<vec2>().array;
+    array[index] += this->volume * this->speed;
+  }
 
 }
 

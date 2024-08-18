@@ -79,8 +79,12 @@ def make_model(shape, seed=0.0):
     height[index] = 80.0 * value
 
   height    = soil.cached(soil.float32, height)
+
   discharge = soil.cached(soil.float32, soil.array(soil.float32,  shape).fill(0.0))
   momentum  = soil.cached(soil.vec2,    soil.array(soil.vec2,     shape).fill([0.0, 0.0]))
+
+  discharge_track = soil.cached(soil.float32, soil.array(soil.float32, shape).fill(0.0))
+  momentum_track  = soil.cached(soil.vec2,    soil.array(soil.vec2, shape).fill([0.0, 0.0]))
 
   resistance =  soil.constant(soil.float32, 0.0)
   maxdiff =     soil.constant(soil.float32, 0.8)
@@ -90,7 +94,9 @@ def make_model(shape, seed=0.0):
     shape,
     soil.layer(height),
     soil.layer(momentum),
+    soil.layer(momentum_track),
     soil.layer(discharge),
+    soil.layer(discharge_track),
     soil.layer(resistance),
     soil.layer(maxdiff),
     soil.layer(settling)
@@ -113,10 +119,10 @@ def erode(model, steps=512):
 
     # Fraction of "Exited" Particles
     no_basin_track = 0.0
+    model.discharge_track.array().zero()
+    model.momentum_track.array().zero()
 
     # Tracking Values:
-    discharge_track = soil.array(soil.float32, model.shape).fill(0.0)
-    momentum_track = soil.array(soil.vec2, model.shape).fill([0.0, 0.0])
 
     with soil.timer() as timer:
 
@@ -132,10 +138,7 @@ def erode(model, steps=512):
           if not drop.move(model):
             break
 
-          if not model.shape.oob(drop.pos):
-            index = model.shape.flat(drop.pos)
-            discharge_track.add_float(index, drop.volume)
-            momentum_track.add_vec2(index, drop.volume, drop.speed)
+          drop.track(model)
 
           if not drop.interact(model):
             break
@@ -144,8 +147,8 @@ def erode(model, steps=512):
           no_basin_track += 1
 
       # Update Trackable Quantities:
-      model.discharge.array().track_float(discharge_track, lrate)
-      model.momentum.array().track_vec2(momentum_track, lrate)
+      model.discharge.array().track_float(model.discharge_track.array(), lrate)
+      model.momentum.array().track_vec2(model.momentum_track.array(), lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
@@ -155,8 +158,8 @@ def main():
 
   np.random.seed(0)
   shape = soil.shape([512, 512])
-  model = make_model(shape, seed = 0.0)
-  for h, d in erode(model, steps = 128):
+  model = make_model(shape, seed = 5.0)
+  for h, d in erode(model, steps = 512):
     pass
 
   render(model)
