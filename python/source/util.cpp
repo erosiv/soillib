@@ -138,10 +138,16 @@ shape.def("__repr__", [](const soil::shape& shape){
 // Array Type Binding
 //
 
+nb::enum_<soil::dtype>(module, "dtype")
+  .value("int", soil::dtype::INT)
+  .value("float32", soil::dtype::FLOAT32)
+  .value("vec2", soil::dtype::VEC2)
+  .export_values();
+
 auto array = nb::class_<soil::array>(module, "array");
-array.def(nb::init<const std::string, const soil::shape&>());
 array.def(nb::init<>());
-array.def("__init__", [](soil::array* array, const std::string type, const std::vector<int>& v){ 
+array.def(nb::init<const soil::dtype, const soil::shape&>());
+array.def("__init__", [](soil::array* array, const soil::dtype type, const std::vector<int>& v){ 
   auto shape = soil::shape(v);
   new (array) soil::array(type, shape);
 });
@@ -159,16 +165,14 @@ array.def_prop_ro("shape", &soil::array::shape);
 
 array.def("reshape", &soil::array::reshape);
 
-
 using test = std::variant<
   nb::ndarray<nb::numpy, float, nb::ndim<2>>,
   nb::ndarray<nb::numpy, float, nb::ndim<3>>
 >;
 
 array.def("numpy", [](soil::array& array) -> test {
-  std::cout<<array.type()<<std::endl;
-  if(array.type() == "float") return make_numpy<float, 2>(array);
-  if(array.type() == "vec3")  return make_numpy<float, 3>(array);
+  if(array.type() == soil::FLOAT32) return make_numpy<float, 2>(array);
+  if(array.type() == soil::VEC3)  return make_numpy<float, 3>(array);
   throw std::invalid_argument("I don't know how to make this into numpy!");
 });
 
@@ -180,9 +184,9 @@ array.def("__setitem__", &soil::array::set<soil::vec2>);
 
 array.def("__setitem__", [](soil::array& array, glm::ivec2 pos, const nb::object value){
   size_t index = array.shape().flat(pos);
-  if(array.type() == "int") array.set<int>(index, nb::cast<int>(value));
-  if(array.type() == "float") array.set<float>(index, nb::cast<float>(value));
-  if(array.type() == "double") array.set<double>(index, nb::cast<double>(value));
+  if(array.type() == soil::INT)     array.set<int>(index, nb::cast<int>(value));
+  if(array.type() == soil::FLOAT32) array.set<float>(index, nb::cast<float>(value));
+  if(array.type() == soil::FLOAT64) array.set<double>(index, nb::cast<double>(value));
 });
 
 /*

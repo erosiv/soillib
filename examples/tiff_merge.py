@@ -84,7 +84,7 @@ def merge(input, pscale = 0.1):
   
   pixels = pscale * ((wmax - wmin)/wscale)
   pixels = pixels.astype(np.int64)
-  array = soil.array("float", pixels)
+  array = soil.array(soil.float32, pixels)
   array.fill(np.nan)
 
   for file, path in iter_tiff(input):

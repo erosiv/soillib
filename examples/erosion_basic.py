@@ -70,13 +70,13 @@ def make_model(shape):
   hydraulic erosion model.
   '''
 
-  height = soil.array("float", shape).fill(0.0)  
-  discharge = soil.array("float", shape).fill(0.0)
-  momentum =  soil.array("vec2", shape).fill([0.0, 0.0])
-  resistance = soil.constant("float", 0.0)
+  height = soil.array(soil.float32, shape).fill(0.0)  
+  discharge = soil.array(soil.float32, shape).fill(0.0)
+  momentum =  soil.array(soil.vec2, shape).fill([0.0, 0.0])
+  resistance = soil.constant(soil.float32, 0.0)
 
-  maxdiff = soil.constant("float", 0.8)
-  settling = soil.constant("float", 1.0)
+  maxdiff = soil.constant(soil.float32, 0.8)
+  settling = soil.constant(soil.float32, 1.0)
 
   return soil.water_model(
     shape,
@@ -107,8 +107,8 @@ def erode(model, steps=512):
     no_basin_track = 0.0
 
     # Tracking Values:
-    discharge_track = soil.array("float", model.shape).fill(0.0)
-    momentum_track = soil.array("vec2", model.shape).fill([0.0, 0.0])
+    discharge_track = soil.array(soil.float32, model.shape).fill(0.0)
+    momentum_track = soil.array(soil.vec2, model.shape).fill([0.0, 0.0])
 
     with soil.timer() as timer:
 
@@ -156,7 +156,7 @@ def erode(model, steps=512):
 
 def main():
 
-  np.random.seed(0)
+  # np.random.seed(0)
   shape = soil.shape([512, 512])  # Define Map Shape
   model = make_model(shape)       # Construct Model
 
@@ -165,12 +165,12 @@ def main():
   noise = soil.noise()
   for pos in shape.iter():
     index = shape.flat(pos)
-    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], 0.1])
+    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], 0.2])
     model.height[index] = 80.0 * value
 
   # Run Erosion Code
 
-  for h, d in erode(model, steps = 312):
+  for h, d in erode(model, steps = 512):
     pass
 
   render(model)

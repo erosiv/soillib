@@ -1,5 +1,5 @@
-#ifndef SOILLIB_YIELD
-#define SOILLIB_YIELD
+#ifndef SOILLIB_UTIL_YIELD
+#define SOILLIB_UTIL_YIELD
 
 #include <coroutine>
 #include <cstdint>

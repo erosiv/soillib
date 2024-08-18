@@ -37,7 +37,7 @@ using constant_v = soil::multi_t<constant_t>;
 struct constant {
 
   constant(){}
-  constant(const std::string type, const soil::multi& multi):
+  constant(const soil::dtype type, const soil::multi& multi):
     _constant{make(type, multi)}{}
 
   soil::multi operator()(const size_t& index) const {
@@ -47,11 +47,11 @@ struct constant {
   }
 
   //! \todo Make this type of constructor automated somehow / generic / templated
-  static constant_v make(const std::string type, const soil::multi& multi){
-    if(type == "int")     return soil::constant_t<int>(std::get<int>(multi));
-    if(type == "float")   return soil::constant_t<float>(std::get<float>(multi));
-    if(type == "double")  return soil::constant_t<double>(std::get<double>(multi));
-    if(type == "vec2")    return soil::constant_t<vec2>(std::get<vec2>(multi));
+  static constant_v make(const soil::dtype type, const soil::multi& multi){
+    if(type == soil::INT)     return soil::constant_t<int>(std::get<int>(multi));
+    if(type == soil::FLOAT32) return soil::constant_t<float>(std::get<float>(multi));
+    if(type == soil::FLOAT64) return soil::constant_t<double>(std::get<double>(multi));
+    if(type == soil::VEC2)    return soil::constant_t<vec2>(std::get<vec2>(multi));
     throw std::invalid_argument("invalid type argument");
   }
 

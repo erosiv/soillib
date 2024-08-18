@@ -3,7 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/array.hpp>
-#include <soillib/layer/layer.hpp>
+// #include <soillib/layer/layer.hpp>
 
 namespace soil {
 
@@ -155,9 +155,9 @@ struct normal {
       const size_t index = _shape.flat(pos);
 
       glm::vec3 n;
-      if(in.type() == "float")
+      if(in.type() == soil::FLOAT32)
         n = __normal<float>(in, glm::ivec2(pos[0], pos[1]));
-      else if(in.type() == "double")
+      else if(in.type() == soil::FLOAT64)
         n = __normal<double>(in, glm::ivec2(pos[0], pos[1]));
       n = { n.x, -n.z, n.y};
       n = 0.5f*n + 0.5f;
@@ -175,9 +175,9 @@ struct normal {
       auto _shape = std::get<soil::shape_t<2>>(shape._shape);
 
       glm::vec3 n;
-      if(in.type() == "float")
+      if(in.type() == soil::FLOAT32)
         n = __normal<float>(in, pos);
-      else if(in.type() == "double")
+      else if(in.type() == soil::FLOAT64)
         n = __normal<double>(in, pos);
       //n = { n.x, -n.z, n.y};
       return n;

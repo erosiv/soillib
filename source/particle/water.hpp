@@ -41,6 +41,9 @@ struct water_particle_t {
   
   using matrix_t = soil::matrix::singular;
 
+
+ // soil::layer height; //!< 
+
   soil::shape shape;
   soil::array height;         //!< Height Array
   soil::array momentum;       //!< Momentum Array

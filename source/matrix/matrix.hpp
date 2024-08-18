@@ -26,18 +26,6 @@ struct singular {
   const singular operator/(const float rhs) const { return *this; }
   const singular operator*(const float rhs) const { return *this; }
 
-  /*
-  // Concept Implementations
-
-  const float maxdiff() const noexcept {
-    return 0.8f;
-  }
-
-  const float settling() const noexcept {
-    return 1.0f;
-  }
-  */
-
 };
 
 } // end of namespace matrix

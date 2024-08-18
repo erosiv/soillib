@@ -26,7 +26,7 @@ void bind_layer(nb::module_& module){
   normal.def_static("__call__", soil::normal::operator());
 
   auto constant = nb::class_<soil::constant>(module, "constant");
-  constant.def(nb::init<const std::string, const soil::multi&>());
+  constant.def(nb::init<const soil::dtype, const soil::multi&>());
   constant.def("__call__", &soil::constant::operator());
 
   //

@@ -73,8 +73,7 @@ struct array_t {
 
   // Data Inspection Member Functions
 
-  inline const char* type() const { return typedesc<T>::name; }
-
+  inline soil::dtype type() const { return typedesc<T>::type; }
   inline soil::shape shape() const { return this->_shape; }
   inline size_t elem()  const { return this->_shape.elem(); }
   inline size_t size()  const { return this->elem() * sizeof(T); }
@@ -96,11 +95,11 @@ struct array {
   array(const soil::array_t<T> _array):
     _array(_array){}
 
-  array(const std::string type, const soil::shape& shape):
+  array(const soil::dtype type, const soil::shape& shape):
     _array{make(type, shape)}{}
 
   auto type() const {
-    return std::visit([](auto&& _array) -> const char* {
+    return std::visit([](auto&& _array) -> soil::dtype {
       return _array.type();
     }, this->_array);
   }
@@ -170,11 +169,11 @@ struct array {
     }, value);
   }
 
-  static array_v make(const std::string type, const soil::shape& shape){
-    if(type == "int")     return soil::array_t<int>(shape);
-    if(type == "float")   return soil::array_t<float>(shape);
-    if(type == "double")  return soil::array_t<double>(shape);
-    if(type == "vec2")    return soil::array_t<vec2>(shape);
+  static array_v make(const soil::dtype type, const soil::shape& shape){
+    if(type == soil::INT)     return soil::array_t<int>(shape);
+    if(type == soil::FLOAT32) return soil::array_t<float>(shape);
+    if(type == soil::FLOAT64) return soil::array_t<double>(shape);
+    if(type == soil::VEC2)    return soil::array_t<vec2>(shape);
     throw std::invalid_argument("invalid type argument");
   }
 

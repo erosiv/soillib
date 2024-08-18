@@ -27,10 +27,25 @@ using ivec2 = glm::vec<2, int, defaultp>;
 using ivec3 = glm::vec<3, int, defaultp>;
 using ivec4 = glm::vec<4, int, defaultp>;
 
+// Type Descriptor Enumerator
 
-// helper type for the visitor #4
-template<class... Ts>
-struct overloaded : Ts... { using Ts::operator()...; };
+enum dtype {
+  INT,
+  INT32,
+  INT64,
+  FLOAT,
+  FLOAT32,
+  FLOAT64,
+  VEC2,
+  VEC3,
+  VEC4,
+  IVEC2,
+  IVEC3,
+  IVEC4,
+  DVEC2,
+  DVEC3,
+  DVEC4
+};
 
 //! typedesc is a generic compile-time type descriptor,
 //! which provides common properties like string names,
@@ -40,22 +55,27 @@ template<typename T> struct typedesc;
 
 template<> struct typedesc<int> {
   static constexpr const char* name = "int"; 
+  static constexpr dtype type = INT;
 };
 
 template<> struct typedesc<float> {
   static constexpr const char* name = "float"; 
+  static constexpr dtype type = FLOAT32;
 };
 
 template<> struct typedesc<double> {
   static constexpr const char* name = "double"; 
+  static constexpr dtype type = FLOAT64;
 };
 
 template<> struct typedesc<vec2> {
   static constexpr const char* name = "vec2"; 
+  static constexpr dtype type = VEC2;
 };
 
 template<> struct typedesc<vec3> {
-  static constexpr const char* name = "vec3"; 
+  static constexpr const char* name = "vec3";
+  static constexpr dtype type = VEC3;
 };
 
 // variant forwarding:
@@ -63,6 +83,12 @@ template<> struct typedesc<vec3> {
 // and returns a variant which is specialized by the base types.
 //
 // additionally, multi is just the regular base type variant.
+
+//! Templated Visitor Selector
+template<class... Ts>
+struct overloaded: Ts... { 
+  using Ts::operator()...; 
+};
 
 using multi = std::variant<
   int, float, double, vec2, vec3

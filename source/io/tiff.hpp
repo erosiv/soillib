@@ -29,10 +29,10 @@ struct tiff {
     this->_height = shape[0];
     this->_width = shape[1];
 
-    if(type == "float"){
+    if(type == soil::FLOAT32){
       this->_bits = 32;
     }
-    else if(type == "double"){
+    else if(type == soil::FLOAT64){
       this->_bits = 64;
     }
 
@@ -102,10 +102,10 @@ bool tiff::read(const char* filename){
   auto shape = soil::shape({(int)this->height(), (int)this->width()});
 
   if(this->bits() == 32){
-    this->_array = soil::array("float", shape);
+    this->_array = soil::array(soil::FLOAT32, shape);
   }
   if(this->bits() == 64){
-    this->_array = soil::array("double", shape);
+    this->_array = soil::array(soil::FLOAT64, shape);
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
