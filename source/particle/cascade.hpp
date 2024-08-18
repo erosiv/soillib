@@ -3,6 +3,8 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/array.hpp>
+
+#include <soillib/layer/cached.hpp>
 #include <soillib/layer/constant.hpp>
 
 #include <soillib/matrix/matrix.hpp>
@@ -25,13 +27,15 @@ struct cascade_model_t {
   using matrix_t = soil::matrix::singular;
 
   soil::shape shape;
-  soil::array& height;
+  soil::cached height;
   soil::constant maxdiff;
   soil::constant settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
-    auto _height = std::get<soil::array_t<float>>(this->height._array);
-    _height[index] += value;// / 80.0f;
+    soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
+      auto height = self->height.as<float>();
+      height.array[index] += value;
+    });
   }
 
 };
@@ -74,7 +78,7 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
       continue;
 
     const size_t index = model.shape.flat(npos);
-    const float height = std::get<float>(model.height[index]);
+    const float height = model.height.template operator()<float>(index);
     sn[num++] = { npos, height, matrix_t{}, length(glm::vec2(nn)) };
 
   }
@@ -84,7 +88,8 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
   const matrix_t matrix{};// = map.matrix(ipos);
 
   const size_t index = model.shape.flat(ipos);
-  float h_ave = std::get<float>(model.height[index]);
+  const float height = model.height.template operator()<float>(index);
+  float h_ave = height;
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
   h_ave /= (float)(num+1);

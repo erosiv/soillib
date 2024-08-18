@@ -6,7 +6,12 @@
 #include <soillib/particle/cascade.hpp>
 
 #include <soillib/layer/layer.hpp>
+
+#include <soillib/layer/cached.hpp>
 #include <soillib/layer/constant.hpp>
+#include <soillib/layer/computed.hpp>
+
+
 #include <soillib/layer/algorithm/normal.hpp>
 
 #include <soillib/util/array.hpp>
@@ -15,9 +20,7 @@
 namespace soil {
 
 /*
-
 // Hydrologically Erodable Map Constraints
-
 template<typename T, typename M>
 concept WaterParticle_t = requires(T t){
   { t.oob(glm::ivec2()) } -> std::same_as<bool>;
@@ -40,20 +43,19 @@ struct water_particle_t {
   
   using matrix_t = soil::matrix::singular;
 
-
- // soil::layer height; //!< 
-
   soil::shape shape;
-  soil::array height;         //!< Height Array
-  soil::array momentum;       //!< Momentum Array
-  soil::array discharge;      //!< Discharge Array
+  soil::cached height;        //!< Height Array
+  soil::cached momentum;      //!< Momentum Array
+  soil::cached discharge;     //!< Discharge Array
   soil::constant resistance;  //!< Resistance Value
   soil::constant maxdiff;
   soil::constant settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
-    auto _height = std::get<soil::array_t<float>>(this->height._array);
-    _height[index] += value;// / 80.0f;
+    soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
+      auto height = self->height.as<float>();
+      height.array[index] += value;
+    });
   }
 
 };
@@ -144,10 +146,10 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   // Apply Forces to Particle
 
-  const glm::vec3 n = soil::normal::sub()(model.height, ipos);
+  const glm::vec3 n = soil::normal::sub()(model.height.as<float>().array, ipos);
 
-  const glm::vec2 fspeed = std::get<vec2>(model.momentum[index]);
-  const float discharge = erf(0.4f * std::get<float>(model.discharge[index]));
+  const glm::vec2 fspeed = model.momentum.template operator()<vec2>(index);
+  const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));
 
   // Gravity Force
 
@@ -180,21 +182,21 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   if(model.shape.oob(ipos))
     return false;
 
-  const float discharge = erf(0.4f * std::get<float>(model.discharge[index]));
+  const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));
   const float resistance = model.resistance.template operator()<float>(index);
 
   //Out-Of-Bounds
 
   float h2;
   if(model.shape.oob(pos))
-    h2 = 0.99f*std::get<float>(model.height[index]);
+    h2 = 0.99f*model.height.template operator()<float>(index);
   else {
     const size_t index = model.shape.flat(pos);
-    h2 = std::get<float>(model.height[index]);
+    h2 = model.height.template operator()<float>(index);
   }
 
   //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*discharge)*(std::get<float>(model.height[index])-h2);
+  float c_eq = (1.0f+param.entrainment*discharge)*(model.height.template operator()<float>(index)-h2);
   if(c_eq < 0)
     c_eq = 0;
 

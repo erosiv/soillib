@@ -1,5 +1,5 @@
-#ifndef SOILLIB_LAYER_CONST
-#define SOILLIB_LAYER_CONST
+#ifndef SOILLIB_LAYER_CONSTANT
+#define SOILLIB_LAYER_CONSTANT
 
 #include <soillib/util/types.hpp>
 #include <soillib/layer/layer.hpp>

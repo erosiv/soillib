@@ -42,12 +42,12 @@ def relief_shade(h, n):
 
 def render(model):
 
-  normal = soil.normal()(model.height)
+  normal = soil.normal()(model.height.array())
   normal_data = normal.numpy()
-  height_data = model.height.numpy()
+  height_data = model.height.array().numpy()
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(model.discharge.numpy())
+  discharge_data = sigmoid(model.discharge.array().numpy())
 
   # Compute Shading
   fig, ax = plt.subplots(2, 2, figsize=(16, 16))
@@ -61,7 +61,7 @@ def render(model):
 Erosion Code
 '''
 
-def make_model(shape):
+def make_model(shape, seed=0.0):
 
   '''
   returns a model wrapper type,
@@ -70,9 +70,17 @@ def make_model(shape):
   hydraulic erosion model.
   '''
 
-  height =      soil.array(soil.float32, shape).fill(0.0)  
-  discharge =   soil.array(soil.float32, shape).fill(0.0)
-  momentum =    soil.array(soil.vec2, shape).fill([0.0, 0.0])
+  height = soil.array(soil.float32, shape).fill(0.0)
+
+  noise = soil.noise()
+  for pos in shape.iter():
+    index = shape.flat(pos)
+    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], seed])
+    height[index] = 80.0 * value
+
+  height    = soil.cached(soil.float32, height)
+  discharge = soil.cached(soil.float32, soil.array(soil.float32,  shape).fill(0.0))
+  momentum  = soil.cached(soil.vec2,    soil.array(soil.vec2,     shape).fill([0.0, 0.0]))
 
   resistance =  soil.constant(soil.float32, 0.0)
   maxdiff =     soil.constant(soil.float32, 0.8)
@@ -147,8 +155,8 @@ def erode(model, steps=512):
       # Execute the Tracking Update!!!
 
       # Update Trackable Quantities:
-      model.discharge.track_float(discharge_track, lrate)
-      model.momentum.track_vec2(momentum_track, lrate)
+      model.discharge.array().track_float(discharge_track, lrate)
+      model.momentum.array().track_vec2(momentum_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
@@ -157,20 +165,9 @@ def erode(model, steps=512):
 def main():
 
   np.random.seed(0)
-  shape = soil.shape([512, 512])  # Define Map Shape
-  model = make_model(shape)       # Construct Model
-
-  # Initial Condition
-
-  noise = soil.noise()
-  for pos in shape.iter():
-    index = shape.flat(pos)
-    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], 0.0])
-    model.height[index] = 80.0 * value
-
-  # Run Erosion Code
-
-  for h, d in erode(model, steps = 512):
+  shape = soil.shape([512, 512])
+  model = make_model(shape, seed = 1.0)
+  for h, d in erode(model, steps = 750):
     pass
 
   render(model)
