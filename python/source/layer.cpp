@@ -15,8 +15,8 @@ namespace nb = nanobind;
 #include <soillib/layer/constant.hpp>
 #include <soillib/layer/computed.hpp>
 
-#include <soillib/layer/noise.hpp>
-#include <soillib/layer/normal.hpp>
+#include <soillib/layer/algorithm/noise.hpp>
+#include <soillib/layer/algorithm/normal.hpp>
 
 #include "glm.hpp"
 

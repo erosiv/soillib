@@ -1,5 +1,5 @@
-#ifndef SOILLIB_UTIL_NOISE
-#define SOILLIB_UTIL_NOISE
+#ifndef SOILLIB_LAYER_COMPUTED_NOISE
+#define SOILLIB_LAYER_COMPUTED_NOISE
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 
@@ -8,14 +8,12 @@
 #include <array>
 
 /*
-
   Technique for generating noise based maps
   you want to be able to sample a specific
   composition.
 
   For now, we will hard-code these functions
   but in the future we will parameterize them.
-
 */
 
 namespace soil {

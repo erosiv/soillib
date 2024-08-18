@@ -66,6 +66,17 @@ nb::ndarray<nb::numpy, T, nb::ndim<N>> make_numpy(soil::array& array){
 void bind_util(nb::module_& module){
 
 //
+// Type Enumerator Binding
+//
+
+nb::enum_<soil::dtype>(module, "dtype")
+  .value("int", soil::dtype::INT)
+  .value("float32", soil::dtype::FLOAT32)
+  .value("float64", soil::dtype::FLOAT64)
+  .value("vec2", soil::dtype::VEC2)
+  .export_values();
+
+//
 // Timer Type Binding
 //
 
@@ -137,12 +148,6 @@ shape.def("__repr__", [](const soil::shape& shape){
 //
 // Array Type Binding
 //
-
-nb::enum_<soil::dtype>(module, "dtype")
-  .value("int", soil::dtype::INT)
-  .value("float32", soil::dtype::FLOAT32)
-  .value("vec2", soil::dtype::VEC2)
-  .export_values();
 
 auto array = nb::class_<soil::array>(module, "array");
 array.def(nb::init<>());

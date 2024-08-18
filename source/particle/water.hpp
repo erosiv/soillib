@@ -4,11 +4,10 @@
 #include <soillib/soillib.hpp>
 #include <soillib/particle/particle.hpp>
 #include <soillib/particle/cascade.hpp>
-// #include <soillib/model/cascade.hpp>
 
 #include <soillib/layer/layer.hpp>
 #include <soillib/layer/constant.hpp>
-#include <soillib/layer/normal.hpp>
+#include <soillib/layer/algorithm/normal.hpp>
 
 #include <soillib/util/array.hpp>
 #include <soillib/matrix/matrix.hpp>

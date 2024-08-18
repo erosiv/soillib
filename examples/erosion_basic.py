@@ -156,7 +156,7 @@ def erode(model, steps=512):
 
 def main():
 
-  # np.random.seed(0)
+  np.random.seed(0)
   shape = soil.shape([512, 512])  # Define Map Shape
   model = make_model(shape)       # Construct Model
 
