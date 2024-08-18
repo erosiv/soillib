@@ -47,9 +47,9 @@ struct water_particle_t {
   soil::cached height;        //!< Height Array
   soil::cached momentum;      //!< Momentum Array
   soil::cached discharge;     //!< Discharge Array
-  soil::constant resistance;  //!< Resistance Value
-  soil::constant maxdiff;
-  soil::constant settling;
+  soil::layer resistance;  //!< Resistance Value
+  soil::layer maxdiff;
+  soil::layer settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){

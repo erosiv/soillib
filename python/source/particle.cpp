@@ -27,9 +27,9 @@ void bind_particle(nb::module_& module){
     soil::cached,
     soil::cached,
     soil::cached,
-    soil::constant,
-    soil::constant,
-    soil::constant
+    soil::layer,
+    soil::layer,
+    soil::layer
   >());
 
   model.def_prop_ro("shape", [](model_t& model){ return model.shape; });

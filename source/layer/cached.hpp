@@ -3,21 +3,20 @@
 
 #include <soillib/util/types.hpp>
 #include <soillib/util/array.hpp>
-#include <soillib/layer/layer.hpp>
 
 namespace soil {
 
 template<typename T>
-struct cached_t: typedbase, layer_t<T> {
+struct cached_t: typedbase {
 
   cached_t(const soil::array_t<T> array):
     array{array}{}
 
-  constexpr soil::dtype type() const noexcept override { 
+  constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 
   }
 
-  T operator()(const size_t index) noexcept override {
+  T operator()(const size_t index) noexcept {
     return this->array[index];
   }
 

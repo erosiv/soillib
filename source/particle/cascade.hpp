@@ -6,6 +6,7 @@
 
 #include <soillib/layer/cached.hpp>
 #include <soillib/layer/constant.hpp>
+#include <soillib/layer/layer.hpp>
 
 #include <soillib/matrix/matrix.hpp>
 
@@ -28,8 +29,8 @@ struct cascade_model_t {
 
   soil::shape shape;
   soil::cached height;
-  soil::constant maxdiff;
-  soil::constant settling;
+  soil::layer maxdiff;
+  soil::layer settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){

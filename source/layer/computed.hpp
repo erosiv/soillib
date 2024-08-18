@@ -2,10 +2,7 @@
 #define SOILLIB_LAYER_COMPUTED
 
 #include <soillib/util/types.hpp>
-#include <soillib/layer/layer.hpp>
 #include <functional>
-
-#include <iostream>
 
 namespace soil {
 
@@ -17,18 +14,18 @@ namespace soil {
 //! layer types, including coupled layers.
 //!
 template<typename T>
-struct computed_t: typedbase, layer_t<T> {
+struct computed_t: typedbase {
 
   typedef std::function<T(const size_t)> func_t;
 
   computed_t(func_t func):
     func(func){}
 
-  constexpr soil::dtype type() const noexcept override { 
+  constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 
   }
 
-  T operator()(const size_t index) noexcept override {
+  T operator()(const size_t index) noexcept {
     return this->func(index);
   }
 

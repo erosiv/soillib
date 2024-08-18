@@ -25,6 +25,17 @@ namespace nb = nanobind;
 void bind_layer(nb::module_& module){
 
   //
+  // Layer Wrapper Type
+  //
+
+  auto layer = nb::class_<soil::layer>(module, "layer");
+  layer.def("type", &soil::layer::type);
+
+  layer.def(nb::init<soil::cached&&>());
+  layer.def(nb::init<soil::constant&&>());
+  layer.def(nb::init<soil::computed&&>());
+
+  //
   // Cache-Valued Layer, i.e. Lookup Table
   //
 

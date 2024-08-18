@@ -120,7 +120,7 @@ namespace {
 #pragma GCC diagnostic ignored "-Wsubobject-linkage"
 
 struct typedbase {
-  constexpr virtual soil::dtype type() const noexcept {
+  constexpr virtual soil::dtype type() noexcept {
     return {};
   }
 };

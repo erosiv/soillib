@@ -2,9 +2,15 @@
 #define SOILLIB_LAYER_CONSTANT
 
 #include <soillib/util/types.hpp>
-#include <soillib/layer/layer.hpp>
 
 namespace soil {
+
+//! I don't know why it breaks without this.
+template<typename T>
+struct layer_t {
+  //! Compute the Output Quantity
+  virtual T operator()(const size_t index) noexcept;
+};
 
 //! constant_t is a strict-typed layer,
 //! which returns a single value.
@@ -14,8 +20,8 @@ struct constant_t: typedbase, layer_t<T> {
   constant_t(const T value):
     value{value}{}
 
-  constexpr soil::dtype type() const noexcept override { 
-    return soil::typedesc<T>::type; 
+  constexpr soil::dtype type() noexcept override { 
+    return soil::typedesc<T>::type;
   }
 
   T operator()(const size_t index) noexcept override {

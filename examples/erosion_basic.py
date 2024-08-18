@@ -91,9 +91,9 @@ def make_model(shape, seed=0.0):
     height,
     momentum,
     discharge,
-    resistance,
-    maxdiff,
-    settling
+    soil.layer(resistance),
+    soil.layer(maxdiff),
+    soil.layer(settling)
   )
 
 def erode(model, steps=512):
