@@ -36,11 +36,11 @@ struct constant {
 
   template<typename T>
   constant(const soil::dtype type, const T value):
-    _constant{make<T>(type, value)}{}
+    impl{make<T>(type, value)}{}
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
-    return this->_constant->type();
+    return this->impl->type();
   }
 
   //! check if the contained type is of type
@@ -50,7 +50,7 @@ struct constant {
 
   //! unsafe cast to strict-type
   template<typename T> inline constant_t<T>& as() noexcept {
-    return static_cast<constant_t<T>&>(*(this->_constant));
+    return static_cast<constant_t<T>&>(*(this->impl));
   }
 
   //! templated lookup operator (cast to T)
@@ -81,7 +81,7 @@ struct constant {
   }
 
 private:
-  typedbase* _constant;
+  typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
 
 } // end of namespace soil

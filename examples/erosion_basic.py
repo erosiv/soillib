@@ -73,7 +73,7 @@ def make_model(shape):
   height =      soil.array(soil.float32, shape).fill(0.0)  
   discharge =   soil.array(soil.float32, shape).fill(0.0)
   momentum =    soil.array(soil.vec2, shape).fill([0.0, 0.0])
-  
+
   resistance =  soil.constant(soil.float32, 0.0)
   maxdiff =     soil.constant(soil.float32, 0.8)
   settling =    soil.constant(soil.float32, 1.0)

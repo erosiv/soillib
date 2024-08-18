@@ -1,17 +1,25 @@
-#ifndef SOILLIB_LAYER_CONST
-#define SOILLIB_LAYER_CONST
+#ifndef SOILLIB_LAYER_COMPUTED
+#define SOILLIB_LAYER_COMPUTED
 
 #include <soillib/util/types.hpp>
 #include <soillib/layer/layer.hpp>
-
 #include <functional>
+
+#include <iostream>
 
 namespace soil {
 
+//! computed_t is a strict-typed layer,
+//! which has a functor state which is
+//! evaluated when indexed.
+//!
+//! This type is used to implement complex
+//! layer types, including coupled layers.
+//!
 template<typename T>
 struct computed_t: typedbase, layer_t<T> {
 
-  typedef std::function<T(const size_t index)> func_t;
+  typedef std::function<T(const size_t)> func_t;
 
   computed_t(func_t func):
     func(func){}
@@ -28,78 +36,63 @@ private:
   func_t func;
 };
 
+//! computed is a dynamically typed computed layer.
+//!
 struct computed {
 
-  
+  template<typename T>
+  using func_t = std::function<T(const size_t)>;
 
-};
-
-/*
-
-//! A const layer returns a single value type.
-//! ...
-template<typename T>
-struct constant_t: layer_t<T>, constant_base {
-
-  constant_t(const T value):
-    value{value}{}
-
-  soil::dtype type() const noexcept override { 
-    return soil::typedesc<T>::type; 
-  }
-
-  T operator()(const size_t index) noexcept override {
-    return this->value;
-  }
-
-private:
-  T value;
-};
-
-//! Variant Wrapping Type:
-//! Let's us construct different const layer types directly.
-//! The type returned to python is a variant.
-struct constant {
-
-  constant(){}
-  constant(const soil::dtype type, const soil::multi& multi):
-    _constant{make(type, multi)}{}
-
-  soil::dtype type() const noexcept {
-    return this->_constant->type();
-  }
-
-  // safe / unsafe retrieval!
+  computed(){}
 
   template<typename T>
-  constant_t<T>& as() noexcept {
-    return static_cast<constant_t<T>&>(*(this->_constant));
+  computed(const soil::dtype type, func_t<T> func):
+    impl{make<T>(type, func)}{}
+    
+  //! retrieve the strict-typed type enumerator
+  inline soil::dtype type() const noexcept {
+    return this->impl->type();
+  }
+
+  //! check if the contained type is of type
+  inline bool is(const soil::dtype type) const noexcept {
+    return this->type() == type;
+  }
+
+  //! unsafe cast to strict-type
+  template<typename T> inline computed_t<T>& as() noexcept {
+    return static_cast<computed_t<T>&>(*(this->impl));
   }
 
   template<typename T>
-  constant_t<T>& get(){
-    if(this->_constant->type() != soil::typedesc<T>::type)
-      throw std::invalid_argument("type is not the stored type");
-    return this->as<T>();
+  T operator()(const size_t index){
+    return typeselect(this->type(),
+      [self=this, index]<typename S>() -> T {
+        if constexpr (std::convertible_to<S, T>){
+          return (T)self->as<S>().operator()(index);
+        } else throw std::invalid_argument("BLABLA");
+      }
+    );
   }
 
-  soil::multi operator()(const size_t index){
-    return typeselect(this->type(), [self=this, &index]<typename T>() -> soil::multi {
-      return self->as<T>().operator()(index);
-    });
-  }
-  
-  //! \todo Make this type of constructor automated somehow / generic / templated
-  static constant_base* make(const soil::dtype type, const soil::multi& multi){
-    return typeselect(type, [&multi]<typename T>() -> constant_base* {
-      return new soil::constant_t<T>(std::get<T>(multi));
+  template<typename T>
+  static typedbase* make(const soil::dtype type, func_t<T> func){
+    return typeselect(type, [func]<typename S>() -> typedbase* {
+      if constexpr (std::same_as<T, S>){
+        return new soil::computed_t<S>(func);
+      } else if constexpr (std::convertible_to<T, S>){
+        return new soil::computed_t<S>([func](const size_t index){
+          return (S)func(index);
+        });
+      } else {
+        throw std::invalid_argument("BLABLA");
+      }
     });
   }
 
 private:
-  constant_base* _constant;
+  typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
-*/
 
 } // end of namespace soil
 
