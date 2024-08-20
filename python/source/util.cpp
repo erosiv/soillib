@@ -37,7 +37,7 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 
 }
 
-template<typename T, size_t N>
+template<typename T, size_t N, size_t K>
 nb::ndarray<nb::numpy, T, nb::ndim<N>> make_numpy(soil::array& array){
 
   const size_t dims = array.shape().dims();
@@ -47,7 +47,7 @@ nb::ndarray<nb::numpy, T, nb::ndim<N>> make_numpy(soil::array& array){
   };
 
   if(N == 3){
-    _shape[2] = 3;
+    _shape[2] = K;
   }
 
   return nb::ndarray<nb::numpy, T, nb::ndim<N>>(
@@ -176,8 +176,9 @@ using test = std::variant<
 >;
 
 array.def("numpy", [](soil::array& array) -> test {
-  if(array.type() == soil::FLOAT32) return make_numpy<float, 2>(array);
-  if(array.type() == soil::VEC3)  return make_numpy<float, 3>(array);
+  if(array.type() == soil::FLOAT32) return make_numpy<float, 2, 1>(array);
+  if(array.type() == soil::VEC2)  return make_numpy<float, 3, 2>(array);
+  if(array.type() == soil::VEC3)  return make_numpy<float, 3, 3>(array);
   throw std::invalid_argument("I don't know how to make this into numpy!");
 });
 

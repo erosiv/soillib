@@ -54,8 +54,9 @@ def main(input):
     # Load Data
     img = soil.geotiff(path)
     height = img.array()
-    normal = soil.normal()(height)
-    normal_data = normal.numpy()
+
+    normal = soil.normal(height.shape, soil.layer(soil.cached(height.type, height)))
+    normal_data = normal.full().numpy()
     height_data = height.numpy()
 
     # Compute Shading

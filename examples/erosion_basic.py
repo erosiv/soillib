@@ -49,10 +49,14 @@ def render(model):
 
   discharge_data = sigmoid(model.discharge.array().numpy())
 
+  momentum_data = sigmoid(model.momentum.array().numpy())
+  momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
+
   # Compute Shading
   fig, ax = plt.subplots(2, 2, figsize=(16, 16))
   ax[0, 0].imshow(discharge_data)
-  ax[0, 1].imshow(height_data)
+  #ax[0, 1].imshow(height_data)
+  ax[0, 1].imshow(momentum_data)
   ax[1, 0].imshow(relief, cmap='gray')
   ax[1, 1].imshow(normal_data)
   plt.show()
@@ -77,6 +81,8 @@ def make_model(shape, seed=0.0):
     index = shape.flat(pos)
     value = noise.get([pos[0]/shape[0], pos[1]/shape[1], seed])
     height[index] = 80.0 * value
+
+  # height = soil.noise(shape).full(seed)
 
   height    = soil.cached(soil.float32, height)
 

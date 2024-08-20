@@ -30,7 +30,9 @@ def main(input):
 
     image = soil.geotiff(path)
     height = image.array()
-    data = soil.normal()(height)
+
+    normal = soil.normal(height.shape, soil.layer(soil.cached(height.type, height)))
+    data = normal.full()
 
     print(type(data))
     data = data.numpy()
