@@ -37,27 +37,6 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 
 }
 
-template<typename T, size_t N, size_t K>
-nb::ndarray<nb::numpy, T, nb::ndim<N>> make_numpy(soil::array& array){
-
-  const size_t dims = array.shape().dims();
-  size_t _shape[N];
-  for(size_t d = 0; d < dims; ++d){
-    _shape[d] = array.shape()[d];
-  };
-
-  if(N == 3){
-    _shape[2] = K;
-  }
-
-  return nb::ndarray<nb::numpy, T, nb::ndim<N>>(
-    array.data(),
-    N,
-    _shape,
-    nb::handle()
-  );
-}
-
 //
 //
 //
@@ -151,11 +130,7 @@ shape.def("__repr__", [](const soil::shape& shape){
 
 auto array = nb::class_<soil::array>(module, "array");
 array.def(nb::init<>());
-array.def(nb::init<const soil::dtype, const soil::shape&>());
-array.def("__init__", [](soil::array* array, const soil::dtype type, const std::vector<int>& v){ 
-  auto shape = soil::shape(v);
-  new (array) soil::array(type, shape);
-});
+array.def(nb::init<const soil::dtype, const size_t>());
 
 array.def("elem", &soil::array::elem);
 array.def("size", &soil::array::size);
@@ -166,7 +141,6 @@ array.def("fill", &soil::array::fill<double>);
 array.def("fill", &soil::array::fill<soil::vec2>);
 
 array.def_prop_ro("type", &soil::array::type);
-array.def_prop_ro("shape", &soil::array::shape);
 
 array.def("__getitem__", [](const soil::array& array, const size_t index) -> nb::object {
   return soil::typeselect(array.type(), [&array, index]<typename S>() -> nb::object {
@@ -181,63 +155,14 @@ array.def("__setitem__", [](soil::array& array, const size_t index, const nb::ob
   });
 });
 
-//! \todo replace the following with a simple flattening tuple caster for the index.
-
-array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::object value){
-
-  size_t index;
-  if(tup.size() == 1) index = array.shape().template flat<1>({nb::cast<int>(tup[0])});
-  if(tup.size() == 2) index = array.shape().template flat<2>({nb::cast<int>(tup[0]), nb::cast<int>(tup[1])});
-  if(tup.size() == 3) index = array.shape().template flat<3>({nb::cast<int>(tup[0]), nb::cast<int>(tup[1]), nb::cast<int>(tup[2])});
-
-  soil::typeselect(array.type(), [&array, index, &value]<typename S>(){
-      array.as<S>()[index] = nb::cast<S>(value);
-  });
-
-});
-
-using test = std::variant<
-  nb::ndarray<nb::numpy, float, nb::ndim<2>>,
-  nb::ndarray<nb::numpy, float, nb::ndim<3>>
->;
-
-array.def("numpy", [](soil::array& array) -> test {
-  if(array.type() == soil::FLOAT32) return make_numpy<float, 2, 1>(array);
-  if(array.type() == soil::VEC2)  return make_numpy<float, 3, 2>(array);
-  if(array.type() == soil::VEC3) return make_numpy<float, 3, 3>(array);
-  throw std::invalid_argument("I don't know how to make this into numpy!");
-});
-
-
-
-
-
-
-
-
-
-array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
-
-  auto lhs_t = lhs.as<float>();
-  auto rhs_t = rhs.as<float>();
-
-  for(size_t i = 0; i < lhs.shape().elem(); ++i){
-    float lhs_value = lhs_t[i];
-    float rhs_value = rhs_t[i];
-    lhs_t[i] = lhs_value * (1.0 - lrate) + rhs_value * lrate;
-  }
-});
-
-array.def("track_vec2", [](soil::array& lhs, soil::array& rhs, const float lrate){
-
-  auto lhs_t = lhs.as<soil::vec2>();
-  auto rhs_t = rhs.as<soil::vec2>();
-
-  for(size_t i = 0; i < lhs.shape().elem(); ++i){
-    soil::vec2 lhs_value = lhs_t[i];
-    soil::vec2 rhs_value = rhs_t[i];
-    lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
-  }
+array.def("numpy", [](soil::array& array){
+  size_t shape[1]{array.elem()};
+  return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+    array.data(),
+    1,
+    shape,
+    nb::handle()
+  );
 });
 
 }

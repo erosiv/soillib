@@ -1,6 +1,7 @@
 #ifndef SOILLIB_IO_TIFF
 #define SOILLIB_IO_TIFF
 
+#include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
 
 #include <tiffio.h>
@@ -21,13 +22,13 @@ struct tiff {
   tiff(){}
   tiff(const char* filename){ read(filename); };
 
-  tiff(soil::array _array):_array{_array}{
+  tiff(soil::array _array, soil::shape _shape):
+    _shape{_shape},_array{_array}{
 
-    auto shape = _array.shape();
     auto type = _array.type();
 
-    this->_height = shape[0];
-    this->_width = shape[1];
+    this->_height = _shape[0];
+    this->_width = _shape[1];
 
     if(type == soil::FLOAT32){
       this->_bits = 32;
@@ -47,6 +48,7 @@ struct tiff {
   uint32_t height() const { return this->_height; }
 
   soil::array array() const { return this->_array; }
+  soil::shape shape() const { return this->_shape; }
 
 protected:
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
@@ -59,7 +61,8 @@ protected:
   uint32_t _twidth = 0;   //!< Tile Width
   uint32_t _theight = 0;  //!< Tile Height
 
-  soil::array _array;     //!< Underlying Data Buffer
+  soil::shape _shape; //!< Underlying Data Shape
+  soil::array _array; //!< Underlying Data Buffer
 };
 
 //! Load TIFF Metadata
@@ -102,10 +105,10 @@ bool tiff::read(const char* filename){
   auto shape = soil::shape({(int)this->height(), (int)this->width()});
 
   if(this->bits() == 32){
-    this->_array = soil::array(soil::FLOAT32, shape);
+    this->_array = soil::array(soil::FLOAT32, shape.elem());
   }
   if(this->bits() == 64){
-    this->_array = soil::array(soil::FLOAT64, shape);
+    this->_array = soil::array(soil::FLOAT64, shape.elem());
   }
 
   TIFF* tif = TIFFOpen(filename, "r");

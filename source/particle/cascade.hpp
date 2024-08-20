@@ -2,6 +2,7 @@
 #define SOILLIB_PARTICLE_CASCADE
 
 #include <soillib/soillib.hpp>
+#include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
 
 #include <soillib/layer/cached.hpp>

@@ -2,6 +2,7 @@
 #define SOILLIB_LAYER_NORMAL
 
 #include <soillib/soillib.hpp>
+#include <soillib/util/shape.hpp>
 #include <soillib/util/array.hpp>
 #include <soillib/layer/layer.hpp>
 
@@ -76,10 +77,9 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]){
 }
 
 template<typename T>
-glm::vec3 normal_impl(const soil::array& array, glm::ivec2 p){
+glm::vec3 normal_impl(const soil::array& array, const soil::shape shape, glm::ivec2 p){
 
   auto _array = array.as<T>();
-  auto shape = _array.shape();
 
   sample_t<T> px[5], py[5];
   for(size_t i = 0; i < 5; ++i){
@@ -132,8 +132,8 @@ struct normal {
   //! Single Sample Value
   glm::vec3 operator()(const glm::ivec2 pos){    
     switch(array.type()){
-      case soil::FLOAT32: return normal_impl<float>(array, pos);
-      case soil::FLOAT64: return normal_impl<double>(array, pos);
+      case soil::FLOAT32: return normal_impl<float>(array, shape, pos);
+      case soil::FLOAT64: return normal_impl<double>(array, shape, pos);
       default: throw std::invalid_argument("type is not accepted");
     }
   }
@@ -141,7 +141,7 @@ struct normal {
   //! Bake a whole Array!
   soil::array full(){
 
-    array_t<vec3> out = array_t<vec3>{shape};
+    array_t<vec3> out = array_t<vec3>{shape.elem()};
     auto _shape = std::get<soil::shape_t<2>>(shape._shape);
   
     for(const auto& pos: _shape.iter()){

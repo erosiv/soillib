@@ -6,7 +6,6 @@
 #include <variant>
 
 #include <soillib/soillib.hpp>
-#include <soillib/util/shape.hpp>
 #include <soillib/util/types.hpp>
 
 namespace soil {
@@ -17,13 +16,9 @@ template<typename T>
 struct array_t: typedbase {
 
   array_t() = default;
-  array_t(const soil::shape shape){
-    this->allocate(shape);
-  }
 
-  ~array_t(){
-    this->deallocate(); 
-  }
+  array_t(const size_t size){ this->allocate(size); }
+  ~array_t()                { this->deallocate(); }
 
   constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 
@@ -31,13 +26,13 @@ struct array_t: typedbase {
 
   // Allocator / Deallocator
 
-  void allocate(const soil::shape& shape){
+  void allocate(const size_t size){
     if(this->_data != NULL)
       throw std::runtime_error("can't allocate over allocated buffer");
-    if(shape.elem() == 0)
+    if(size == 0)
       throw std::invalid_argument("size must be greater than 0");
-    this->_data = std::make_shared<T[]>(shape.elem());
-    this->_shape = shape;
+    this->_data = std::make_shared<T[]>(size);
+    this->_size = size;
   }
 
   void deallocate(){
@@ -79,17 +74,14 @@ struct array_t: typedbase {
 
   // Data Inspection Member Functions
 
-  inline soil::shape shape() const { return this->_shape; }
-  inline size_t elem()  const { return this->_shape.elem(); }
+  inline size_t elem()  const { return this->_size; }
   inline size_t size()  const { return this->elem() * sizeof(T); }
   inline void* data()         { return (void*)this->_data.get(); }
 
 private:
   std::shared_ptr<T[]> _data = NULL;  //!< Raw Data Pointer Member 
-  soil::shape _shape;
+  size_t _size = 0;                   //!< Number of Data Elements
 };
-
-using array_v = soil::multi_t<soil::array_t>;
 
 //! Array variant wrapper type: Implements visitors interface...
 struct array {
@@ -109,17 +101,17 @@ struct array {
     impl = new soil::array_t<T>(_array);
   }
 
-  array(const soil::dtype type, const soil::shape shape):
-    impl{make(type, shape)}{}
+  array(const soil::dtype type, const size_t size):
+    impl{make(type, size)}{}
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
     return this->impl->type();
   }
 
-  static typedbase* make(const soil::dtype type, const soil::shape shape){
-    return typeselect(type, [shape]<typename S>() -> typedbase* {
-      return new soil::array_t<S>(shape);
+  static typedbase* make(const soil::dtype type, const size_t size) {
+    return typeselect(type, [size]<typename S>() -> typedbase* {
+      return new soil::array_t<S>(size);
     });
   }
 
@@ -130,19 +122,6 @@ struct array {
 
   template<typename T> inline const array_t<T>& as() const noexcept {
     return static_cast<array_t<T>&>(*(this->impl));
-  }
-
-private:
-  typedbase* impl;  //!< Strict-Typed Implementation Pointer
-
-public:
-
-  // Implementations
-
-  soil::shape shape() const {
-    return typeselect(this->type(), [self=this]<typename S>(){
-      return self->as<S>().shape();
-    });
   }
 
   // Inspection Operations
@@ -205,6 +184,8 @@ public:
     });
   }
 
+private:
+  typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
 
 } // end of namespace soil

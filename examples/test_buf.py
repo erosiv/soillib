@@ -31,7 +31,7 @@ def test_array():
   '''
 
   # Construction / General Properties
-  array = soil.array(soil.float32, [3, 9])
+  array = soil.array(soil.float32, 27)
   print("type:", array.type)
   print("elem:", array.elem())
   print("size:", array.size())

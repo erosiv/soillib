@@ -129,6 +129,33 @@ void bind_layer(nb::module_& module){
   noise.def(nb::init<>());
   noise.def("get", &noise_t::get);
 
+
+/*
+array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
+
+  auto lhs_t = lhs.as<float>();
+  auto rhs_t = rhs.as<float>();
+
+  for(size_t i = 0; i < lhs.shape().elem(); ++i){
+    float lhs_value = lhs_t[i];
+    float rhs_value = rhs_t[i];
+    lhs_t[i] = lhs_value * (1.0 - lrate) + rhs_value * lrate;
+  }
+});
+
+array.def("track_vec2", [](soil::array& lhs, soil::array& rhs, const float lrate){
+
+  auto lhs_t = lhs.as<soil::vec2>();
+  auto rhs_t = rhs.as<soil::vec2>();
+
+  for(size_t i = 0; i < lhs.shape().elem(); ++i){
+    soil::vec2 lhs_value = lhs_t[i];
+    soil::vec2 rhs_value = rhs_t[i];
+    lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
+  }
+});
+*/
+
 }
 
 #endif
