@@ -10,7 +10,7 @@
 
 namespace soil {
 
-//! buffer_t<T> is a strict-typed, owning raw-data extent.
+//! buffer_t<T> is a strict-typed, raw-data extent.
 //! 
 template<typename T>
 struct buffer_t: typedbase {

@@ -2,10 +2,8 @@
 #define SOILLIB_UTIL_TYPE
 
 #include <soillib/soillib.hpp>
-#include <variant>
-#include <format>
-
 #include <glm/gtc/type_ptr.hpp>
+#include <format>
 
 namespace soil {
 
@@ -96,24 +94,22 @@ struct cast_error {
 
 }
 
-// I have a nagging feeling that I should be using concepts again...
-
-/*
-With this polymorphism idiom:
-
-- Implementations are Strict-Typed
-- Implementations derive from a type which provide the typing interface.
-- A wrapper class stores a pointer to the arbitrary typed guy,
-  and after checking is static_cast to the correct type.
-- Retrieving the actual type requires a single virtual function call,
-  subsequently requires a switch-case for the type and then the rest
-  is actually strict-typed using the lambda concept.
-  It's like an STD visit, but I actually have a template parameter
-  instead of just a lambda that requires each type to implement smth.
-- If I know the type, I can just get the guy directly.
-
-*/
-
+// Enum-Based Runtime Polymorphic Visitor Pattern:
+//
+//  Strict-typed, templated implementations of polymorphic
+//  classes are defined statically and selected at runtime
+//  using an enumerator based type identifier.
+//
+//  Note that this pattern allows for receiving the
+//  strict-typed template parameter through the lambda
+//  for static constexpr checks and control flow based
+//  on if constexpr expressions and concepts.
+//
+//  Additionally, the number of required virtual function
+//  implementations is reduced to one, and the number of calls
+//  per actual call never exceeds one. This is effectively
+//  a variation on the visitor pattern, with better control
+//  and no need to declare the variant template with all types.
 
 namespace {
 
@@ -126,12 +122,6 @@ struct typedbase {
 };
 
 }
-
-//! Templated Visitor Selector
-template<class... Ts>
-struct overloaded: Ts... { 
-  using Ts::operator()...; 
-};
 
 //! typeselect accepts a type enumerator and a templated lambda,
 //! which it subsequently calls with a strict-typed evaluation.
@@ -149,27 +139,6 @@ auto typeselect(const soil::dtype type, F lambda, Args&&... args){
     default: throw std::invalid_argument("type not supported");
   }
 }
-
-// variant forwarding:
-// multi_t is a template-template that accepts a templated type,
-// and returns a variant which is specialized by the base types.
-//
-// additionally, multi is just the regular base type variant.
-
-using multi = std::variant<
-  int, float, double, vec2, vec3
->;
-
-template<template<class> class V>
-using multi_t = std::variant<
-  V<int>,
-  V<float>,
-  V<double>,
-  V<vec2>,
-  V<vec3>
->;
-
-// ...
 
 }
 

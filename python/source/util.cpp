@@ -132,15 +132,17 @@ auto buffer = nb::class_<soil::buffer>(module, "buffer");
 buffer.def(nb::init<>());
 buffer.def(nb::init<const soil::dtype, const size_t>());
 
+buffer.def_prop_ro("type", &soil::buffer::type);
+
 buffer.def("elem", &soil::buffer::elem);
 buffer.def("size", &soil::buffer::size);
 buffer.def("zero", &soil::buffer::zero);
-buffer.def("fill", &soil::buffer::fill<int>);
-buffer.def("fill", &soil::buffer::fill<float>);
-buffer.def("fill", &soil::buffer::fill<double>);
-buffer.def("fill", &soil::buffer::fill<soil::vec2>);
 
-buffer.def_prop_ro("type", &soil::buffer::type);
+buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
+  return soil::typeselect(buffer.type(), [&buffer, &value]<typename S>(){
+    return buffer.fill(nb::cast<S>(value));
+  });
+});
 
 buffer.def("__getitem__", [](const soil::buffer& buffer, const size_t index) -> nb::object {
   return soil::typeselect(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
@@ -157,32 +159,53 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb:
 
 //! \todo clean this up once the method for converting vector types is figured out.
 
-buffer.def("numpy", [](soil::buffer& buffer) -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
-  return soil::typeselect(buffer.type(), [&buffer]<typename S>() -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
-    if constexpr(std::same_as<S, float>){
+buffer.def("numpy", [](soil::buffer& buffer) -> nb::object {
+  return soil::typeselect(buffer.type(), [&buffer]<typename S>() -> nb::object {
+    if constexpr(std::same_as<S, int>){
       size_t shape[1]{buffer.elem()};
-      return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+      nb::ndarray<nb::numpy, int, nb::ndim<1>> array(
         buffer.data(),
         1,
         shape,
         nb::handle()
       );
+      return nb::cast(std::move(array));
+    } else if constexpr(std::same_as<S, float>){
+      size_t shape[1]{buffer.elem()};
+      nb::ndarray<nb::numpy, float, nb::ndim<1>> array(
+        buffer.data(),
+        1,
+        shape,
+        nb::handle()
+      );
+      return nb::cast(std::move(array));
+    } else if constexpr(std::same_as<S, double>){
+      size_t shape[1]{buffer.elem()};
+      nb::ndarray<nb::numpy, double, nb::ndim<1>> array(
+        buffer.data(),
+        1,
+        shape,
+        nb::handle()
+      );
+      return nb::cast(std::move(array));
     } else if constexpr(std::same_as<S, soil::vec2>){
       size_t shape[1]{2*buffer.elem()};
-      return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+      nb::ndarray<nb::numpy, float, nb::ndim<1>> array(
         buffer.data(),
         1,
         shape,
         nb::handle()
       );
+      return nb::cast(std::move(array));
     } else if constexpr(std::same_as<S, soil::vec3>){
       size_t shape[1]{3*buffer.elem()};
-      return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+      nb::ndarray<nb::numpy, float, nb::ndim<1>> array(
         buffer.data(),
         1,
         shape,
         nb::handle()
       );
+      return nb::cast(std::move(array));
     }
     throw std::invalid_argument("can't convert this buffer to numpy");
   });
