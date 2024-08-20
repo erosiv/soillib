@@ -51,7 +51,7 @@ void bind_layer(nb::module_& module){
 
   cached.def("__init__", [](soil::cached* cached, const soil::dtype type, soil::array array){
     soil::typeselect(type, [type, cached, &array]<typename T>(){
-      soil::array_t<T> array_t = std::get<soil::array_t<T>>(array._array);
+      soil::array_t<T> array_t = array.as<T>();
       new (cached) soil::cached(type, array_t);
     });
   });

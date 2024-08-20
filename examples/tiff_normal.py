@@ -32,11 +32,7 @@ def main(input):
     height = image.array()
 
     normal = soil.normal(height.shape, soil.layer(soil.cached(height.type, height)))
-    data = normal.full()
-
-    print(type(data))
-    data = data.numpy()
-    print(data.dtype)
+    data = normal.full().numpy()
 
     plt.imshow(data)
     plt.show()

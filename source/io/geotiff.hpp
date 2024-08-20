@@ -158,7 +158,7 @@ void geotiff::setNaN(){
 
   if(this->bits() == 32){
     auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto array = std::get<soil::array_t<float>>(this->_array._array);
+    auto array = this->_array.as<float>();
     const float _nodata = std::stof(this->nodata);
     for(size_t i = 0; i < array.elem(); ++i){
       if(array[i] == _nodata) 
@@ -168,7 +168,7 @@ void geotiff::setNaN(){
 
   if(this->bits() == 64){
     auto nan = std::numeric_limits<double>::quiet_NaN();
-    auto array = std::get<soil::array_t<double>>(this->_array._array);
+    auto array = this->_array.as<double>();
     const double _nodata = std::stof(this->nodata);
     for(size_t i = 0; i < array.elem(); ++i){
       if(array[i] == _nodata) 

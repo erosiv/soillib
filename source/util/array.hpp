@@ -14,15 +14,19 @@ namespace soil {
 //! array_t<T> is a strict-typed, owning raw-data extent.
 //! 
 template<typename T>
-struct array_t {
+struct array_t: typedbase {
 
   array_t() = default;
-  array_t(const soil::shape& shape){
+  array_t(const soil::shape shape){
     this->allocate(shape);
   }
 
   ~array_t(){
     this->deallocate(); 
+  }
+
+  constexpr soil::dtype type() noexcept override { 
+    return soil::typedesc<T>::type; 
   }
 
   // Allocator / Deallocator
@@ -51,29 +55,30 @@ struct array_t {
     this->fill(T{0});
   }
 
-  inline void reshape(const soil::shape& shape){
-    if(this->elem() != shape.elem())
-      throw std::invalid_argument("can't broadcast current shape to new shape");
-    else this->_shape = shape;
-  }
+  // Subscript Operator (Unsafe / Safe)
 
-  // Subscript Operator
-
-  T& operator[](const size_t index){
-    if(index >= this->elem())
-      throw std::range_error("index is out of range");
+  T& operator[](const size_t index) noexcept {
     return this->_data[index];
   }
 
-  T operator[](const size_t index) const {
+  T operator[](const size_t index) const noexcept {
+    return this->_data[index];
+  }
+
+  T& operator()(const size_t index){
     if(index >= this->elem())
       throw std::range_error("index is out of range");
-    return this->_data[index];
+    return this->operator[](index);
+  }
+
+  T operator()(const size_t index) const {
+    if(index >= this->elem())
+      throw std::range_error("index is out of range");
+    return this->operator[](index);
   }
 
   // Data Inspection Member Functions
 
-  inline soil::dtype type() const { return typedesc<T>::type; }
   inline soil::shape shape() const { return this->_shape; }
   inline size_t elem()  const { return this->_shape.elem(); }
   inline size_t size()  const { return this->elem() * sizeof(T); }
@@ -91,94 +96,115 @@ struct array {
 
   array(){}
 
+  //! \todo FIX THE VALUE SEMANTICS OF ARRAY AND IMPLS!
+
+  // Existing Instance: Hold Reference
   template<typename T>
-  array(const soil::array_t<T> _array):
-    _array(_array){}
+  array(soil::array_t<T>& _array):
+    impl(&_array){}
 
-  array(const soil::dtype type, const soil::shape& shape):
-    _array{make(type, shape)}{}
-
-  auto type() const {
-    return std::visit([](auto&& _array) -> soil::dtype {
-      return _array.type();
-    }, this->_array);
+  // New Instance: Create new Holder
+  template<typename T>
+  array(soil::array_t<T>&& _array){
+    impl = new soil::array_t<T>(_array);
   }
 
-  auto shape() const {
-    return std::visit([](auto&& _array) -> soil::shape {
-      return _array.shape();
-    }, this->_array);
+  array(const soil::dtype type, const soil::shape shape):
+    impl{make(type, shape)}{}
+
+  //! retrieve the strict-typed type enumerator
+  inline soil::dtype type() const noexcept {
+    return this->impl->type();
   }
 
-  auto elem() const {
-    return std::visit([](auto&& _array) -> size_t {
-      return _array.elem();
-    }, this->_array);
+  static typedbase* make(const soil::dtype type, const soil::shape shape){
+    return typeselect(type, [shape]<typename S>() -> typedbase* {
+      return new soil::array_t<S>(shape);
+    });
   }
 
-  auto size() const {
-    return std::visit([](auto&& _array) -> size_t {
-      return _array.size();
-    }, this->_array);
+  //! unsafe cast to strict-type
+  template<typename T> inline array_t<T>& as() noexcept {
+    return static_cast<array_t<T>&>(*(this->impl));
   }
 
-  auto data() {
-    return std::visit([](auto&& _array) -> void* {
-      return _array.data();
-    }, this->_array);
+  template<typename T> inline const array_t<T>& as() const noexcept {
+    return static_cast<array_t<T>&>(*(this->impl));
   }
 
-  soil::multi operator[](const size_t index) const {
-    return std::visit([&index](auto&& _array) -> soil::multi {
-      return _array[index];
-    }, this->_array);
+private:
+  typedbase* impl;  //!< Strict-Typed Implementation Pointer
+
+public:
+
+  // Implementations
+
+  soil::shape shape() const {
+    return typeselect(this->type(), [self=this]<typename S>(){
+      return self->as<S>().shape();
+    });
   }
+
+  // Inspection Operations
+
+  void* data() {
+    return typeselect(this->type(), [self=this]<typename S>(){
+      return self->as<S>().data();
+    });
+  }
+  
+  size_t elem() const {
+    return typeselect(this->type(), [self=this]<typename S>(){
+      return self->as<S>().elem();
+    });
+  }
+
+  size_t size() const {
+    return typeselect(this->type(), [self=this]<typename S>(){
+      return self->as<S>().size();
+    });
+  }
+
+  // Data Manipulation Operations
 
   array& zero(){
-    std::visit([](auto&& _array){
-      _array.zero();
-    }, this->_array);
-    return *this;
-  }
-
-  array& reshape(const soil::shape& shape){
-    std::visit([&shape](auto&& _array){
-      _array.reshape(shape);
-    }, this->_array);
+    typeselect(this->type(), [self=this]<typename S>(){
+      self->as<S>().zero();
+    });
     return *this;
   }
 
   template<typename T>
   array& fill(const T value){
-    auto array = std::get<array_t<T>>(this->_array);
-    array.fill(value);
+    typeselect(this->type(), [self=this, value]<typename S>(){
+      if constexpr (std::same_as<T, S>){
+        self->as<S>().fill(value);
+      } else if constexpr (std::convertible_to<T, S>){
+        self->as<S>().fill(S(value));
+      } else throw soil::error::cast_error<T, S>{}();
+    });
     return *this;
   }
 
-  template<typename T>
-  void set(const size_t index, const T value){
-    auto array = std::get<array_t<T>>(this->_array);
-    array[index] = value;
-  }
+  // Lookup Operators
+  // Note: These are strict typed.
+
+  // Unsafe
 
   template<typename T>
-  void set_multi(const size_t index, const soil::multi value){
-    auto array = std::get<array_t<T>>(this->_array);
-    array[index] = std::visit([](auto&& args){
-      return (T)args;
-    }, value);
+  T& operator[](const size_t index) {
+    return typeselect(this->type(), [self=this, index]<typename S>(){
+      return self->as<S>().template operator[]<T>(index);
+    });
   }
 
-  static array_v make(const soil::dtype type, const soil::shape& shape){
-    if(type == soil::INT)     return soil::array_t<int>(shape);
-    if(type == soil::FLOAT32) return soil::array_t<float>(shape);
-    if(type == soil::FLOAT64) return soil::array_t<double>(shape);
-    if(type == soil::VEC2)    return soil::array_t<vec2>(shape);
-    throw std::invalid_argument("invalid type argument");
+  template<typename T>
+  T operator[](const size_t index) const {
+    return typeselect(this->type(), [self=this, index]<typename S>(){
+      return self->as<S>().template operator[]<T>(index);
+    });
   }
 
-//private:
-  array_v _array;
 };
 
 } // end of namespace soil

@@ -168,7 +168,33 @@ array.def("fill", &soil::array::fill<soil::vec2>);
 array.def_prop_ro("type", &soil::array::type);
 array.def_prop_ro("shape", &soil::array::shape);
 
-array.def("reshape", &soil::array::reshape);
+array.def("__getitem__", [](const soil::array& array, const size_t index) -> nb::object {
+  return soil::typeselect(array.type(), [&array, index]<typename S>() -> nb::object {
+    S value = array.as<S>().operator[](index);
+    return nb::cast<S>(std::move(value));
+  });
+});
+
+array.def("__setitem__", [](soil::array& array, const size_t index, const nb::object value){
+  soil::typeselect(array.type(), [&array, index, &value]<typename S>(){
+      array.as<S>()[index] = nb::cast<S>(value);
+  });
+});
+
+//! \todo replace the following with a simple flattening tuple caster for the index.
+
+array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::object value){
+
+  size_t index;
+  if(tup.size() == 1) index = array.shape().template flat<1>({nb::cast<int>(tup[0])});
+  if(tup.size() == 2) index = array.shape().template flat<2>({nb::cast<int>(tup[0]), nb::cast<int>(tup[1])});
+  if(tup.size() == 3) index = array.shape().template flat<3>({nb::cast<int>(tup[0]), nb::cast<int>(tup[1]), nb::cast<int>(tup[2])});
+
+  soil::typeselect(array.type(), [&array, index, &value]<typename S>(){
+      array.as<S>()[index] = nb::cast<S>(value);
+  });
+
+});
 
 using test = std::variant<
   nb::ndarray<nb::numpy, float, nb::ndim<2>>,
@@ -178,59 +204,39 @@ using test = std::variant<
 array.def("numpy", [](soil::array& array) -> test {
   if(array.type() == soil::FLOAT32) return make_numpy<float, 2, 1>(array);
   if(array.type() == soil::VEC2)  return make_numpy<float, 3, 2>(array);
-  if(array.type() == soil::VEC3)  return make_numpy<float, 3, 3>(array);
+  if(array.type() == soil::VEC3) return make_numpy<float, 3, 3>(array);
   throw std::invalid_argument("I don't know how to make this into numpy!");
 });
 
-array.def("__getitem__", &soil::array::operator[]);
-array.def("__setitem__", &soil::array::set<int>);
-array.def("__setitem__", &soil::array::set<float>);
-array.def("__setitem__", &soil::array::set<double>);
-array.def("__setitem__", &soil::array::set<soil::vec2>);
 
-array.def("__setitem__", [](soil::array& array, glm::ivec2 pos, const nb::object value){
-  size_t index = array.shape().flat(pos);
-  if(array.type() == soil::INT)     array.set<int>(index, nb::cast<int>(value));
-  if(array.type() == soil::FLOAT32) array.set<float>(index, nb::cast<float>(value));
-  if(array.type() == soil::FLOAT64) array.set<double>(index, nb::cast<double>(value));
-});
 
-/*
-array.def("__setitem__", [](soil::array& array, const nb::tuple& tup, const nb::object value){
-  size_t index;
-  if(tup.size() == 1) index = array.shape().template flat<1>({tup[0].cast<int>()});
-  if(tup.size() == 2) index = array.shape().template flat<2>({tup[0].cast<int>(), tup[1].cast<int>()});
-  if(tup.size() == 3) index = array.shape().template flat<3>({tup[0].cast<int>(), tup[1].cast<int>(), tup[2].cast<int>()});
 
-  if(array.type() == "int") array.set<int>(index, value.cast<int>());
-  if(array.type() == "float") array.set<float>(index, value.cast<float>());
-  if(array.type() == "double") array.set<double>(index, value.cast<double>());
-});
-*/
 
-array.def("add_float", [](soil::array& lhs, const size_t index, const float value){
-  const float lhs_value = std::get<float>(lhs[index]);
-  lhs.set<float>(index, lhs_value + value);
-});
 
-array.def("add_vec2", [](soil::array& lhs, const size_t index, const float s, const soil::vec2 value){
-  const soil::vec2 lhs_value = std::get<soil::vec2>(lhs[index]);
-  lhs.set<soil::vec2>(index, lhs_value + s*value);
-});
+
+
 
 array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
+
+  auto lhs_t = lhs.as<float>();
+  auto rhs_t = rhs.as<float>();
+
   for(size_t i = 0; i < lhs.shape().elem(); ++i){
-    float lhs_value = std::get<float>(lhs[i]);
-    float rhs_value = std::get<float>(rhs[i]);
-    lhs.set<float>(i, lhs_value * (1.0 - lrate) + rhs_value * lrate);
+    float lhs_value = lhs_t[i];
+    float rhs_value = rhs_t[i];
+    lhs_t[i] = lhs_value * (1.0 - lrate) + rhs_value * lrate;
   }
 });
 
 array.def("track_vec2", [](soil::array& lhs, soil::array& rhs, const float lrate){
+
+  auto lhs_t = lhs.as<soil::vec2>();
+  auto rhs_t = rhs.as<soil::vec2>();
+
   for(size_t i = 0; i < lhs.shape().elem(); ++i){
-    soil::vec2 lhs_value = std::get<soil::vec2>(lhs[i]);
-    soil::vec2 rhs_value = std::get<soil::vec2>(rhs[i]);
-    lhs.set<soil::vec2>(i, lhs_value * (1.0f - lrate) + rhs_value * lrate);
+    soil::vec2 lhs_value = lhs_t[i];
+    soil::vec2 rhs_value = rhs_t[i];
+    lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
   }
 });
 

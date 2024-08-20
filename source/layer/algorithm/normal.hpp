@@ -78,8 +78,8 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]){
 template<typename T>
 glm::vec3 normal_impl(const soil::array& array, glm::ivec2 p){
 
-  auto shape = array.shape();
-  auto _array = std::get<soil::array_t<T>>(array._array);
+  auto _array = array.as<T>();
+  auto shape = _array.shape();
 
   sample_t<T> px[5], py[5];
   for(size_t i = 0; i < 5; ++i){
@@ -152,7 +152,7 @@ struct normal {
       out[index] = {n.x, n.y, n.z};
     }
 
-    return std::move(soil::array(out));
+    return std::move(soil::array(std::move(out)));
   }
 
 private:
