@@ -2,7 +2,7 @@
 #define SOILLIB_IO_TIFF
 
 #include <soillib/util/shape.hpp>
-#include <soillib/util/array.hpp>
+#include <soillib/util/buffer.hpp>
 
 #include <tiffio.h>
 #include <iostream>
@@ -22,10 +22,10 @@ struct tiff {
   tiff(){}
   tiff(const char* filename){ read(filename); };
 
-  tiff(soil::array _array, soil::shape _shape):
-    _shape{_shape},_array{_array}{
+  tiff(soil::buffer _buffer, soil::shape _shape):
+    _shape{_shape},_buffer{_buffer}{
 
-    auto type = _array.type();
+    auto type = _buffer.type();
 
     this->_height = _shape[0];
     this->_width = _shape[1];
@@ -47,7 +47,7 @@ struct tiff {
   uint32_t width()  const { return this->_width; }
   uint32_t height() const { return this->_height; }
 
-  soil::array array() const { return this->_array; }
+  soil::buffer buffer() const { return this->_buffer; }
   soil::shape shape() const { return this->_shape; }
 
 protected:
@@ -62,7 +62,7 @@ protected:
   uint32_t _theight = 0;  //!< Tile Height
 
   soil::shape _shape; //!< Underlying Data Shape
-  soil::array _array; //!< Underlying Data Buffer
+  soil::buffer _buffer; //!< Underlying Data Buffer
 };
 
 //! Load TIFF Metadata
@@ -105,10 +105,10 @@ bool tiff::read(const char* filename){
   auto shape = soil::shape({(int)this->height(), (int)this->width()});
 
   if(this->bits() == 32){
-    this->_array = soil::array(soil::FLOAT32, shape.elem());
+    this->_buffer = soil::buffer(soil::FLOAT32, shape.elem());
   }
   if(this->bits() == 64){
-    this->_array = soil::array(soil::FLOAT64, shape.elem());
+    this->_buffer = soil::buffer(soil::FLOAT64, shape.elem());
   }
 
   TIFF* tif = TIFFOpen(filename, "r");
@@ -116,7 +116,7 @@ bool tiff::read(const char* filename){
   // Load Tiled / Non-Tiled Images
   if(!this->tiled_image){
 
-    auto data = this->_array.data();
+    auto data = this->_buffer.data();
     uint8_t* buf = (uint8_t*)data;
 
     for(size_t row = 0; row < this->height(); row++){
@@ -132,7 +132,7 @@ bool tiff::read(const char* filename){
     const size_t nwidth = (this->width() + this->_twidth - 1)/this->_twidth;
     const size_t nheight = (this->height() + this->_theight - 1)/this->_theight;
 
-    auto data = this->_array.data();
+    auto data = this->_buffer.data();
     uint8_t* buf = (uint8_t*)data;
 
     uint8_t* nbuf = new uint8_t[tsize * (this->bits() / 8)];
@@ -188,7 +188,7 @@ bool tiff::write(const char *filename) {
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
   TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
 
-  auto data = this->_array.data();
+  auto data = this->_buffer.data();
   uint8_t* buf = (uint8_t*)data;
 
   for (uint32_t row = 0; row < this->height(); row++) {

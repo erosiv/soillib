@@ -30,10 +30,10 @@ def main(input):
 
     print(f"File: {file}")
     image = soil.geotiff(path)
-    array = image.array()
-    print(array.type)
+    buffer = image.buffer()
+    print(buffer.type)
 
-    data = array.numpy()
+    data = buffer.numpy()
     data = data.reshape((image.height, image.width))
     # Output Meta-Data, Plot
     plt.imshow(data)

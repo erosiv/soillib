@@ -53,7 +53,7 @@ def main(input):
 
     # Load Data
     img = soil.geotiff(path)
-    height = img.array()
+    height = img.buffer()
     shape = soil.shape([img.height, img.width])
 
     normal = soil.normal(shape, soil.layer(soil.cached(height.type, height)))

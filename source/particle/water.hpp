@@ -14,7 +14,7 @@
 
 #include <soillib/layer/algorithm/normal.hpp>
 
-#include <soillib/util/array.hpp>
+#include <soillib/util/buffer.hpp>
 #include <soillib/matrix/matrix.hpp>
 
 namespace soil {
@@ -56,7 +56,7 @@ struct water_particle_t {
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
       auto height = std::get<soil::cached>(self->height._layer).as<float>();
-      height.array[index] += value;
+      height.buffer[index] += value;
     });
   }
 
@@ -189,14 +189,14 @@ void WaterParticle::track(model_t& model){
 
   {
     auto cached = std::get<soil::cached>(model.discharge_track._layer);
-    soil::array_t<float> array = cached.as<float>().array;
-    array[index] += this->volume;
+    soil::buffer_t<float> buffer = cached.as<float>().buffer;
+    buffer[index] += this->volume;
   }
 
   {
     auto cached = std::get<soil::cached>(model.momentum_track._layer);
-    soil::array_t<vec2> array = cached.as<vec2>().array;
-    array[index] += this->volume * this->speed;
+    soil::buffer_t<vec2> buffer = cached.as<vec2>().buffer;
+    buffer[index] += this->volume * this->speed;
   }
 
 }

@@ -24,37 +24,37 @@ def test_shape():
   for pos in shape.iter():
     print(f"i: {shape.flat(pos)}: {pos}")
 
-def test_array():
+def test_buffer():
 
   '''
-  define and test the soil.array type interface
+  define and test the soil.buffer type interface
   '''
 
   # Construction / General Properties
-  array = soil.array(soil.float32, 27)
-  print("type:", array.type)
-  print("elem:", array.elem())
-  print("size:", array.size())
+  buffer = soil.buffer(soil.float32, 27)
+  print("type:", buffer.type)
+  print("elem:", buffer.elem())
+  print("size:", buffer.size())
 
   # Assignment
-  array.zero()
-  print(array[0])
-  array.fill(3.14)
-  print(array[0])
-  array[0] = 1.
-  print(array[0])
+  buffer.zero()
+  print(buffer[0])
+  buffer.fill(3.14)
+  print(buffer[0])
+  buffer[0] = 1.
+  print(buffer[0])
 
   # Iterate over Shape and Retrieve Values
-  # shape = array.shape
+  # shape = buffer.shape
   # for pos in shape.iter():
-  #   val = array[pos]
+  #   val = buffer[pos]
   #   print(f"{pos}: {val}")
 
-  #for pos, val in array.iter():
+  #for pos, val in buffer.iter():
   #  print(f"{pos}: {val}")
 
   # Numpy Interface
-  numpy = array.numpy()
+  numpy = buffer.numpy()
   print(numpy)
   print(numpy.dtype)
 
@@ -99,4 +99,4 @@ def test_iter():
 
 test_shape()
 test_iter()
-test_array()
+test_buffer()

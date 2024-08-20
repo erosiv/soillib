@@ -16,7 +16,7 @@ namespace nb = nanobind;
 #include <soillib/util/timer.hpp>
 #include <soillib/util/types.hpp>
 #include <soillib/util/shape.hpp>
-#include <soillib/util/array.hpp>
+#include <soillib/util/buffer.hpp>
 
 #include "glm.hpp"
 
@@ -128,57 +128,57 @@ shape.def("__repr__", [](const soil::shape& shape){
 // Array Type Binding
 //
 
-auto array = nb::class_<soil::array>(module, "array");
-array.def(nb::init<>());
-array.def(nb::init<const soil::dtype, const size_t>());
+auto buffer = nb::class_<soil::buffer>(module, "buffer");
+buffer.def(nb::init<>());
+buffer.def(nb::init<const soil::dtype, const size_t>());
 
-array.def("elem", &soil::array::elem);
-array.def("size", &soil::array::size);
-array.def("zero", &soil::array::zero);
-array.def("fill", &soil::array::fill<int>);
-array.def("fill", &soil::array::fill<float>);
-array.def("fill", &soil::array::fill<double>);
-array.def("fill", &soil::array::fill<soil::vec2>);
+buffer.def("elem", &soil::buffer::elem);
+buffer.def("size", &soil::buffer::size);
+buffer.def("zero", &soil::buffer::zero);
+buffer.def("fill", &soil::buffer::fill<int>);
+buffer.def("fill", &soil::buffer::fill<float>);
+buffer.def("fill", &soil::buffer::fill<double>);
+buffer.def("fill", &soil::buffer::fill<soil::vec2>);
 
-array.def_prop_ro("type", &soil::array::type);
+buffer.def_prop_ro("type", &soil::buffer::type);
 
-array.def("__getitem__", [](const soil::array& array, const size_t index) -> nb::object {
-  return soil::typeselect(array.type(), [&array, index]<typename S>() -> nb::object {
-    S value = array.as<S>().operator[](index);
+buffer.def("__getitem__", [](const soil::buffer& buffer, const size_t index) -> nb::object {
+  return soil::typeselect(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
+    S value = buffer.as<S>().operator[](index);
     return nb::cast<S>(std::move(value));
   });
 });
 
-array.def("__setitem__", [](soil::array& array, const size_t index, const nb::object value){
-  soil::typeselect(array.type(), [&array, index, &value]<typename S>(){
-      array.as<S>()[index] = nb::cast<S>(value);
+buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb::object value){
+  soil::typeselect(buffer.type(), [&buffer, index, &value]<typename S>(){
+      buffer.as<S>()[index] = nb::cast<S>(value);
   });
 });
 
 //! \todo clean this up once the method for converting vector types is figured out.
 
-array.def("numpy", [](soil::array& array) -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
-  return soil::typeselect(array.type(), [&array]<typename S>() -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
+buffer.def("numpy", [](soil::buffer& buffer) -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
+  return soil::typeselect(buffer.type(), [&buffer]<typename S>() -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
     if constexpr(std::same_as<S, float>){
-      size_t shape[1]{array.elem()};
+      size_t shape[1]{buffer.elem()};
       return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
-        array.data(),
+        buffer.data(),
         1,
         shape,
         nb::handle()
       );
     } else if constexpr(std::same_as<S, soil::vec2>){
-      size_t shape[1]{2*array.elem()};
+      size_t shape[1]{2*buffer.elem()};
       return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
-        array.data(),
+        buffer.data(),
         1,
         shape,
         nb::handle()
       );
     } else if constexpr(std::same_as<S, soil::vec3>){
-      size_t shape[1]{3*array.elem()};
+      size_t shape[1]{3*buffer.elem()};
       return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
-        array.data(),
+        buffer.data(),
         1,
         shape,
         nb::handle()

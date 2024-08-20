@@ -158,21 +158,21 @@ void geotiff::setNaN(){
 
   if(this->bits() == 32){
     auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto array = this->_array.as<float>();
+    auto buffer = this->_buffer.as<float>();
     const float _nodata = std::stof(this->nodata);
-    for(size_t i = 0; i < array.elem(); ++i){
-      if(array[i] == _nodata) 
-        array[i] = nan;
+    for(size_t i = 0; i < buffer.elem(); ++i){
+      if(buffer[i] == _nodata) 
+        buffer[i] = nan;
     }
   }
 
   if(this->bits() == 64){
     auto nan = std::numeric_limits<double>::quiet_NaN();
-    auto array = this->_array.as<double>();
+    auto buffer = this->_buffer.as<double>();
     const double _nodata = std::stof(this->nodata);
-    for(size_t i = 0; i < array.elem(); ++i){
-      if(array[i] == _nodata) 
-        array[i] = nan;
+    for(size_t i = 0; i < buffer.elem(); ++i){
+      if(buffer[i] == _nodata) 
+        buffer[i] = nan;
     }
   }
 

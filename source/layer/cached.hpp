@@ -2,26 +2,26 @@
 #define SOILLIB_LAYER_CACHED
 
 #include <soillib/util/types.hpp>
-#include <soillib/util/array.hpp>
+#include <soillib/util/buffer.hpp>
 
 namespace soil {
 
 template<typename T>
 struct cached_t: typedbase {
 
-  cached_t(const soil::array_t<T> array):
-    array{array}{}
+  cached_t(const soil::buffer_t<T> buffer):
+    buffer{buffer}{}
 
   constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 
   }
 
   T operator()(const size_t index) noexcept {
-    return this->array[index];
+    return this->buffer[index];
   }
 
 //private:
-  soil::array_t<T> array;
+  soil::buffer_t<T> buffer;
 };
 
 struct cached {
@@ -29,8 +29,8 @@ struct cached {
   cached(){}
 
   template<typename T>
-  cached(const soil::dtype type, const soil::array_t<T> array):
-    impl{make<T>(type, array)}{}
+  cached(const soil::dtype type, const soil::buffer_t<T> buffer):
+    impl{make<T>(type, buffer)}{}
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
@@ -66,10 +66,10 @@ struct cached {
   }
 
   template<typename T>
-  static typedbase* make(const soil::dtype type, const soil::array_t<T> array){
-    return typeselect(type, [array]<typename S>() -> typedbase* {
+  static typedbase* make(const soil::dtype type, const soil::buffer_t<T> buffer){
+    return typeselect(type, [buffer]<typename S>() -> typedbase* {
       if constexpr (std::same_as<T, S>){
-        return new soil::cached_t<S>(array);
+        return new soil::cached_t<S>(buffer);
       } else throw soil::error::cast_error<T, S>{}();
     });
   }

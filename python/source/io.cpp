@@ -17,7 +17,7 @@ void bind_io(nb::module_& module){
 
 auto tiff = nb::class_<soil::io::tiff>(module, "tiff");
 tiff.def(nb::init<const char*>());
-tiff.def(nb::init<soil::array, soil::shape>());
+tiff.def(nb::init<soil::buffer, soil::shape>());
 
 tiff.def("meta", &soil::io::tiff::meta);
 tiff.def("read", &soil::io::tiff::read);
@@ -26,7 +26,7 @@ tiff.def("write", &soil::io::tiff::write);
 tiff.def_prop_ro("width", &soil::io::tiff::width);
 tiff.def_prop_ro("height", &soil::io::tiff::height);
 
-tiff.def("array", &soil::io::tiff::array, nb::rv_policy::reference);
+tiff.def("buffer", &soil::io::tiff::buffer, nb::rv_policy::reference);
 
 //! GeoTIFF Datatype
 

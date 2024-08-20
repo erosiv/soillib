@@ -84,13 +84,13 @@ def merge(input, pscale = 0.1):
   
   pixels = pscale * ((wmax - wmin)/wscale)
   pixels = soil.shape(pixels.astype(np.int64))
-  array = soil.array(soil.float32, pixels.elem())
+  array = soil.buffer(soil.float32, pixels.elem())
   array.fill(np.nan)
 
   for file, path in iter_tiff(input):
 
     geotiff = soil.geotiff(path)
-    buf = geotiff.array()
+    buf = geotiff.buffer()
     buf = buf.numpy().reshape((geotiff.height, geotiff.width))
   
     gmin = np.array(geotiff.min)
@@ -144,14 +144,6 @@ def show_relief(array, shape):
 def main(input):
 
   array, shape = merge(input, pscale=0.1)
-
-  '''
-  Can we construct a TIFF File from the Array? I suppose...
-  -> Let's do it and write it.
-  '''
-
-  # image = soil.tiff(array)
-  # image.write("./out.tiff")
 
   #show_relief(array, shape)
   #show_normal(array, shape)

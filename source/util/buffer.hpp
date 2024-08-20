@@ -1,5 +1,5 @@
-#ifndef SOILLIB_UTIL_ARRAY
-#define SOILLIB_UTIL_ARRAY
+#ifndef SOILLIB_UTIL_BUFFER
+#define SOILLIB_UTIL_BUFFER
 
 #include <memory>
 #include <iostream>
@@ -10,15 +10,15 @@
 
 namespace soil {
 
-//! array_t<T> is a strict-typed, owning raw-data extent.
+//! buffer_t<T> is a strict-typed, owning raw-data extent.
 //! 
 template<typename T>
-struct array_t: typedbase {
+struct buffer_t: typedbase {
 
-  array_t() = default;
+  buffer_t() = default;
 
-  array_t(const size_t size){ this->allocate(size); }
-  ~array_t()                { this->deallocate(); }
+  buffer_t(const size_t size){ this->allocate(size); }
+  ~buffer_t()                { this->deallocate(); }
 
   constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 
@@ -84,24 +84,24 @@ private:
 };
 
 //! Array variant wrapper type: Implements visitors interface...
-struct array {
+struct buffer {
 
-  array(){}
+  buffer(){}
 
   //! \todo FIX THE VALUE SEMANTICS OF ARRAY AND IMPLS!
 
   // Existing Instance: Hold Reference
   template<typename T>
-  array(soil::array_t<T>& _array):
-    impl(&_array){}
+  buffer(soil::buffer_t<T>& buf):
+    impl(&buf){}
 
   // New Instance: Create new Holder
   template<typename T>
-  array(soil::array_t<T>&& _array){
-    impl = new soil::array_t<T>(_array);
+  buffer(soil::buffer_t<T>&& buf){
+    impl = new soil::buffer_t<T>(buf);
   }
 
-  array(const soil::dtype type, const size_t size):
+  buffer(const soil::dtype type, const size_t size):
     impl{make(type, size)}{}
 
   //! retrieve the strict-typed type enumerator
@@ -111,17 +111,17 @@ struct array {
 
   static typedbase* make(const soil::dtype type, const size_t size) {
     return typeselect(type, [size]<typename S>() -> typedbase* {
-      return new soil::array_t<S>(size);
+      return new soil::buffer_t<S>(size);
     });
   }
 
   //! unsafe cast to strict-type
-  template<typename T> inline array_t<T>& as() noexcept {
-    return static_cast<array_t<T>&>(*(this->impl));
+  template<typename T> inline buffer_t<T>& as() noexcept {
+    return static_cast<buffer_t<T>&>(*(this->impl));
   }
 
-  template<typename T> inline const array_t<T>& as() const noexcept {
-    return static_cast<array_t<T>&>(*(this->impl));
+  template<typename T> inline const buffer_t<T>& as() const noexcept {
+    return static_cast<buffer_t<T>&>(*(this->impl));
   }
 
   // Inspection Operations
@@ -146,7 +146,7 @@ struct array {
 
   // Data Manipulation Operations
 
-  array& zero(){
+  buffer& zero(){
     typeselect(this->type(), [self=this]<typename S>(){
       self->as<S>().zero();
     });
@@ -154,7 +154,7 @@ struct array {
   }
 
   template<typename T>
-  array& fill(const T value){
+  buffer& fill(const T value){
     typeselect(this->type(), [self=this, value]<typename S>(){
       if constexpr (std::same_as<T, S>){
         self->as<S>().fill(value);

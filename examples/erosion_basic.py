@@ -46,12 +46,12 @@ def render(model):
 
   normal = soil.normal(model.shape, model.height).full()
   normal_data = normal.numpy().reshape((shape[0], shape[1], 3))
-  height_data = model.height.array().numpy().reshape((shape[0], shape[1]))
+  height_data = model.height.buffer().numpy().reshape((shape[0], shape[1]))
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(model.discharge.array().numpy().reshape((shape[0], shape[1])))
+  discharge_data = sigmoid(model.discharge.buffer().numpy().reshape((shape[0], shape[1])))
 
-  momentum_data = sigmoid(model.momentum.array().numpy().reshape((shape[0], shape[1], 2)))
+  momentum_data = sigmoid(model.momentum.buffer().numpy().reshape((shape[0], shape[1], 2)))
   momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
 
   # Compute Shading
@@ -76,7 +76,7 @@ def make_model(shape, seed=0.0):
   hydraulic erosion model.
   '''
 
-  height = soil.array(soil.float32, shape.elem()).fill(0.0)
+  height = soil.buffer(soil.float32, shape.elem()).fill(0.0)
 
   noise = soil.noise()
   for pos in shape.iter():
@@ -88,11 +88,11 @@ def make_model(shape, seed=0.0):
 
   height    = soil.cached(soil.float32, height)
 
-  discharge = soil.cached(soil.float32, soil.array(soil.float32,  shape.elem()).fill(0.0))
-  momentum  = soil.cached(soil.vec2,    soil.array(soil.vec2,     shape.elem()).fill([0.0, 0.0]))
+  discharge = soil.cached(soil.float32, soil.buffer(soil.float32,  shape.elem()).fill(0.0))
+  momentum  = soil.cached(soil.vec2,    soil.buffer(soil.vec2,     shape.elem()).fill([0.0, 0.0]))
 
-  discharge_track = soil.cached(soil.float32, soil.array(soil.float32, shape.elem()).fill(0.0))
-  momentum_track  = soil.cached(soil.vec2,    soil.array(soil.vec2, shape.elem()).fill([0.0, 0.0]))
+  discharge_track = soil.cached(soil.float32, soil.buffer(soil.float32, shape.elem()).fill(0.0))
+  momentum_track  = soil.cached(soil.vec2,    soil.buffer(soil.vec2, shape.elem()).fill([0.0, 0.0]))
 
   resistance =  soil.constant(soil.float32, 0.0)
   maxdiff =     soil.constant(soil.float32, 0.8)
@@ -127,8 +127,8 @@ def erode(model, steps=512):
 
     # Fraction of "Exited" Particles
     no_basin_track = 0.0
-    model.discharge_track.array().zero()
-    model.momentum_track.array().zero()
+    model.discharge_track.buffer().zero()
+    model.momentum_track.buffer().zero()
 
     # Tracking Values:
 

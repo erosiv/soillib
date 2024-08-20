@@ -36,7 +36,7 @@ def test_layer():
   print("Cached Layers:")
   with soil.timer() as timer:
     shape = soil.shape([512, 512])
-    momentum = soil.array(soil.vec2, shape.elem()).fill([0.0, 1.0])
+    momentum = soil.buffer(soil.vec2, shape.elem()).fill([0.0, 1.0])
     cached = soil.cached(soil.vec2, momentum)
     for i in range(2**18):
       j = cached(0)

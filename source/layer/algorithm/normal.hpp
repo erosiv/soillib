@@ -3,7 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/shape.hpp>
-#include <soillib/util/array.hpp>
+#include <soillib/util/buffer.hpp>
 #include <soillib/layer/layer.hpp>
 
 namespace soil {
@@ -77,9 +77,9 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]){
 }
 
 template<typename T>
-glm::vec3 normal_impl(const soil::array& array, const soil::shape shape, glm::ivec2 p){
+glm::vec3 normal_impl(const soil::buffer& buffer, const soil::shape shape, glm::ivec2 p){
 
-  auto _array = array.as<T>();
+  auto _buffer = buffer.as<T>();
 
   sample_t<T> px[5], py[5];
   for(size_t i = 0; i < 5; ++i){
@@ -90,7 +90,7 @@ glm::vec3 normal_impl(const soil::array& array, const soil::shape shape, glm::iv
       px[i].pos = pos_x;
 
       const size_t index = shape.flat(pos_x);
-      px[i].value = _array[index];
+      px[i].value = _buffer[index];
     }
   
     const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
@@ -99,7 +99,7 @@ glm::vec3 normal_impl(const soil::array& array, const soil::shape shape, glm::iv
       py[i].pos = pos_y;
 
       const size_t index = shape.flat(pos_y);
-      py[i].value = _array[index];
+      py[i].value = _buffer[index];
     }
   }
 
@@ -126,22 +126,22 @@ struct normal {
   normal(const soil::shape& shape, const soil::layer& layer):
     shape{shape}{
       auto cached = std::get<soil::cached>(layer._layer);
-      this->array = soil::array(cached.as<float>().array);
+      this->buffer = soil::buffer(cached.as<float>().buffer);
     }
 
   //! Single Sample Value
   glm::vec3 operator()(const glm::ivec2 pos){    
-    switch(array.type()){
-      case soil::FLOAT32: return normal_impl<float>(array, shape, pos);
-      case soil::FLOAT64: return normal_impl<double>(array, shape, pos);
+    switch(buffer.type()){
+      case soil::FLOAT32: return normal_impl<float>(buffer, shape, pos);
+      case soil::FLOAT64: return normal_impl<double>(buffer, shape, pos);
       default: throw std::invalid_argument("type is not accepted");
     }
   }
 
-  //! Bake a whole Array!
-  soil::array full(){
+  //! Bake a whole buffer!
+  soil::buffer full(){
 
-    array_t<vec3> out = array_t<vec3>{shape.elem()};
+    buffer_t<vec3> out = buffer_t<vec3>{shape.elem()};
     auto _shape = std::get<soil::shape_t<2>>(shape._shape);
   
     for(const auto& pos: _shape.iter()){
@@ -152,12 +152,12 @@ struct normal {
       out[index] = {n.x, n.y, n.z};
     }
 
-    return std::move(soil::array(std::move(out)));
+    return std::move(soil::buffer(std::move(out)));
   }
 
 private:
   soil::shape shape;
-  soil::array array;
+  soil::buffer buffer;
 };
 
 } // end of namespace soil

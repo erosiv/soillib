@@ -3,7 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/shape.hpp>
-#include <soillib/util/array.hpp>
+#include <soillib/util/buffer.hpp>
 
 #include <soillib/layer/cached.hpp>
 #include <soillib/layer/constant.hpp>
@@ -36,7 +36,7 @@ struct cascade_model_t {
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
       auto height = std::get<soil::cached>(self->height._layer).as<float>();
-      height.array[index] += value;
+      height.buffer[index] += value;
     });
   }
 

@@ -29,7 +29,7 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    height = image.array()
+    height = image.buffer()
     shape = soil.shape([image.height, image.width])
 
     normal = soil.normal(shape, soil.layer(soil.cached(height.type, height)))

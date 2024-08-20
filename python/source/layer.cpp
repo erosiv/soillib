@@ -35,10 +35,10 @@ void bind_layer(nb::module_& module){
   layer.def(nb::init<soil::constant&&>());
   layer.def(nb::init<soil::computed&&>());
 
-  layer.def("array", [](soil::layer& layer){
+  layer.def("buffer", [](soil::layer& layer){
     auto cached = std::get<soil::cached>(layer._layer);
-    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::array {
-      return soil::array(cached.as<T>().array);
+    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::buffer {
+      return soil::buffer(cached.as<T>().buffer);
     });
   });
 
@@ -49,10 +49,10 @@ void bind_layer(nb::module_& module){
   auto cached = nb::class_<soil::cached>(module, "cached");
   cached.def("type", &soil::cached::type);
 
-  cached.def("__init__", [](soil::cached* cached, const soil::dtype type, soil::array array){
-    soil::typeselect(type, [type, cached, &array]<typename T>(){
-      soil::array_t<T> array_t = array.as<T>();
-      new (cached) soil::cached(type, array_t);
+  cached.def("__init__", [](soil::cached* cached, const soil::dtype type, soil::buffer buffer){
+    soil::typeselect(type, [type, cached, &buffer]<typename T>(){
+      soil::buffer_t<T> buffer_t = buffer.as<T>();
+      new (cached) soil::cached(type, buffer_t);
     });
   });
   
@@ -63,9 +63,9 @@ void bind_layer(nb::module_& module){
     });
   });
 
-  cached.def("array", [](soil::cached cached){
-    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::array {
-      return soil::array(cached.as<T>().array);
+  cached.def("buffer", [](soil::cached cached){
+    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::buffer {
+      return soil::buffer(cached.as<T>().buffer);
     });
   });
 
@@ -136,8 +136,8 @@ void bind_layer(nb::module_& module){
 
   layer.def("track_float", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
 
-    auto lhs_t = std::get<soil::cached>(lhs._layer).as<float>().array;
-    auto rhs_t = std::get<soil::cached>(rhs._layer).as<float>().array;
+    auto lhs_t = std::get<soil::cached>(lhs._layer).as<float>().buffer;
+    auto rhs_t = std::get<soil::cached>(rhs._layer).as<float>().buffer;
 
     for(size_t i = 0; i < lhs_t.elem(); ++i){
       float lhs_value = lhs_t[i];
@@ -149,8 +149,8 @@ void bind_layer(nb::module_& module){
 
   layer.def("track_vec2", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
 
-    auto lhs_t = std::get<soil::cached>(lhs._layer).as<soil::vec2>().array;
-    auto rhs_t = std::get<soil::cached>(rhs._layer).as<soil::vec2>().array;
+    auto lhs_t = std::get<soil::cached>(lhs._layer).as<soil::vec2>().buffer;
+    auto rhs_t = std::get<soil::cached>(rhs._layer).as<soil::vec2>().buffer;
 
     for(size_t i = 0; i < lhs_t.elem(); ++i){
       soil::vec2 lhs_value = lhs_t[i];
