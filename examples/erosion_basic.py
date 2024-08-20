@@ -77,26 +77,23 @@ def make_model(shape, seed=0.0):
   '''
 
   height = soil.buffer(soil.float32, shape.elem()).fill(0.0)
+  
+  noise = soil.noise(shape, seed)
+  height = noise.full()
 
-  noise = soil.noise()
   for pos in shape.iter():
     index = shape.flat(pos)
-    value = noise.get([pos[0]/shape[0], pos[1]/shape[1], seed])
-    height[index] = 80.0 * value
+    height[index] = 80.0 * height[index]
 
-  # height = soil.noise(shape).full(seed)
+  discharge = soil.buffer(soil.float32, shape.elem()).fill(0.0)
+  momentum  = soil.buffer(soil.vec2,    shape.elem()).fill([0.0, 0.0])
 
-  height    = soil.cached(soil.float32, height)
+  discharge_track = soil.buffer(soil.float32, shape.elem()).fill(0.0)
+  momentum_track  = soil.buffer(soil.vec2,    shape.elem()).fill([0.0, 0.0])
 
-  discharge = soil.cached(soil.float32, soil.buffer(soil.float32,  shape.elem()).fill(0.0))
-  momentum  = soil.cached(soil.vec2,    soil.buffer(soil.vec2,     shape.elem()).fill([0.0, 0.0]))
-
-  discharge_track = soil.cached(soil.float32, soil.buffer(soil.float32, shape.elem()).fill(0.0))
-  momentum_track  = soil.cached(soil.vec2,    soil.buffer(soil.vec2, shape.elem()).fill([0.0, 0.0]))
-
-  resistance =  soil.constant(soil.float32, 0.0)
-  maxdiff =     soil.constant(soil.float32, 0.8)
-  settling =    soil.constant(soil.float32, 1.0)
+  resistance  = soil.constant(soil.float32, 0.0)
+  maxdiff     = soil.constant(soil.float32, 0.8)
+  settling    = soil.constant(soil.float32, 1.0)
 
   return soil.water_model(
     shape,
@@ -167,7 +164,7 @@ def main():
   np.random.seed(0)
   shape = soil.shape([512, 512])
   model = make_model(shape, seed = 5.0)
-  for h, d in erode(model, steps = 512):
+  for h, d in erode(model, steps = 64):
     pass
 
   render(model)

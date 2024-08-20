@@ -31,6 +31,7 @@ void bind_layer(nb::module_& module){
   auto layer = nb::class_<soil::layer>(module, "layer");
   layer.def("type", &soil::layer::type);
 
+  layer.def(nb::init<const soil::buffer>());
   layer.def(nb::init<soil::cached&&>());
   layer.def(nb::init<soil::constant&&>());
   layer.def(nb::init<soil::computed&&>());
@@ -49,11 +50,8 @@ void bind_layer(nb::module_& module){
   auto cached = nb::class_<soil::cached>(module, "cached");
   cached.def("type", &soil::cached::type);
 
-  cached.def("__init__", [](soil::cached* cached, const soil::dtype type, soil::buffer buffer){
-    soil::typeselect(type, [type, cached, &buffer]<typename T>(){
-      soil::buffer_t<T> buffer_t = buffer.as<T>();
-      new (cached) soil::cached(type, buffer_t);
-    });
+  cached.def("__init__", [](soil::cached* cached, const soil::buffer buffer){
+    new (cached) soil::cached(buffer);
   });
   
   cached.def("__call__", [](soil::cached cached, const size_t index){
@@ -124,10 +122,9 @@ void bind_layer(nb::module_& module){
   // Noise Sampler Type
   //
 
-  using noise_t = soil::noise::sampler;
-  auto noise = nb::class_<noise_t>(module, "noise");
-  noise.def(nb::init<>());
-  noise.def("get", &noise_t::get);
+  auto noise = nb::class_<soil::noise>(module, "noise");
+  noise.def(nb::init<const soil::shape, const float>());
+  noise.def("full", &soil::noise::full);
 
   //
   // Special Layer-Based Operations

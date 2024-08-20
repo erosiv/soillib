@@ -18,7 +18,7 @@ struct buffer_t: typedbase {
   buffer_t() = default;
 
   buffer_t(const size_t size){ this->allocate(size); }
-  ~buffer_t()                { this->deallocate(); }
+  ~buffer_t() override       { this->deallocate(); }
 
   constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 

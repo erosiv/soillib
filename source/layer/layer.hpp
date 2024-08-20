@@ -32,6 +32,9 @@ struct layer {
 
   layer(){}
 
+  layer(const soil::buffer buffer):
+    _layer{soil::cached{buffer}}{}
+
   layer(soil::cached&& _layer):
     _layer{_layer}{}
 

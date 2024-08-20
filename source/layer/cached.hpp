@@ -27,10 +27,8 @@ struct cached_t: typedbase {
 struct cached {
 
   cached(){}
-
-  template<typename T>
-  cached(const soil::dtype type, const soil::buffer_t<T> buffer):
-    impl{make<T>(type, buffer)}{}
+  cached(const soil::buffer buffer):
+    impl{make(buffer)}{}
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
@@ -65,12 +63,10 @@ struct cached {
     );
   }
 
-  template<typename T>
-  static typedbase* make(const soil::dtype type, const soil::buffer_t<T> buffer){
-    return typeselect(type, [buffer]<typename S>() -> typedbase* {
-      if constexpr (std::same_as<T, S>){
-        return new soil::cached_t<S>(buffer);
-      } else throw soil::error::cast_error<T, S>{}();
+  static typedbase* make(const soil::buffer buffer){
+    return typeselect(buffer.type(), [&buffer]<typename S>() -> typedbase* {
+      soil::buffer_t<S> buffer_t = buffer.as<S>();
+      return new cached_t<S>(buffer_t);
     });
   }
 
