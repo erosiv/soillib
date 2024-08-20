@@ -113,8 +113,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
   // Termination Checks
 
   const glm::ivec2 ipos = pos;
-  auto apos = std::array<int, 2>{ipos.x, ipos.y};
-  const size_t index = model.shape.flat<2>(apos);
+  const size_t index = model.shape.flat(ipos);
 
   if(model.shape.oob(ipos))
     return false;

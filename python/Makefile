@@ -32,6 +32,7 @@ all:
 #	Compile the Extension Code
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp $(LINKLIB) -Os -c -o soillib.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp $(LINKLIB) -Os -c -o index.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp $(LINKLIB) -Os -c -o io.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp $(LINKLIB) -Os -c -o util.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/layer.cpp $(LINKLIB) -Os -c -o layer.o
@@ -40,6 +41,7 @@ all:
 	@echo "Linking..."
 	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff \
 			soillib.o \
+			index.o \
 			io.o \
 			util.o \
 			layer.o \

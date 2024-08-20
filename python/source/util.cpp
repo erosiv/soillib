@@ -15,7 +15,7 @@ namespace nb = nanobind;
 
 #include <soillib/util/timer.hpp>
 #include <soillib/util/types.hpp>
-#include <soillib/util/shape.hpp>
+#include <soillib/index/index.hpp>
 #include <soillib/util/buffer.hpp>
 
 #include "glm.hpp"
@@ -79,50 +79,9 @@ timer.def("__exit__", [](soil::timer& timer,
 // Yield Type Binding
 //
 
-bind_yield_t<soil::shape_t<1>::arr_t>(module, "yield_shape_t_arr_1");
-bind_yield_t<soil::shape_t<2>::arr_t>(module, "yield_shape_t_arr_2");
-bind_yield_t<soil::shape_t<3>::arr_t>(module, "yield_shape_t_arr_3");
-
-//
-// Shape Type Binding
-//
-
-auto shape = nb::class_<soil::shape>(module, "shape");
-shape.def(nb::init<const std::vector<int>&>());
-
-shape.def("dims", &soil::shape::dims);
-shape.def("elem", &soil::shape::elem);
-shape.def("iter", &soil::shape::iter);
-shape.def("flat", [](const soil::shape& shape, const std::vector<int>& v){
-  if(v.size() == 1) return shape.flat<1>({v[0]});
-  if(v.size() == 2) return shape.flat<2>({v[0], v[1]});
-  if(v.size() == 3) return shape.flat<3>({v[0], v[1], v[2]});
-  throw std::invalid_argument("invalid size");
-  //return shape.flat(&v[0], v.size());
-});
-
-shape.def("flat", [](const soil::shape& shape, glm::vec2 pos){
-  return shape.flat(pos);
-});
-
-shape.def("oob", [](const soil::shape& shape, const glm::ivec2 pos){
-  return shape.oob(pos);
-});
-
-shape.def("oob", [](const soil::shape& shape, const glm::vec2 pos){
-  return shape.oob(glm::ivec2(pos));
-});
-
-shape.def("__getitem__", &soil::shape::operator[]);
-
-shape.def("__repr__", [](const soil::shape& shape){
-  std::string str = "shape(" + std::to_string(shape.dims()) +")";
-  str += "[";
-  for(size_t d = 0; d < shape.dims(); d++)
-    str += std::to_string(shape[d]) + ",";
-  str += "]";
-  return str;
-});
+bind_yield_t<soil::flat_t<1>::vec_t>(module, "yield_shape_t_arr_1");
+bind_yield_t<soil::flat_t<2>::vec_t>(module, "yield_shape_t_arr_2");
+bind_yield_t<soil::flat_t<3>::vec_t>(module, "yield_shape_t_arr_3");
 
 //
 // Array Type Binding

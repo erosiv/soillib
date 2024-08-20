@@ -1,5 +1,5 @@
-#ifndef SOILLIB_TIMER
-#define SOILLIB_TIMER
+#ifndef SOILLIB_UTIL_TIMER
+#define SOILLIB_UTIL_TIMER
 
 #include <chrono>
 

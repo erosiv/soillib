@@ -2,7 +2,7 @@
 #define SOILLIB_LAYER_NORMAL
 
 #include <soillib/soillib.hpp>
-#include <soillib/util/shape.hpp>
+#include <soillib/index/index.hpp>
 #include <soillib/util/buffer.hpp>
 #include <soillib/layer/layer.hpp>
 
@@ -142,7 +142,7 @@ struct normal {
   soil::buffer full(){
 
     buffer_t<vec3> out = buffer_t<vec3>{shape.elem()};
-    auto _shape = std::get<soil::shape_t<2>>(shape._shape);
+    auto _shape = shape;
   
     for(const auto& pos: _shape.iter()){
       glm::vec3 n = this->operator()(glm::ivec2(pos[0], pos[1]));

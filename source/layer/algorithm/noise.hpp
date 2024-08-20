@@ -2,7 +2,7 @@
 #define SOILLIB_LAYER_COMPUTED_NOISE
 
 #include <soillib/util/types.hpp>
-#include <soillib/util/shape.hpp>
+#include <soillib/index/index.hpp>
 #include <soillib/util/buffer.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
@@ -71,7 +71,7 @@ struct noise {
   //! Bake a whole buffer!
   soil::buffer full(){
     buffer_t<float> out = buffer_t<float>{shape.elem()};
-    auto _shape = std::get<soil::shape_t<2>>(shape._shape);
+    auto _shape = shape;
     for(const auto& pos: _shape.iter()){
       const size_t index = _shape.flat(pos);
       out[index] = this->operator()(glm::ivec2(pos[0], pos[1]));
