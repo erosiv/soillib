@@ -54,10 +54,14 @@ def main(input):
     # Load Data
     img = soil.geotiff(path)
     height = img.array()
+    shape = soil.shape([img.height, img.width])
 
-    normal = soil.normal(height.shape, soil.layer(soil.cached(height.type, height)))
+    normal = soil.normal(shape, soil.layer(soil.cached(height.type, height)))
     normal_data = normal.full().numpy()
+    normal_data = normal_data.reshape((img.height, img.width, 3))
+
     height_data = height.numpy()
+    height_data = height_data.reshape((img.height, img.width))
 
     # Compute Shading
     relief = relief_shade(height_data, normal_data)

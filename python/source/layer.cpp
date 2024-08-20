@@ -129,32 +129,36 @@ void bind_layer(nb::module_& module){
   noise.def(nb::init<>());
   noise.def("get", &noise_t::get);
 
+  //
+  // Special Layer-Based Operations
+  //  These will be unified and expanded later!
+  //
 
-/*
-array.def("track_float", [](soil::array& lhs, soil::array& rhs, const float lrate){
+  layer.def("track_float", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
 
-  auto lhs_t = lhs.as<float>();
-  auto rhs_t = rhs.as<float>();
+    auto lhs_t = std::get<soil::cached>(lhs._layer).as<float>().array;
+    auto rhs_t = std::get<soil::cached>(rhs._layer).as<float>().array;
 
-  for(size_t i = 0; i < lhs.shape().elem(); ++i){
-    float lhs_value = lhs_t[i];
-    float rhs_value = rhs_t[i];
-    lhs_t[i] = lhs_value * (1.0 - lrate) + rhs_value * lrate;
-  }
-});
+    for(size_t i = 0; i < lhs_t.elem(); ++i){
+      float lhs_value = lhs_t[i];
+      float rhs_value = rhs_t[i];
+      lhs_t[i] = lhs_value * (1.0 - lrate) + rhs_value * lrate;
+    }
 
-array.def("track_vec2", [](soil::array& lhs, soil::array& rhs, const float lrate){
+  });
 
-  auto lhs_t = lhs.as<soil::vec2>();
-  auto rhs_t = rhs.as<soil::vec2>();
+  layer.def("track_vec2", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
 
-  for(size_t i = 0; i < lhs.shape().elem(); ++i){
-    soil::vec2 lhs_value = lhs_t[i];
-    soil::vec2 rhs_value = rhs_t[i];
-    lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
-  }
-});
-*/
+    auto lhs_t = std::get<soil::cached>(lhs._layer).as<soil::vec2>().array;
+    auto rhs_t = std::get<soil::cached>(rhs._layer).as<soil::vec2>().array;
+
+    for(size_t i = 0; i < lhs_t.elem(); ++i){
+      soil::vec2 lhs_value = lhs_t[i];
+      soil::vec2 rhs_value = rhs_t[i];
+      lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
+    }
+
+  });
 
 }
 

@@ -155,14 +155,37 @@ array.def("__setitem__", [](soil::array& array, const size_t index, const nb::ob
   });
 });
 
-array.def("numpy", [](soil::array& array){
-  size_t shape[1]{array.elem()};
-  return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
-    array.data(),
-    1,
-    shape,
-    nb::handle()
-  );
+//! \todo clean this up once the method for converting vector types is figured out.
+
+array.def("numpy", [](soil::array& array) -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
+  return soil::typeselect(array.type(), [&array]<typename S>() -> nb::ndarray<nb::numpy, float, nb::ndim<1>> {
+    if constexpr(std::same_as<S, float>){
+      size_t shape[1]{array.elem()};
+      return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+        array.data(),
+        1,
+        shape,
+        nb::handle()
+      );
+    } else if constexpr(std::same_as<S, soil::vec2>){
+      size_t shape[1]{2*array.elem()};
+      return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+        array.data(),
+        1,
+        shape,
+        nb::handle()
+      );
+    } else if constexpr(std::same_as<S, soil::vec3>){
+      size_t shape[1]{3*array.elem()};
+      return nb::ndarray<nb::numpy, float, nb::ndim<1>>(
+        array.data(),
+        1,
+        shape,
+        nb::handle()
+      );
+    }
+    throw std::invalid_argument("can't convert this buffer to numpy");
+  });
 });
 
 }

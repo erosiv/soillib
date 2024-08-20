@@ -31,10 +31,12 @@ def main(input):
     print(f"File: {file}")
     image = soil.geotiff(path)
     array = image.array()
+    print(array.type)
 
+    data = array.numpy()
+    data = data.reshape((image.height, image.width))
     # Output Meta-Data, Plot
-    print(array.shape, array.type)
-    plt.imshow(array.numpy())
+    plt.imshow(data)
     plt.show()
 
 if __name__ == "__main__":

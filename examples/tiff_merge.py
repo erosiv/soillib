@@ -83,15 +83,15 @@ def merge(input, pscale = 0.1):
   # Create Merged Filling Array
   
   pixels = pscale * ((wmax - wmin)/wscale)
-  pixels = pixels.astype(np.int64)
-  array = soil.array(soil.float32, pixels)
+  pixels = soil.shape(pixels.astype(np.int64))
+  array = soil.array(soil.float32, pixels.elem())
   array.fill(np.nan)
 
   for file, path in iter_tiff(input):
 
     geotiff = soil.geotiff(path)
     buf = geotiff.array()
-    buf = buf.numpy()
+    buf = buf.numpy().reshape((geotiff.height, geotiff.width))
   
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -108,34 +108,42 @@ def merge(input, pscale = 0.1):
         for y in range(pmin[1], pmax[1]):
           px = int((x - pmin[0]) / pscale)
           py = int((pmax[1]-y-1) / pscale)
-          array[x, pixels[1] - y - 1] = buf[py, px]
+          index = x*pixels[1] + (pixels[1] - y - 1)
+          array[index] = buf[py, px]
 
-  return array
+  return array, pixels
 
-def show_height(array):
-  data = array.numpy()
+def show_height(array, shape):
+
+  data = array.numpy().reshape((shape[0], shape[1]))
   data = np.transpose(data)
   plt.imshow(data)
   plt.show()
 
-def show_normal(array):
-  normal = soil.normal(array.shape, soil.layer(soil.cached(array.type, array)))
-  data = normal.full().numpy()
-  data = np.transpose(data, (1, 0, 2))
-  plt.imshow(data)
+def show_normal(array, shape):
+
+  normal = soil.normal(shape, soil.layer(soil.cached(array.type, array)))
+  normal_data = normal.full().numpy().reshape((shape[0], shape[1], 3))
+
+  normal_data = np.transpose(normal_data, (1, 0, 2))
+  plt.imshow(normal_data)
   plt.show()
 
-def show_relief(array):
-  normal = soil.normal(array.shape, soil.layer(soil.cached(array.type, array)))
-  normal_data = normal.full().numpy()
-  height_data = array.numpy()
+def show_relief(array, shape):
+
+  normal = soil.normal(shape, soil.layer(soil.cached(array.type, array)))
+  normal_data = normal.full().numpy().reshape((shape[0], shape[1], 3))
+  
+  height_data = array.numpy().reshape((shape[0], shape[1]))
   relief = relief_shade(height_data, normal_data)
+  
   relief = np.transpose(relief, (1, 0))
   plt.imshow(relief, cmap='gray')
   plt.show()
 
 def main(input):
-  array = merge(input, pscale=0.1)
+
+  array, shape = merge(input, pscale=0.1)
 
   '''
   Can we construct a TIFF File from the Array? I suppose...
@@ -145,9 +153,9 @@ def main(input):
   # image = soil.tiff(array)
   # image.write("./out.tiff")
 
-  show_relief(array)
-  #show_normal(array)
-  #show_height(array)
+  #show_relief(array, shape)
+  #show_normal(array, shape)
+  show_height(array, shape)
 
 if __name__ == "__main__":
 
