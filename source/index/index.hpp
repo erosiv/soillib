@@ -41,8 +41,18 @@ struct index {
   using vec_t = glm::vec<D, int>;
 
   index(){}
-  index(const vec_t<2> vec){
-    this->impl = new flat_t<2>(vec);
+
+  //! \todo remove this template for something better.
+  index(const vec_t<1> vec){ this->impl = new flat_t<1>(vec); }
+  index(const vec_t<2> vec){ this->impl = new flat_t<2>(vec); }
+  index(const vec_t<3> vec){ this->impl = new flat_t<3>(vec); }
+  index(const vec_t<4> vec){ this->impl = new flat_t<4>(vec); }
+
+  index(const std::vector<std::tuple<vec_t<2>, vec_t<2>>>& data){
+    std::vector<quad_node> nodes;
+    for(auto& [min, max]: data)
+      nodes.emplace_back(min, max);
+    this->impl = new quad(nodes);
   }
 
   dindex type() const noexcept {
@@ -98,13 +108,6 @@ struct index {
     return indexselect(impl->type(), [self=this, d]<typename T>(){
       return self->as<T>().operator[](d);
     });
-  }
-
-  auto iter() const {
-    if(impl->type() == soil::FLAT2){
-      return this->as<soil::flat_t<2>>().iter();
-    }
-    else throw std::invalid_argument("can't retrieve this iterator yet");
   }
 
 private:

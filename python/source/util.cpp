@@ -82,6 +82,7 @@ timer.def("__exit__", [](soil::timer& timer,
 bind_yield_t<soil::flat_t<1>::vec_t>(module, "yield_shape_t_arr_1");
 bind_yield_t<soil::flat_t<2>::vec_t>(module, "yield_shape_t_arr_2");
 bind_yield_t<soil::flat_t<3>::vec_t>(module, "yield_shape_t_arr_3");
+bind_yield_t<soil::flat_t<4>::vec_t>(module, "yield_shape_t_arr_4");
 
 //
 // Array Type Binding

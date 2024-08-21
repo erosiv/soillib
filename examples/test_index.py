@@ -4,64 +4,120 @@ import soillib as soil
 import numpy as np
 import time
 
-def test_shape():
+'''
+Test the Index Types
+- Construction, Return Values
+- Iteration Schemes
+- Numpy Export
+'''
 
-  '''
-  define and test the soil.shape type interface
-  '''
+print(f"Testing soil.index({soil.flat1})...")
 
-  # Construction / General Properties
-  shape = soil.index([3, 9])
-  print("shape:", shape)
-  print("dims:", shape.dims())
-  print("elem:", shape.elem())
+array = [32]
+shape = soil.index(array)
 
-  # Print the Dimension Extents
-  # for d in range(shape.dims()):
-  #   print(f"d:{d}, e:{shape[d]}")
+assert shape.type() == soil.flat1
+assert shape.dims() == 1
+assert shape.elem() == array[0]
 
-  # Iterate over Dimension Extents
-  for pos in shape.iter():
-    print(f"i: {shape.flatten(pos)}: {pos}")
+for d in range(shape.dims()):
+  assert shape[d] == array[d]
 
-def test_iter():
+assert not shape.oob(shape.min())
+assert shape.oob(shape.max())
 
-  print("Empty Python Range:")
-  with soil.timer() as timer:
-    for x in range(2048):
-      for y in range(2048):
-        pos = [x, y]
-        #index = x * 2048 + y
-        #print(type(pos))
-        #i = i+1
-        pass
+i = 0
+for pos in shape.iter():
+  assert not shape.oob(pos)
+  assert shape.flatten(pos) == i
+  i += 1
+assert i == shape.elem()
 
-  print("Shape Generator Iterator:")
-  shape = soil.index([2048, 2048])
-  with soil.timer() as timer:
-    for pos in shape.iter():
-      #index = shape.flat(pos)
-      #print(type(pos))
-      pass
+print(f"Testing soil.index({soil.flat2})...")
 
-  arr = np.empty((2048, 2048))
-  print("Numpy Shape Iterator:")
-  with soil.timer() as timer:
-    for x in arr:
-      for y in x:
-        #t = [x, y]
-        #print(x, y)
-        pass
+array = [16, 32]
+shape = soil.index(array)
 
-  '''
-  print("Shape Classic Iterator:")
-  with soil.timer() as timer:
-    for pos in shape:
-      #rint(pos)
-      #index = shape.flat(pos)
-      #print(type(pos))
-      pass
-  '''
+assert shape.type() == soil.flat2
+assert shape.dims() == 2
+assert shape.elem() == array[0]*array[1]
 
-test_shape()
-test_iter()
+for d in range(shape.dims()):
+  assert shape[d] == array[d]
+
+assert not shape.oob(shape.min())
+assert shape.oob(shape.max())
+
+i = 0
+for pos in shape.iter():
+  assert not shape.oob(pos)
+  assert shape.flatten(pos) == i
+  i += 1
+assert i == shape.elem()
+
+print(f"Testing soil.index({soil.flat3})...")
+
+array = [8, 16, 32]
+shape = soil.index(array)
+
+assert shape.type() == soil.flat3
+assert shape.dims() == 3
+assert shape.elem() == array[0]*array[1]*array[2]
+
+for d in range(shape.dims()):
+  assert shape[d] == array[d]
+
+assert not shape.oob(shape.min())
+assert shape.oob(shape.max())
+
+i = 0
+for pos in shape.iter():
+  assert not shape.oob(pos)
+  assert shape.flatten(pos) == i
+  i += 1
+assert i == shape.elem()
+
+print(f"Testing soil.index({soil.flat4})...")
+
+array = [4, 8, 16, 32]
+shape = soil.index(array)
+
+assert shape.type() == soil.flat4
+assert shape.dims() == 4
+assert shape.elem() == array[0]*array[1]*array[2]*array[3]
+
+for d in range(shape.dims()):
+  assert shape[d] == array[d]
+
+assert not shape.oob(shape.min())
+assert shape.oob(shape.max())
+
+i = 0
+for pos in shape.iter():
+  assert not shape.oob(pos)
+  assert shape.flatten(pos) == i
+  i += 1
+assert i == shape.elem()
+
+print(f"Testing soil.index({soil.quad})...")
+
+array = [
+  ([ 0,  0], [64, 64]), # Min, Extent
+  ([64, 32], [32, 32]), # Min, Extent
+  ([80, 16], [16, 16]), # Min, Extent
+  ([72, 16], [ 8,  8]), # Min, Extent
+  ([72, 24], [ 4,  4]), # Min, Extent
+]
+
+shape = soil.index(array)
+
+assert shape.type() == soil.quad
+assert shape.dims() == 2
+assert shape.elem() == 64*64 + 32*32 + 16*16 + 8*8 + 4*4
+
+i = 0
+for pos in shape.iter():
+  assert not shape.oob(pos)
+  assert shape.flatten(pos) == i
+  i += 1
+assert i == shape.elem()

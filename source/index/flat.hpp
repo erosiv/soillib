@@ -49,7 +49,10 @@ struct flat_t: indexbase {
   }
   
   constexpr soil::dindex type() noexcept override {
-    return soil::dindex::FLAT2;
+    if constexpr(D == 1)      return soil::dindex::FLAT1;
+    else if constexpr(D == 2) return soil::dindex::FLAT2;
+    else if constexpr(D == 3) return soil::dindex::FLAT3;
+    else if constexpr(D == 4) return soil::dindex::FLAT4;
   }
 
   //! Number of Elements
@@ -59,6 +62,7 @@ struct flat_t: indexbase {
 
   vec_t min() const noexcept { return vec_t{0}; }
   vec_t max() const noexcept { return this->_vec; }
+  vec_t ext() const noexcept { return this->_vec; }
 
   //! Extent Subscript Operator
   inline size_t operator[](const size_t d) const {

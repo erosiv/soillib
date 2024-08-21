@@ -84,9 +84,12 @@ struct quad: indexbase {
   // Flattening / Unflattening Interface
 
   size_t flatten(const vec_t pos) const {
-    for(const auto& node: nodes)
+    size_t base = 0;
+    for(const auto& node: nodes){
       if(!node.oob(pos)) 
-        return node.flatten(pos);
+        return base + node.flatten(pos);
+      base += node.elem();
+    }
     return -1;
   }
 
@@ -102,11 +105,19 @@ struct quad: indexbase {
   vec_t min() const noexcept { return this->_min; }
   vec_t max() const noexcept { return this->_max; }
   vec_t ext() const noexcept { return this->_ext; }
+
   inline size_t elem() const {
     size_t count = 0;
     for(const auto& node: nodes)
       count += node.elem();
     return count;
+  }
+
+  yield<vec_t> iter() const {
+    for(const auto& node: nodes)
+      for(size_t i = 0; i < node.elem(); ++i)
+        co_yield node.unflatten(i);
+    co_return;
   }
 
 private:

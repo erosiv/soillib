@@ -102,7 +102,7 @@ bool tiff::read(const char* filename){
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
   
-  soil::index index = soil::index(soil::vec2{(int)this->height(), (int)this->width()});
+  soil::index index = soil::index(soil::ivec2{(int)this->height(), (int)this->width()});
 
   if(this->bits() == 32){
     this->_buffer = soil::buffer(soil::FLOAT32, index.elem());

@@ -83,6 +83,10 @@ struct glm_caster {
 };
 
 template<typename T, glm::precision P>
+struct type_caster<glm::tvec1<T, P>>
+ : glm_caster<glm::tvec1<T, P>, T, 1> {};
+
+template<typename T, glm::precision P>
 struct type_caster<glm::tvec2<T, P>>
  : glm_caster<glm::tvec2<T, P>, T, 2> {};
 

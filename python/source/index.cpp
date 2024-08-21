@@ -12,6 +12,7 @@ namespace nb = nanobind;
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/optional.h>
+#include <nanobind/stl/tuple.h>
 
 #include <soillib/util/timer.hpp>
 #include <soillib/util/types.hpp>
@@ -49,6 +50,7 @@ nb::enum_<soil::dindex>(module, "dindex")
   .value("flat2", soil::dindex::FLAT2)
   .value("flat3", soil::dindex::FLAT3)
   .value("flat4", soil::dindex::FLAT4)
+  .value("quad", soil::dindex::QUAD)
   .export_values();
 
 //
@@ -56,35 +58,73 @@ nb::enum_<soil::dindex>(module, "dindex")
 //
 
 auto index = nb::class_<soil::index>(module, "index");
-index.def(nb::init<const soil::vec2>());
 
+index.def(nb::init<const soil::ivec1>());
+index.def(nb::init<const soil::ivec2>());
+index.def(nb::init<const soil::ivec3>());
+index.def(nb::init<const soil::ivec4>());
+
+// VERY SPECIAL CONSTRUCTOR!
+
+index.def("__init__", [](soil::index* index, const std::vector<std::tuple<soil::index::vec_t<2>, soil::index::vec_t<2>>> data){
+  new (index) soil::index(data);
+});
+
+index.def("type", &soil::index::type);
 index.def("dims", &soil::index::dims);
 index.def("elem", &soil::index::elem);
-index.def("iter", &soil::index::iter);
-index.def("type", &soil::index::type);
 
-//! \todo replace this template with a selector
-index.def("flatten", &soil::index::flatten<1>);
-index.def("flatten", &soil::index::flatten<2>);
-index.def("flatten", &soil::index::flatten<3>);
-index.def("flatten", &soil::index::flatten<4>);
+index.def("__getitem__", &soil::index::operator[]);
 
-//index.def("oob", &soil::index::oob<1>);
+index.def("min", [](soil::index& index) -> nb::object {
+  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+    auto min = index.as<T>().min();
+    return nb::cast(std::move(min));
+  });
+});
+
+index.def("max", [](soil::index& index) -> nb::object {
+  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+    auto max = index.as<T>().max();
+    return nb::cast(std::move(max));
+  });
+});
+
+index.def("ext", [](soil::index& index) -> nb::object {
+  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+    auto ext = index.as<T>().ext();
+    return nb::cast(std::move(ext));
+  });
+});
+
+index.def("iter", [](soil::index& index) -> nb::object {
+  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+    auto iter = index.as<T>().iter();
+    return nb::cast(std::move(iter));
+  });
+});
+
+// note: necessary for floating point positions!
+// note: has to be defined first for higher priority
 index.def("oob", [](soil::index& index, soil::vec2 vec){
   return index.oob<2>(vec);
 });
 
-/*
-index.def("oob", [](const soil::index& index, nb::object& object){
-  std::cout<<index.type()<<std::endl;
-  return soil::indexselect(index.type(), [&index, &object]<typename T>(){
+index.def("oob", [](soil::index& index, nb::object& object) -> bool {
+  return soil::indexselect(index.type(), [&index, &object]<typename T>() -> bool {
     auto value = nb::cast<typename T::vec_t>(object);
     return index.as<T>().oob(value);
   });
 });
-*/
 
-index.def("__getitem__", &soil::index::operator[]);
+index.def("flatten", [](soil::index& index, nb::object& object) -> size_t {
+  return soil::indexselect(index.type(), [&index, &object]<typename T>() -> size_t {
+    auto value = nb::cast<typename T::vec_t>(object);
+    return index.as<T>().flatten(value);
+  });
+});
+
+
 
 }
 
