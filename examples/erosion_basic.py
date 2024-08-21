@@ -148,7 +148,6 @@ def erode(model, steps=512):
           if not drop.interact(model):
             break
 
-#        print(model.index.type())
         if model.index.oob(drop.pos):
           no_basin_track += 1
 
@@ -164,8 +163,8 @@ def main():
 
   np.random.seed(0)
   index = soil.index([512, 512])
-  model = make_model(index, seed = 5.0)
-  for h, d in erode(model, steps = 512):
+  model = make_model(index, seed = 16.0)
+  for h, d in erode(model, steps = 1024):
     pass
 
   render(model)

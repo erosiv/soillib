@@ -145,7 +145,8 @@ enum dindex {
   FLAT1,
   FLAT2,
   FLAT3,
-  FLAT4
+  FLAT4,
+  QUAD
 };
 
 // base class

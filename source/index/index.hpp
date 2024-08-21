@@ -2,6 +2,7 @@
 #define SOILLIB_INDEX
 
 #include <soillib/index/flat.hpp>
+#include <soillib/index/quad.hpp>
 
 /*
 The idea is that we have an index type, that allow for converting
@@ -23,10 +24,11 @@ namespace soil {
 template<typename F, typename... Args>
 auto indexselect(const soil::dindex type, F lambda, Args&&... args){
   switch(type){
-    case soil::FLAT1: return lambda.template operator()<soil::flat_t<1>>(std::forward<Args>(args)...);
-    case soil::FLAT2: return lambda.template operator()<soil::flat_t<2>>(std::forward<Args>(args)...);
-    case soil::FLAT3: return lambda.template operator()<soil::flat_t<3>>(std::forward<Args>(args)...);
-    case soil::FLAT4: return lambda.template operator()<soil::flat_t<4>>(std::forward<Args>(args)...);
+    case soil::dindex::FLAT1: return lambda.template operator()<soil::flat_t<1>>(std::forward<Args>(args)...);
+    case soil::dindex::FLAT2: return lambda.template operator()<soil::flat_t<2>>(std::forward<Args>(args)...);
+    case soil::dindex::FLAT3: return lambda.template operator()<soil::flat_t<3>>(std::forward<Args>(args)...);
+    case soil::dindex::FLAT4: return lambda.template operator()<soil::flat_t<4>>(std::forward<Args>(args)...);
+    case soil::dindex::QUAD:  return lambda.template operator()<soil::quad>     (std::forward<Args>(args)...);
     default: throw std::invalid_argument("index not supported");
   }
 }

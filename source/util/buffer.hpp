@@ -173,14 +173,14 @@ struct buffer {
   template<typename T>
   T& operator[](const size_t index) {
     return typeselect(this->type(), [self=this, index]<typename S>(){
-      return self->as<S>().template operator[]<T>(index);
+      return self->as<S>().template operator[](index);
     });
   }
 
   template<typename T>
   T operator[](const size_t index) const {
     return typeselect(this->type(), [self=this, index]<typename S>(){
-      return self->as<S>().template operator[]<T>(index);
+      return self->as<S>().template operator[](index);
     });
   }
 

@@ -57,13 +57,8 @@ struct flat_t: indexbase {
     return prod<D>(this->_vec);
   }
 
-  inline vec_t min() const {
-    return vec_t{0};
-  }
-
-  inline vec_t max() const {
-    return this->_vec;
-  }
+  vec_t min() const noexcept { return vec_t{0}; }
+  vec_t max() const noexcept { return this->_vec; }
 
   //! Extent Subscript Operator
   inline size_t operator[](const size_t d) const {

@@ -11,7 +11,6 @@
 #include <soillib/layer/constant.hpp>
 #include <soillib/layer/computed.hpp>
 
-
 #include <soillib/layer/algorithm/normal.hpp>
 
 #include <soillib/util/buffer.hpp>
