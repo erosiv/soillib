@@ -17,7 +17,7 @@ void bind_io(nb::module_& module){
 
 auto tiff = nb::class_<soil::io::tiff>(module, "tiff");
 tiff.def(nb::init<const char*>());
-tiff.def(nb::init<soil::buffer, soil::shape>());
+tiff.def(nb::init<soil::buffer, soil::index>());
 
 tiff.def("meta", &soil::io::tiff::meta);
 tiff.def("read", &soil::io::tiff::read);

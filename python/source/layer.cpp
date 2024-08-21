@@ -115,7 +115,7 @@ void bind_layer(nb::module_& module){
   //
 
   auto normal = nb::class_<soil::normal>(module, "normal");
-  normal.def(nb::init<const soil::shape&, const soil::layer&>());
+  normal.def(nb::init<const soil::index&, const soil::layer&>());
   normal.def("full", &soil::normal::full);
 
   //
@@ -123,7 +123,7 @@ void bind_layer(nb::module_& module){
   //
 
   auto noise = nb::class_<soil::noise>(module, "noise");
-  noise.def(nb::init<const soil::shape, const float>());
+  noise.def(nb::init<const soil::index, const float>());
   noise.def("full", &soil::noise::full);
 
   //

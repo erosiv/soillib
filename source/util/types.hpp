@@ -141,6 +141,21 @@ auto typeselect(const soil::dtype type, F lambda, Args&&... args){
   }
 }
 
+enum dindex {
+  FLAT1,
+  FLAT2,
+  FLAT3,
+  FLAT4
+};
+
+// base class
+struct indexbase{
+  virtual ~indexbase(){};
+  constexpr virtual soil::dindex type() noexcept {
+    return {};
+  }
+};
+
 }
 
 #endif

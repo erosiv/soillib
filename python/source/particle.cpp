@@ -23,7 +23,7 @@ void bind_particle(nb::module_& module){
   auto model = nb::class_<model_t>(module, "water_model");
   model.def(nb::init<>());
   model.def(nb::init<
-    soil::shape,
+    soil::index,
     soil::layer,
     soil::layer,
     soil::layer,
@@ -34,7 +34,7 @@ void bind_particle(nb::module_& module){
     soil::layer
   >());
 
-  model.def_prop_ro("shape", [](model_t& model){ return model.shape; });
+  model.def_prop_ro("index", [](model_t& model){ return model.index; });
   model.def_prop_ro("height", [](model_t& model){ return model.height; });
   model.def_prop_ro("momentum", [](model_t& model){ return model.momentum; });
   model.def_prop_ro("discharge", [](model_t& model){ return model.discharge; });

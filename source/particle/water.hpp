@@ -43,7 +43,7 @@ struct water_particle_t {
   
   using matrix_t = soil::matrix::singular;
 
-  soil::shape shape;
+  soil::index index;
   soil::layer height;     //!< Height Array
   soil::layer momentum;   //!< Momentum Array
   soil::layer momentum_track;
@@ -113,9 +113,9 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
   // Termination Checks
 
   const glm::ivec2 ipos = pos;
-  const size_t index = model.shape.flatten(ipos);
+  const size_t index = model.index.flatten<2>(ipos);
 
-  if(model.shape.oob(ipos))
+  if(model.index.oob<2>(ipos))
     return false;
 
 
@@ -140,7 +140,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
     model.add(index, sediment, matrix);
     
     cascade_model_t casc{
-      model.shape,
+      model.index,
       model.height,
       model.maxdiff,
       model.settling
@@ -152,7 +152,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   // Apply Forces to Particle
 
-  static auto normal = soil::normal(model.shape, model.height);
+  static auto normal = soil::normal(model.index, model.height);
   const glm::vec3 n = normal(ipos);
 
   const glm::vec2 fspeed = model.momentum.template operator()<vec2>(index);
@@ -181,10 +181,10 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
 void WaterParticle::track(model_t& model){
 
-  if(model.shape.oob(this->pos))
+  if(model.index.oob<2>(this->pos))
     return;
 
-  const size_t index = model.shape.flatten(this->pos);
+  const size_t index = model.index.flatten<2>(this->pos);
 
   {
     auto cached = std::get<soil::cached>(model.discharge_track._layer);
@@ -205,9 +205,9 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   // Termination Checks
 
   const glm::ivec2 ipos = opos;
-  const size_t index = model.shape.flatten(ipos);
+  const size_t index = model.index.flatten<2>(ipos);
 
-  if(model.shape.oob(ipos))
+  if(model.index.oob<2>(ipos))
     return false;
 
   const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));
@@ -216,10 +216,10 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   //Out-Of-Bounds
 
   float h2;
-  if(model.shape.oob(pos))
+  if(model.index.oob<2>(pos))
     h2 = 0.99f*model.height.template operator()<float>(index);
   else {
-    const size_t index = model.shape.flatten(pos);
+    const size_t index = model.index.flatten<2>(pos);
     h2 = model.height.template operator()<float>(index);
   }
 
@@ -265,7 +265,7 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
 
   // New Position Out-Of-Bounds
   cascade_model_t casc{
-    model.shape,
+    model.index,
     model.height,
     model.maxdiff,
     model.settling

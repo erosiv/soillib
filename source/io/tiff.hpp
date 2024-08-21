@@ -22,13 +22,13 @@ struct tiff {
   tiff(){}
   tiff(const char* filename){ read(filename); };
 
-  tiff(soil::buffer _buffer, soil::shape _shape):
-    _shape{_shape},_buffer{_buffer}{
+  tiff(soil::buffer _buffer, soil::index index):
+    _index{_index},_buffer{_buffer}{
 
     auto type = _buffer.type();
 
-    this->_height = _shape[0];
-    this->_width = _shape[1];
+    this->_height = _index.as<flat_t<2>>()[0];
+    this->_width = _index.as<flat_t<2>>()[1];
 
     if(type == soil::FLOAT32){
       this->_bits = 32;
@@ -48,7 +48,7 @@ struct tiff {
   uint32_t height() const { return this->_height; }
 
   soil::buffer buffer() const { return this->_buffer; }
-  soil::shape shape() const { return this->_shape; }
+  soil::index  index() const { return this->_index; }
 
 protected:
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
@@ -61,7 +61,7 @@ protected:
   uint32_t _twidth = 0;   //!< Tile Width
   uint32_t _theight = 0;  //!< Tile Height
 
-  soil::shape _shape; //!< Underlying Data Shape
+  soil::index _index;   //!< Underlying Data Index
   soil::buffer _buffer; //!< Underlying Data Buffer
 };
 
@@ -102,13 +102,13 @@ bool tiff::read(const char* filename){
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
   
-  auto shape = soil::shape({(int)this->height(), (int)this->width()});
+  soil::index index = soil::index(soil::vec2{(int)this->height(), (int)this->width()});
 
   if(this->bits() == 32){
-    this->_buffer = soil::buffer(soil::FLOAT32, shape.elem());
+    this->_buffer = soil::buffer(soil::FLOAT32, index.elem());
   }
   if(this->bits() == 64){
-    this->_buffer = soil::buffer(soil::FLOAT64, shape.elem());
+    this->_buffer = soil::buffer(soil::FLOAT64, index.elem());
   }
 
   TIFF* tif = TIFFOpen(filename, "r");

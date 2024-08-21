@@ -77,7 +77,7 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]){
 }
 
 template<typename T>
-glm::vec3 normal_impl(const soil::buffer& buffer, const soil::shape shape, glm::ivec2 p){
+glm::vec3 normal_impl(const soil::buffer& buffer, const soil::index index, glm::ivec2 p){
 
   auto _buffer = buffer.as<T>();
 
@@ -85,21 +85,21 @@ glm::vec3 normal_impl(const soil::buffer& buffer, const soil::shape shape, glm::
   for(size_t i = 0; i < 5; ++i){
 
     const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
-    if(!shape.oob(pos_x)){
+    if(!index.oob<2>(pos_x)){
       px[i].oob = false;
       px[i].pos = pos_x;
 
-      const size_t index = shape.flatten(pos_x);
-      px[i].value = _buffer[index];
+      const size_t ind = index.flatten<2>(pos_x);
+      px[i].value = _buffer[ind];
     }
   
     const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
-    if(!shape.oob(pos_y)){
+    if(!index.oob<2>(pos_y)){
       py[i].oob = false;
       py[i].pos = pos_y;
 
-      const size_t index = shape.flatten(pos_y);
-      py[i].value = _buffer[index];
+      const size_t ind = index.flatten<2>(pos_y);
+      py[i].value = _buffer[ind];
     }
   }
 
@@ -123,8 +123,8 @@ glm::vec3 normal_impl(const soil::buffer& buffer, const soil::shape shape, glm::
 //!
 struct normal {
 
-  normal(const soil::shape& shape, const soil::layer& layer):
-    shape{shape}{
+  normal(const soil::index& index, const soil::layer& layer):
+    index{index}{
       auto cached = std::get<soil::cached>(layer._layer);
       this->buffer = soil::buffer(cached.as<float>().buffer);
     }
@@ -132,8 +132,8 @@ struct normal {
   //! Single Sample Value
   glm::vec3 operator()(const glm::ivec2 pos){    
     switch(buffer.type()){
-      case soil::FLOAT32: return normal_impl<float>(buffer, shape, pos);
-      case soil::FLOAT64: return normal_impl<double>(buffer, shape, pos);
+      case soil::FLOAT32: return normal_impl<float>(buffer, index, pos);
+      case soil::FLOAT64: return normal_impl<double>(buffer, index, pos);
       default: throw std::invalid_argument("type is not accepted");
     }
   }
@@ -141,8 +141,8 @@ struct normal {
   //! Bake a whole buffer!
   soil::buffer full(){
 
-    buffer_t<vec3> out = buffer_t<vec3>{shape.elem()};
-    auto _shape = shape;
+    buffer_t<vec3> out = buffer_t<vec3>{index.elem()};
+    auto _shape = index.as<flat_t<2>>();
   
     for(const auto& pos: _shape.iter()){
       glm::vec3 n = this->operator()(glm::ivec2(pos[0], pos[1]));
@@ -156,7 +156,7 @@ struct normal {
   }
 
 private:
-  soil::shape shape;
+  soil::index index;
   soil::buffer buffer;
 };
 

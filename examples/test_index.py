@@ -11,18 +11,18 @@ def test_shape():
   '''
 
   # Construction / General Properties
-  shape = soil.shape([3, 9])
+  shape = soil.index([3, 9])
   print("shape:", shape)
   print("dims:", shape.dims())
   print("elem:", shape.elem())
 
   # Print the Dimension Extents
-  for d in range(shape.dims()):
-    print(f"d:{d}, e:{shape[d]}")
+  # for d in range(shape.dims()):
+  #   print(f"d:{d}, e:{shape[d]}")
 
   # Iterate over Dimension Extents
   for pos in shape.iter():
-    print(f"i: {shape.flat(pos)}: {pos}")
+    print(f"i: {shape.flatten(pos)}: {pos}")
 
 def test_iter():
 
@@ -37,7 +37,7 @@ def test_iter():
         pass
 
   print("Shape Generator Iterator:")
-  shape = soil.shape([2048, 2048])
+  shape = soil.index([2048, 2048])
   with soil.timer() as timer:
     for pos in shape.iter():
       #index = shape.flat(pos)

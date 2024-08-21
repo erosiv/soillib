@@ -33,10 +33,10 @@ size_t prod(const glm::vec<D, int> vec){
 //! the domain of this index type is compact.
 //!
 template<size_t D>
-struct flat_t {
+struct flat_t: indexbase {
 
   static_assert(D > 0, "dimension D must be greater than 0");
-  static_assert(D <= 3, "dimension D must be less than or equal to 3");
+  static_assert(D <= 4, "dimension D must be less than or equal to 4");
   typedef glm::vec<D, int> vec_t;
 
   flat_t() = default;
@@ -46,6 +46,10 @@ struct flat_t {
   //! Number of Dimensions
   constexpr inline size_t dims() const noexcept { 
     return D; 
+  }
+  
+  constexpr soil::dindex type() noexcept override {
+    return soil::dindex::FLAT2;
   }
 
   //! Number of Elements

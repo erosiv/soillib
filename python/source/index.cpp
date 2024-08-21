@@ -48,35 +48,23 @@ void bind_index(nb::module_& module){
 // Shape Type Binding
 //
 
-auto shape = nb::class_<soil::shape>(module, "shape");
-shape.def(nb::init<const soil::vec2>());
+auto index = nb::class_<soil::index>(module, "index");
+index.def(nb::init<const soil::vec2>());
 
-shape.def("dims", &soil::shape::dims);
-shape.def("elem", &soil::shape::elem);
-shape.def("iter", &soil::shape::iter);
+index.def("dims", &soil::index::dims);
+index.def("elem", &soil::index::elem);
+index.def("iter", &soil::index::iter);
 
-shape.def("flat", [](const soil::shape& shape, glm::vec2 pos){
-  return shape.flatten(pos);
-});
+//! \todo replace this template with a selector
+index.def("flatten", &soil::index::flatten<1>);
+index.def("flatten", &soil::index::flatten<2>);
+index.def("flatten", &soil::index::flatten<3>);
+index.def("flatten", &soil::index::flatten<4>);
 
-shape.def("oob", [](const soil::shape& shape, const glm::ivec2 pos){
-  return shape.oob(pos);
-});
-
-shape.def("oob", [](const soil::shape& shape, const glm::vec2 pos){
-  return shape.oob(glm::ivec2(pos));
-});
-
-shape.def("__getitem__", &soil::shape::operator[]);
-
-shape.def("__repr__", [](const soil::shape& shape){
-  std::string str = "shape(" + std::to_string(shape.dims()) +")";
-  str += "[";
-  for(size_t d = 0; d < shape.dims(); d++)
-    str += std::to_string(shape[d]) + ",";
-  str += "]";
-  return str;
-});
+index.def("oob", &soil::index::oob<1>);
+index.def("oob", &soil::index::oob<2>);
+index.def("oob", &soil::index::oob<3>);
+index.def("oob", &soil::index::oob<4>);
 
 }
 

@@ -43,8 +43,8 @@ struct noise {
     source.SetFractalLacunarity(cfg.lacunarity);
   }
 
-  noise(const soil::shape shape, const float seed):
-  shape{shape},seed{seed}{
+  noise(const soil::index index, const float seed):
+  index{index},seed{seed}{
     source.SetNoiseType(cfg.ntype);
     source.SetFractalType(cfg.ftype);
     source.SetFrequency(cfg.frequency);
@@ -70,10 +70,10 @@ struct noise {
 
   //! Bake a whole buffer!
   soil::buffer full(){
-    buffer_t<float> out = buffer_t<float>{shape.elem()};
-    auto _shape = shape;
-    for(const auto& pos: _shape.iter()){
-      const size_t index = _shape.flatten(pos);
+    buffer_t<float> out = buffer_t<float>{index.elem()};
+    auto _index = index.as<flat_t<2>>();
+    for(const auto& pos: _index.iter()){
+      const size_t index = _index.flatten(pos);
       out[index] = this->operator()(glm::ivec2(pos[0], pos[1]));
     }
     return std::move(soil::buffer(std::move(out)));
@@ -83,14 +83,15 @@ private:
 
   inline float noise_impl(const soil::vec2 pos) {
     float val;
-    val = source.GetNoise(pos[0]/(float)shape[0], pos[1]/(float)shape[1], seed);
+    auto _index = index.as<flat_t<2>>();
+    val = source.GetNoise(pos[0]/(float)_index[0], pos[1]/(float)_index[1], seed);
     val = cfg.bias + cfg.scale * val;
     if(val < cfg.min) val = cfg.min;
     if(val > cfg.max) val = cfg.max;
     return val;
   }
 
-  soil::shape shape;
+  soil::index index;
   float seed;
   FastNoiseLite source;
   sampler_t cfg;
