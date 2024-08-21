@@ -70,25 +70,48 @@ struct noise {
 
   //! Bake a whole buffer!
   soil::buffer full(){
-    buffer_t<float> out = buffer_t<float>{index.elem()};
-    auto _index = index.as<flat_t<2>>();
-    for(const auto& pos: _index.iter()){
-      const size_t index = _index.flatten(pos);
-      out[index] = this->operator()(glm::ivec2(pos[0], pos[1]));
-    }
-    return std::move(soil::buffer(std::move(out)));
+
+    return soil::indexselect(index.type(), [self=this]<typename T>() -> soil::buffer {
+
+      if constexpr(std::same_as<typename T::vec_t, soil::ivec2>){
+
+        auto index = self->index.as<T>();
+        auto out = buffer_t<float>{index.elem()};
+
+        for(const auto& pos: index.iter()){
+          out[index.flatten(pos)] = self->operator()(pos);
+        }
+
+        return std::move(soil::buffer(std::move(out)));
+
+      } else {
+        throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+      }
+
+    });
+
   }
 
 private:
 
   inline float noise_impl(const soil::vec2 pos) {
-    float val;
-    auto _index = index.as<flat_t<2>>();
-    val = source.GetNoise(pos[0]/(float)_index[0], pos[1]/(float)_index[1], seed);
-    val = cfg.bias + cfg.scale * val;
-    if(val < cfg.min) val = cfg.min;
-    if(val > cfg.max) val = cfg.max;
-    return val;
+
+    return soil::indexselect(index.type(), [self=this, pos]<typename T>() -> float {
+
+      const T index = self->index.as<T>();
+      const auto ext = index.ext();
+      const auto& cfg = self->cfg;
+
+      float val = self->source.GetNoise(pos[0]/(float)ext[0], pos[1]/(float)ext[1], self->seed);
+      
+      // Clamp Value
+      val = cfg.bias + cfg.scale * val;
+      if(val < cfg.min) val = cfg.min;
+      if(val > cfg.max) val = cfg.max;
+      return val;
+
+    });
+
   }
 
   soil::index index;

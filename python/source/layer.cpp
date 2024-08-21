@@ -4,6 +4,8 @@
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
 
+#include <nanobind/ndarray.h>
+
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/function.h>
@@ -40,6 +42,64 @@ void bind_layer(nb::module_& module){
     auto cached = std::get<soil::cached>(layer._layer);
     return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::buffer {
       return soil::buffer(cached.as<T>().buffer);
+    });
+  });
+
+
+
+
+
+
+  layer.def("numpy", [](soil::layer& layer, soil::index& index){
+    
+    return soil::indexselect(index.type(), [&]<typename I>() -> nb::object {
+
+      auto index_t = index.as<I>();                 // Cast Index to Strict-Type
+      soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
+
+      //! \todo Remove this requirement, not actually necessary.
+      auto cached = std::get<soil::cached>(layer._layer);
+
+
+      return soil::typeselect(cached.type(), [&]<typename T>() -> nb::object {
+
+        if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+
+          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+
+          // Typed Buffer of Flat Size
+          //! \todo make sure this is de-allocated correctly,
+          //! i.e. the numpy buffer should perform a copy.
+          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+
+          // Fill w. NaN Value
+          buffer->fill(std::numeric_limits<T>::quiet_NaN());
+
+          // Iterate over Flat Index
+          for(const auto& pos: index_t.iter()){
+            const size_t i = index_t.flatten(pos);
+            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+          }
+
+          size_t shape[I::n_dims]{0};
+          for(size_t d = 0; d < I::n_dims; ++d)
+            shape[d] = flat[d];
+
+          nb::ndarray<nb::numpy, T, nb::ndim<I::n_dims>> array(
+            buffer->data(),
+            I::n_dims,
+            shape,
+            nb::handle()
+          );
+          return nb::cast(std::move(array));
+
+        } else {
+
+          throw std::invalid_argument("can't convert type to numpy array");
+
+        }
+      
+      });
     });
   });
 

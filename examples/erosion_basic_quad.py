@@ -194,6 +194,7 @@ def test_quad_data():
 
   seed = 0.0
 
+  #index = soil.index([64, 64])
   index = soil.index([
     ([ 0,  0], [64, 64]), # Min, Extent
     ([64, 32], [32, 32]), # Min, Extent
@@ -202,11 +203,17 @@ def test_quad_data():
     ([72, 24], [ 4,  4]), # Min, Extent
   ])
 
+  print(index.elem())
+
   height = soil.buffer(soil.float32, index.elem()).fill(0.0)
   noise = soil.noise(index, seed)
   height = noise.full()
 
-  print("MADE IT")
+  test = soil.layer(height)
+
+  data = test.numpy(index)
+  plt.imshow(data)
+  plt.show()
 
 if __name__ == "__main__":
 #  main()

@@ -123,7 +123,7 @@ glm::vec3 normal_impl(const soil::buffer& buffer, const soil::index index, glm::
 //!
 struct normal {
 
-  normal(const soil::index& index, const soil::layer& layer):
+  normal(soil::index index, const soil::layer& layer):
     index{index}{
       auto cached = std::get<soil::cached>(layer._layer);
       this->buffer = soil::buffer(cached.as<float>().buffer);
@@ -139,20 +139,37 @@ struct normal {
   }
 
   //! Bake a whole buffer!
+  //! Note: we make sure that the indexing structure of the buffer is respected.
   soil::buffer full(){
 
-    buffer_t<vec3> out = buffer_t<vec3>{index.elem()};
-    auto _shape = index.as<flat_t<2>>();
-  
-    for(const auto& pos: _shape.iter()){
-      glm::vec3 n = this->operator()(glm::ivec2(pos[0], pos[1]));
-      n = { n.x, -n.z, n.y};
-      n = 0.5f*n + 0.5f;
-      const size_t index = _shape.flatten(pos);
-      out[index] = {n.x, n.y, n.z};
-    }
+    std::cout<<index.type()<<std::endl;
 
-    return std::move(soil::buffer(std::move(out)));
+    return soil::indexselect(index.type(), [self=this]<typename T>() -> soil::buffer {
+
+      std::cout<<"WHAT's UP"<<std::endl;
+
+      if constexpr(std::same_as<typename T::vec_t, soil::ivec2>){
+
+        std::cout<<"WHAT's UP"<<std::endl;
+
+        auto index = self->index.as<T>();
+        auto out = buffer_t<vec3>{index.elem()};
+
+        for(const auto& pos: index.iter()){
+          glm::vec3 n = self->operator()(pos);
+          n = { n.x, -n.z, n.y};
+          n = 0.5f*n + 0.5f;
+          out[index.flatten(pos)] = {n.x, n.y, n.z};
+        }
+
+        return std::move(soil::buffer(std::move(out)));
+
+      } else {
+        throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+      }
+
+    });
+
   }
 
 private:

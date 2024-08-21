@@ -43,8 +43,10 @@ struct flat_t: indexbase {
   flat_t(const vec_t _vec):
     _vec{_vec}{}
 
+  static constexpr size_t n_dims = D;
+
   //! Number of Dimensions
-  constexpr inline size_t dims() const noexcept { 
+  static constexpr size_t dims() noexcept { 
     return D; 
   }
   

@@ -55,7 +55,9 @@ private:
 //! \todo implement
 struct quad: indexbase {
 
+
   static constexpr size_t D = 2;  //!< Dimensionality
+  static constexpr size_t n_dims = D;
   typedef soil::ivec2 vec_t;      //!< Underlying Vector Type
   typedef flat_t<D> index_t;      //!< Node Index Type
   typedef quad_node node_t;       //!< Node Type
@@ -69,7 +71,7 @@ struct quad: indexbase {
     this->_ext = this->_max - this->_min;
   }
 
-  constexpr inline size_t dims() const noexcept { 
+  static constexpr size_t dims() noexcept { 
     return D; 
   }
 
