@@ -89,7 +89,7 @@ glm::vec3 normal_impl(const soil::buffer& buffer, const soil::shape shape, glm::
       px[i].oob = false;
       px[i].pos = pos_x;
 
-      const size_t index = shape.flat(pos_x);
+      const size_t index = shape.flatten(pos_x);
       px[i].value = _buffer[index];
     }
   
@@ -98,7 +98,7 @@ glm::vec3 normal_impl(const soil::buffer& buffer, const soil::shape shape, glm::
       py[i].oob = false;
       py[i].pos = pos_y;
 
-      const size_t index = shape.flat(pos_y);
+      const size_t index = shape.flatten(pos_y);
       py[i].value = _buffer[index];
     }
   }
@@ -148,7 +148,7 @@ struct normal {
       glm::vec3 n = this->operator()(glm::ivec2(pos[0], pos[1]));
       n = { n.x, -n.z, n.y};
       n = 0.5f*n + 0.5f;
-      const size_t index = _shape.flat(pos);
+      const size_t index = _shape.flatten(pos);
       out[index] = {n.x, n.y, n.z};
     }
 

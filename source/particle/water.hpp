@@ -113,7 +113,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
   // Termination Checks
 
   const glm::ivec2 ipos = pos;
-  const size_t index = model.shape.flat(ipos);
+  const size_t index = model.shape.flatten(ipos);
 
   if(model.shape.oob(ipos))
     return false;
@@ -184,7 +184,7 @@ void WaterParticle::track(model_t& model){
   if(model.shape.oob(this->pos))
     return;
 
-  const size_t index = model.shape.flat(this->pos);
+  const size_t index = model.shape.flatten(this->pos);
 
   {
     auto cached = std::get<soil::cached>(model.discharge_track._layer);
@@ -205,7 +205,7 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   // Termination Checks
 
   const glm::ivec2 ipos = opos;
-  const size_t index = model.shape.flat(ipos);
+  const size_t index = model.shape.flatten(ipos);
 
   if(model.shape.oob(ipos))
     return false;
@@ -219,7 +219,7 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   if(model.shape.oob(pos))
     h2 = 0.99f*model.height.template operator()<float>(index);
   else {
-    const size_t index = model.shape.flat(pos);
+    const size_t index = model.shape.flatten(pos);
     h2 = model.height.template operator()<float>(index);
   }
 

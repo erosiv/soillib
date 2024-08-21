@@ -49,14 +49,14 @@ void bind_index(nb::module_& module){
 //
 
 auto shape = nb::class_<soil::shape>(module, "shape");
-shape.def(nb::init<const std::vector<int>&>());
+shape.def(nb::init<const soil::vec2>());
 
 shape.def("dims", &soil::shape::dims);
 shape.def("elem", &soil::shape::elem);
 shape.def("iter", &soil::shape::iter);
 
 shape.def("flat", [](const soil::shape& shape, glm::vec2 pos){
-  return shape.flat(pos);
+  return shape.flatten(pos);
 });
 
 shape.def("oob", [](const soil::shape& shape, const glm::ivec2 pos){

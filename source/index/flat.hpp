@@ -5,63 +5,84 @@
 #include <soillib/util/yield.hpp>
 #include <soillib/util/types.hpp>
 
-#include <memory>
-#include <array>
 #include <vector>
-#include <iostream>
-#include <variant>
-
-#include <initializer_list>
 
 namespace soil {
 
-//! a shape is a multi-dimensional extent struct.
-//! a shape represents a compact N-d region.
-//! 
-//! a shape is considered static, and doesn't
-//! itself implement re-shaping. Instead, it only
-//! provides methods to test broadcastability.
+namespace {
+
+template<size_t D>
+size_t prod(const glm::vec<D, int> vec){
+  switch(D){
+    case 1: return vec[0];
+    case 2: return vec[0]*vec[1];
+    case 3: return vec[0]*vec[1]*vec[2];
+    case 4: return vec[0]*vec[1]*vec[2]*vec[3];
+    default: throw std::invalid_argument("can't flatten vector of dimension > 4");
+  }
+}
+
+}
+
+//! flat_t<D> is a D-dimensional compact extent
 //!
-//! shape provides a flat index generator, which is
-//! iterable and emits the indices for lookup in a
-//! hypothetical flat buffer. This takes into account
-//! any permutation.
+//! this structure allows for conversion between
+//! D-dimensional positions and flat indices,
+//! with bounds and domain checking.
+//!
+//! the domain of this index type is compact.
+//!
 template<size_t D>
 struct flat_t {
 
+  static_assert(D > 0, "dimension D must be greater than 0");
+  static_assert(D <= 3, "dimension D must be less than or equal to 3");
   typedef glm::vec<D, int> vec_t;
 
   flat_t() = default;
-  flat_t(const std::vector<int>& v){
-    for(size_t i = 0; i < v.size(); ++i)
-      this->_arr[i] = v[i];
-  }
+  flat_t(const vec_t _vec):
+    _vec{_vec}{}
 
   //! Number of Dimensions
-  size_t dims() const { 
+  constexpr inline size_t dims() const noexcept { 
     return D; 
   }
 
   //! Number of Elements
-  size_t elem() const {
-    size_t v = 1;
-    for(size_t d = 0; d < D; ++d)
-      v *= this->_arr[d];
-    return v;
+  inline size_t elem() const {
+    return prod<D>(this->_vec);
   }
 
-  //! Shape Dimension Lookup
-  size_t operator[](const int d) const {
-    if(d >= D) throw std::invalid_argument("index is out of bounds");
-    return this->_arr[d];
+  inline vec_t min() const {
+    return vec_t{0};
   }
 
-  //! Position Flattening Procedure
-  size_t flat(const vec_t pos) const {
-    int value = 0;
+  inline vec_t max() const {
+    return this->_vec;
+  }
+
+  //! Extent Subscript Operator
+  inline size_t operator[](const size_t d) const {
+    return this->_vec[d];
+  }
+
+  // Flattening / Unflattening
+
+  size_t flatten(const vec_t pos) const {
+    int value{0};
     for(size_t d = 0; d < D; ++d){
       value *= this->operator[](d);
       value += pos[d];
+    }
+    return value;
+  }
+
+  vec_t unflatten(const int index) const {
+    vec_t value{0};
+    int scale = 1;
+    for(int d = D-1; d >= 0; --d){
+      value[d] = ( index / scale ) % this->operator[](d);
+      scale *= this->operator[](d);
     }
     return value;
   }
@@ -79,34 +100,13 @@ struct flat_t {
   //! This returns a generator coroutine,
   //! which iterates over the set of positions.
   yield<vec_t> iter() const {
-
-    vec_t m_arr{0};   // Initial Condition
-    
-    // Generate Values: One Per Element!
-    const size_t elem = this->elem();
-    for(size_t i = 0; i < elem; ++i){
-      
-      co_yield m_arr; // Yield Current Value
-      ++m_arr[D-1];   // Bump Active Dimension
-
-      // Propagate Overflow
-
-      for(size_t d = D-1; d > 0; d -= 1){
-
-        if(m_arr[d] >= this->_arr[d]){
-          m_arr[d] = 0;
-          ++m_arr[d-1];
-        }
-        else break;
-
-      }
-
-    }
+    for(size_t i = 0; i < this->elem(); ++i)
+      co_yield unflatten(i);
     co_return;
   }
 
 private:
-  vec_t _arr;
+  vec_t _vec;
 };
 
 } // end of namespace soil

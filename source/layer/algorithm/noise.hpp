@@ -73,7 +73,7 @@ struct noise {
     buffer_t<float> out = buffer_t<float>{shape.elem()};
     auto _shape = shape;
     for(const auto& pos: _shape.iter()){
-      const size_t index = _shape.flat(pos);
+      const size_t index = _shape.flatten(pos);
       out[index] = this->operator()(glm::ivec2(pos[0], pos[1]));
     }
     return std::move(soil::buffer(std::move(out)));

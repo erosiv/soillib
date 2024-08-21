@@ -79,7 +79,7 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
     if(model.shape.oob(npos))
       continue;
 
-    const size_t index = model.shape.flat(npos);
+    const size_t index = model.shape.flatten(npos);
     const float height = model.height.template operator()<float>(index);
     sn[num++] = { npos, height, matrix_t{}, length(glm::vec2(nn)) };
 
@@ -89,7 +89,7 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
 
   const matrix_t matrix{};// = map.matrix(ipos);
 
-  const size_t index = model.shape.flat(ipos);
+  const size_t index = model.shape.flatten(ipos);
   const float height = model.height.template operator()<float>(index);
   float h_ave = height;
   for (int i = 0; i < num; ++i)
@@ -107,8 +107,8 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
     const glm::ivec2& bpos = (diff > 0)?sn[i].pos:ipos;
     const matrix_t& tmatrix = (diff > 0)?matrix:sn[i].matrix;
 
-    const size_t tindex = model.shape.flat(tpos);
-    const size_t bindex = model.shape.flat(bpos);
+    const size_t tindex = model.shape.flatten(tpos);
+    const size_t bindex = model.shape.flatten(bpos);
 
     const float maxdiff = model.maxdiff.template operator()<float>(tindex);
     const float settling = model.settling.template operator()<float>(tindex);
