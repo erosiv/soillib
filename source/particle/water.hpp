@@ -68,8 +68,8 @@ struct WaterParticle_c {
 
   size_t maxAge = 1024;
   float evapRate = 0.001;
-  float depositionRate = 0.1;
-  float minVol = 0.01;
+  float depositionRate = 0.05;
+  float minVol = 0.001;
   float entrainment = 10.0f;
   float gravity = 2.0f;
   float momentumTransfer = 1.0f;
