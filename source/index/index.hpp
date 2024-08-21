@@ -43,6 +43,10 @@ struct index {
     this->impl = new flat_t<2>(vec);
   }
 
+  dindex type() const noexcept {
+    return this->impl->type();
+  }
+
   template<typename T> inline T& as() noexcept {
     return static_cast<T&>(*(this->impl));
   }
@@ -84,6 +88,13 @@ struct index {
   size_t elem() const {
     return indexselect(impl->type(), [self=this]<typename T>(){
       return self->as<T>().elem();
+    });
+  }
+
+  //! \todo eliminate this because it makes no sense
+  size_t operator[](const size_t d) const {
+    return indexselect(impl->type(), [self=this, d]<typename T>(){
+      return self->as<T>().operator[](d);
     });
   }
 

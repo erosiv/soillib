@@ -42,16 +42,16 @@ def relief_shade(h, n):
 
 def render(model):
 
-  shape = model.shape
+  index = model.index
 
-  normal = soil.normal(model.shape, model.height).full()
-  normal_data = normal.numpy().reshape((shape[0], shape[1], 3))
-  height_data = model.height.buffer().numpy().reshape((shape[0], shape[1]))
+  normal = soil.normal(index, model.height).full()
+  normal_data = normal.numpy().reshape((index[0], index[1], 3))
+  height_data = model.height.buffer().numpy().reshape((index[0], index[1]))
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(model.discharge.buffer().numpy().reshape((shape[0], shape[1])))
+  discharge_data = sigmoid(model.discharge.buffer().numpy().reshape((index[0], index[1])))
 
-  momentum_data = sigmoid(model.momentum.buffer().numpy().reshape((shape[0], shape[1], 2)))
+  momentum_data = sigmoid(model.momentum.buffer().numpy().reshape((index[0], index[1], 2)))
   momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
 
   # Compute Shading
@@ -67,7 +67,7 @@ def render(model):
 Erosion Code
 '''
 
-def make_model(shape, seed=0.0):
+def make_model(index, seed=0.0):
 
   '''
   returns a model wrapper type,
@@ -76,27 +76,27 @@ def make_model(shape, seed=0.0):
   hydraulic erosion model.
   '''
 
-  height = soil.buffer(soil.float32, shape.elem()).fill(0.0)
+  height = soil.buffer(soil.float32, index.elem()).fill(0.0)
   
-  noise = soil.noise(shape, seed)
+  noise = soil.noise(index, seed)
   height = noise.full()
 
-  for pos in shape.iter():
-    index = shape.flat(pos)
-    height[index] = 80.0 * height[index]
+  for pos in index.iter():
+    i = index.flatten(pos)
+    height[i] = 80.0 * height[i]
 
-  discharge = soil.buffer(soil.float32, shape.elem()).fill(0.0)
-  momentum  = soil.buffer(soil.vec2,    shape.elem()).fill([0.0, 0.0])
+  discharge = soil.buffer(soil.float32, index.elem()).fill(0.0)
+  momentum  = soil.buffer(soil.vec2,    index.elem()).fill([0.0, 0.0])
 
-  discharge_track = soil.buffer(soil.float32, shape.elem()).fill(0.0)
-  momentum_track  = soil.buffer(soil.vec2,    shape.elem()).fill([0.0, 0.0])
+  discharge_track = soil.buffer(soil.float32, index.elem()).fill(0.0)
+  momentum_track  = soil.buffer(soil.vec2,    index.elem()).fill([0.0, 0.0])
 
   resistance  = soil.constant(soil.float32, 0.0)
   maxdiff     = soil.constant(soil.float32, 0.8)
   settling    = soil.constant(soil.float32, 1.0)
 
   return soil.water_model(
-    shape,
+    index,
     soil.layer(height),
     soil.layer(momentum),
     soil.layer(momentum_track),
@@ -148,7 +148,8 @@ def erode(model, steps=512):
           if not drop.interact(model):
             break
 
-        if model.shape.oob(drop.pos):
+#        print(model.index.type())
+        if model.index.oob(drop.pos):
           no_basin_track += 1
 
       # Update Trackable Quantities:
@@ -162,8 +163,8 @@ def erode(model, steps=512):
 def main():
 
   np.random.seed(0)
-  shape = soil.shape([512, 512])
-  model = make_model(shape, seed = 5.0)
+  index = soil.index([512, 512])
+  model = make_model(index, seed = 5.0)
   for h, d in erode(model, steps = 64):
     pass
 

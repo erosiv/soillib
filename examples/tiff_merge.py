@@ -82,9 +82,9 @@ def merge(input, pscale = 0.1):
   # Determine Merged Image Size
   # Create Merged Filling Array
   
-  pixels = pscale * ((wmax - wmin)/wscale)
-  pixels = soil.shape(pixels.astype(np.int64))
-  array = soil.buffer(soil.float32, pixels.elem())
+  pixels = (pscale * ((wmax - wmin)/wscale)).astype(np.int64)
+  pixels_ = soil.index(pixels)
+  array = soil.buffer(soil.float32, pixels_.elem())
   array.fill(np.nan)
 
   for file, path in iter_tiff(input):
@@ -111,7 +111,7 @@ def merge(input, pscale = 0.1):
           index = x*pixels[1] + (pixels[1] - y - 1)
           array[index] = buf[py, px]
 
-  return array, pixels
+  return array, pixels_
 
 def show_height(array, shape):
 
@@ -122,7 +122,7 @@ def show_height(array, shape):
 
 def show_normal(array, shape):
 
-  normal = soil.normal(shape, soil.layer(soil.cached(array.type, array)))
+  normal = soil.normal(shape, soil.layer(soil.cached(array)))
   normal_data = normal.full().numpy().reshape((shape[0], shape[1], 3))
 
   normal_data = np.transpose(normal_data, (1, 0, 2))
@@ -131,7 +131,7 @@ def show_normal(array, shape):
 
 def show_relief(array, shape):
 
-  normal = soil.normal(shape, soil.layer(soil.cached(array.type, array)))
+  normal = soil.normal(shape, soil.layer(soil.cached(array)))
   normal_data = normal.full().numpy().reshape((shape[0], shape[1], 3))
   
   height_data = array.numpy().reshape((shape[0], shape[1]))
@@ -145,9 +145,9 @@ def main(input):
 
   array, shape = merge(input, pscale=0.1)
 
-  #show_relief(array, shape)
+  show_relief(array, shape)
   #show_normal(array, shape)
-  show_height(array, shape)
+  #show_height(array, shape)
 
 if __name__ == "__main__":
 

@@ -54,9 +54,9 @@ def main(input):
     # Load Data
     img = soil.geotiff(path)
     height = img.buffer()
-    shape = soil.shape([img.height, img.width])
+    index = soil.index([img.height, img.width])
 
-    normal = soil.normal(shape, soil.layer(soil.cached(height.type, height)))
+    normal = soil.normal(index, soil.layer(soil.cached(height)))
     normal_data = normal.full().numpy()
     normal_data = normal_data.reshape((img.height, img.width, 3))
 
