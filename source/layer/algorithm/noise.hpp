@@ -99,7 +99,7 @@ private:
     return soil::indexselect(index.type(), [self=this, pos]<typename T>() -> float {
 
       const T index = self->index.as<T>();
-      const auto ext = index.ext();
+      const auto ext = soil::vec2{512, 512};//index.ext();
       const auto& cfg = self->cfg;
 
       float val = self->source.GetNoise(pos[0]/(float)ext[0], pos[1]/(float)ext[1], self->seed);

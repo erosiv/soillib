@@ -93,6 +93,41 @@ void bind_layer(nb::module_& module){
           );
           return nb::cast(std::move(array));
 
+        } 
+        
+        //! \todo Make this Generic
+        else if constexpr(std::same_as<T, soil::vec3>) {
+          
+          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+
+          // Typed Buffer of Flat Size
+          //! \todo make sure this is de-allocated correctly,
+          //! i.e. the numpy buffer should perform a copy.
+          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+
+          // Fill w. NaN Value
+          //! \todo automate the related NaN value determination
+          buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
+
+          // Iterate over Flat Index
+          for(const auto& pos: index_t.iter()){
+            const size_t i = index_t.flatten(pos);
+            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+          }
+
+          size_t shape[I::n_dims + 1]{0};
+          for(size_t d = 0; d < I::n_dims; ++d)
+            shape[d] = flat[d];
+          shape[I::n_dims] = 3;
+
+          nb::ndarray<nb::numpy, float, nb::ndim<I::n_dims+1>> array(
+            buffer->data(),
+            I::n_dims+1,
+            shape,
+            nb::handle()
+          );
+          return nb::cast(std::move(array));
+
         } else {
 
           throw std::invalid_argument("can't convert type to numpy array");

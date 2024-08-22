@@ -46,10 +46,11 @@ def render(model):
 
   normal = soil.normal(index, model.height).full()
   normal_data = normal.numpy().reshape((index[0], index[1], 3))
-  height_data = model.height.buffer().numpy().reshape((index[0], index[1]))
+
+  height_data = model.height.numpy(index)
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(model.discharge.buffer().numpy().reshape((index[0], index[1])))
+  discharge_data = sigmoid(model.discharge.numpy(index))
 
   momentum_data = sigmoid(model.momentum.buffer().numpy().reshape((index[0], index[1], 2)))
   momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
@@ -164,7 +165,7 @@ def main():
   np.random.seed(0)
   index = soil.index([512, 512])
   model = make_model(index, seed = 16.0)
-  for h, d in erode(model, steps = 1024):
+  for h, d in erode(model, steps = 32):
     pass
 
   render(model)
