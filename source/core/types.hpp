@@ -1,30 +1,11 @@
-#ifndef SOILLIB_UTIL_TYPE
-#define SOILLIB_UTIL_TYPE
+#ifndef SOILLIB_TYPES
+#define SOILLIB_TYPES
 
 #include <soillib/soillib.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <format>
 
 namespace soil {
-
-// Vector Type Declarations
-
-constexpr auto defaultp = glm::qualifier::packed_highp;
-
-using vec1 = glm::vec<1, float, defaultp>;
-using vec2 = glm::vec<2, float, defaultp>;
-using vec3 = glm::vec<3, float, defaultp>;
-using vec4 = glm::vec<4, float, defaultp>;
-
-using dvec1 = glm::vec<1, double, defaultp>;
-using dvec2 = glm::vec<2, double, defaultp>;
-using dvec3 = glm::vec<3, double, defaultp>;
-using dvec4 = glm::vec<4, double, defaultp>;
-
-using ivec1 = glm::vec<1, int, defaultp>;
-using ivec2 = glm::vec<2, int, defaultp>;
-using ivec3 = glm::vec<3, int, defaultp>;
-using ivec4 = glm::vec<4, int, defaultp>;
 
 // Type Descriptor Enumerator
 
@@ -35,6 +16,7 @@ enum dtype {
   FLOAT,
   FLOAT32,
   FLOAT64,
+  //! \todo eliminate all vector types
   VEC2,
   VEC3,
   VEC4,
@@ -45,6 +27,35 @@ enum dtype {
   DVEC3,
   DVEC4
 };
+
+// Vector Type Aliases (Convenience)
+
+constexpr auto defaultp = glm::qualifier::packed_highp;
+
+template<size_t D> using ivec = glm::vec<D, int, defaultp>;
+template<size_t D> using fvec = glm::vec<D, float, defaultp>;
+template<size_t D> using dvec = glm::vec<D, double, defaultp>;
+template<size_t D> using vec = fvec<D>; // Default Precision
+
+using ivec1 = ivec<1>;
+using ivec2 = ivec<2>;
+using ivec3 = ivec<3>;
+using ivec4 = ivec<4>;
+
+using fvec1 = fvec<1>;
+using fvec2 = fvec<2>;
+using fvec3 = fvec<3>;
+using fvec4 = fvec<4>;
+
+using dvec1 = dvec<1>;
+using dvec2 = dvec<2>;
+using dvec3 = dvec<3>;
+using dvec4 = dvec<4>;
+
+using vec1 = vec<1>;
+using vec2 = vec<2>;
+using vec3 = vec<3>;
+using vec4 = vec<4>;
 
 //! typedesc is a generic compile-time type descriptor,
 //! which provides common properties like string names,
@@ -76,23 +87,6 @@ template<> struct typedesc<vec3> {
   static constexpr std::string name = "vec3";
   static constexpr dtype type = VEC3;
 };
-
-// Error Messages
-//! \todo this is exemplary, clean this up.
-
-namespace error {
-
-template<typename From, typename To>
-struct cast_error {
-  static std::invalid_argument operator()(){
-    return std::invalid_argument(value());
-  }
-  static std::string value(){
-    return std::format("invalid cast from <{}> to <{}>", typedesc<From>::name, typedesc<To>::name);
-  }
-};
-
-}
 
 // Enum-Based Runtime Polymorphic Visitor Pattern:
 //

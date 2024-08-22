@@ -10,7 +10,7 @@ namespace nb = nanobind;
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/function.h>
 
-#include <soillib/util/types.hpp>
+#include <soillib/core/types.hpp>
 
 #include <soillib/layer/layer.hpp>
 

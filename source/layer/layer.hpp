@@ -2,7 +2,7 @@
 #define SOILLIB_LAYER
 
 #include <soillib/soillib.hpp>
-#include <soillib/util/types.hpp>
+#include <soillib/core/types.hpp>
 
 #include <soillib/layer/cached.hpp>
 #include <soillib/layer/computed.hpp>

@@ -1,7 +1,8 @@
 #ifndef SOILLIB_LAYER_COMPUTED
 #define SOILLIB_LAYER_COMPUTED
 
-#include <soillib/util/types.hpp>
+#include <soillib/core/error.hpp>
+#include <soillib/core/types.hpp>
 #include <functional>
 
 namespace soil {

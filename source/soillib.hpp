@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <memory>
+#include <format>
 
 namespace soil {
 

@@ -5,7 +5,7 @@
 //! \todo add more detail about this file
 
 #include <soillib/soillib.hpp>
-#include <soillib/util/types.hpp>
+#include <soillib/core/types.hpp>
 
 namespace soil {
 
@@ -16,7 +16,8 @@ namespace soil {
 template<typename T>
 struct buffer_t: typedbase {
 
-  buffer_t() = default;
+  buffer_t():
+    _data{NULL},_size{0}{}
 
   buffer_t(const size_t size){ 
     this->allocate(size); 
@@ -26,45 +27,50 @@ struct buffer_t: typedbase {
     this->deallocate(); 
   }
 
-  constexpr soil::dtype type() noexcept override { 
-    return soil::typedesc<T>::type; 
-  }
+  void allocate(const size_t size); //!< Allocate Raw Data Buffer
+  void deallocate();                //!< De-Allocate Raw Data Buffer
 
-  // Allocator / Deallocator
-
-  void allocate(const size_t size){
-    if(this->_data != NULL)
-      throw std::runtime_error("can't allocate over allocated buffer");
-    if(size == 0)
-      throw std::invalid_argument("size must be greater than 0");
-    this->_data = std::make_shared<T[]>(size);
-    this->_size = size;
-  }
-
-  void deallocate(){
-    this->_data = NULL;
-  }
-
-  // Subscript Operator (Unsafe / Safe)
-
-  T& operator[](const size_t index) noexcept {
-    return this->_data[index];
-  }
-
+  //! Const Subscript Operator
   T operator[](const size_t index) const noexcept {
     return this->_data[index];
   }
 
-  // Data Inspection Member Functions
+  //! Non-Const Subscript Operator
+  T& operator[](const size_t index) noexcept {
+    return this->_data[index];
+  }
 
-  inline size_t elem()  const { return this->_size; }
-  inline size_t size()  const { return this->elem() * sizeof(T); }
-  inline void* data()         { return (void*)this->_data.get(); }
+  //! Type Enumerator Retrieval
+  constexpr soil::dtype type() noexcept override { 
+    return soil::typedesc<T>::type; 
+  }
+
+  inline size_t elem()  const { return this->_size; }               //!< Number of Elements
+  inline size_t size()  const { return this->elem() * sizeof(T); }  //!< Total Size in Bytes
+  inline void* data()         { return (void*)this->_data.get(); }  //!< Raw Data Pointer
 
 private:
-  std::shared_ptr<T[]> _data = NULL;  //!< Raw Data Pointer Member 
-  size_t _size = 0;                   //!< Number of Data Elements
+  std::shared_ptr<T[]> _data; //!< Raw Data Pointer Member 
+  size_t _size;               //!< Number of Data Elements
 };
+
+template<typename T>
+void buffer_t<T>::allocate(const size_t size){
+  if(this->_data != NULL) throw std::runtime_error("can't allocate over allocated buffer");
+  if(size == 0)           throw std::invalid_argument("size must be greater than 0");
+  this->_data = std::make_shared<T[]>(size);
+  this->_size = size;
+}
+
+template<typename T>
+void buffer_t<T>::deallocate(){ 
+  this->_data = NULL;
+  this->_size = 0;
+}
+
+//
+//
+//
 
 //! Array variant wrapper type: Implements visitors interface...
 struct buffer {
@@ -92,12 +98,6 @@ struct buffer {
     return this->impl->type();
   }
 
-  static typedbase* make(const soil::dtype type, const size_t size) {
-    return typeselect(type, [size]<typename S>() -> typedbase* {
-      return new soil::buffer_t<S>(size);
-    });
-  }
-
   //! unsafe cast to strict-type
   template<typename T> inline buffer_t<T>& as() noexcept {
     return static_cast<buffer_t<T>&>(*(this->impl));
@@ -106,14 +106,22 @@ struct buffer {
   template<typename T> inline const buffer_t<T>& as() const noexcept {
     return static_cast<buffer_t<T>&>(*(this->impl));
   }
-
-  // Inspection Operations
-
-  void* data() {
-    return typeselect(this->type(), [self=this]<typename S>(){
-      return self->as<S>().data();
+  
+  //! Const Subscript Operator
+  template<typename T> T operator[](const size_t index) const {
+    return typeselect(this->type(), [self=this, index]<typename S>(){
+      return self->as<S>().template operator[](index);
     });
   }
+
+  //! Non-Const Subscript Operator
+  template<typename T> T& operator[](const size_t index) {
+    return typeselect(this->type(), [self=this, index]<typename S>(){
+      return self->as<S>().template operator[](index);
+    });
+  }
+
+  // Data Inspection Operations (Type-Deducing)
   
   size_t elem() const {
     return typeselect(this->type(), [self=this]<typename S>(){
@@ -127,24 +135,20 @@ struct buffer {
     });
   }
 
-  // Lookup Operators
-  // Note: These are strict typed.
-
-  // Unsafe
-
-  template<typename T> T& operator[](const size_t index) {
-    return typeselect(this->type(), [self=this, index]<typename S>(){
-      return self->as<S>().template operator[](index);
-    });
-  }
-
-  template<typename T> T operator[](const size_t index) const {
-    return typeselect(this->type(), [self=this, index]<typename S>(){
-      return self->as<S>().template operator[](index);
+  void* data() {
+    return typeselect(this->type(), [self=this]<typename S>(){
+      return self->as<S>().data();
     });
   }
 
 private:
+
+  static typedbase* make(const soil::dtype type, const size_t size) {
+    return typeselect(type, [size]<typename S>() -> typedbase* {
+      return new soil::buffer_t<S>(size);
+    });
+  }
+
   typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
 

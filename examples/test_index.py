@@ -117,7 +117,6 @@ assert shape.elem() == 64*64 + 32*32 + 16*16 + 8*8 + 4*4
 
 i = 0
 for pos in shape.iter():
-  print(pos)
   assert not shape.oob(pos)
   assert shape.flatten(pos) == i
   i += 1

@@ -1,7 +1,7 @@
 #ifndef SOILLIB_LAYER_COMPUTED_NOISE
 #define SOILLIB_LAYER_COMPUTED_NOISE
 
-#include <soillib/util/types.hpp>
+#include <soillib/core/types.hpp>
 #include <soillib/index/index.hpp>
 #include <soillib/core/buffer.hpp>
 

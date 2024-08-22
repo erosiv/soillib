@@ -1,7 +1,8 @@
 #ifndef SOILLIB_LAYER_CONSTANT
 #define SOILLIB_LAYER_CONSTANT
 
-#include <soillib/util/types.hpp>
+#include <soillib/core/error.hpp>
+#include <soillib/core/types.hpp>
 
 namespace soil {
 

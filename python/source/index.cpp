@@ -15,7 +15,7 @@ namespace nb = nanobind;
 #include <nanobind/stl/tuple.h>
 
 #include <soillib/util/timer.hpp>
-#include <soillib/util/types.hpp>
+#include <soillib/core/types.hpp>
 #include <soillib/index/index.hpp>
 #include <soillib/core/buffer.hpp>
 

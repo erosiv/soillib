@@ -14,7 +14,7 @@ namespace nb = nanobind;
 #include <nanobind/stl/optional.h>
 
 #include <soillib/util/timer.hpp>
-#include <soillib/util/types.hpp>
+#include <soillib/core/types.hpp>
 #include <soillib/index/index.hpp>
 #include <soillib/core/buffer.hpp>
 
@@ -102,6 +102,7 @@ buffer.def("zero", [](soil::buffer& buffer){
     auto buffer_t = buffer.as<S>();
     for(size_t i = 0; i < buffer_t.elem(); ++i)
       buffer_t[i] = S{0};
+    return buffer;
   });
 });
 
@@ -111,6 +112,7 @@ buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
     auto value_t = nb::cast<S>(value);
     for(size_t i = 0; i < buffer_t.elem(); ++i)
       buffer_t[i] = value_t;
+    return buffer;
   });
 });
 
