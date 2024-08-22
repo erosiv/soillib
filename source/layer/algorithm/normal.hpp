@@ -2,7 +2,7 @@
 #define SOILLIB_LAYER_NORMAL
 
 #include <soillib/soillib.hpp>
-#include <soillib/index/index.hpp>
+#include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
 #include <soillib/layer/layer.hpp>
 

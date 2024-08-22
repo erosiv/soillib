@@ -2,7 +2,7 @@
 #define SOILLIB_LAYER_COMPUTED_NOISE
 
 #include <soillib/core/types.hpp>
-#include <soillib/index/index.hpp>
+#include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
