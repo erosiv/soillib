@@ -3,7 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/index/index.hpp>
-#include <soillib/util/buffer.hpp>
+#include <soillib/core/buffer.hpp>
 #include <soillib/layer/layer.hpp>
 
 namespace soil {

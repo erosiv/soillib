@@ -2,7 +2,7 @@
 #define SOILLIB_LAYER_CACHED
 
 #include <soillib/util/types.hpp>
-#include <soillib/util/buffer.hpp>
+#include <soillib/core/buffer.hpp>
 
 namespace soil {
 

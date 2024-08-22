@@ -13,7 +13,7 @@
 
 #include <soillib/layer/algorithm/normal.hpp>
 
-#include <soillib/util/buffer.hpp>
+#include <soillib/core/buffer.hpp>
 #include <soillib/matrix/matrix.hpp>
 
 namespace soil {

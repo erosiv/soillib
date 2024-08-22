@@ -3,7 +3,7 @@
 
 #include <soillib/util/types.hpp>
 #include <soillib/index/index.hpp>
-#include <soillib/util/buffer.hpp>
+#include <soillib/core/buffer.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 #include <soillib/external/FastNoiseLite.h>

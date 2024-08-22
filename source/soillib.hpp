@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <type_traits>
 #include <stdexcept>
+#include <memory>
 
 namespace soil {
 

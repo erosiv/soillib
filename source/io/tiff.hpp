@@ -2,7 +2,7 @@
 #define SOILLIB_IO_TIFF
 
 #include <soillib/index/index.hpp>
-#include <soillib/util/buffer.hpp>
+#include <soillib/core/buffer.hpp>
 
 #include <tiffio.h>
 #include <iostream>

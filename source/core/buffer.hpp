@@ -1,14 +1,15 @@
-#ifndef SOILLIB_UTIL_BUFFER
-#define SOILLIB_UTIL_BUFFER
+#ifndef SOILLIB_BUFFER
+#define SOILLIB_BUFFER
 
-#include <memory>
-#include <iostream>
-#include <variant>
+//! A buffer represents a raw data extent
+//! \todo add more detail about this file
 
 #include <soillib/soillib.hpp>
 #include <soillib/util/types.hpp>
 
 namespace soil {
+
+//! \todo Make sure that buffers are "re-interpretable"!
 
 //! buffer_t<T> is a strict-typed, raw-data extent.
 //! 
@@ -17,8 +18,13 @@ struct buffer_t: typedbase {
 
   buffer_t() = default;
 
-  buffer_t(const size_t size){ this->allocate(size); }
-  ~buffer_t() override       { this->deallocate(); }
+  buffer_t(const size_t size){ 
+    this->allocate(size); 
+  }
+  
+  ~buffer_t() override { 
+    this->deallocate(); 
+  }
 
   constexpr soil::dtype type() noexcept override { 
     return soil::typedesc<T>::type; 
@@ -39,17 +45,6 @@ struct buffer_t: typedbase {
     this->_data = NULL;
   }
 
-  // Member Function Implementations
-
-  inline void fill(const T value){
-    for(size_t i = 0; i < this->elem(); ++i)
-      this->_data[i] = value;
-  }
-
-  inline void zero(){
-    this->fill(T{0});
-  }
-
   // Subscript Operator (Unsafe / Safe)
 
   T& operator[](const size_t index) noexcept {
@@ -58,18 +53,6 @@ struct buffer_t: typedbase {
 
   T operator[](const size_t index) const noexcept {
     return this->_data[index];
-  }
-
-  T& operator()(const size_t index){
-    if(index >= this->elem())
-      throw std::range_error("index is out of range");
-    return this->operator[](index);
-  }
-
-  T operator()(const size_t index) const {
-    if(index >= this->elem())
-      throw std::range_error("index is out of range");
-    return this->operator[](index);
   }
 
   // Data Inspection Member Functions
@@ -144,41 +127,18 @@ struct buffer {
     });
   }
 
-  // Data Manipulation Operations
-
-  buffer& zero(){
-    typeselect(this->type(), [self=this]<typename S>(){
-      self->as<S>().zero();
-    });
-    return *this;
-  }
-
-  template<typename T>
-  buffer& fill(const T value){
-    typeselect(this->type(), [self=this, value]<typename S>(){
-      if constexpr (std::same_as<T, S>){
-        self->as<S>().fill(value);
-      } else if constexpr (std::convertible_to<T, S>){
-        self->as<S>().fill(S(value));
-      } else throw soil::error::cast_error<T, S>{}();
-    });
-    return *this;
-  }
-
   // Lookup Operators
   // Note: These are strict typed.
 
   // Unsafe
 
-  template<typename T>
-  T& operator[](const size_t index) {
+  template<typename T> T& operator[](const size_t index) {
     return typeselect(this->type(), [self=this, index]<typename S>(){
       return self->as<S>().template operator[](index);
     });
   }
 
-  template<typename T>
-  T operator[](const size_t index) const {
+  template<typename T> T operator[](const size_t index) const {
     return typeselect(this->type(), [self=this, index]<typename S>(){
       return self->as<S>().template operator[](index);
     });

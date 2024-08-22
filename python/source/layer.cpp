@@ -73,7 +73,9 @@ void bind_layer(nb::module_& module){
           soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
 
           // Fill w. NaN Value
-          buffer->fill(std::numeric_limits<T>::quiet_NaN());
+          T value = std::numeric_limits<T>::quiet_NaN();
+          for(size_t i = 0; i < buffer->elem(); ++i)
+            buffer->operator[](i) = value;
 
           // Iterate over Flat Index
           for(const auto& pos: index_t.iter()){
@@ -107,7 +109,11 @@ void bind_layer(nb::module_& module){
 
           // Fill w. NaN Value
           //! \todo automate the related NaN value determination
-          buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
+          //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
+
+          T value = T{std::numeric_limits<float>::quiet_NaN()};
+          for(size_t i = 0; i < buffer->elem(); ++i)
+            buffer->operator[](i) = value;
 
           // Iterate over Flat Index
           for(const auto& pos: index_t.iter()){

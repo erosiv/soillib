@@ -16,7 +16,7 @@ namespace nb = nanobind;
 #include <soillib/util/timer.hpp>
 #include <soillib/util/types.hpp>
 #include <soillib/index/index.hpp>
-#include <soillib/util/buffer.hpp>
+#include <soillib/core/buffer.hpp>
 
 #include "glm.hpp"
 
@@ -96,11 +96,21 @@ buffer.def_prop_ro("type", &soil::buffer::type);
 
 buffer.def("elem", &soil::buffer::elem);
 buffer.def("size", &soil::buffer::size);
-buffer.def("zero", &soil::buffer::zero);
+
+buffer.def("zero", [](soil::buffer& buffer){
+  return soil::typeselect(buffer.type(), [&buffer]<typename S>(){
+    auto buffer_t = buffer.as<S>();
+    for(size_t i = 0; i < buffer_t.elem(); ++i)
+      buffer_t[i] = S{0};
+  });
+});
 
 buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
   return soil::typeselect(buffer.type(), [&buffer, &value]<typename S>(){
-    return buffer.fill(nb::cast<S>(value));
+    auto buffer_t = buffer.as<S>();
+    auto value_t = nb::cast<S>(value);
+    for(size_t i = 0; i < buffer_t.elem(); ++i)
+      buffer_t[i] = value_t;
   });
 });
 
