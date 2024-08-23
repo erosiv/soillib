@@ -4,7 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/layer/layer.hpp>
+#include <soillib/core/node.hpp>
 
 namespace soil {
 

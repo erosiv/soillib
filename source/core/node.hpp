@@ -1,14 +1,12 @@
-#ifndef SOILLIB_LAYER
-#define SOILLIB_LAYER
+#ifndef SOILLIB_NODE
+#define SOILLIB_NODE
 
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
 
-#include <soillib/layer/cached.hpp>
-#include <soillib/layer/computed.hpp>
-#include <soillib/layer/constant.hpp>
-
-// #include <soillib/layer/stored.hpp>
+#include <soillib/node/cached.hpp>
+#include <soillib/node/computed.hpp>
+#include <soillib/node/constant.hpp>
 
 namespace soil {
 

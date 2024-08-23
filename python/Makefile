@@ -35,8 +35,8 @@ all:
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp $(LINKLIB) -Os -c -o index.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp $(LINKLIB) -Os -c -o io.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp $(LINKLIB) -Os -c -o util.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/layer.cpp $(LINKLIB) -Os -c -o layer.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/matrix.cpp $(LINKLIB) -Os -c -o matrix.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/node.cpp $(LINKLIB) -Os -c -o node.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp $(LINKLIB) -Os -c -o particle.o
 	@echo "Linking..."
 	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff \
@@ -44,8 +44,8 @@ all:
 			index.o \
 			io.o \
 			util.o \
-			layer.o \
 			matrix.o \
+			node.o \
 			particle.o \
 		$(HOME)/.local/lib/libnanobind.o -o ${MODULE}
 	@mv ${MODULE} $(HOME)/.local/lib/python3.12/site-packages/${MODULE}

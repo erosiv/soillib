@@ -5,9 +5,9 @@
 #include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
 
-#include <soillib/layer/cached.hpp>
-#include <soillib/layer/constant.hpp>
-#include <soillib/layer/layer.hpp>
+#include <soillib/node/cached.hpp>
+#include <soillib/node/constant.hpp>
+#include <soillib/core/node.hpp>
 
 #include <soillib/matrix/matrix.hpp>
 

@@ -12,14 +12,14 @@ namespace nb = nanobind;
 
 #include <soillib/core/types.hpp>
 
-#include <soillib/layer/layer.hpp>
+#include <soillib/core/node.hpp>
 
-#include <soillib/layer/cached.hpp>
-#include <soillib/layer/constant.hpp>
-#include <soillib/layer/computed.hpp>
+#include <soillib/node/cached.hpp>
+#include <soillib/node/constant.hpp>
+#include <soillib/node/computed.hpp>
 
-#include <soillib/layer/algorithm/noise.hpp>
-#include <soillib/layer/algorithm/normal.hpp>
+#include <soillib/node/algorithm/noise.hpp>
+#include <soillib/node/algorithm/normal.hpp>
 
 #include "glm.hpp"
 
