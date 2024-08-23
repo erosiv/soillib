@@ -18,5 +18,11 @@ python:
 	@cd python; $(MAKE) --no-print-directory all
 	@echo "soillib: done"
 
+.PHONY: test
+test:
+	@echo "soillib: running test scripts..."
+	@cd test; $(MAKE) --no-print-directory all
+	@echo "soillib: done"
+
 .PHONY: all
 all: source python
