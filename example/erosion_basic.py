@@ -103,9 +103,9 @@ def make_model(index, seed=0.0):
     soil.layer(momentum_track),
     soil.layer(discharge),
     soil.layer(discharge_track),
-    soil.layer(resistance),
-    soil.layer(maxdiff),
-    soil.layer(settling)
+    resistance,
+    maxdiff,
+    settling
   )
 
 def erode(model, steps=512):
@@ -153,8 +153,8 @@ def erode(model, steps=512):
           no_basin_track += 1
 
       # Update Trackable Quantities:
-      model.discharge.track_float(model.discharge_track, lrate)
-      model.momentum.track_vec2(model.momentum_track, lrate)
+      model.discharge.track(model.discharge_track, lrate)
+      model.momentum.track(model.momentum_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
@@ -165,7 +165,7 @@ def main():
   np.random.seed(0)
   index = soil.index([512, 512])
   model = make_model(index, seed = 0.0)
-  for h, d in erode(model, steps = 32):
+  for h, d in erode(model, steps = 512):
     pass
 
   render(model)

@@ -148,6 +148,28 @@ void bind_layer(nb::module_& module){
   });
 
   //
+  // Special Layer-Based Operations
+  //  These will be unified and expanded later!
+  //
+
+  layer.def("track", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
+
+    if(lhs.type() != rhs.type())
+      throw std::invalid_argument("layer's are not of the same type");
+
+    soil::typeselect(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
+      auto lhs_t = std::get<soil::cached>(lhs._layer).as<T>().buffer;
+      auto rhs_t = std::get<soil::cached>(rhs._layer).as<T>().buffer;
+      for(size_t i = 0; i < lhs_t.elem(); ++i){
+        const T lhs_value = lhs_t[i];
+        const T rhs_value = rhs_t[i];
+        lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
+      }
+    });
+
+  });
+
+  //
   // Cache-Valued Layer, i.e. Lookup Table
   //
 
@@ -193,37 +215,6 @@ void bind_layer(nb::module_& module){
   auto noise = nb::class_<soil::noise>(module, "noise");
   noise.def(nb::init<const soil::index, const float>());
   noise.def("full", &soil::noise::full);
-
-  //
-  // Special Layer-Based Operations
-  //  These will be unified and expanded later!
-  //
-
-  layer.def("track_float", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
-
-    auto lhs_t = std::get<soil::cached>(lhs._layer).as<float>().buffer;
-    auto rhs_t = std::get<soil::cached>(rhs._layer).as<float>().buffer;
-
-    for(size_t i = 0; i < lhs_t.elem(); ++i){
-      float lhs_value = lhs_t[i];
-      float rhs_value = rhs_t[i];
-      lhs_t[i] = lhs_value * (1.0 - lrate) + rhs_value * lrate;
-    }
-
-  });
-
-  layer.def("track_vec2", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
-
-    auto lhs_t = std::get<soil::cached>(lhs._layer).as<soil::vec2>().buffer;
-    auto rhs_t = std::get<soil::cached>(rhs._layer).as<soil::vec2>().buffer;
-
-    for(size_t i = 0; i < lhs_t.elem(); ++i){
-      soil::vec2 lhs_value = lhs_t[i];
-      soil::vec2 rhs_value = rhs_t[i];
-      lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
-    }
-
-  });
 
 }
 
