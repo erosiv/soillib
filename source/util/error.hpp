@@ -2,6 +2,7 @@
 #define SOILLIB_ERROR
 
 #include <soillib/soillib.hpp>
+#include <soillib/core/types.hpp>
 
 namespace soil {
 namespace error {
@@ -10,12 +11,12 @@ namespace error {
 //! \todo this is exemplary, clean this up.
 
 template<typename From, typename To>
-struct cast_error {
-  static std::invalid_argument operator()(){
-    return std::invalid_argument(value());
-  }
-  static std::string value(){
+struct cast_error: std::exception {
+  static std::string value() noexcept {
     return std::format("invalid cast from <{}> to <{}>", typedesc<From>::name, typedesc<To>::name);
+  }
+  const char* what() const noexcept override  {
+    return value().c_str();
   }
 };
 

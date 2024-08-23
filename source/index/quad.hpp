@@ -3,7 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
-#include <soillib/core/yield.hpp>
+#include <soillib/util/yield.hpp>
 #include <soillib/index/flat.hpp>
 
 #include <climits>

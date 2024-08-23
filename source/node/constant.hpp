@@ -1,7 +1,7 @@
 #ifndef SOILLIB_LAYER_CONSTANT
 #define SOILLIB_LAYER_CONSTANT
 
-#include <soillib/core/error.hpp>
+#include <soillib/util/error.hpp>
 #include <soillib/core/types.hpp>
 
 namespace soil {
@@ -73,7 +73,7 @@ struct constant {
         return self->as<S>().operator()(index);
         } else if constexpr (std::convertible_to<S, T>){
           return (T)self->as<S>().operator()(index);
-        } else throw soil::error::cast_error<S, T>{}();
+        } else throw soil::error::cast_error<S, T>();
       }
     );
   }
@@ -85,7 +85,7 @@ struct constant {
         return new soil::constant_t<S>(value);
       } else if constexpr (std::convertible_to<T, S>){
         return new soil::constant_t<S>(S(value));
-      } else throw soil::error::cast_error<T, S>{}();
+      } else throw soil::error::cast_error<T, S>();
     });
   }
 

@@ -1,7 +1,7 @@
 #ifndef SOILLIB_LAYER_COMPUTED
 #define SOILLIB_LAYER_COMPUTED
 
-#include <soillib/core/error.hpp>
+#include <soillib/util/error.hpp>
 #include <soillib/core/types.hpp>
 #include <functional>
 
@@ -68,7 +68,7 @@ struct computed {
       [self=this, index]<typename S>() -> T {
         if constexpr (std::convertible_to<S, T>){
           return (T)self->as<S>().operator()(index);
-        } else throw soil::error::cast_error<S, T>{}();
+        } else throw soil::error::cast_error<S, T>();
       }
     );
   }
@@ -82,7 +82,7 @@ struct computed {
         return new soil::computed_t<S>([func](const size_t index){
           return (S)func(index);
         });
-      } else throw soil::error::cast_error<T, S>{}();
+      } else throw soil::error::cast_error<S, T>();
     });
   }
 

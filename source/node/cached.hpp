@@ -1,7 +1,7 @@
 #ifndef SOILLIB_LAYER_CACHED
 #define SOILLIB_LAYER_CACHED
 
-#include <soillib/core/error.hpp>
+#include <soillib/util/error.hpp>
 #include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
 
@@ -59,7 +59,7 @@ struct cached {
         return self->as<S>().operator()(index);
         } else if constexpr (std::convertible_to<S, T>){
           return (T)self->as<S>().operator()(index);
-        } else throw soil::error::cast_error<S, T>{}();
+        } else throw soil::error::cast_error<S, T>();
       }
     );
   }
