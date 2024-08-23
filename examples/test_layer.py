@@ -4,42 +4,45 @@ import soillib as soil
 import numpy as np
 import time
 
-def test_layer():
+print("Testing layer.constant...")
 
-  print("Constant Value:")
-  j = 0.0
-  with soil.timer() as timer:
-    const = soil.constant(soil.float32, 1.0)
-    for i in range(2**18):
-      j = const(0)
-  print(j)
+value = 3.14
+layer = soil.constant(soil.float32, value)
+assert type(layer) == soil.layer
 
-  print("Computed Value:")
-  x = 1.0
-  j = 0.0
-  with soil.timer() as timer:
-    comp = soil.computed(soil.float32, lambda i: 0.0)
-    for i in range(2**18):
-      j = comp(0)
-  print(j)
+for i in range(64):
+  assert np.isclose(layer(0), value)
 
-  print("Coupled Layers:")
-  with soil.timer() as timer:
-    const1 = soil.constant(soil.float32, 3.14)
-    const2 = soil.constant(soil.float32, 3.14)
-    comp = soil.computed(soil.float32, lambda index:
-      const1(index) + const2(index))
-    for i in range(2**18):
-      j = comp(0)
-  print(j)
+print("Testing layer.cached...")
 
-  print("Cached Layers:")
-  with soil.timer() as timer:
-    index = soil.index([512, 512])
-    momentum = soil.buffer(soil.vec2, index.elem()).fill([0.0, 1.0])
-    cached = soil.cached(momentum)
-    for i in range(2**18):
-      j = cached(0)
-  print(j)
+index = soil.index([32, 32])
+value = [0.0, 3.14]
 
-test_layer()
+momentum = soil.buffer(soil.vec2, index.elem()).fill(value)
+layer = soil.cached(momentum)
+assert type(layer) == soil.layer
+
+for i in range(index.elem()):
+  assert np.isclose(layer(i)[0], value[0])
+  assert np.isclose(layer(i)[1], value[1])
+
+print("Testing layer.computed...")
+
+layer = soil.computed(soil.int, lambda i: i)
+assert type(layer) == soil.layer
+
+for i in range(64):
+  assert layer(i) == i
+
+'''
+print("Testing coupled layer.computed")
+
+with soil.timer() as timer:
+  const1 = soil.constant(soil.float32, 3.14)
+  const2 = soil.constant(soil.float32, 3.14)
+  comp = soil.computed(soil.float32, lambda index:
+    const1(index) + const2(index))
+  for i in range(2**18):
+    j = comp(0)
+print(j)
+'''

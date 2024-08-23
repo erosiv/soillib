@@ -45,10 +45,14 @@ void bind_layer(nb::module_& module){
     });
   });
 
-
-
-
-
+  layer.def("__call__", [](soil::layer& layer, const size_t index){
+    return std::visit([index](auto&& args){
+      return soil::typeselect(args.type(), [&args, index]<typename T>() -> nb::object {
+        T value = args.template as<T>()(index);
+        return nb::cast<T>(std::move(value));
+      });
+    }, layer._layer);
+  });
 
   layer.def("numpy", [](soil::layer& layer, soil::index& index){
     
@@ -59,7 +63,6 @@ void bind_layer(nb::module_& module){
 
       //! \todo Remove this requirement, not actually necessary.
       auto cached = std::get<soil::cached>(layer._layer);
-
 
       return soil::typeselect(cached.type(), [&]<typename T>() -> nb::object {
 
@@ -148,44 +151,18 @@ void bind_layer(nb::module_& module){
   // Cache-Valued Layer, i.e. Lookup Table
   //
 
-  auto cached = nb::class_<soil::cached>(module, "cached");
-  cached.def("type", &soil::cached::type);
-
-  cached.def("__init__", [](soil::cached* cached, const soil::buffer buffer){
-    new (cached) soil::cached(buffer);
-  });
-  
-  cached.def("__call__", [](soil::cached cached, const size_t index){
-    return soil::typeselect(cached.type(), [&cached, index]<typename T>() -> nb::object {
-      T value = cached.as<T>()(index);
-      return nb::cast<T>(std::move(value));
-    });
-  });
-
-  cached.def("buffer", [](soil::cached cached){
-    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::buffer {
-      return soil::buffer(cached.as<T>().buffer);
-    });
+  module.def("cached", [](const soil::buffer& buffer){
+    return soil::layer(std::move(soil::cached(buffer)));
   });
 
   //
   // Constant-Valued Layer
   //
 
-  auto constant = nb::class_<soil::constant>(module, "constant");
-  constant.def("type", &soil::constant::type);
-
-  constant.def("__init__", [](soil::constant* constant, const soil::dtype type, const nb::object object){
-    soil::typeselect(type, [type, constant, &object]<typename T>(){
-      T value = nb::cast<T>(object);
-      new (constant) soil::constant(type, value);
-    });
-  });
-  
-  constant.def("__call__", [](soil::constant constant, const size_t index){
-    return soil::typeselect(constant.type(), [&constant, index]<typename T>() -> nb::object {
-      T value = constant.as<T>()(index);
-      return nb::cast<T>(std::move(value));
+  module.def("constant", [](const soil::dtype type, const nb::object object){
+    return soil::typeselect(type, [type, &object]<typename T>(){
+      const T value = nb::cast<T>(object);
+      return soil::layer(std::move(soil::constant(type, value)));
     });
   });
 
@@ -193,21 +170,11 @@ void bind_layer(nb::module_& module){
   // Generic Computed Layer
   //
 
-  auto computed = nb::class_<soil::computed>(module, "computed");
-  computed.def("type", &soil::computed::type);
-
-  computed.def("__init__", [](soil::computed* computed, const soil::dtype type, const nb::callable object){
-    soil::typeselect(type, [type, computed, object]<typename T>(){
+  module.def("computed", [](const soil::dtype type, const nb::callable object){
+    return soil::typeselect(type, [type, &object]<typename T>(){
       using func_t = std::function<T(const size_t)>;
       func_t func = nb::cast<func_t>(object);
-      new (computed) soil::computed(type, func);
-    });
-  });
-
-  computed.def("__call__", [](soil::computed computed, const size_t index){
-    return soil::typeselect(computed.type(), [&computed, index]<typename T>() -> nb::object {
-      T value = computed.as<T>()(index);
-      return nb::cast<T>(std::move(value));
+      return soil::layer(std::move(soil::computed(type, func)));
     });
   });
 
