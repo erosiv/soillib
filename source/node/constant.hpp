@@ -67,7 +67,7 @@ struct constant {
   //! cast of the actual internal type is valid.
   template<typename T>
   T operator()(const size_t index){
-    return typeselect(this->type(),
+    return select(this->type(),
       [self=this, index]<typename S>() -> T {
         if constexpr (std::same_as<T, S>){
         return self->as<S>().operator()(index);
@@ -80,7 +80,7 @@ struct constant {
 
   template<typename T>
   static typedbase* make(const soil::dtype type, const T value){
-    return typeselect(type, [value]<typename S>() -> typedbase* {
+    return select(type, [value]<typename S>() -> typedbase* {
       if constexpr (std::same_as<T, S>){
         return new soil::constant_t<S>(value);
       } else if constexpr (std::convertible_to<T, S>){

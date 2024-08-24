@@ -53,7 +53,7 @@ struct cached {
   //! cast of the actual internal type is valid.
   template<typename T>
   T operator()(const size_t index){
-    return typeselect(this->type(),
+    return select(this->type(),
       [self=this, index]<typename S>() -> T {
         if constexpr (std::same_as<T, S>){
         return self->as<S>().operator()(index);
@@ -65,7 +65,7 @@ struct cached {
   }
 
   static typedbase* make(const soil::buffer buffer){
-    return typeselect(buffer.type(), [&buffer]<typename S>() -> typedbase* {
+    return select(buffer.type(), [&buffer]<typename S>() -> typedbase* {
       soil::buffer_t<S> buffer_t = buffer.as<S>();
       return new cached_t<S>(buffer_t);
     });

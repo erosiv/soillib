@@ -31,22 +31,24 @@ CF += -fvisibility=hidden \
 all:
 #	Compile the Extension Code
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp $(LINKLIB) -Os -c -o soillib.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp $(LINKLIB) -Os -c -o index.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp $(LINKLIB) -Os -c -o io.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp $(LINKLIB) -Os -c -o util.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/matrix.cpp $(LINKLIB) -Os -c -o matrix.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/node.cpp $(LINKLIB) -Os -c -o node.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp $(LINKLIB) -Os -c -o particle.o
+	@$(eval TMPDIR:= tmp)
+	@if [ ! -d $(TMPDIR) ]; then mkdir $(TMPDIR); fi;
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/soillib.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/index.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/io.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/util.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/matrix.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/matrix.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/node.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/node.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/particle.o
 	@echo "Linking..."
 	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff \
-			soillib.o \
-			index.o \
-			io.o \
-			util.o \
-			matrix.o \
-			node.o \
-			particle.o \
+			$(TMPDIR)/soillib.o \
+			$(TMPDIR)/index.o \
+			$(TMPDIR)/io.o \
+			$(TMPDIR)/util.o \
+			$(TMPDIR)/matrix.o \
+			$(TMPDIR)/node.o \
+			$(TMPDIR)/particle.o \
 		$(HOME)/.local/lib/libnanobind.o -o ${MODULE}
 	@mv ${MODULE} $(HOME)/.local/lib/python3.12/site-packages/${MODULE}
-	@rm ./*.o
+	@rm -rf $(TMPDIR)

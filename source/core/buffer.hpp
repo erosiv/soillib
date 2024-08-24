@@ -109,14 +109,14 @@ struct buffer {
   
   //! Const Subscript Operator
   template<typename T> T operator[](const size_t index) const {
-    return typeselect(this->type(), [self=this, index]<typename S>(){
+    return select(this->type(), [self=this, index]<typename S>(){
       return self->as<S>().template operator[](index);
     });
   }
 
   //! Non-Const Subscript Operator
   template<typename T> T& operator[](const size_t index) {
-    return typeselect(this->type(), [self=this, index]<typename S>(){
+    return select(this->type(), [self=this, index]<typename S>(){
       return self->as<S>().template operator[](index);
     });
   }
@@ -124,19 +124,19 @@ struct buffer {
   // Data Inspection Operations (Type-Deducing)
   
   size_t elem() const {
-    return typeselect(this->type(), [self=this]<typename S>(){
+    return select(this->type(), [self=this]<typename S>(){
       return self->as<S>().elem();
     });
   }
 
   size_t size() const {
-    return typeselect(this->type(), [self=this]<typename S>(){
+    return select(this->type(), [self=this]<typename S>(){
       return self->as<S>().size();
     });
   }
 
   void* data() {
-    return typeselect(this->type(), [self=this]<typename S>(){
+    return select(this->type(), [self=this]<typename S>(){
       return self->as<S>().data();
     });
   }
@@ -144,7 +144,7 @@ struct buffer {
 private:
 
   static typedbase* make(const soil::dtype type, const size_t size) {
-    return typeselect(type, [size]<typename S>() -> typedbase* {
+    return select(type, [size]<typename S>() -> typedbase* {
       return new soil::buffer_t<S>(size);
     });
   }

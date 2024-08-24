@@ -64,7 +64,7 @@ struct computed {
 
   template<typename T>
   T operator()(const size_t index){
-    return typeselect(this->type(),
+    return select(this->type(),
       [self=this, index]<typename S>() -> T {
         if constexpr (std::convertible_to<S, T>){
           return (T)self->as<S>().operator()(index);
@@ -75,7 +75,7 @@ struct computed {
 
   template<typename T>
   static typedbase* make(const soil::dtype type, func_t<T> func){
-    return typeselect(type, [func]<typename S>() -> typedbase* {
+    return select(type, [func]<typename S>() -> typedbase* {
       if constexpr (std::same_as<T, S>){
         return new soil::computed_t<S>(func);
       } else if constexpr (std::convertible_to<T, S>){

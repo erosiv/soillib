@@ -22,7 +22,7 @@ Index can be used to lookup values. This should also work for layers?
 namespace soil {
 
 template<typename F, typename... Args>
-auto indexselect(const soil::dindex type, F lambda, Args&&... args){
+auto select(const soil::dindex type, F lambda, Args&&... args){
   switch(type){
     case soil::dindex::FLAT1: return lambda.template operator()<soil::flat_t<1>>(std::forward<Args>(args)...);
     case soil::dindex::FLAT2: return lambda.template operator()<soil::flat_t<2>>(std::forward<Args>(args)...);
@@ -69,7 +69,7 @@ struct index {
 
   template<size_t D>
   bool oob(const vec_t<D> vec) const {
-    return indexselect(impl->type(), [self=this, vec]<typename T>() -> bool {
+    return select(impl->type(), [self=this, vec]<typename T>() -> bool {
       if constexpr(std::same_as<vec_t<D>, typename T::vec_t>){
         auto index = self->as<T>();
         return index.oob(vec);
@@ -81,7 +81,7 @@ struct index {
 
   template<size_t D>
   size_t flatten(const vec_t<D> vec) const {
-    return indexselect(impl->type(), [self=this, vec]<typename T>() -> size_t {
+    return select(impl->type(), [self=this, vec]<typename T>() -> size_t {
       if constexpr(std::same_as<vec_t<D>, typename T::vec_t>){
         auto index = self->as<T>();
         return index.flatten(vec);
@@ -92,20 +92,20 @@ struct index {
   }
 
   size_t dims() const {
-    return indexselect(impl->type(), [self=this]<typename T>(){
+    return select(impl->type(), [self=this]<typename T>(){
       return self->as<T>().dims();
     });
   }
   
   size_t elem() const {
-    return indexselect(impl->type(), [self=this]<typename T>(){
+    return select(impl->type(), [self=this]<typename T>(){
       return self->as<T>().elem();
     });
   }
 
   //! \todo eliminate this because it makes no sense
   size_t operator[](const size_t d) const {
-    return indexselect(impl->type(), [self=this, d]<typename T>(){
+    return select(impl->type(), [self=this, d]<typename T>(){
       return self->as<T>().operator[](d);
     });
   }

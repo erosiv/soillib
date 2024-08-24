@@ -142,7 +142,7 @@ struct normal {
   //! Note: we make sure that the indexing structure of the buffer is respected.
   soil::buffer full(){
 
-    return soil::indexselect(index.type(), [self=this]<typename T>() -> soil::buffer {
+    return soil::select(index.type(), [self=this]<typename T>() -> soil::buffer {
 
       if constexpr(std::same_as<typename T::vec_t, soil::ivec2>){
 

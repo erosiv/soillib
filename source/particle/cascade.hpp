@@ -9,7 +9,7 @@
 #include <soillib/node/constant.hpp>
 #include <soillib/core/node.hpp>
 
-#include <soillib/matrix/matrix.hpp>
+#include <soillib/core/matrix.hpp>
 
 #include <algorithm>
 
@@ -34,7 +34,7 @@ struct cascade_model_t {
   soil::node settling;
 
   void add(const size_t index, const float value, const matrix_t matrix){
-    soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
+    soil::select(height.type(), [self=this, index, value]<typename S>(){
       auto height = std::get<soil::cached>(self->height._node).as<float>();
       height.buffer[index] += value;
     });

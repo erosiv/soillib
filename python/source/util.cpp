@@ -98,7 +98,7 @@ buffer.def("elem", &soil::buffer::elem);
 buffer.def("size", &soil::buffer::size);
 
 buffer.def("zero", [](soil::buffer& buffer){
-  return soil::typeselect(buffer.type(), [&buffer]<typename S>(){
+  return soil::select(buffer.type(), [&buffer]<typename S>(){
     auto buffer_t = buffer.as<S>();
     for(size_t i = 0; i < buffer_t.elem(); ++i)
       buffer_t[i] = S{0};
@@ -107,7 +107,7 @@ buffer.def("zero", [](soil::buffer& buffer){
 });
 
 buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
-  return soil::typeselect(buffer.type(), [&buffer, &value]<typename S>(){
+  return soil::select(buffer.type(), [&buffer, &value]<typename S>(){
     auto buffer_t = buffer.as<S>();
     auto value_t = nb::cast<S>(value);
     for(size_t i = 0; i < buffer_t.elem(); ++i)
@@ -117,14 +117,14 @@ buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
 });
 
 buffer.def("__getitem__", [](const soil::buffer& buffer, const size_t index) -> nb::object {
-  return soil::typeselect(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
+  return soil::select(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
     S value = buffer.as<S>().operator[](index);
     return nb::cast<S>(std::move(value));
   });
 });
 
 buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb::object value){
-  soil::typeselect(buffer.type(), [&buffer, index, &value]<typename S>(){
+  soil::select(buffer.type(), [&buffer, index, &value]<typename S>(){
       buffer.as<S>()[index] = nb::cast<S>(value);
   });
 });
@@ -132,7 +132,7 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb:
 //! \todo clean this up once the method for converting vector types is figured out.
 
 buffer.def("numpy", [](soil::buffer& buffer) -> nb::object {
-  return soil::typeselect(buffer.type(), [&buffer]<typename S>() -> nb::object {
+  return soil::select(buffer.type(), [&buffer]<typename S>() -> nb::object {
     if constexpr(std::same_as<S, int>){
       size_t shape[1]{buffer.elem()};
       nb::ndarray<nb::numpy, int, nb::ndim<1>> array(

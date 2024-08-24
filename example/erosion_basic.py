@@ -165,7 +165,7 @@ def main():
   np.random.seed(0)
   index = soil.index([512, 512])
   model = make_model(index, seed = 0.0)
-  for h, d in erode(model, steps = 512):
+  for h, d in erode(model, steps = 0):
     pass
 
   render(model)

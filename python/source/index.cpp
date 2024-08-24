@@ -77,28 +77,28 @@ index.def("elem", &soil::index::elem);
 index.def("__getitem__", &soil::index::operator[]);
 
 index.def("min", [](soil::index& index) -> nb::object {
-  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+  return soil::select(index.type(), [&index]<typename T>() -> nb::object {
     auto min = index.as<T>().min();
     return nb::cast(std::move(min));
   });
 });
 
 index.def("max", [](soil::index& index) -> nb::object {
-  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+  return soil::select(index.type(), [&index]<typename T>() -> nb::object {
     auto max = index.as<T>().max();
     return nb::cast(std::move(max));
   });
 });
 
 index.def("ext", [](soil::index& index) -> nb::object {
-  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+  return soil::select(index.type(), [&index]<typename T>() -> nb::object {
     auto ext = index.as<T>().ext();
     return nb::cast(std::move(ext));
   });
 });
 
 index.def("iter", [](soil::index& index) -> nb::object {
-  return soil::indexselect(index.type(), [&index]<typename T>() -> nb::object {
+  return soil::select(index.type(), [&index]<typename T>() -> nb::object {
     auto iter = index.as<T>().iter();
     return nb::cast(std::move(iter));
   });
@@ -111,14 +111,14 @@ index.def("oob", [](soil::index& index, soil::vec2 vec){
 });
 
 index.def("oob", [](soil::index& index, nb::object& object) -> bool {
-  return soil::indexselect(index.type(), [&index, &object]<typename T>() -> bool {
+  return soil::select(index.type(), [&index, &object]<typename T>() -> bool {
     auto value = nb::cast<typename T::vec_t>(object);
     return index.as<T>().oob(value);
   });
 });
 
 index.def("flatten", [](soil::index& index, nb::object& object) -> size_t {
-  return soil::indexselect(index.type(), [&index, &object]<typename T>() -> size_t {
+  return soil::select(index.type(), [&index, &object]<typename T>() -> size_t {
     auto value = nb::cast<typename T::vec_t>(object);
     return index.as<T>().flatten(value);
   });

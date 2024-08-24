@@ -71,7 +71,7 @@ struct noise {
   //! Bake a whole buffer!
   soil::buffer full(){
 
-    return soil::indexselect(index.type(), [self=this]<typename T>() -> soil::buffer {
+    return soil::select(index.type(), [self=this]<typename T>() -> soil::buffer {
 
       if constexpr(std::same_as<typename T::vec_t, soil::ivec2>){
 
@@ -96,7 +96,7 @@ private:
 
   inline float noise_impl(const soil::vec2 pos) {
 
-    return soil::indexselect(index.type(), [self=this, pos]<typename T>() -> float {
+    return soil::select(index.type(), [self=this, pos]<typename T>() -> float {
 
       const T index = self->index.as<T>();
       const auto ext = soil::vec2{512, 512};//index.ext();

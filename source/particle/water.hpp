@@ -14,7 +14,7 @@
 #include <soillib/node/algorithm/normal.hpp>
 
 #include <soillib/core/buffer.hpp>
-#include <soillib/matrix/matrix.hpp>
+#include <soillib/core/matrix.hpp>
 
 namespace soil {
 
@@ -53,7 +53,7 @@ struct water_particle_t {
   soil::node settling;   //!< Settling Rate
 
   void add(const size_t index, const float value, const matrix_t matrix){
-    soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
+    soil::select(height.type(), [self=this, index, value]<typename S>(){
       auto height = std::get<soil::cached>(self->height._node).as<float>();
       height.buffer[index] += value;
     });

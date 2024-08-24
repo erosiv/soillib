@@ -40,14 +40,14 @@ void bind_node(nb::module_& module){
 
   node.def("buffer", [](soil::node& node){
     auto cached = std::get<soil::cached>(node._node);
-    return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::buffer {
+    return soil::select(cached.type(), [&cached]<typename T>() -> soil::buffer {
       return soil::buffer(cached.as<T>().buffer);
     });
   });
 
   node.def("__call__", [](soil::node& node, const size_t index){
     return std::visit([index](auto&& args){
-      return soil::typeselect(args.type(), [&args, index]<typename T>() -> nb::object {
+      return soil::select(args.type(), [&args, index]<typename T>() -> nb::object {
         T value = args.template as<T>()(index);
         return nb::cast<T>(std::move(value));
       });
@@ -56,7 +56,7 @@ void bind_node(nb::module_& module){
 
   node.def("numpy", [](soil::node& node, soil::index& index){
     
-    return soil::indexselect(index.type(), [&]<typename I>() -> nb::object {
+    return soil::select(index.type(), [&]<typename I>() -> nb::object {
 
       auto index_t = index.as<I>();                 // Cast Index to Strict-Type
       soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
@@ -64,7 +64,7 @@ void bind_node(nb::module_& module){
       //! \todo Remove this requirement, not actually necessary.
       auto cached = std::get<soil::cached>(node._node);
 
-      return soil::typeselect(cached.type(), [&]<typename T>() -> nb::object {
+      return soil::select(cached.type(), [&]<typename T>() -> nb::object {
 
         if constexpr(nb::detail::is_ndarray_scalar_v<T>){
 
@@ -157,7 +157,7 @@ void bind_node(nb::module_& module){
     if(lhs.type() != rhs.type())
       throw std::invalid_argument("nodes are not of the same type");
 
-    soil::typeselect(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
+    soil::select(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
       auto lhs_t = std::get<soil::cached>(lhs._node).as<T>().buffer;
       auto rhs_t = std::get<soil::cached>(rhs._node).as<T>().buffer;
       for(size_t i = 0; i < lhs_t.elem(); ++i){
@@ -182,7 +182,7 @@ void bind_node(nb::module_& module){
   //
 
   module.def("constant", [](const soil::dtype type, const nb::object object){
-    return soil::typeselect(type, [type, &object]<typename T>(){
+    return soil::select(type, [type, &object]<typename T>(){
       const T value = nb::cast<T>(object);
       return soil::node(std::move(soil::constant(type, value)));
     });
@@ -193,7 +193,7 @@ void bind_node(nb::module_& module){
   //
 
   module.def("computed", [](const soil::dtype type, const nb::callable object){
-    return soil::typeselect(type, [type, &object]<typename T>(){
+    return soil::select(type, [type, &object]<typename T>(){
       using func_t = std::function<T(const size_t)>;
       func_t func = nb::cast<func_t>(object);
       return soil::node(std::move(soil::computed(type, func)));

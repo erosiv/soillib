@@ -118,13 +118,13 @@ struct typedbase {
 
 }
 
-//! typeselect accepts a type enumerator and a templated lambda,
+//! select accepts a type enumerator and a templated lambda,
 //! which it subsequently calls with a strict-typed evaluation.
 //!
 //! this effectively instantiates every required template of the
 //! desired lambda expression, and executes the runtime selection.
 template<typename F, typename... Args>
-auto typeselect(const soil::dtype type, F lambda, Args&&... args){
+auto select(const soil::dtype type, F lambda, Args&&... args){
   switch(type){
     case soil::INT:     return lambda.template operator()<int>    (std::forward<Args>(args)...);
     case soil::FLOAT32: return lambda.template operator()<float>  (std::forward<Args>(args)...);
