@@ -73,21 +73,22 @@ struct computed {
     );
   }
 
+private:
+  using ptr_t = std::shared_ptr<typedbase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
+
   template<typename T>
-  static typedbase* make(const soil::dtype type, func_t<T> func){
-    return select(type, [func]<typename S>() -> typedbase* {
+  static ptr_t make(const soil::dtype type, func_t<T> func){
+    return select(type, [func]<typename S>() -> ptr_t {
       if constexpr (std::same_as<T, S>){
-        return new soil::computed_t<S>(func);
+        return std::make_shared<soil::computed_t<S>>(func);
       } else if constexpr (std::convertible_to<T, S>){
-        return new soil::computed_t<S>([func](const size_t index){
+        return std::make_shared<soil::computed_t<S>>([func](const size_t index){
           return (S)func(index);
         });
       } else throw soil::error::cast_error<S, T>();
     });
   }
-
-private:
-  typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
 
 } // end of namespace soil

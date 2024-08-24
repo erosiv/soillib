@@ -78,21 +78,20 @@ struct constant {
     );
   }
 
+private:
+  using ptr_t = std::shared_ptr<typedbase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
+
   template<typename T>
-  static typedbase* make(const soil::dtype type, const T value){
-    return select(type, [value]<typename S>() -> typedbase* {
+  static ptr_t make(const soil::dtype type, const T value){
+    return select(type, [value]<typename S>() -> ptr_t {
       if constexpr (std::same_as<T, S>){
-        return new soil::constant_t<S>(value);
+        return std::make_shared<soil::constant_t<S>>(value);
       } else if constexpr (std::convertible_to<T, S>){
-        return new soil::constant_t<S>(S(value));
+        return std::make_shared<soil::constant_t<S>>(S(value));
       } else throw soil::error::cast_error<T, S>();
     });
-  }
-
-private:
-  typedbase* impl;  //!< Strict-Typed Implementation Pointer
-};
-
+  }};
 } // end of namespace soil
 
 #endif

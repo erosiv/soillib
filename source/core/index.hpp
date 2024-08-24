@@ -4,20 +4,14 @@
 #include <soillib/index/flat.hpp>
 #include <soillib/index/quad.hpp>
 
-/*
-The idea is that we have an index type, that allow for converting
-coordinates to and from pure indices. This should basically replace
-the currently existing shape type.
-
-I am not quite sure what the optimal configuration of static and
-dynamic typic is yet. In any case, this should effectively replace
-the current implementation of the basic and quad maps.
-
-How layer maps will work will be determined in the future.
-
-The basic idea is to convert position -> index!
-Index can be used to lookup values. This should also work for layers?
-*/
+//! index is a polymorphic index_t wrapper
+//!
+//! An index allows for the conversion to and from a position type
+//! to a flat buffer index, effectively acting as a lookup map.
+//!
+//! An index is thereby re-usable and gives a scheme for a domain.
+//!
+//! \todo Determine how this works with layer maps.
 
 namespace soil {
 
@@ -113,16 +107,6 @@ struct index {
 private:
   using ptr_t = std::shared_ptr<indexbase>;
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer
-
-/*
-  static ptr_t make(const soil::dtype type, const size_t size) {
-    return select(type, [size]<typename S>() -> ptr_t {
-      return std::make_shared<soil::buffer_t<S>>(size);
-    });
-  }
-
-  indexbase* impl;
-*/
 };
 
 } // end of namespace soil
