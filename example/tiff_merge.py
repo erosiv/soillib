@@ -102,7 +102,7 @@ def merge(input, pscale = 0.1):
     shape = buf.shape
 
     print(f"Merging: {file}")
-    with soil.timer() as timer:
+    with soil.timer(soil.ms) as timer:
 
       for x in range(pmin[0], pmax[0]):
         for y in range(pmin[1], pmax[1]):

@@ -59,8 +59,16 @@ nb::enum_<soil::dtype>(module, "dtype")
 // Timer Type Binding
 //
 
+nb::enum_<soil::timer::duration>(module, "duration")
+  .value("s",   soil::timer::duration::SECONDS)
+  .value("ms",  soil::timer::duration::MILLISECONDS)
+  .value("us",  soil::timer::duration::MICROSECONDS)
+  .value("ns",  soil::timer::duration::NANOSECONDS)
+  .export_values();
+
 auto timer = nb::class_<soil::timer>(module, "timer");
-timer.def(nb::init<>());
+timer.def(nb::init<const soil::timer::duration>());
+timer.def(nb::init<>());  // default: milliseconds
 
 timer.def("__enter__", [](soil::timer& timer){
   timer.start();
@@ -72,7 +80,7 @@ timer.def("__exit__", [](soil::timer& timer,
    std::optional<nb::object>
 ){
   timer.stop();
-  std::cout<<"Execution Time: "<<timer.count()<<" ms"<<std::endl;
+  std::cout<<"Execution Time: "<<timer.count()<<std::endl;
 }, nb::arg().none(), nb::arg().none(), nb::arg().none());
 
 //
