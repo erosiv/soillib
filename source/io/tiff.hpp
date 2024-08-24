@@ -48,7 +48,7 @@ struct tiff {
   uint32_t height() const { return this->_height; }
 
   soil::buffer buffer() const { return this->_buffer; }
-  soil::index  index() const { return this->_index; }
+  soil::index index()   const { return this->_index; }
 
 protected:
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded

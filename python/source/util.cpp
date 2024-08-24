@@ -8,7 +8,6 @@ namespace nb = nanobind;
 #include <nanobind/make_iterator.h>
 
 #include <nanobind/stl/string.h>
-#include <nanobind/stl/array.h>   //! \todo TRY TO ELIMINATE
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/optional.h>

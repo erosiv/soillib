@@ -52,9 +52,7 @@ private:
 };
 
 //! basic quadtree structured index
-//! \todo implement
 struct quad: indexbase {
-
 
   static constexpr size_t D = 2;  //!< Dimensionality
   static constexpr size_t n_dims = D;

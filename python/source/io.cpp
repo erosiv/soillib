@@ -9,6 +9,8 @@ namespace nb = nanobind;
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/geotiff.hpp>
 
+#include <soillib/core/node.hpp>
+
 #include "glm.hpp"
 
 void bind_io(nb::module_& module){
@@ -26,6 +28,14 @@ tiff.def("write", &soil::io::tiff::write);
 tiff.def_prop_ro("width", &soil::io::tiff::width);
 tiff.def_prop_ro("height", &soil::io::tiff::height);
 
+/*
+tiff.def_prop_ro("index", &soil::io::tiff::index, nb::rv_policy::reference);
+
+tiff.def("node", [](soil::io::tiff& tiff){
+  return soil::node(std::move(soil::cached(std::move(tiff.buffer()))));
+}, nb::rv_policy::reference);
+
+*/
 tiff.def("buffer", &soil::io::tiff::buffer, nb::rv_policy::reference);
 
 //! GeoTIFF Datatype

@@ -4,11 +4,10 @@
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
 
+// Custom Soillib Exceptions
+
 namespace soil {
 namespace error {
-
-// Error Messages
-//! \todo this is exemplary, clean this up.
 
 template<typename From, typename To>
 struct cast_error: std::exception {
