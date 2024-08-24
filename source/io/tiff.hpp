@@ -102,13 +102,13 @@ bool tiff::read(const char* filename){
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
   
-  soil::index index = soil::index(soil::ivec2{(int)this->height(), (int)this->width()});
+  this->_index = soil::index(soil::ivec2{(int)this->height(), (int)this->width()});
 
   if(this->bits() == 32){
-    this->_buffer = soil::buffer(soil::FLOAT32, index.elem());
+    this->_buffer = soil::buffer(soil::FLOAT32, _index.elem());
   }
   if(this->bits() == 64){
-    this->_buffer = soil::buffer(soil::FLOAT64, index.elem());
+    this->_buffer = soil::buffer(soil::FLOAT64, _index.elem());
   }
 
   TIFF* tif = TIFFOpen(filename, "r");

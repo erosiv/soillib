@@ -70,7 +70,7 @@ index.def("__init__", [](soil::index* index, const std::vector<std::tuple<soil::
   new (index) soil::index(data);
 });
 
-index.def("type", &soil::index::type);
+index.def_prop_ro("type", &soil::index::type);
 index.def("dims", &soil::index::dims);
 index.def("elem", &soil::index::elem);
 

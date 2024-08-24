@@ -28,14 +28,12 @@ def main(input):
 
   for file, path in iter_tiff(input):
 
-    print(f"File: {file}")
     image = soil.geotiff(path)
-    buffer = image.buffer()
-    print(buffer.type)
+    node = image.node()
 
-    data = buffer.numpy()
-    data = data.reshape((image.height, image.width))
-    # Output Meta-Data, Plot
+    print(f"File: {file}, {node.type}")
+
+    data = node.numpy(image.index)
     plt.imshow(data)
     plt.show()
 

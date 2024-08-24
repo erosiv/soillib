@@ -31,7 +31,7 @@ void bind_node(nb::module_& module){
   //
 
   auto node = nb::class_<soil::node>(module, "node");
-  node.def("type", &soil::node::type);
+  node.def_prop_ro("type", &soil::node::type);
 
   node.def(nb::init<const soil::buffer>());
   node.def(nb::init<soil::cached&&>());
@@ -102,7 +102,7 @@ void bind_node(nb::module_& module){
         
         //! \todo Make this Generic
         else if constexpr(std::same_as<T, soil::vec3>) {
-          
+
           soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
 
           // Typed Buffer of Flat Size
@@ -206,7 +206,10 @@ void bind_node(nb::module_& module){
 
   auto normal = nb::class_<soil::normal>(module, "normal");
   normal.def(nb::init<const soil::index&, const soil::node&>());
-  normal.def("full", &soil::normal::full);
+  normal.def("full", [](const soil::normal& normal){
+    return soil::node(std::move(normal.full()));
+//    &soil::normal::full
+  });
 
   //
   // Noise Sampler Type

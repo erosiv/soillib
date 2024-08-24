@@ -29,13 +29,12 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    height = image.buffer()
-    index = soil.index([image.height, image.width])
+    node = image.node()
 
-    normal = soil.normal(index, soil.node(height))
-    data = normal.full().numpy()
-    data = data.reshape((image.height, image.width, 3))
+    print(f"File: {file}, {node.type}")
 
+    normal = soil.normal(image.index, node)
+    data = normal.full().numpy(image.index)
     plt.imshow(data)
     plt.show()
 

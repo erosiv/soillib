@@ -12,6 +12,10 @@ namespace soil {
 //! \todo Make sure that buffers are "re-interpretable"!
 
 //! buffer_t<T> is a strict-typed, raw-data extent.
+//!
+//! buffer_t<T> contains a shared pointer to the
+//! underlying data, meaning that copies of the buffer
+//! can be made without copying the raw memory.
 //! 
 template<typename T>
 struct buffer_t: typedbase {
@@ -72,26 +76,31 @@ void buffer_t<T>::deallocate(){
 //
 //
 
-//! Array variant wrapper type: Implements visitors interface...
+//! buffer is a poylymorphic buffer_t wrapper type.
+//! 
+//! A buffer holds a single strict-typed buffer_t through
+//! a shared pointer, making copy and move semantics for
+//! the underlying buffer work as expected. 
+//!
 struct buffer {
 
-  buffer(){}
-
-  //! \todo FIX THE VALUE SEMANTICS OF ARRAY AND IMPLS!
-
-  // Existing Instance: Hold Reference
-  template<typename T>
-  buffer(soil::buffer_t<T>& buf):
-    impl(&buf){}
-
-  // New Instance: Create new Holder
-  template<typename T>
-  buffer(soil::buffer_t<T>&& buf){
-    impl = new soil::buffer_t<T>(buf);
-  }
-
+  buffer() = default;
   buffer(const soil::dtype type, const size_t size):
     impl{make(type, size)}{}
+
+  //! Note that since it holds a shared pointer to a buffer_t,
+  //! holding a shared pointer, if the copied or moved object 
+  //! is destroyed, the underlying raw memory is not deleted.
+
+  template<typename T> buffer(const soil::buffer_t<T>& buf){
+    impl = std::make_shared<soil::buffer_t<T>>(buf);
+  }
+
+  template<typename T> buffer(soil::buffer_t<T>&& buf){
+    impl = std::make_shared<soil::buffer_t<T>>(buf);
+  }
+
+  ~buffer(){ this->impl = NULL; }
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
@@ -143,13 +152,14 @@ struct buffer {
 
 private:
 
-  static typedbase* make(const soil::dtype type, const size_t size) {
-    return select(type, [size]<typename S>() -> typedbase* {
-      return new soil::buffer_t<S>(size);
+  using ptr_t = std::shared_ptr<typedbase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
+
+  static ptr_t make(const soil::dtype type, const size_t size) {
+    return select(type, [size]<typename S>() -> ptr_t {
+      return std::make_shared<soil::buffer_t<S>>(size);
     });
   }
-
-  typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
 
 } // end of namespace soil

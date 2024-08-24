@@ -5,6 +5,7 @@
 #include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/node.hpp>
+#include <soillib/util/error.hpp>
 
 namespace soil {
 
@@ -130,17 +131,18 @@ struct normal {
     }
 
   //! Single Sample Value
-  glm::vec3 operator()(const glm::ivec2 pos){    
-    switch(buffer.type()){
-      case soil::FLOAT32: return normal_impl<float>(buffer, index, pos);
-      case soil::FLOAT64: return normal_impl<double>(buffer, index, pos);
-      default: throw std::invalid_argument("type is not accepted");
-    }
+  glm::vec3 operator()(const glm::ivec2 pos) const {
+    return soil::select(buffer.type(), [self=this, pos]<typename T>() -> glm::vec3 {
+      if constexpr(std::is_floating_point_v<T>){
+        return normal_impl<T>(self->buffer, self->index, pos);
+      } else throw std::invalid_argument("invalid type for operation");
+        //throw soil::error::type_op_error<T>();
+    });
   }
 
   //! Bake a whole buffer!
   //! Note: we make sure that the indexing structure of the buffer is respected.
-  soil::buffer full(){
+  soil::buffer full() const {
 
     return soil::select(index.type(), [self=this]<typename T>() -> soil::buffer {
 

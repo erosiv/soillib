@@ -64,15 +64,16 @@ struct cached {
     );
   }
 
-  static typedbase* make(const soil::buffer buffer){
-    return select(buffer.type(), [&buffer]<typename S>() -> typedbase* {
+private:
+  using ptr_t = std::shared_ptr<typedbase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
+
+  static ptr_t make(const soil::buffer buffer) {
+    return select(buffer.type(), [&buffer]<typename S>() -> ptr_t {
       soil::buffer_t<S> buffer_t = buffer.as<S>();
-      return new cached_t<S>(buffer_t);
+      return std::make_shared<soil::cached_t<S>>(buffer_t);
     });
   }
-
-private:
-  typedbase* impl;  //!< Strict-Typed Implementation Pointer
 };
 
 } // end of namespace soil

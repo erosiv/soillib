@@ -28,15 +28,11 @@ tiff.def("write", &soil::io::tiff::write);
 tiff.def_prop_ro("width", &soil::io::tiff::width);
 tiff.def_prop_ro("height", &soil::io::tiff::height);
 
-/*
-tiff.def_prop_ro("index", &soil::io::tiff::index, nb::rv_policy::reference);
-
-tiff.def("node", [](soil::io::tiff& tiff){
-  return soil::node(std::move(soil::cached(std::move(tiff.buffer()))));
-}, nb::rv_policy::reference);
-
-*/
 tiff.def("buffer", &soil::io::tiff::buffer, nb::rv_policy::reference);
+tiff.def_prop_ro("index", &soil::io::tiff::index);//, nb::rv_policy::reference);
+tiff.def("node", [](const soil::io::tiff& tiff){
+  return soil::node(soil::cached(tiff.buffer()));
+});
 
 //! GeoTIFF Datatype
 

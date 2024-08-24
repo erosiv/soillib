@@ -43,16 +43,16 @@ struct index {
   index(){}
 
   //! \todo remove this template for something better.
-  index(const vec_t<1> vec){ this->impl = new flat_t<1>(vec); }
-  index(const vec_t<2> vec){ this->impl = new flat_t<2>(vec); }
-  index(const vec_t<3> vec){ this->impl = new flat_t<3>(vec); }
-  index(const vec_t<4> vec){ this->impl = new flat_t<4>(vec); }
+  index(const vec_t<1> vec){ this->impl = std::make_shared<flat_t<1>>(vec); }
+  index(const vec_t<2> vec){ this->impl = std::make_shared<flat_t<2>>(vec); }
+  index(const vec_t<3> vec){ this->impl = std::make_shared<flat_t<3>>(vec); }
+  index(const vec_t<4> vec){ this->impl = std::make_shared<flat_t<4>>(vec); }
 
   index(const std::vector<std::tuple<vec_t<2>, vec_t<2>>>& data){
     std::vector<quad_node> nodes;
     for(auto& [min, max]: data)
       nodes.emplace_back(min, max);
-    this->impl = new quad(nodes);
+    this->impl = std::make_shared<quad>(nodes);
   }
 
   dindex type() const noexcept {
@@ -111,7 +111,18 @@ struct index {
   }
 
 private:
+  using ptr_t = std::shared_ptr<indexbase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
+
+/*
+  static ptr_t make(const soil::dtype type, const size_t size) {
+    return select(type, [size]<typename S>() -> ptr_t {
+      return std::make_shared<soil::buffer_t<S>>(size);
+    });
+  }
+
   indexbase* impl;
+*/
 };
 
 } // end of namespace soil

@@ -52,6 +52,7 @@ nb::enum_<soil::dtype>(module, "dtype")
   .value("float32", soil::dtype::FLOAT32)
   .value("float64", soil::dtype::FLOAT64)
   .value("vec2", soil::dtype::VEC2)
+  .value("vec3", soil::dtype::VEC3)
   .export_values();
 
 //
