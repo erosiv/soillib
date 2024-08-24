@@ -123,9 +123,9 @@ glm::vec3 normal_impl(const soil::buffer& buffer, const soil::index index, glm::
 //!
 struct normal {
 
-  normal(soil::index index, const soil::layer& layer):
+  normal(soil::index index, const soil::node& node):
     index{index}{
-      auto cached = std::get<soil::cached>(layer._layer);
+      auto cached = std::get<soil::cached>(node._node);
       this->buffer = soil::buffer(cached.as<float>().buffer);
     }
 

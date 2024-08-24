@@ -122,8 +122,8 @@ def show_height(array, shape):
 
 def show_normal(array, shape):
 
-  normal = soil.normal(shape, soil.layer(soil.cached(array)))
-  normal_data = normal.full().numpy().reshape((shape[0], shape[1], 3))
+  normal = soil.normal(shape, soil.cached(array))
+  normal_data = soil.node(normal.full()).numpy(shape)#.reshape((shape[0], shape[1], 3))
 
   normal_data = np.transpose(normal_data, (1, 0, 2))
   plt.imshow(normal_data)
@@ -131,8 +131,8 @@ def show_normal(array, shape):
 
 def show_relief(array, shape):
 
-  normal = soil.normal(shape, soil.layer(soil.cached(array)))
-  normal_data = normal.full().numpy().reshape((shape[0], shape[1], 3))
+  normal = soil.normal(shape, soil.cached(array))
+  normal_data = soil.node(normal.full()).numpy(shape)
   
   height_data = array.numpy().reshape((shape[0], shape[1]))
   relief = relief_shade(height_data, normal_data)
@@ -145,8 +145,8 @@ def main(input):
 
   array, shape = merge(input, pscale=0.1)
 
-  show_relief(array, shape)
-  #show_normal(array, shape)
+  #show_relief(array, shape)
+  show_normal(array, shape)
   #show_height(array, shape)
 
 if __name__ == "__main__":

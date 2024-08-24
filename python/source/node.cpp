@@ -23,38 +23,38 @@ namespace nb = nanobind;
 
 #include "glm.hpp"
 
-//! General Layer Binding Function
-void bind_layer(nb::module_& module){
+//! General Node Binding Function
+void bind_node(nb::module_& module){
 
   //
   // Layer Wrapper Type
   //
 
-  auto layer = nb::class_<soil::layer>(module, "layer");
-  layer.def("type", &soil::layer::type);
+  auto node = nb::class_<soil::node>(module, "node");
+  node.def("type", &soil::node::type);
 
-  layer.def(nb::init<const soil::buffer>());
-  layer.def(nb::init<soil::cached&&>());
-  layer.def(nb::init<soil::constant&&>());
-  layer.def(nb::init<soil::computed&&>());
+  node.def(nb::init<const soil::buffer>());
+  node.def(nb::init<soil::cached&&>());
+  node.def(nb::init<soil::constant&&>());
+  node.def(nb::init<soil::computed&&>());
 
-  layer.def("buffer", [](soil::layer& layer){
-    auto cached = std::get<soil::cached>(layer._layer);
+  node.def("buffer", [](soil::node& node){
+    auto cached = std::get<soil::cached>(node._node);
     return soil::typeselect(cached.type(), [&cached]<typename T>() -> soil::buffer {
       return soil::buffer(cached.as<T>().buffer);
     });
   });
 
-  layer.def("__call__", [](soil::layer& layer, const size_t index){
+  node.def("__call__", [](soil::node& node, const size_t index){
     return std::visit([index](auto&& args){
       return soil::typeselect(args.type(), [&args, index]<typename T>() -> nb::object {
         T value = args.template as<T>()(index);
         return nb::cast<T>(std::move(value));
       });
-    }, layer._layer);
+    }, node._node);
   });
 
-  layer.def("numpy", [](soil::layer& layer, soil::index& index){
+  node.def("numpy", [](soil::node& node, soil::index& index){
     
     return soil::indexselect(index.type(), [&]<typename I>() -> nb::object {
 
@@ -62,7 +62,7 @@ void bind_layer(nb::module_& module){
       soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
 
       //! \todo Remove this requirement, not actually necessary.
-      auto cached = std::get<soil::cached>(layer._layer);
+      auto cached = std::get<soil::cached>(node._node);
 
       return soil::typeselect(cached.type(), [&]<typename T>() -> nb::object {
 
@@ -152,14 +152,14 @@ void bind_layer(nb::module_& module){
   //  These will be unified and expanded later!
   //
 
-  layer.def("track", [](soil::layer& lhs, soil::layer& rhs, const float lrate){
+  node.def("track", [](soil::node& lhs, soil::node& rhs, const float lrate){
 
     if(lhs.type() != rhs.type())
-      throw std::invalid_argument("layer's are not of the same type");
+      throw std::invalid_argument("nodes are not of the same type");
 
     soil::typeselect(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
-      auto lhs_t = std::get<soil::cached>(lhs._layer).as<T>().buffer;
-      auto rhs_t = std::get<soil::cached>(rhs._layer).as<T>().buffer;
+      auto lhs_t = std::get<soil::cached>(lhs._node).as<T>().buffer;
+      auto rhs_t = std::get<soil::cached>(rhs._node).as<T>().buffer;
       for(size_t i = 0; i < lhs_t.elem(); ++i){
         const T lhs_value = lhs_t[i];
         const T rhs_value = rhs_t[i];
@@ -174,7 +174,7 @@ void bind_layer(nb::module_& module){
   //
 
   module.def("cached", [](const soil::buffer& buffer){
-    return soil::layer(std::move(soil::cached(buffer)));
+    return soil::node(std::move(soil::cached(buffer)));
   });
 
   //
@@ -184,7 +184,7 @@ void bind_layer(nb::module_& module){
   module.def("constant", [](const soil::dtype type, const nb::object object){
     return soil::typeselect(type, [type, &object]<typename T>(){
       const T value = nb::cast<T>(object);
-      return soil::layer(std::move(soil::constant(type, value)));
+      return soil::node(std::move(soil::constant(type, value)));
     });
   });
 
@@ -196,7 +196,7 @@ void bind_layer(nb::module_& module){
     return soil::typeselect(type, [type, &object]<typename T>(){
       using func_t = std::function<T(const size_t)>;
       func_t func = nb::cast<func_t>(object);
-      return soil::layer(std::move(soil::computed(type, func)));
+      return soil::node(std::move(soil::computed(type, func)));
     });
   });
 
@@ -205,7 +205,7 @@ void bind_layer(nb::module_& module){
   //
 
   auto normal = nb::class_<soil::normal>(module, "normal");
-  normal.def(nb::init<const soil::index&, const soil::layer&>());
+  normal.def(nb::init<const soil::index&, const soil::node&>());
   normal.def("full", &soil::normal::full);
 
   //

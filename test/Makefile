@@ -1,6 +1,6 @@
 # soillib/test
 
-TESTS = ./test_buffer.py ./test_index.py ./test_layer.py
+TESTS = ./test_buffer.py ./test_index.py ./test_node.py
 
 .PHONY: all
 all:

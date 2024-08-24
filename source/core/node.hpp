@@ -20,45 +20,45 @@ namespace soil {
 //! Layers can also cache and pre-compute results for
 //! efficient deferred computation.
 
-using layer_v = std::variant<
+using node_v = std::variant<
   soil::cached,
   soil::constant,
   soil::computed
 >;
 
-struct layer {
+struct node {
 
-  layer(){}
+  node(){}
 
-  layer(const soil::buffer buffer):
-    _layer{soil::cached{buffer}}{}
+  node(const soil::buffer buffer):
+    _node{soil::cached{buffer}}{}
 
-  layer(soil::cached&& _layer):
-    _layer{_layer}{}
+  node(soil::cached&& _node):
+    _node{_node}{}
 
-  layer(soil::constant&& _layer):
-    _layer{_layer}{}
+  node(soil::constant&& _node):
+    _node{_node}{}
 
-  layer(soil::computed&& _layer):
-    _layer{_layer}{}
+  node(soil::computed&& _node):
+    _node{_node}{}
 
-  layer(layer_v&& _layer):
-    _layer{_layer}{}
+  node(node_v&& _node):
+    _node{_node}{}
 
   template<typename T>
   T operator()(const size_t index) {
     return std::visit([index](auto&& args){
       return args.template operator()<T>(index);
-    }, this->_layer);
+    }, this->_node);
   }
 
   soil::dtype type() const {
     return std::visit([](auto&& args){
       return args.type();
-    }, this->_layer);
+    }, this->_node);
   }
 
-  layer_v _layer;
+  node_v _node;
 };
 
 } // end of namespace soil

@@ -43,18 +43,18 @@ struct water_particle_t {
   using matrix_t = soil::matrix::singular;
 
   soil::index index;
-  soil::layer height;     //!< Height Array
-  soil::layer momentum;   //!< Momentum Array
-  soil::layer momentum_track;
-  soil::layer discharge;  //!< Discharge Array
-  soil::layer discharge_track;
-  soil::layer resistance; //!< Resistance Value
-  soil::layer maxdiff;    //!< Maximum Settling Height Difference
-  soil::layer settling;   //!< Settling Rate
+  soil::node height;     //!< Height Array
+  soil::node momentum;   //!< Momentum Array
+  soil::node momentum_track;
+  soil::node discharge;  //!< Discharge Array
+  soil::node discharge_track;
+  soil::node resistance; //!< Resistance Value
+  soil::node maxdiff;    //!< Maximum Settling Height Difference
+  soil::node settling;   //!< Settling Rate
 
   void add(const size_t index, const float value, const matrix_t matrix){
     soil::typeselect(height.type(), [self=this, index, value]<typename S>(){
-      auto height = std::get<soil::cached>(self->height._layer).as<float>();
+      auto height = std::get<soil::cached>(self->height._node).as<float>();
       height.buffer[index] += value;
     });
   }
@@ -186,13 +186,13 @@ void WaterParticle::track(model_t& model){
   const size_t index = model.index.flatten<2>(this->pos);
 
   {
-    auto cached = std::get<soil::cached>(model.discharge_track._layer);
+    auto cached = std::get<soil::cached>(model.discharge_track._node);
     soil::buffer_t<float> buffer = cached.as<float>().buffer;
     buffer[index] += this->volume;
   }
 
   {
-    auto cached = std::get<soil::cached>(model.momentum_track._layer);
+    auto cached = std::get<soil::cached>(model.momentum_track._node);
     soil::buffer_t<vec2> buffer = cached.as<vec2>().buffer;
     buffer[index] += this->volume * this->speed;
   }

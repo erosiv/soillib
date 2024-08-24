@@ -56,9 +56,8 @@ def main(input):
     height = img.buffer()
     index = soil.index([img.height, img.width])
 
-    normal = soil.normal(index, soil.layer(soil.cached(height)))
-    normal_data = normal.full().numpy()
-    normal_data = normal_data.reshape((img.height, img.width, 3))
+    normal = soil.normal(index, soil.cached(height))
+    normal_data = soil.node(normal.full()).numpy(index)
 
     height_data = height.numpy()
     height_data = height_data.reshape((img.height, img.width))

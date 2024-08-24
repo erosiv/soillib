@@ -32,7 +32,7 @@ def main(input):
     height = image.buffer()
     index = soil.index([image.height, image.width])
 
-    normal = soil.normal(index, soil.layer(height))
+    normal = soil.normal(index, soil.node(height))
     data = normal.full().numpy()
     data = data.reshape((image.height, image.width, 3))
 

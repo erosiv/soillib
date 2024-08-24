@@ -98,11 +98,11 @@ def make_model(index, seed=0.0):
 
   return soil.water_model(
     index,
-    soil.layer(height),
-    soil.layer(momentum),
-    soil.layer(momentum_track),
-    soil.layer(discharge),
-    soil.layer(discharge_track),
+    soil.node(height),
+    soil.node(momentum),
+    soil.node(momentum_track),
+    soil.node(discharge),
+    soil.node(discharge_track),
     resistance,
     maxdiff,
     settling

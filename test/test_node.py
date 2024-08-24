@@ -8,7 +8,7 @@ print("Testing layer.constant...")
 
 value = 3.14
 layer = soil.constant(soil.float32, value)
-assert type(layer) == soil.layer
+assert type(layer) == soil.node
 
 for i in range(64):
   assert np.isclose(layer(0), value)
@@ -20,7 +20,7 @@ value = [0.0, 3.14]
 
 momentum = soil.buffer(soil.vec2, index.elem()).fill(value)
 layer = soil.cached(momentum)
-assert type(layer) == soil.layer
+assert type(layer) == soil.node
 
 for i in range(index.elem()):
   assert np.isclose(layer(i)[0], value[0])
@@ -29,7 +29,7 @@ for i in range(index.elem()):
 print("Testing layer.computed...")
 
 layer = soil.computed(soil.int, lambda i: i)
-assert type(layer) == soil.layer
+assert type(layer) == soil.node
 
 for i in range(64):
   assert layer(i) == i

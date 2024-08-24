@@ -44,7 +44,7 @@ def render(model):
 
   index = model.index
 
-  normal = soil.layer(soil.normal(index, model.height).full())
+  normal = soil.node(soil.normal(index, model.height).full())
   normal_data = normal.numpy(index)
   
   height_data = model.height.numpy(index)
@@ -99,14 +99,14 @@ def make_model(index, seed=0.0):
 
   return soil.water_model(
     index,
-    soil.layer(height),
-    soil.layer(momentum),
-    soil.layer(momentum_track),
-    soil.layer(discharge),
-    soil.layer(discharge_track),
-    soil.layer(resistance),
-    soil.layer(maxdiff),
-    soil.layer(settling)
+    soil.node(height),
+    soil.node(momentum),
+    soil.node(momentum_track),
+    soil.node(discharge),
+    soil.node(discharge_track),
+    resistance,
+    maxdiff,
+    settling
   )
 
 def erode(model, steps=512):
@@ -154,8 +154,8 @@ def erode(model, steps=512):
           no_basin_track += 1
 
       # Update Trackable Quantities:
-      model.discharge.track_float(model.discharge_track, lrate)
-      model.momentum.track_vec2(model.momentum_track, lrate)
+      model.discharge.track(model.discharge_track, lrate)
+      model.momentum.track(model.momentum_track, lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
@@ -201,10 +201,10 @@ def test_quad_data():
     i = index.flatten(pos)
     height[i] = 80.0 * height[i]
 
-  height_layer = soil.layer(height)
+  height_layer = soil.node(height)
 
   normal = soil.normal(index, height_layer).full()
-  normal_layer = soil.layer(normal)
+  normal_layer = soil.node(normal)
   normal_data = normal_layer.numpy(index)
 
   data = height_layer.numpy(index)

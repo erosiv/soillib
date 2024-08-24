@@ -24,14 +24,14 @@ void bind_particle(nb::module_& module){
   model.def(nb::init<>());
   model.def(nb::init<
     soil::index,
-    soil::layer,
-    soil::layer,
-    soil::layer,
-    soil::layer,
-    soil::layer,
-    soil::layer,
-    soil::layer,
-    soil::layer
+    soil::node,
+    soil::node,
+    soil::node,
+    soil::node,
+    soil::node,
+    soil::node,
+    soil::node,
+    soil::node
   >());
 
   model.def_prop_ro("index", [](model_t& model){ return model.index; });
