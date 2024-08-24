@@ -51,20 +51,19 @@ def main(input):
 
   for file, path in iter_tiff(input):
 
-    # Load Data
-    img = soil.geotiff(path)
-    height = img.buffer()
-    index = soil.index([img.height, img.width])
+    image = soil.geotiff(path)
+    index = image.index
 
-    normal = soil.normal(index, soil.cached(height))
-    normal_data = soil.node(normal.full()).numpy(index)
+    height_node = image.node()
+    normal_node = soil.normal(index, height_node)
 
-    height_data = height.numpy()
-    height_data = height_data.reshape((img.height, img.width))
+    print(f"File: {file}, {height_node.type}")
+
+    height_data = height_node.numpy(index)
+    normal_data = normal_node.full().numpy(index)
 
     # Compute Shading
     relief = relief_shade(height_data, normal_data)
-    print(relief.shape, relief.dtype)
     plt.imshow(relief, cmap='gray')
     plt.show()
 
