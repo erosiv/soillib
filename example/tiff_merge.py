@@ -113,30 +113,33 @@ def merge(input, pscale = 0.1):
 
   return array, pixels_
 
-def show_height(array, shape):
+def show_height(array, index):
 
-  data = array.numpy().reshape((shape[0], shape[1]))
+  array = soil.cached(array)
+  data = array.numpy(index)
   data = np.transpose(data)
   plt.imshow(data)
   plt.show()
 
-def show_normal(array, shape):
+def show_normal(array, index):
 
-  normal = soil.normal(shape, soil.cached(array))
-  normal_data = soil.node(normal.full()).numpy(shape)#.reshape((shape[0], shape[1], 3))
+  array = soil.cached(array)
+  normal = soil.normal(index, array)
 
-  normal_data = np.transpose(normal_data, (1, 0, 2))
-  plt.imshow(normal_data)
+  data = normal.full().numpy(index)
+  data = np.transpose(data, (1, 0, 2))
+  plt.imshow(data)
   plt.show()
 
-def show_relief(array, shape):
+def show_relief(array, index):
 
-  normal = soil.normal(shape, soil.cached(array))
-  normal_data = soil.node(normal.full()).numpy(shape)
+  array = soil.cached(array)
+  normal = soil.normal(index, array)
+
+  normal_data = normal.full().numpy(index)
+  height_data = array.numpy(index)
   
-  height_data = array.numpy().reshape((shape[0], shape[1]))
-  relief = relief_shade(height_data, normal_data)
-  
+  relief = relief_shade(height_data, normal_data) 
   relief = np.transpose(relief, (1, 0))
   plt.imshow(relief, cmap='gray')
   plt.show()
