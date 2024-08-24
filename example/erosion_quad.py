@@ -44,7 +44,7 @@ def render(model):
 
   index = model.index
 
-  normal = soil.node(soil.normal(index, model.height).full())
+  normal = soil.normal(index, model.height).full()
   normal_data = normal.numpy(index)
   
   height_data = model.height.numpy(index)
@@ -136,7 +136,10 @@ def erode(model, steps=512):
       for n in range(n_particles):
 
         # Random Particle Position
-        pos = 512*np.random.rand(2)
+        # Note: Random over total elements,
+        # then unflatten the position.
+        index = model.index.elem() * np.random.rand(1)
+        pos = model.index.unflatten(int(index[0]))
         drop = soil.water(pos)
 
         # Descend Particle
@@ -174,7 +177,7 @@ def main():
   ])
 
   model = make_model(index, seed = 2.0)
-  for h, d in erode(model, steps = 512):
+  for h, d in erode(model, steps = 32):
     pass
 
   render(model)

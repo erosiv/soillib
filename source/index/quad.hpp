@@ -93,6 +93,24 @@ struct quad: indexbase {
     return -1;
   }
 
+  vec_t unflatten(const size_t index) const {
+    size_t base = 0;
+    for(const auto& node: nodes){
+      if(index - base < node.elem())
+        return node.unflatten(index - base);
+      else base += node.elem();
+    }
+    /*
+    size_t base = 0;
+      if(!node.oob(pos)) 
+        return base + node.flatten(pos);
+      base += node.elem();
+    }
+    return -1;
+    */
+    return vec_t{0};
+  }
+
   bool oob(const vec_t pos) const {
     for(const auto& node: nodes)
       if(!node.oob(pos)) 

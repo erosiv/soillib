@@ -124,7 +124,12 @@ index.def("flatten", [](soil::index& index, nb::object& object) -> size_t {
   });
 });
 
-
+index.def("unflatten", [](soil::index& index, const size_t s) -> nb::object {
+  return soil::select(index.type(), [&index, s]<typename T>() -> nb::object {
+    auto value = index.as<T>().unflatten(s);
+    return nb::cast(value);
+  });
+});
 
 }
 
