@@ -9,6 +9,7 @@
 #include <soillib/node/constant.hpp>
 #include <soillib/core/node.hpp>
 
+#include <soillib/core/model.hpp>
 #include <soillib/core/matrix.hpp>
 
 #include <algorithm>
@@ -24,27 +25,9 @@
 
 namespace soil {
 
-struct cascade_model_t {
+void cascade(soil::model& model, const glm::ivec2 ipos){
 
-  using matrix_t = soil::matrix::singular;
-
-  soil::index index;
-  soil::node height;
-  soil::node maxdiff;
-  soil::node settling;
-
-  void add(const size_t index, const float value, const matrix_t matrix){
-    soil::select(height.type(), [self=this, index, value]<typename S>(){
-      auto height = std::get<soil::cached>(self->height._node).as<float>();
-      height.buffer[index] += value;
-    });
-  }
-
-};
-
-void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
-
-  using model_t = soil::cascade_model_t;
+  using model_t = soil::model;
   using matrix_t = soil::matrix::singular;
 
   if(model.index.oob<2>(ipos))
@@ -80,7 +63,7 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
       continue;
 
     const size_t index = model.index.flatten<2>(npos);
-    const float height = model.height.template operator()<float>(index);
+    const float height = model[soil::HEIGHT].template operator()<float>(index);
     sn[num++] = { npos, height, matrix_t{}, length(glm::vec2(nn)) };
 
   }
@@ -90,7 +73,7 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
   const matrix_t matrix{};// = map.matrix(ipos);
 
   const size_t index = model.index.flatten<2>(ipos);
-  const float height = model.height.template operator()<float>(index);
+  const float height = model[soil::HEIGHT].template operator()<float>(index);
   float h_ave = height;
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
@@ -110,8 +93,8 @@ void cascade(soil::cascade_model_t& model, const glm::ivec2 ipos){
     const size_t tindex = model.index.flatten<2>(tpos);
     const size_t bindex = model.index.flatten<2>(bpos);
 
-    const float maxdiff = model.maxdiff.template operator()<float>(tindex);
-    const float settling = model.settling.template operator()<float>(tindex);
+    const float maxdiff = model[soil::MAXDIFF].template operator()<float>(tindex);
+    const float settling = model[soil::SETTLING].template operator()<float>(tindex);
 
     //The Amount of Excess Difference!
     float excess = 0.0f;

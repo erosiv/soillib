@@ -38,6 +38,7 @@ all:
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/io.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/util.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/matrix.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/matrix.o
+	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/model.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/model.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/node.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/node.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp $(LINKLIB) -Os -c -o $(TMPDIR)/particle.o
 	@echo "Linking..."
@@ -47,6 +48,7 @@ all:
 			$(TMPDIR)/io.o \
 			$(TMPDIR)/util.o \
 			$(TMPDIR)/matrix.o \
+			$(TMPDIR)/model.o \
 			$(TMPDIR)/node.o \
 			$(TMPDIR)/particle.o \
 		$(HOME)/.local/lib/libnanobind.o -o ${MODULE}

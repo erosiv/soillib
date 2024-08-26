@@ -44,13 +44,13 @@ def render(model):
 
   index = model.index
 
-  normal = soil.normal(index, model.height).full()
+  normal = soil.normal(index, model[soil.height]).full()
   normal_data = normal.numpy(index)
   
-  height_data = model.height.numpy(index)
+  height_data = model[soil.height].numpy(index)
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(model.discharge.numpy(index))
+  discharge_data = sigmoid(model[soil.discharge].numpy(index))
   #momentum_data = sigmoid(model.momentum.numpy(index))
   #momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
 
@@ -76,6 +76,9 @@ def make_model(index, seed=0.0):
   hydraulic erosion model.
   '''
 
+  model = soil.model()
+  model.index = index
+
   noise = soil.noise(index, seed)
   height = noise.full()
 
@@ -83,27 +86,19 @@ def make_model(index, seed=0.0):
     i = index.flatten(pos)
     height[i] = 80.0 * height[i]
 
-  discharge = soil.cached(soil.float32, index.elem()).fill(0.0)
-  momentum  = soil.cached(soil.vec2,    index.elem()).fill([0.0, 0.0])
+  model[soil.height] = soil.node(height)
 
-  discharge_track = soil.cached(soil.float32, index.elem()).fill(0.0)
-  momentum_track  = soil.cached(soil.vec2,    index.elem()).fill([0.0, 0.0])
+  model[soil.discharge]       = soil.cached(soil.float32, index.elem()).fill(0.0)
+  model[soil.discharge_track] = soil.cached(soil.float32, index.elem()).fill(0.0)
 
-  resistance  = soil.constant(soil.float32, 0.0)
-  maxdiff     = soil.constant(soil.float32, 0.8)
-  settling    = soil.constant(soil.float32, 1.0)
+  model[soil.momentum]        = soil.cached(soil.vec2, index.elem()).fill([0.0, 0.0])
+  model[soil.momentum_track]  = soil.cached(soil.vec2, index.elem()).fill([0.0, 0.0])
 
-  return soil.water_model(
-    index,
-    soil.node(height),
-    momentum,
-    momentum_track,
-    discharge,
-    discharge_track,
-    resistance,
-    maxdiff,
-    settling
-  )
+  model[soil.resistance] = soil.constant(soil.float32, 0.0)
+  model[soil.maxdiff]    = soil.constant(soil.float32, 0.8)
+  model[soil.settling]   = soil.constant(soil.float32, 1.0)
+  
+  return model
 
 def erode(model, steps=512):
 
@@ -122,8 +117,8 @@ def erode(model, steps=512):
 
     # Fraction of "Exited" Particles
     no_basin_track = 0.0
-    model.discharge_track.zero()
-    model.momentum_track.zero()
+    model[soil.discharge_track].zero()
+    model[soil.momentum_track].zero()
 
     # Tracking Values:
 
@@ -153,12 +148,12 @@ def erode(model, steps=512):
           no_basin_track += 1
 
       # Update Trackable Quantities:
-      model.discharge.track(model.discharge_track, lrate)
-      model.momentum.track(model.momentum_track, lrate)
+      model[soil.discharge].track(model[soil.discharge_track], lrate)
+      model[soil.momentum].track(model[soil.momentum_track], lrate)
 
     exit_frac = (no_basin_track / n_particles)
     print(f"{step} ({exit_frac:.3f})")
-    yield model.height, model.discharge
+    yield model[soil.height], model[soil.discharge]
 
 def main():
 

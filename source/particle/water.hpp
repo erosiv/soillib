@@ -5,6 +5,7 @@
 #include <soillib/particle/particle.hpp>
 #include <soillib/particle/cascade.hpp>
 
+#include <soillib/core/model.hpp>
 #include <soillib/core/node.hpp>
 
 #include <soillib/node/cached.hpp>
@@ -17,49 +18,6 @@
 #include <soillib/core/matrix.hpp>
 
 namespace soil {
-
-/*
-// Hydrologically Erodable Map Constraints
-template<typename T, typename M>
-concept WaterParticle_t = requires(T t){
-  { t.oob(glm::ivec2()) } -> std::same_as<bool>;
-  { t.height(glm::ivec2()) } -> std::same_as<float>;
-  { t.normal(glm::ivec2()) } -> std::convertible_to<glm::vec3>;
-  { t.matrix(glm::ivec2()) } -> std::same_as<M>;
-  { t.add(glm::ivec2(), float(), M()) } -> std::same_as<void>;
-  { t.discharge(glm::ivec2()) } -> std::same_as<float>;
-  { t.momentum(glm::ivec2()) } -> std::convertible_to<glm::vec2>;
-  { t.resistance(glm::ivec2()) } -> std::same_as<float>;
-};
-*/
-
-//! water_particle_t is a type that contains the references
-//! to all the layers that are required for executing hydraulic erosion.
-//! This is effectively similar to the previous map struct, except that
-//! the layers themselves provide the interface for sampling.
-//!
-struct water_particle_t {
-  
-  using matrix_t = soil::matrix::singular;
-
-  soil::index index;
-  soil::node height;     //!< Height Array
-  soil::node momentum;   //!< Momentum Array
-  soil::node momentum_track;
-  soil::node discharge;  //!< Discharge Array
-  soil::node discharge_track;
-  soil::node resistance; //!< Resistance Value
-  soil::node maxdiff;    //!< Maximum Settling Height Difference
-  soil::node settling;   //!< Settling Rate
-
-  void add(const size_t index, const float value, const matrix_t matrix){
-    soil::select(height.type(), [self=this, index, value]<typename S>(){
-      auto height = std::get<soil::cached>(self->height._node).as<float>();
-      height.buffer[index] += value;
-    });
-  }
-
-};
 
 // WaterParticle Properties
 
@@ -80,7 +38,6 @@ struct WaterParticle_c {
 struct WaterParticle: soil::Particle {
 
   //! \todo replace this with a variant (of course)
-  using model_t = soil::water_particle_t;
   using matrix_t = soil::matrix::singular;
 
   WaterParticle(glm::vec2 pos)
@@ -99,15 +56,15 @@ struct WaterParticle: soil::Particle {
   // Main Methods
 
   //template<typename T>
-  bool move(model_t& model, const WaterParticle_c& param);
+  bool move(soil::model& model, const WaterParticle_c& param);
 
   //template<typename T>
-  bool interact(model_t& model, const WaterParticle_c& param);
+  bool interact(soil::model& model, const WaterParticle_c& param);
 
-  void track(model_t& model);
+  void track(soil::model& model);
 };
 
-bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
+bool WaterParticle::move(soil::model& model, const WaterParticle_c& param){
 
   // Termination Checks
 
@@ -137,25 +94,17 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
   if(volume < param.minVol){
     model.add(index, sediment, matrix);
-    
-    cascade_model_t casc{
-      model.index,
-      model.height,
-      model.maxdiff,
-      model.settling
-    };
-    soil::cascade(casc, ipos);
-
+    soil::cascade(model, ipos);
     return false;
   }
 
   // Apply Forces to Particle
 
-  static auto normal = soil::normal(model.index, model.height);
+  static auto normal = soil::normal(model.index, model[soil::HEIGHT]);
   const glm::vec3 n = normal(ipos);
 
-  const glm::vec2 fspeed = model.momentum.template operator()<vec2>(index);
-  const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));
+  const glm::vec2 fspeed = model[soil::MOMENTUM].template operator()<vec2>(index);
+  const float discharge = erf(0.4f * model[soil::DISCHARGE].template operator()<float>(index));
 
   // Gravity Force
 
@@ -178,7 +127,7 @@ bool WaterParticle::move(model_t& model, const WaterParticle_c& param){
 
 }
 
-void WaterParticle::track(model_t& model){
+void WaterParticle::track(soil::model& model){
 
   if(model.index.oob<2>(this->pos))
     return;
@@ -186,20 +135,20 @@ void WaterParticle::track(model_t& model){
   const size_t index = model.index.flatten<2>(this->pos);
 
   {
-    auto cached = std::get<soil::cached>(model.discharge_track._node);
+    auto cached = std::get<soil::cached>(model[soil::DISCHARGE_TRACK]._node);
     soil::buffer_t<float> buffer = cached.as<float>().buffer;
     buffer[index] += this->volume;
   }
 
   {
-    auto cached = std::get<soil::cached>(model.momentum_track._node);
+    auto cached = std::get<soil::cached>(model[soil::MOMENTUM_TRACK]._node);
     soil::buffer_t<vec2> buffer = cached.as<vec2>().buffer;
     buffer[index] += this->volume * this->speed;
   }
 
 }
 
-bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
+bool WaterParticle::interact(soil::model& model, const WaterParticle_c& param){
 
   // Termination Checks
 
@@ -209,21 +158,21 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   if(model.index.oob<2>(ipos))
     return false;
 
-  const float discharge = erf(0.4f * model.discharge.template operator()<float>(index));
-  const float resistance = model.resistance.template operator()<float>(index);
+  const float discharge = erf(0.4f * model[soil::DISCHARGE].template operator()<float>(index));
+  const float resistance = model[soil::RESISTANCE].template operator()<float>(index);
 
   //Out-Of-Bounds
 
   float h2;
   if(model.index.oob<2>(pos))
-    h2 = 0.99f*model.height.template operator()<float>(index);
+    h2 = 0.99f*model[soil::HEIGHT].template operator()<float>(index);
   else {
     const size_t index = model.index.flatten<2>(pos);
-    h2 = model.height.template operator()<float>(index);
+    h2 = model[soil::HEIGHT].template operator()<float>(index);
   }
 
   //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*discharge)*(model.height.template operator()<float>(index)-h2);
+  float c_eq = (1.0f+param.entrainment*discharge)*(model[soil::HEIGHT].template operator()<float>(index)-h2);
   if(c_eq < 0)
     c_eq = 0;
 
@@ -263,13 +212,7 @@ bool WaterParticle::interact(model_t& model, const WaterParticle_c& param){
   volume *= (1.0-param.evapRate);
 
   // New Position Out-Of-Bounds
-  cascade_model_t casc{
-    model.index,
-    model.height,
-    model.maxdiff,
-    model.settling
-  };
-  soil::cascade(casc, ipos);
+  soil::cascade(model, ipos);
 
   age++;
   return true;

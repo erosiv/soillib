@@ -14,6 +14,7 @@ void bind_io(nb::module_& module);
 void bind_util(nb::module_& module);
 void bind_node(nb::module_& module);
 void bind_matrix(nb::module_& module);
+void bind_model(nb::module_& module);
 void bind_particle(nb::module_& module);
 
 // Module Main Function
@@ -29,6 +30,7 @@ bind_io(module);
 bind_util(module);
 bind_node(module);
 bind_matrix(module);
+bind_model(module);
 bind_particle(module);
 
 }
