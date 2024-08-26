@@ -79,25 +79,18 @@ def make_model(index, seed=0.0):
   model = soil.model()
   model.index = index
 
-  noise = soil.noise(index, seed)
-  height = noise.full()
+  noise = soil.noise(index, seed) * 80.0
+  model[soil.height] = noise.bake(index.elem())
 
-  for pos in index.iter():
-    i = index.flatten(pos)
-    height[i] = 80.0 * height[i]
-
-  model[soil.height] = soil.node(height)
-
-  model[soil.discharge]       = soil.cached(soil.float32, index.elem()).fill(0.0)
-  model[soil.discharge_track] = soil.cached(soil.float32, index.elem()).fill(0.0)
-
-  model[soil.momentum]        = soil.cached(soil.vec2, index.elem()).fill([0.0, 0.0])
-  model[soil.momentum_track]  = soil.cached(soil.vec2, index.elem()).fill([0.0, 0.0])
+  model[soil.discharge]       = soil.constant(soil.float32, 0.0).bake(index.elem())
+  model[soil.discharge_track] = soil.constant(soil.float32, 0.0).bake(index.elem())
+  model[soil.momentum]        = soil.constant(soil.vec2, [0.0, 0.0]).bake(index.elem())
+  model[soil.momentum_track]  = soil.constant(soil.vec2, [0.0, 0.0]).bake(index.elem())
 
   model[soil.resistance] = soil.constant(soil.float32, 0.0)
   model[soil.maxdiff]    = soil.constant(soil.float32, 0.8)
   model[soil.settling]   = soil.constant(soil.float32, 1.0)
-  
+
   return model
 
 def erode(model, steps=512):

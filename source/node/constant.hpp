@@ -6,26 +6,19 @@
 
 namespace soil {
 
-//! I don't know why it breaks without this.
-template<typename T>
-struct layer_t {
-  //! Compute the Output Quantity
-  virtual T operator()(const size_t index) noexcept;
-};
-
 //! constant_t is a strict-typed layer,
 //! which returns a single value.
 template<typename T>
-struct constant_t: typedbase, layer_t<T> {
+struct constant_t: typedbase {
 
   constant_t(const T value):
     value{value}{}
 
-  constexpr soil::dtype type() noexcept override { 
+  constexpr soil::dtype type() noexcept { 
     return soil::typedesc<T>::type;
   }
 
-  T operator()(const size_t index) noexcept override {
+  T operator()(const size_t index) const noexcept {
     return this->value;
   }
 
@@ -57,6 +50,11 @@ struct constant {
 
   //! unsafe cast to strict-type
   template<typename T> inline constant_t<T>& as() noexcept {
+    return static_cast<constant_t<T>&>(*(this->impl));
+  }
+
+  //! unsafe cast to strict-type
+  template<typename T> inline const constant_t<T>& as() const noexcept {
     return static_cast<constant_t<T>&>(*(this->impl));
   }
 

@@ -5,6 +5,9 @@
 #include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
 
+#include <soillib/core/node.hpp>
+#include <soillib/node/computed.hpp>
+
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 #include <soillib/external/FastNoiseLite.h>
 
@@ -43,8 +46,8 @@ struct noise {
     source.SetFractalLacunarity(cfg.lacunarity);
   }
 
-  noise(const soil::index index, const float seed):
-  index{index},seed{seed}{
+  noise(const float seed):
+  seed{seed}{
     source.SetNoiseType(cfg.ntype);
     source.SetFractalType(cfg.ftype);
     source.SetFrequency(cfg.frequency);
@@ -53,72 +56,50 @@ struct noise {
     source.SetFractalLacunarity(cfg.lacunarity);
   }
 
-  //noise(sampler_t cfg):noise(){
-  //  this->cfg = cfg;
-  //  source.SetNoiseType(cfg.ntype);
-  //  source.SetFractalType(cfg.ftype);
-  //  source.SetFrequency(cfg.frequency);
-  //  source.SetFractalOctaves(cfg.octaves);
-  //  source.SetFractalGain(cfg.gain);
-  //  source.SetFractalLacunarity(cfg.lacunarity);
-  //}
-
   //! Single Sample Value
   float operator()(const soil::ivec2 pos){
-    return noise_impl(pos);
-  }
 
-  //! Bake a whole buffer!
-  soil::buffer full(){
+    const auto ext = soil::vec2{512, 512};
+    const auto& cfg = this->cfg;
 
-    return soil::select(index.type(), [self=this]<typename T>() -> soil::buffer {
-
-      if constexpr(std::same_as<typename T::vec_t, soil::ivec2>){
-
-        auto index = self->index.as<T>();
-        auto out = buffer_t<float>{index.elem()};
-
-        for(const auto& pos: index.iter()){
-          out[index.flatten(pos)] = self->operator()(pos);
-        }
-
-        return std::move(soil::buffer(std::move(out)));
-
-      } else {
-        throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
-      }
-
-    });
+    float val = this->source.GetNoise(pos[0]/(float)ext[0], pos[1]/(float)ext[1], this->seed);
+    
+    // Clamp Value
+    val = cfg.bias + cfg.scale * val;
+    if(val < cfg.min) val = cfg.min;
+    if(val > cfg.max) val = cfg.max;
+    return val;
 
   }
 
 private:
-
-  inline float noise_impl(const soil::vec2 pos) {
-
-    return soil::select(index.type(), [self=this, pos]<typename T>() -> float {
-
-      const T index = self->index.as<T>();
-      const auto ext = soil::vec2{512, 512};//index.ext();
-      const auto& cfg = self->cfg;
-
-      float val = self->source.GetNoise(pos[0]/(float)ext[0], pos[1]/(float)ext[1], self->seed);
-      
-      // Clamp Value
-      val = cfg.bias + cfg.scale * val;
-      if(val < cfg.min) val = cfg.min;
-      if(val > cfg.max) val = cfg.max;
-      return val;
-
-    });
-
-  }
-
-  soil::index index;
   float seed;
   FastNoiseLite source;
   sampler_t cfg;
 };
+
+// Noise Node Factory Function
+
+soil::node make_noise(const soil::index index, const float seed){
+  
+  return select(index.type(), [index, seed]<typename T>() -> soil::node {
+
+    if constexpr(std::same_as<typename T::vec_t, soil::ivec2>){
+
+      std::function<float(const size_t)> map = [index, seed](const size_t i) -> float {
+        soil::noise noise(seed);
+        auto index_t = index.as<T>();
+        soil::ivec2 position = index_t.unflatten(i);
+        return noise.operator()(position);
+      };
+
+      return soil::node(soil::computed(soil::dtype::FLOAT32, map));
+    
+    } else throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+
+  });
+
+}
 
 };  // end of namespace soil
 

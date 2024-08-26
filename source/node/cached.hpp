@@ -17,7 +17,11 @@ struct cached_t: typedbase {
     return soil::typedesc<T>::type; 
   }
 
-  T operator()(const size_t index) noexcept {
+  T operator()(const size_t index) const noexcept {
+    return this->buffer[index];
+  }
+
+  T& operator()(const size_t index) noexcept {
     return this->buffer[index];
   }
 
@@ -43,6 +47,10 @@ struct cached {
 
   //! unsafe cast to strict-type
   template<typename T> inline cached_t<T>& as() noexcept {
+    return static_cast<cached_t<T>&>(*(this->impl));
+  }
+
+  template<typename T> inline const cached_t<T>& as() const noexcept {
     return static_cast<cached_t<T>&>(*(this->impl));
   }
 

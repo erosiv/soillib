@@ -26,7 +26,7 @@ struct computed_t: typedbase {
     return soil::typedesc<T>::type; 
   }
 
-  T operator()(const size_t index) noexcept {
+  T operator()(const size_t index) const noexcept {
     return this->func(index);
   }
 
@@ -59,6 +59,11 @@ struct computed {
 
   //! unsafe cast to strict-type
   template<typename T> inline computed_t<T>& as() noexcept {
+    return static_cast<computed_t<T>&>(*(this->impl));
+  }
+
+  //! unsafe cast to strict-type
+  template<typename T> inline const computed_t<T>& as() const noexcept {
     return static_cast<computed_t<T>&>(*(this->impl));
   }
 

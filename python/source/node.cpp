@@ -38,6 +38,8 @@ void bind_node(nb::module_& module){
   node.def(nb::init<soil::constant&&>());
   node.def(nb::init<soil::computed&&>());
 
+  node.def("bake", &soil::node::bake);
+
   node.def("buffer", [](soil::node& node){
     auto cached = std::get<soil::cached>(node._node);
     return soil::select(cached.type(), [&cached]<typename T>() -> soil::buffer {
@@ -74,6 +76,20 @@ void bind_node(nb::module_& module){
         return nb::cast<T>(std::move(value));
       });
     }, node._node);
+  });
+
+//  node.def("__getitem__", [](soil::node& ))
+
+  node.def("__mul__", [](soil::node node, const nb::object object){
+    return soil::select(node.type(), [node, object]<typename T>() -> soil::node {
+      T value = nb::cast<T>(object);
+      std::function<T(const size_t)> func = [node, value](const size_t index) -> T {
+        return value * std::visit([index](auto&& args){
+          return args.template as<T>()(index);
+        }, node._node);
+      };
+      return soil::node(std::move(soil::computed(node.type(), func)));
+    });
   });
 
   node.def("numpy", [](soil::node& node, soil::index& index){
@@ -278,9 +294,7 @@ void bind_node(nb::module_& module){
   // Noise Sampler Type
   //
 
-  auto noise = nb::class_<soil::noise>(module, "noise");
-  noise.def(nb::init<const soil::index, const float>());
-  noise.def("full", &soil::noise::full);
+  module.def("noise", soil::make_noise);
 
 }
 
