@@ -51,9 +51,8 @@ def render(model):
   relief = relief_shade(height_data, normal_data)
 
   discharge_data = sigmoid(model.discharge.numpy(index))
-
-#  momentum_data = sigmoid(model.momentum.buffer().numpy().reshape((index[0], index[1], 2)))
-#  momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
+  #momentum_data = sigmoid(model.momentum.numpy(index))
+  #momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
 
   # Compute Shading
   fig, ax = plt.subplots(2, 2, figsize=(16, 16))
@@ -77,21 +76,18 @@ def make_model(index, seed=0.0):
   hydraulic erosion model.
   '''
 
-  height = soil.buffer(soil.float32, index.elem()).fill(0.0)
-  
   noise = soil.noise(index, seed)
-
   height = noise.full()
 
   for pos in index.iter():
     i = index.flatten(pos)
     height[i] = 80.0 * height[i]
 
-  discharge = soil.buffer(soil.float32, index.elem()).fill(0.0)
-  momentum  = soil.buffer(soil.vec2,    index.elem()).fill([0.0, 0.0])
+  discharge = soil.cached(soil.float32, index.elem()).fill(0.0)
+  momentum  = soil.cached(soil.vec2,    index.elem()).fill([0.0, 0.0])
 
-  discharge_track = soil.buffer(soil.float32, index.elem()).fill(0.0)
-  momentum_track  = soil.buffer(soil.vec2,    index.elem()).fill([0.0, 0.0])
+  discharge_track = soil.cached(soil.float32, index.elem()).fill(0.0)
+  momentum_track  = soil.cached(soil.vec2,    index.elem()).fill([0.0, 0.0])
 
   resistance  = soil.constant(soil.float32, 0.0)
   maxdiff     = soil.constant(soil.float32, 0.8)
@@ -100,10 +96,10 @@ def make_model(index, seed=0.0):
   return soil.water_model(
     index,
     soil.node(height),
-    soil.node(momentum),
-    soil.node(momentum_track),
-    soil.node(discharge),
-    soil.node(discharge_track),
+    momentum,
+    momentum_track,
+    discharge,
+    discharge_track,
     resistance,
     maxdiff,
     settling
@@ -126,8 +122,8 @@ def erode(model, steps=512):
 
     # Fraction of "Exited" Particles
     no_basin_track = 0.0
-    model.discharge_track.buffer().zero()
-    model.momentum_track.buffer().zero()
+    model.discharge_track.zero()
+    model.momentum_track.zero()
 
     # Tracking Values:
 
@@ -181,40 +177,6 @@ def main():
     pass
 
   render(model)
-
-
-def test_quad_data():
-
-  seed = 0.0
-
-  index = soil.index([
-    ([  0,   0], [512, 512]),
-    ([512, 256], [256, 256]),
-    ([640, 128], [128, 128]),
-    ([576, 128], [ 64,  64]),
-    ([576, 192], [ 32,  32])
-  ])
-  print(index.elem())
-
-  height = soil.buffer(soil.float32, index.elem()).fill(0.0)
-  noise = soil.noise(index, seed)
-  height = noise.full()
-
-  for pos in index.iter():
-    i = index.flatten(pos)
-    height[i] = 80.0 * height[i]
-
-  height_layer = soil.node(height)
-
-  normal = soil.normal(index, height_layer).full()
-  normal_layer = soil.node(normal)
-  normal_data = normal_layer.numpy(index)
-
-  data = height_layer.numpy(index)
-  data = data.transpose()
-
-  plt.imshow(normal_data)
-  plt.show()
 
 if __name__ == "__main__":
   main()

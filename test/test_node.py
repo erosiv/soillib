@@ -18,8 +18,7 @@ print("Testing layer.cached...")
 index = soil.index([32, 32])
 value = [0.0, 3.14]
 
-momentum = soil.buffer(soil.vec2, index.elem()).fill(value)
-layer = soil.cached(momentum)
+layer = soil.cached(soil.vec2, index.elem()).fill(value)
 assert type(layer) == soil.node
 
 for i in range(index.elem()):
