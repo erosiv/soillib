@@ -3,6 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
+#include <soillib/core/index.hpp>
 
 #include <soillib/node/cached.hpp>
 #include <soillib/node/computed.hpp>
@@ -59,14 +60,13 @@ struct node {
   }
 
   // Bake a Node!
-  node bake(const size_t size){
-    return std::visit([size](auto&& args){
-      return soil::select(args.type(), [args, size]<typename T>(){
+  node bake(const soil::index index){
+    return std::visit([index](auto&& args){
+      return soil::select(args.type(), [args, index]<typename T>(){
         auto node_t = args.template as<T>();
-        auto buffer_t = soil::buffer_t<T>(size);
-       // auto cached_t = soil::cached_t<T>(buffer_t);
-        for(size_t index = 0; index < size; ++index)
-          buffer_t[index] = node_t(index);
+        auto buffer_t = soil::buffer_t<T>(index.elem());
+        for(size_t i = 0; i < buffer_t.elem(); ++i)
+          buffer_t[i] = node_t(i);
         return soil::node(std::move(soil::cached(buffer_t)));
       });
     }, this->_node);

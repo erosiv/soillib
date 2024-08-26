@@ -80,12 +80,12 @@ def make_model(index, seed=0.0):
   model.index = index
 
   noise = soil.noise(index, seed) * 80.0
-  model[soil.height] = noise.bake(index.elem())
+  model[soil.height] = noise.bake(index)
 
-  model[soil.discharge]       = soil.constant(soil.float32, 0.0).bake(index.elem())
-  model[soil.discharge_track] = soil.constant(soil.float32, 0.0).bake(index.elem())
-  model[soil.momentum]        = soil.constant(soil.vec2, [0.0, 0.0]).bake(index.elem())
-  model[soil.momentum_track]  = soil.constant(soil.vec2, [0.0, 0.0]).bake(index.elem())
+  model[soil.discharge]       = soil.constant(soil.float32, 0.0).bake(index)
+  model[soil.discharge_track] = soil.constant(soil.float32, 0.0).bake(index)
+  model[soil.momentum]        = soil.constant(soil.vec2, [0.0, 0.0]).bake(index)
+  model[soil.momentum_track]  = soil.constant(soil.vec2, [0.0, 0.0]).bake(index)
 
   model[soil.resistance] = soil.constant(soil.float32, 0.0)
   model[soil.maxdiff]    = soil.constant(soil.float32, 0.8)
