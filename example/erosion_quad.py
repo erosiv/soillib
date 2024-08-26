@@ -110,8 +110,8 @@ def erode(model, steps=512):
 
     # Fraction of "Exited" Particles
     no_basin_track = 0.0
-    model[soil.discharge_track].zero()
-    model[soil.momentum_track].zero()
+    model[soil.discharge_track][:] = 0.0
+    model[soil.momentum_track][:] = [0.0, 0.0]
 
     # Tracking Values:
 

@@ -21,6 +21,8 @@ namespace nb = nanobind;
 #include <soillib/node/algorithm/noise.hpp>
 #include <soillib/node/algorithm/normal.hpp>
 
+#include <iostream>
+
 #include "glm.hpp"
 
 //! General Node Binding Function
@@ -47,26 +49,24 @@ void bind_node(nb::module_& module){
     });
   });
 
-  node.def("fill", [](soil::node& node, const nb::object value){
-    auto cached = std::get<soil::cached>(node._node);
-    soil::select(cached.type(), [&cached, &value]<typename T>(){
-      auto buffer_t = cached.as<T>().buffer;
-      auto value_t = nb::cast<T>(value);
-      for(size_t i = 0; i < buffer_t.elem(); ++i)
-        buffer_t[i] = value_t;
-    });
-    return node;
-  });
+  node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::object value){
 
-
-  node.def("zero", [](soil::node& node){
     auto cached = std::get<soil::cached>(node._node);
-    soil::select(cached.type(), [&cached]<typename S>(){
-      auto buffer_t = cached.as<S>().buffer;
-      for(size_t i = 0; i < buffer_t.elem(); ++i)
-        buffer_t[i] = S{0};
+    soil::select(cached.type(), [&cached, &slice, &value]<typename S>(){
+
+      auto buffer_t = cached.as<S>().buffer;    // Assignable Strict-Type Buffer
+      const auto value_t = nb::cast<S>(value);  // Assignable Value
+
+      // Read Slice:
+      Py_ssize_t start, stop, step;
+      if(PySlice_GetIndices(slice.ptr(), buffer_t.elem(), &start, &stop, &step) != 0)
+        throw std::runtime_error("slice is invalid!");
+      
+      // Assign Values!
+      for(int index = start; index < stop; index += step)
+        buffer_t[index] = value_t;
+    
     });
-    return node;
   });
 
   node.def("__call__", [](soil::node& node, const size_t index){
