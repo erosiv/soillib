@@ -42,3 +42,4 @@
 _todo.md
 **/imgui.ini
 .vscode
+.clang-format
