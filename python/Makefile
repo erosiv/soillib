@@ -39,7 +39,8 @@ WHLTAG 		= py3-none-linux_x86_64
 # Binary Compilation
 #
 
-all:
+.PHONY: build
+build:
 #	Compile the Extension Code
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
 	@echo "Building Module: ${MODULE}"
@@ -64,16 +65,23 @@ all:
 			$(BUILDDIR)/particle.o \
 		$(HOME)/.local/lib/libnanobind.o -o $(BUILDDIR)/${MODULE}
 	@rm $(BUILDDIR)/*.o
+
 #
 # Wheel File Builder
 #
 
 .PHONY: wheel
-wheel:
+wheel: build
 #	Packaging Parameters
 	@$(eval WHEEL:= ${WHLDIST}-${VERSION}-${WHLTAG}.whl)
 	@$(eval INFODIR:= ${WHLDIST}-${VERSION}.dist-info)
 	@$(eval DATADIR:= ${WHLDIST}-${VERSION}.data)
+	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
+	@if [ ! -d $(BUILDDIR)/$(INFODIR) ]; then mkdir $(BUILDDIR)/$(INFODIR); fi;
+	@if [ ! -d $(BUILDDIR)/$(DATADIR) ]; then mkdir $(BUILDDIR)/$(DATADIR); fi;
+# Copy Files into Directory
+	@cp METADATA $(BUILDDIR)/$(INFODIR)/METADATA
+	@cp WHEEL $(BUILDDIR)/$(INFODIR)/WHEEL
 # RECORD File
 	@rm ${BUILDDIR}/${INFODIR}/RECORD 	&> /dev/null ||:
 	@touch ${BUILDDIR}/${INFODIR}/RECORD
@@ -87,3 +95,16 @@ wheel:
 
 # Zip Wheel File!
 	@cd ${BUILDDIR}; zip -r ../${WHEEL} .;
+
+#
+# Wheel File Installation
+#
+
+.PHONY: install
+install: wheel
+	@$(eval WHEEL:= ${WHLDIST}-${VERSION}-${WHLTAG}.whl)
+	@echo "Installing Wheel (${WHEEL})..."
+	@pip install ./$(WHEEL)
+
+.PHONY: all
+all: build wheel install
