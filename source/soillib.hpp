@@ -2,19 +2,19 @@
 #define SOILLIB
 
 #include <cstddef>
-#include <glm/glm.hpp>
-#include <type_traits>
-#include <stdexcept>
-#include <memory>
 #include <format>
+#include <glm/glm.hpp>
+#include <memory>
+#include <stdexcept>
+#include <type_traits>
 
 namespace soil {
 
 template<typename T>
-concept matrix_t = requires(T t){
-  {float() * t};
+concept matrix_t = requires(T t) {
+  { float() * t };
 };
 
-}; // end of namespace
+}; // namespace soil
 
 #endif

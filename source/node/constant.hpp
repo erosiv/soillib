@@ -1,8 +1,8 @@
 #ifndef SOILLIB_LAYER_CONSTANT
 #define SOILLIB_LAYER_CONSTANT
 
-#include <soillib/util/error.hpp>
 #include <soillib/core/types.hpp>
+#include <soillib/util/error.hpp>
 
 namespace soil {
 
@@ -11,10 +11,9 @@ namespace soil {
 template<typename T>
 struct constant_t: typedbase {
 
-  constant_t(const T value):
-    value{value}{}
+  constant_t(const T value): value{value} {}
 
-  constexpr soil::dtype type() noexcept { 
+  constexpr soil::dtype type() noexcept {
     return soil::typedesc<T>::type;
   }
 
@@ -32,11 +31,10 @@ private:
 //! to a statically known constant_t<T>.
 struct constant {
 
-  constant(){}
+  constant() {}
 
   template<typename T>
-  constant(const soil::dtype type, const T value):
-    impl{make<T>(type, value)}{}
+  constant(const soil::dtype type, const T value): impl{make<T>(type, value)} {}
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
@@ -49,13 +47,15 @@ struct constant {
   }
 
   //! unsafe cast to strict-type
-  template<typename T> inline constant_t<T>& as() noexcept {
-    return static_cast<constant_t<T>&>(*(this->impl));
+  template<typename T>
+  inline constant_t<T> &as() noexcept {
+    return static_cast<constant_t<T> &>(*(this->impl));
   }
 
   //! unsafe cast to strict-type
-  template<typename T> inline const constant_t<T>& as() const noexcept {
-    return static_cast<constant_t<T>&>(*(this->impl));
+  template<typename T>
+  inline const constant_t<T> &as() const noexcept {
+    return static_cast<constant_t<T> &>(*(this->impl));
   }
 
   //! templated lookup operator (cast to T)
@@ -64,16 +64,15 @@ struct constant {
   //! A static check is performed to guarantee that the
   //! cast of the actual internal type is valid.
   template<typename T>
-  T operator()(const size_t index){
-    return select(this->type(),
-      [self=this, index]<typename S>() -> T {
-        if constexpr (std::same_as<T, S>){
+  T operator()(const size_t index) {
+    return select(this->type(), [self = this, index]<typename S>() -> T {
+      if constexpr (std::same_as<T, S>) {
         return self->as<S>().operator()(index);
-        } else if constexpr (std::convertible_to<S, T>){
-          return (T)self->as<S>().operator()(index);
-        } else throw soil::error::cast_error<S, T>();
-      }
-    );
+      } else if constexpr (std::convertible_to<S, T>) {
+        return (T)self->as<S>().operator()(index);
+      } else
+        throw soil::error::cast_error<S, T>();
+    });
   }
 
 private:
@@ -81,15 +80,17 @@ private:
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer
 
   template<typename T>
-  static ptr_t make(const soil::dtype type, const T value){
+  static ptr_t make(const soil::dtype type, const T value) {
     return select(type, [value]<typename S>() -> ptr_t {
-      if constexpr (std::same_as<T, S>){
+      if constexpr (std::same_as<T, S>) {
         return std::make_shared<soil::constant_t<S>>(value);
-      } else if constexpr (std::convertible_to<T, S>){
+      } else if constexpr (std::convertible_to<T, S>) {
         return std::make_shared<soil::constant_t<S>>(S(value));
-      } else throw soil::error::cast_error<T, S>();
+      } else
+        throw soil::error::cast_error<T, S>();
     });
-  }};
+  }
+};
 } // end of namespace soil
 
 #endif

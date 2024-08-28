@@ -5,7 +5,7 @@
 #include <soillib/core/matrix.hpp>
 #include <soillib/core/node.hpp>
 
-//#include <std::unordered_map>
+// #include <std::unordered_map>
 
 // A model is effectively just a structure
 // that lets us compose an index type with
@@ -37,28 +37,26 @@ struct model {
 
   using matrix_t = soil::matrix::singular;
 
-  node& operator[](const soil::component comp){
+  node &operator[](const soil::component comp) {
     return this->nodes[comp].value();
   }
 
-  void set(const soil::component comp, const soil::node node){
+  void set(const soil::component comp, const soil::node node) {
     this->nodes[comp] = node;
   }
 
-  void add(const size_t index, const float value, const matrix_t matrix){
+  void add(const size_t index, const float value, const matrix_t matrix) {
     auto height = this->operator[](soil::component::HEIGHT);
-    soil::select(height.type(), [self=this, index, &height, value]<typename S>(){
+    soil::select(height.type(), [self = this, index, &height, value]<typename S>() {
       auto cached = std::get<soil::cached>(height._node).as<float>();
       cached.buffer[index] += value;
     });
   }
 
-// private:
+  // private:
   soil::index index;
   std::array<std::optional<soil::node>, 8> nodes;
 };
-
-
 
 } // end of namespace soil
 

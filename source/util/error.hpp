@@ -1,8 +1,8 @@
 #ifndef SOILLIB_ERROR
 #define SOILLIB_ERROR
 
-#include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
+#include <soillib/soillib.hpp>
 
 // Custom Soillib Exceptions
 
@@ -14,7 +14,7 @@ struct cast_error: std::exception {
   static std::string value() noexcept {
     return std::format("invalid cast from <{}> to <{}>", typedesc<From>::name, typedesc<To>::name);
   }
-  const char* what() const noexcept override  {
+  const char *what() const noexcept override {
     return value().c_str();
   }
 };
@@ -24,7 +24,7 @@ struct type_op_error: std::exception {
   static std::string value() noexcept {
     return std::format("invalid type <{}> for operation", typedesc<Type>::name);
   }
-  const char* what() const noexcept override  {
+  const char *what() const noexcept override {
     return value().c_str();
   }
 };

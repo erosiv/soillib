@@ -23,12 +23,11 @@ namespace matrix {
 //!
 struct singular {
 
-  singular(){}
+  singular() {}
 
   const singular operator+(const singular rhs) const { return *this; }
   const singular operator/(const float rhs) const { return *this; }
   const singular operator*(const float rhs) const { return *this; }
-
 };
 
 //! A porous matrix means that the soil composition is
@@ -37,21 +36,21 @@ struct singular {
 //!
 struct porous {
 
-  porous(float value):value(value){}
-  porous():porous(1.0f){}
+  porous(float value): value(value) {}
+  porous(): porous(1.0f) {}
 
   float value;
 
   const porous operator+(const porous rhs) const {
-    return porous(this->value + rhs.value); 
+    return porous(this->value + rhs.value);
   }
 
-  const porous operator/(const float rhs) const { 
-    return porous(this->value/rhs); 
+  const porous operator/(const float rhs) const {
+    return porous(this->value / rhs);
   }
 
-  const porous operator*(const float rhs) const { 
-    return porous(this->value*rhs); 
+  const porous operator*(const float rhs) const {
+    return porous(this->value * rhs);
   }
 };
 
@@ -83,19 +82,19 @@ struct mixture {
   mixture<N> operator+(const mixture<N> rhs) {
     for(size_t n = 0; n < N; n++)
       this->weight[n] += rhs.weight[n];
-    return *this; 
+    return *this;
   }
-  
-  mixture<N> operator/(const float rhs) { 
+
+  mixture<N> operator/(const float rhs) {
     for(size_t n = 0; n < N; n++)
       this->weight[n] /= rhs;
-    return *this; 
+    return *this;
   }
 
   mixture<N> operator*(const float rhs) {
     for(size_t n = 0; n < N; n++)
       this->weight[n] *= rhs;
-    return *this; 
+    return *this;
   }
 
   // Concept Implementations
@@ -104,7 +103,7 @@ struct mixture {
     float maxdiff = 0.0f;
     for(size_t n = 0; n < N; n++)
       maxdiff += this->weight[n]*conf[n].maxdiff;
-    return maxdiff; 
+    return maxdiff;
   }
 
   const float settling() const noexcept {

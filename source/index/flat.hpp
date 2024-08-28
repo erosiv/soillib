@@ -1,9 +1,9 @@
 #ifndef SOILLIB_INDEX_FLAT
 #define SOILLIB_INDEX_FLAT
 
+#include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
 #include <soillib/util/yield.hpp>
-#include <soillib/core/types.hpp>
 
 #include <vector>
 
@@ -12,17 +12,22 @@ namespace soil {
 namespace {
 
 template<size_t D>
-size_t prod(const glm::vec<D, int> vec){
-  switch(D){
-    case 1: return vec[0];
-    case 2: return vec[0]*vec[1];
-    case 3: return vec[0]*vec[1]*vec[2];
-    case 4: return vec[0]*vec[1]*vec[2]*vec[3];
-    default: throw std::invalid_argument("can't flatten vector of dimension > 4");
+size_t prod(const glm::vec<D, int> vec) {
+  switch (D) {
+  case 1:
+    return vec[0];
+  case 2:
+    return vec[0] * vec[1];
+  case 3:
+    return vec[0] * vec[1] * vec[2];
+  case 4:
+    return vec[0] * vec[1] * vec[2] * vec[3];
+  default:
+    throw std::invalid_argument("can't flatten vector of dimension > 4");
   }
 }
 
-}
+} // namespace
 
 //! flat_t<D> is a D-dimensional compact extent
 //!
@@ -40,21 +45,24 @@ struct flat_t: indexbase {
   typedef glm::vec<D, int> vec_t;
 
   flat_t() = default;
-  flat_t(const vec_t _vec):
-    _vec{_vec}{}
+  flat_t(const vec_t _vec): _vec{_vec} {}
 
   static constexpr size_t n_dims = D;
 
   //! Number of Dimensions
-  static constexpr size_t dims() noexcept { 
-    return D; 
+  static constexpr size_t dims() noexcept {
+    return D;
   }
-  
+
   constexpr soil::dindex type() noexcept override {
-    if constexpr(D == 1)      return soil::dindex::FLAT1;
-    else if constexpr(D == 2) return soil::dindex::FLAT2;
-    else if constexpr(D == 3) return soil::dindex::FLAT3;
-    else if constexpr(D == 4) return soil::dindex::FLAT4;
+    if constexpr (D == 1)
+      return soil::dindex::FLAT1;
+    else if constexpr (D == 2)
+      return soil::dindex::FLAT2;
+    else if constexpr (D == 3)
+      return soil::dindex::FLAT3;
+    else if constexpr (D == 4)
+      return soil::dindex::FLAT4;
   }
 
   //! Number of Elements
@@ -75,7 +83,7 @@ struct flat_t: indexbase {
 
   size_t flatten(const vec_t pos) const {
     int value{0};
-    for(size_t d = 0; d < D; ++d){
+    for (size_t d = 0; d < D; ++d) {
       value *= this->operator[](d);
       value += pos[d];
     }
@@ -85,8 +93,8 @@ struct flat_t: indexbase {
   vec_t unflatten(const int index) const {
     vec_t value{0};
     int scale = 1;
-    for(int d = D-1; d >= 0; --d){
-      value[d] = ( index / scale ) % this->operator[](d);
+    for (int d = D - 1; d >= 0; --d) {
+      value[d] = (index / scale) % this->operator[](d);
       scale *= this->operator[](d);
     }
     return value;
@@ -94,8 +102,8 @@ struct flat_t: indexbase {
 
   //! Out-Of-Bounds Check (Compact)
   bool oob(const vec_t pos) const {
-    for(size_t d = 0; d < D; ++d)
-      if(pos[d] < 0 || pos[d] >= this->operator[](d)) 
+    for (size_t d = 0; d < D; ++d)
+      if (pos[d] < 0 || pos[d] >= this->operator[](d))
         return true;
     return false;
   }
@@ -105,7 +113,7 @@ struct flat_t: indexbase {
   //! This returns a generator coroutine,
   //! which iterates over the set of positions.
   yield<vec_t> iter() const {
-    for(size_t i = 0; i < this->elem(); ++i)
+    for (size_t i = 0; i < this->elem(); ++i)
       co_yield unflatten(i);
     co_return;
   }

@@ -1,9 +1,9 @@
 #ifndef SOILLIB_TYPES
 #define SOILLIB_TYPES
 
-#include <soillib/soillib.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <format>
+#include <glm/gtc/type_ptr.hpp>
+#include <soillib/soillib.hpp>
 
 namespace soil {
 
@@ -32,10 +32,14 @@ enum dtype {
 
 constexpr auto defaultp = glm::qualifier::packed_highp;
 
-template<size_t D> using ivec = glm::vec<D, int, defaultp>;
-template<size_t D> using fvec = glm::vec<D, float, defaultp>;
-template<size_t D> using dvec = glm::vec<D, double, defaultp>;
-template<size_t D> using vec = fvec<D>; // Default Precision
+template<size_t D>
+using ivec = glm::vec<D, int, defaultp>;
+template<size_t D>
+using fvec = glm::vec<D, float, defaultp>;
+template<size_t D>
+using dvec = glm::vec<D, double, defaultp>;
+template<size_t D>
+using vec = fvec<D>; // Default Precision
 
 using ivec1 = ivec<1>;
 using ivec2 = ivec<2>;
@@ -59,31 +63,37 @@ using vec4 = vec<4>;
 
 //! typedesc is a generic compile-time type descriptor,
 //! which provides common properties like string names,
-//! or statically related types for specific purposes. 
+//! or statically related types for specific purposes.
 //!
-template<typename T> struct typedesc;
+template<typename T>
+struct typedesc;
 
-template<> struct typedesc<int> {
-  static constexpr std::string name = "int"; 
+template<>
+struct typedesc<int> {
+  static constexpr std::string name = "int";
   static constexpr dtype type = INT;
 };
 
-template<> struct typedesc<float> {
-  static constexpr std::string name = "float"; 
+template<>
+struct typedesc<float> {
+  static constexpr std::string name = "float";
   static constexpr dtype type = FLOAT32;
 };
 
-template<> struct typedesc<double> {
-  static constexpr std::string name = "double"; 
+template<>
+struct typedesc<double> {
+  static constexpr std::string name = "double";
   static constexpr dtype type = FLOAT64;
 };
 
-template<> struct typedesc<vec2> {
-  static constexpr std::string name = "vec2"; 
+template<>
+struct typedesc<vec2> {
+  static constexpr std::string name = "vec2";
   static constexpr dtype type = VEC2;
 };
 
-template<> struct typedesc<vec3> {
+template<>
+struct typedesc<vec3> {
   static constexpr std::string name = "vec3";
   static constexpr dtype type = VEC3;
 };
@@ -110,13 +120,13 @@ namespace {
 #pragma GCC diagnostic ignored "-Wsubobject-linkage"
 
 struct typedbase {
-  virtual ~typedbase(){};
+  virtual ~typedbase() {};
   constexpr virtual soil::dtype type() noexcept {
     return {};
   }
 };
 
-}
+} // namespace
 
 //! select accepts a type enumerator and a templated lambda,
 //! which it subsequently calls with a strict-typed evaluation.
@@ -124,14 +134,20 @@ struct typedbase {
 //! this effectively instantiates every required template of the
 //! desired lambda expression, and executes the runtime selection.
 template<typename F, typename... Args>
-auto select(const soil::dtype type, F lambda, Args&&... args){
-  switch(type){
-    case soil::INT:     return lambda.template operator()<int>    (std::forward<Args>(args)...);
-    case soil::FLOAT32: return lambda.template operator()<float>  (std::forward<Args>(args)...);
-    case soil::FLOAT64: return lambda.template operator()<double> (std::forward<Args>(args)...);
-    case soil::VEC2:    return lambda.template operator()<vec2>   (std::forward<Args>(args)...);
-    case soil::VEC3:    return lambda.template operator()<vec3>   (std::forward<Args>(args)...);
-    default: throw std::invalid_argument("type not supported");
+auto select(const soil::dtype type, F lambda, Args &&...args) {
+  switch (type) {
+  case soil::INT:
+    return lambda.template operator()<int>(std::forward<Args>(args)...);
+  case soil::FLOAT32:
+    return lambda.template operator()<float>(std::forward<Args>(args)...);
+  case soil::FLOAT64:
+    return lambda.template operator()<double>(std::forward<Args>(args)...);
+  case soil::VEC2:
+    return lambda.template operator()<vec2>(std::forward<Args>(args)...);
+  case soil::VEC3:
+    return lambda.template operator()<vec3>(std::forward<Args>(args)...);
+  default:
+    throw std::invalid_argument("type not supported");
   }
 }
 
@@ -144,13 +160,13 @@ enum dindex {
 };
 
 // base class
-struct indexbase{
-  virtual ~indexbase(){};
+struct indexbase {
+  virtual ~indexbase() {};
   constexpr virtual soil::dindex type() noexcept {
     return {};
   }
 };
 
-}
+} // namespace soil
 
 #endif

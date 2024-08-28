@@ -1,39 +1,37 @@
 #ifndef SOILLIB_LAYER_CACHED
 #define SOILLIB_LAYER_CACHED
 
-#include <soillib/util/error.hpp>
-#include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/types.hpp>
+#include <soillib/util/error.hpp>
 
 namespace soil {
 
 template<typename T>
 struct cached_t: typedbase {
 
-  cached_t(const soil::buffer_t<T> buffer):
-    buffer{buffer}{}
+  cached_t(const soil::buffer_t<T> buffer): buffer{buffer} {}
 
-  constexpr soil::dtype type() noexcept override { 
-    return soil::typedesc<T>::type; 
+  constexpr soil::dtype type() noexcept override {
+    return soil::typedesc<T>::type;
   }
 
   T operator()(const size_t index) const noexcept {
     return this->buffer[index];
   }
 
-  T& operator()(const size_t index) noexcept {
+  T &operator()(const size_t index) noexcept {
     return this->buffer[index];
   }
 
-//private:
+  // private:
   soil::buffer_t<T> buffer;
 };
 
 struct cached {
 
-  cached(){}
-  cached(const soil::buffer buffer):
-    impl{make(buffer)}{}
+  cached() {}
+  cached(const soil::buffer buffer): impl{make(buffer)} {}
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {
@@ -46,12 +44,14 @@ struct cached {
   }
 
   //! unsafe cast to strict-type
-  template<typename T> inline cached_t<T>& as() noexcept {
-    return static_cast<cached_t<T>&>(*(this->impl));
+  template<typename T>
+  inline cached_t<T> &as() noexcept {
+    return static_cast<cached_t<T> &>(*(this->impl));
   }
 
-  template<typename T> inline const cached_t<T>& as() const noexcept {
-    return static_cast<cached_t<T>&>(*(this->impl));
+  template<typename T>
+  inline const cached_t<T> &as() const noexcept {
+    return static_cast<cached_t<T> &>(*(this->impl));
   }
 
   //! templated lookup operator (cast to T)
@@ -60,16 +60,15 @@ struct cached {
   //! A static check is performed to guarantee that the
   //! cast of the actual internal type is valid.
   template<typename T>
-  T operator()(const size_t index){
-    return select(this->type(),
-      [self=this, index]<typename S>() -> T {
-        if constexpr (std::same_as<T, S>){
+  T operator()(const size_t index) {
+    return select(this->type(), [self = this, index]<typename S>() -> T {
+      if constexpr (std::same_as<T, S>) {
         return self->as<S>().operator()(index);
-        } else if constexpr (std::convertible_to<S, T>){
-          return (T)self->as<S>().operator()(index);
-        } else throw soil::error::cast_error<S, T>();
-      }
-    );
+      } else if constexpr (std::convertible_to<S, T>) {
+        return (T)self->as<S>().operator()(index);
+      } else
+        throw soil::error::cast_error<S, T>();
+    });
   }
 
 private:

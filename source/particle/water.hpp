@@ -1,16 +1,16 @@
 #ifndef SOILLIB_PARTICLE_WATER
 #define SOILLIB_PARTICLE_WATER
 
-#include <soillib/soillib.hpp>
-#include <soillib/particle/particle.hpp>
 #include <soillib/particle/cascade.hpp>
+#include <soillib/particle/particle.hpp>
+#include <soillib/soillib.hpp>
 
 #include <soillib/core/model.hpp>
 #include <soillib/core/node.hpp>
 
 #include <soillib/node/cached.hpp>
-#include <soillib/node/constant.hpp>
 #include <soillib/node/computed.hpp>
+#include <soillib/node/constant.hpp>
 
 #include <soillib/node/algorithm/normal.hpp>
 
@@ -30,7 +30,6 @@ struct WaterParticle_c {
   float entrainment = 10.0f;
   float gravity = 2.0f;
   float momentumTransfer = 1.0f;
-
 };
 
 // WaterParticle Definition
@@ -41,41 +40,40 @@ struct WaterParticle: soil::Particle {
   using matrix_t = soil::matrix::singular;
 
   WaterParticle(glm::vec2 pos)
-    :pos(pos){}   // Construct at Position
- 
+      : pos(pos) {} // Construct at Position
+
   // Properties
 
   glm::vec2 pos;
   glm::vec2 opos;
   glm::vec2 speed = glm::vec2(0.0);
 
-  float volume = 1.0;                   // Droplet Water Volume
-  float sediment = 0.0;                 // Droplet Sediment Concentration
+  float volume = 1.0;   // Droplet Water Volume
+  float sediment = 0.0; // Droplet Sediment Concentration
   matrix_t matrix;
 
   // Main Methods
 
-  //template<typename T>
-  bool move(soil::model& model, const WaterParticle_c& param);
+  // template<typename T>
+  bool move(soil::model &model, const WaterParticle_c &param);
 
-  //template<typename T>
-  bool interact(soil::model& model, const WaterParticle_c& param);
+  // template<typename T>
+  bool interact(soil::model &model, const WaterParticle_c &param);
 
-  void track(soil::model& model);
+  void track(soil::model &model);
 };
 
-bool WaterParticle::move(soil::model& model, const WaterParticle_c& param){
+bool WaterParticle::move(soil::model &model, const WaterParticle_c &param) {
 
   // Termination Checks
 
   const glm::ivec2 ipos = pos;
   const size_t index = model.index.flatten<2>(ipos);
 
-  if(model.index.oob<2>(ipos))
+  if (model.index.oob<2>(ipos))
     return false;
 
-
-  if(age > param.maxAge){
+  if (age > param.maxAge) {
 
     /*
     model.add(index, sediment, matrix);
@@ -92,7 +90,7 @@ bool WaterParticle::move(soil::model& model, const WaterParticle_c& param){
     return false;
   }
 
-  if(volume < param.minVol){
+  if (volume < param.minVol) {
     model.add(index, sediment, matrix);
     soil::cascade(model, ipos);
     return false;
@@ -108,28 +106,27 @@ bool WaterParticle::move(soil::model& model, const WaterParticle_c& param){
 
   // Gravity Force
 
-  speed += param.gravity*glm::vec2(n.x, n.z)/volume;
+  speed += param.gravity * glm::vec2(n.x, n.z) / volume;
 
   // Momentum Transfer Force
 
-  if(length(fspeed) > 0 && length(speed) > 0)
-    speed += param.momentumTransfer*dot(normalize(fspeed), normalize(speed))/(volume + discharge)*fspeed;
+  if (length(fspeed) > 0 && length(speed) > 0)
+    speed += param.momentumTransfer * dot(normalize(fspeed), normalize(speed)) / (volume + discharge) * fspeed;
 
   // Dynamic Time-Step, Update
 
-  if(length(speed) > 0)
-    speed = (sqrt(2.0f))*normalize(speed);
+  if (length(speed) > 0)
+    speed = (sqrt(2.0f)) * normalize(speed);
 
   opos = pos;
-  pos  += speed;
+  pos += speed;
 
   return true;
-
 }
 
-void WaterParticle::track(soil::model& model){
+void WaterParticle::track(soil::model &model) {
 
-  if(model.index.oob<2>(this->pos))
+  if (model.index.oob<2>(this->pos))
     return;
 
   const size_t index = model.index.flatten<2>(this->pos);
@@ -145,78 +142,75 @@ void WaterParticle::track(soil::model& model){
     soil::buffer_t<vec2> buffer = cached.as<vec2>().buffer;
     buffer[index] += this->volume * this->speed;
   }
-
 }
 
-bool WaterParticle::interact(soil::model& model, const WaterParticle_c& param){
+bool WaterParticle::interact(soil::model &model, const WaterParticle_c &param) {
 
   // Termination Checks
 
   const glm::ivec2 ipos = opos;
   const size_t index = model.index.flatten<2>(ipos);
 
-  if(model.index.oob<2>(ipos))
+  if (model.index.oob<2>(ipos))
     return false;
 
   const float discharge = erf(0.4f * model[soil::DISCHARGE].template operator()<float>(index));
   const float resistance = model[soil::RESISTANCE].template operator()<float>(index);
 
-  //Out-Of-Bounds
+  // Out-Of-Bounds
 
   float h2;
-  if(model.index.oob<2>(pos))
-    h2 = 0.99f*model[soil::HEIGHT].template operator()<float>(index);
+  if (model.index.oob<2>(pos))
+    h2 = 0.99f * model[soil::HEIGHT].template operator()<float>(index);
   else {
     const size_t index = model.index.flatten<2>(pos);
     h2 = model[soil::HEIGHT].template operator()<float>(index);
   }
 
-  //Mass-Transfer (in MASS)
-  float c_eq = (1.0f+param.entrainment*discharge)*(model[soil::HEIGHT].template operator()<float>(index)-h2);
-  if(c_eq < 0)
+  // Mass-Transfer (in MASS)
+  float c_eq = (1.0f + param.entrainment * discharge) * (model[soil::HEIGHT].template operator()<float>(index) - h2);
+  if (c_eq < 0)
     c_eq = 0;
 
-  float cdiff = (c_eq*volume - sediment);
+  float cdiff = (c_eq * volume - sediment);
 
   // Effective Parameter Set
 
-  float effD = param.depositionRate*(1.0f - resistance);
-  if(effD < 0)
+  float effD = param.depositionRate * (1.0f - resistance);
+  if (effD < 0)
     effD = 0;
 
   // Compute Actual Mass Transfer
 
   // Add Sediment to Map
 
-  if(effD*cdiff < 0){
+  if (effD * cdiff < 0) {
 
-    if(effD*cdiff < -sediment) // Only Use Available
-      cdiff = -sediment/effD;
+    if (effD * cdiff < -sediment) // Only Use Available
+      cdiff = -sediment / effD;
 
-  } else if(effD*cdiff > 0){
+  } else if (effD * cdiff > 0) {
 
     auto wmatrix = matrix_t{};
     // wmatrix = world.matrix(ipos);
 
-    matrix = (matrix*sediment + wmatrix*(effD*cdiff))/(sediment + effD*cdiff);
-
+    matrix = (matrix * sediment + wmatrix * (effD * cdiff)) / (sediment + effD * cdiff);
   }
 
   // Add Sediment Mass to Map, Particle
 
-  sediment += effD*cdiff;
-  model.add(index, -effD*cdiff, matrix);
+  sediment += effD * cdiff;
+  model.add(index, -effD * cdiff, matrix);
 
-  //Evaporate (Mass Conservative)
+  // Evaporate (Mass Conservative)
 
-  volume *= (1.0-param.evapRate);
+  volume *= (1.0 - param.evapRate);
 
   // New Position Out-Of-Bounds
   soil::cascade(model, ipos);
 
   age++;
   return true;
-
 }
 
 // Configuration Loading
@@ -225,7 +219,7 @@ bool WaterParticle::interact(soil::model& model, const WaterParticle_c& param){
 
 template<>
 struct soil::io::yaml::cast<WaterParticle_c> {
-  static WaterParticle_c As(soil::io::yaml& node){
+  static WaterParticle_c As(soil::io::yaml &node) {
     WaterParticle_c config;
     config.maxAge = node["max-age"].As<int>();
     config.evapRate = node["evap-rate"].As<float>();
@@ -240,6 +234,6 @@ struct soil::io::yaml::cast<WaterParticle_c> {
 
 #endif
 
-} // end of namespace
+} // namespace soil
 
 #endif
