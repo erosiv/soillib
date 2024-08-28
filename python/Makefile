@@ -71,7 +71,7 @@ build:
 #
 
 .PHONY: wheel
-wheel: build
+wheel:
 #	Packaging Parameters
 	@$(eval WHEEL:= ${WHLDIST}-${VERSION}-${WHLTAG}.whl)
 	@$(eval INFODIR:= ${WHLDIST}-${VERSION}.dist-info)
@@ -101,10 +101,11 @@ wheel: build
 #
 
 .PHONY: install
-install: wheel
+install:
 	@$(eval WHEEL:= ${WHLDIST}-${VERSION}-${WHLTAG}.whl)
 	@echo "Installing Wheel (${WHEEL})..."
-	@pip install ./$(WHEEL)
+	@pip install ./$(WHEEL) --force-reinstall
+	@rm ./$(WHEEL)
 
 .PHONY: all
 all: build wheel install
