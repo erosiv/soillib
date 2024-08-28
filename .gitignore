@@ -45,6 +45,4 @@ _todo.md
 
 # Wheel Distributables
 **/*.whl
-**/METADATA
 **/RECORD
-**/WHEEL

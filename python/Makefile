@@ -30,7 +30,10 @@ CF += -fvisibility=hidden \
 
 # Wheel File / Distributable Configuration
 
-BUILDDIR = "wheel"
+BUILDDIR 	= wheel
+WHLDIST 	= soillib
+VERSION 	= 1.0.0
+WHLTAG 		= py3-none-linux_x86_64
 
 #
 # Binary Compilation
@@ -67,35 +70,10 @@ all:
 
 .PHONY: wheel
 wheel:
-	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
 #	Packaging Parameters
-	@$(eval WHLDIST:= soillib)
-	@$(eval VERSION:= 1.0.0)
-	@$(eval WHLTAG:= py3-none-linux_x86_64)
 	@$(eval WHEEL:= ${WHLDIST}-${VERSION}-${WHLTAG}.whl)
-# Construct Directory Hierarchy
 	@$(eval INFODIR:= ${WHLDIST}-${VERSION}.dist-info)
 	@$(eval DATADIR:= ${WHLDIST}-${VERSION}.data)
-	@if [ ! -d $(BUILDDIR)/$(INFODIR) ]; then mkdir $(BUILDDIR)/$(INFODIR); fi;
-	@if [ ! -d $(BUILDDIR)/$(DATADIR) ]; then mkdir $(BUILDDIR)/$(DATADIR); fi;
-# Add dist-info
-# WHEEL File
-	@rm ${BUILDDIR}/${INFODIR}/WHEEL 		&> /dev/null ||:
-	@touch ${BUILDDIR}/${INFODIR}/WHEEL
-	@echo "Wheel-Version: 1.0" 					>> ${BUILDDIR}/${INFODIR}/WHEEL
-	@echo "Root-Is-Purelib: true" 			>> ${BUILDDIR}/${INFODIR}/WHEEL
-	@echo "Tag: ${WHLTAG}" 							>> ${BUILDDIR}/${INFODIR}/WHEEL
-	@echo "Build: ${VERSION}"						>> ${BUILDDIR}/${INFODIR}/WHEEL
-# METADATA File
-	@rm ${BUILDDIR}/${INFODIR}/METADATA &> /dev/null ||:
-	@touch ${BUILDDIR}/${INFODIR}/METADATA
-	@echo "Metadata-Version: 1.1"																				>> ${BUILDDIR}/${INFODIR}/METADATA
-	@echo "Name: ${WHLDIST}"																						>> ${BUILDDIR}/${INFODIR}/METADATA	
-	@echo "Version: ${VERSION}"																					>> ${BUILDDIR}/${INFODIR}/METADATA	
-	@echo "Platform: Unix"																							>> ${BUILDDIR}/${INFODIR}/METADATA
-	@echo "Summary: ..."																								>> ${BUILDDIR}/${INFODIR}/METADATA
-	@echo "Author-email: "N. McDonald" <nicholasmcdonald40@gmail.com>" 	>> ${BUILDDIR}/${INFODIR}/METADATA
-	@echo "License: License" 																						>> ${BUILDDIR}/${INFODIR}/METADATA
 # RECORD File
 	@rm ${BUILDDIR}/${INFODIR}/RECORD 	&> /dev/null ||:
 	@touch ${BUILDDIR}/${INFODIR}/RECORD
