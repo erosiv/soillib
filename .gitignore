@@ -45,4 +45,4 @@ _todo.md
 
 # Wheel Distributables
 **/*.whl
-**/RECORD
+python/wheel
