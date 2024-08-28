@@ -33,7 +33,7 @@ CF += -fvisibility=hidden \
 BUILDDIR 	= wheel
 WHLDIST 	= soillib
 VERSION 	= 1.0.0
-WHLTAG 		= py3-none-linux_x86_64
+WHLTAG 		= py3-none-manylinux_2_17_x86_64
 
 #
 # Binary Compilation
