@@ -37,3 +37,15 @@ all:
 	@mkdir $(INCPATH)/$(DIRNAME)
 	@# Copy Files
 	@cp -r ./* $(INCPATH)/$(DIRNAME)
+
+.PHONY: lint
+lint:
+	@echo "soillib: linting with clang-format..."
+	@clang-format -i ./soillib.hpp
+	@clang-format -i ./core/*.hpp
+	@clang-format -i ./index/*.hpp
+	@clang-format -i ./io/*.hpp
+	@clang-format -i ./node/*.hpp
+	@clang-format -i ./node/algorithm/*.hpp
+	@clang-format -i ./particle/*.hpp
+	@clang-format -i ./util/*.hpp
