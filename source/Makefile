@@ -40,7 +40,6 @@ all:
 
 .PHONY: lint
 lint:
-	@echo "soillib: linting with clang-format..."
 	@clang-format -i ./soillib.hpp
 	@clang-format -i ./core/*.hpp
 	@clang-format -i ./index/*.hpp

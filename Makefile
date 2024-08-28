@@ -18,11 +18,17 @@ python:
 	@cd python; $(MAKE) --no-print-directory all
 	@echo "soillib: done"
 
+.PHONY: all
+all: source python
+
 .PHONY: test
 test:
 	@echo "soillib: running test scripts..."
 	@cd test; $(MAKE) --no-print-directory all
 	@echo "soillib: done"
 
-.PHONY: all
-all: source python
+.PHONY: lint
+lint:
+	@echo "soillib: running clang-format..."
+	@cd source; $(MAKE) --no-print-directory lint
+	@echo "soillib: done"
