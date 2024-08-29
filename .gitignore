@@ -38,3 +38,11 @@
 **/*.tiff
 **/*.png
 **/*.zip
+
+_todo.md
+**/imgui.ini
+.vscode
+
+# Wheel Distributables
+**/*.whl
+python/wheel

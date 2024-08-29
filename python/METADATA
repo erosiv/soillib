@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: soillib
+Version: 1.0.0
+Platform: Unix
+Summary: Procedural Geomorphology Package
+Author-email: N. McDonald <nicholasmcdonald40@gmail.com>
+License: GNU LGPLv3
+
+soillib is a Python package for procedural geomorphology simulation.
+
+This package is a binding layer on top of a high-performance, open-source library written in C++.
+
+soillib allows for the modular simulation of geological mass and energy transport, through the
+combination of spatial indexing schemes and composable data and compute nodes with particles.

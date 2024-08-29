@@ -1,46 +1,34 @@
 # soillib
+# Version: 1.0
 # Author: Nicholas McDonald
-# Version 1.0
-# Tested on GNU/Linux and MacOS
 
-# Install Location
+#
+# Build / Installation Rules
+#
 
-LIBPATH = $(HOME)/.local/lib
-INCPATH = $(HOME)/.local/include
-DIRNAME = soillib
+.PHONY: source
+source:
+	@echo "soillib: building and installing from source..."
+	@cd source; $(MAKE) --no-print-directory all
+	@echo "soillib: done"
 
-# Compiler Settings
-
-CC = g++-10 -std=c++20
-CF = -Wfatal-errors -O2
-
-# OS Specific Configuration
-
-UNAME := $(shell uname)
-
-ifeq ($(UNAME), Linux)			# Detect GNU/Linux
-endif
-
-ifeq ($(UNAME), Darwin)			# Detect MacOS
-
-INCPATH = /opt/homebrew/include
-LIBPATH = /opt/homebrew/lib
-
-CC = g++-13 -std=c++20
-
-endif
-
-##########################
-#  	soillib installer  	 #
-##########################
+.PHONY: python
+python:
+	@echo "soillib: building python module..."
+	@cd python; $(MAKE) --no-print-directory all
+	@echo "soillib: done"
 
 .PHONY: all
-all:
-	@echo "soillib: copying header files...";
-	@# Prepare Directories
-	@if [ ! -d $(INCPATH) ]; then mkdir $(INCPATH); fi;
-	@if [ -d $(INCPATH)/$(DIRNAME) ]; then rm -rf $(INCPATH)/$(DIRNAME); fi;
-	@mkdir $(INCPATH)/$(DIRNAME)
-	@# Copy Files
-	@cp -r soillib/* $(INCPATH)/$(DIRNAME)
-	@echo "soillib: done";
+all: source python
+
+.PHONY: test
+test:
+	@echo "soillib: running test scripts..."
+	@cd test; $(MAKE) --no-print-directory all
+	@echo "soillib: done"
+
+.PHONY: lint
+lint:
+	@echo "soillib: running clang-format..."
+	@cd source; $(MAKE) --no-print-directory lint
+	@echo "soillib: done"
