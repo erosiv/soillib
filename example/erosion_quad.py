@@ -105,11 +105,15 @@ def erode(model, steps=512):
   '''
 
   n_particles = 512
+  no_basin_track = 0.0
 
   for step in range(steps):
 
+    if no_basin_track >= 0.99:
+      break;
+
     # Fraction of "Exited" Particles
-    no_basin_track = 0.0
+    no_basin = 0.0
     model[soil.discharge_track][:] = 0.0
     model[soil.momentum_track][:] = [0.0, 0.0]
 
@@ -138,14 +142,18 @@ def erode(model, steps=512):
             break
 
         if model.index.oob(drop.pos):
-          no_basin_track += 1
+          no_basin += 1
 
       # Update Trackable Quantities:
       model[soil.discharge].track(model[soil.discharge_track], lrate)
       model[soil.momentum].track(model[soil.momentum_track], lrate)
 
-    exit_frac = (no_basin_track / n_particles)
-    print(f"{step} ({exit_frac:.3f})")
+      no_basin = (no_basin / n_particles)
+      no_basin_track = (1.0-lrate)*no_basin_track + lrate*no_basin
+
+    # Print Informmation
+
+    print(f"{step} ({no_basin_track:.3f})")
     yield model[soil.height], model[soil.discharge]
 
 def main():
