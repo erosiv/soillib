@@ -7,7 +7,6 @@ namespace nb = nanobind;
 #include <nanobind/ndarray.h>
 
 #include <nanobind/stl/string.h>
-#include <nanobind/stl/variant.h>
 #include <nanobind/stl/function.h>
 
 #include <soillib/core/types.hpp>
@@ -43,7 +42,7 @@ void bind_node(nb::module_& module){
   node.def("bake", &soil::node::bake);
 
   node.def("buffer", [](soil::node& node){
-    auto cached = std::get<soil::cached>(node._node);
+    auto cached = node.as<soil::cached>();
     return soil::select(cached.type(), [&cached]<typename T>() -> soil::buffer {
       return soil::buffer(cached.as<T>().buffer);
     });
@@ -51,7 +50,7 @@ void bind_node(nb::module_& module){
 
   node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::object value){
 
-    auto cached = std::get<soil::cached>(node._node);
+    auto cached = node.as<soil::cached>();
     soil::select(cached.type(), [&cached, &slice, &value]<typename S>(){
 
       auto buffer_t = cached.as<S>().buffer;    // Assignable Strict-Type Buffer
@@ -70,12 +69,13 @@ void bind_node(nb::module_& module){
   });
 
   node.def("__call__", [](soil::node& node, const size_t index){
-    return std::visit([index](auto&& args){
-      return soil::select(args.type(), [&args, index]<typename T>() -> nb::object {
-        T value = args.template as<T>()(index);
+    return soil::select(node.dnode(), [&node, index]<typename S>() -> nb::object {
+      auto node_t = node.as<S>();
+      return soil::select(node_t.type(), [&node_t, index]<typename T>() -> nb::object {
+        T value = node_t.template as<T>()(index);
         return nb::cast<T>(std::move(value));
       });
-    }, node._node);
+    });
   });
 
 //  node.def("__getitem__", [](soil::node& ))
@@ -84,9 +84,10 @@ void bind_node(nb::module_& module){
     return soil::select(node.type(), [node, object]<typename T>() -> soil::node {
       T value = nb::cast<T>(object);
       std::function<T(const size_t)> func = [node, value](const size_t index) -> T {
-        return value * std::visit([index](auto&& args){
-          return args.template as<T>()(index);
-        }, node._node);
+        return value * select(node.dnode(), [node, index]<typename S>(){
+          auto node_t = node.template as<S>();
+          return node_t.template operator()<T>(index);
+        });
       };
       return soil::node(std::move(soil::computed(node.type(), func)));
     });
@@ -100,7 +101,7 @@ void bind_node(nb::module_& module){
       soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
 
       //! \todo Remove this requirement, not actually necessary.
-      auto cached = std::get<soil::cached>(node._node);
+      auto cached = node.as<soil::cached>();
 
       return soil::select(cached.type(), [&]<typename T>() -> nb::object {
 
@@ -232,8 +233,8 @@ void bind_node(nb::module_& module){
       throw std::invalid_argument("nodes are not of the same type");
 
     soil::select(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
-      auto lhs_t = std::get<soil::cached>(lhs._node).as<T>().buffer;
-      auto rhs_t = std::get<soil::cached>(rhs._node).as<T>().buffer;
+      auto lhs_t = lhs.as<soil::cached>().as<T>().buffer;
+      auto rhs_t = rhs.as<soil::cached>().as<T>().buffer;
       for(size_t i = 0; i < lhs_t.elem(); ++i){
         const T lhs_value = lhs_t[i];
         const T rhs_value = rhs_t[i];

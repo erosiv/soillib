@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <tiffio.h>
-#include <variant>
 
 namespace soil {
 namespace io {

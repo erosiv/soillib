@@ -36,7 +36,6 @@ struct WaterParticle_c {
 
 struct WaterParticle: soil::Particle {
 
-  //! \todo replace this with a variant (of course)
   using matrix_t = soil::matrix::singular;
 
   WaterParticle(glm::vec2 pos)
@@ -132,13 +131,13 @@ void WaterParticle::track(soil::model &model) {
   const size_t index = model.index.flatten<2>(this->pos);
 
   {
-    auto cached = std::get<soil::cached>(model[soil::DISCHARGE_TRACK]._node);
+    auto cached = model[soil::DISCHARGE_TRACK].as<soil::cached>();
     soil::buffer_t<float> buffer = cached.as<float>().buffer;
     buffer[index] += this->volume;
   }
 
   {
-    auto cached = std::get<soil::cached>(model[soil::MOMENTUM_TRACK]._node);
+    auto cached = model[soil::MOMENTUM_TRACK].as<soil::cached>();
     soil::buffer_t<vec2> buffer = cached.as<vec2>().buffer;
     buffer[index] += this->volume * this->speed;
   }

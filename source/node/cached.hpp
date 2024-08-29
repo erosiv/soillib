@@ -28,10 +28,14 @@ struct cached_t: typedbase {
   soil::buffer_t<T> buffer;
 };
 
-struct cached {
+struct cached: nodebase {
 
   cached() {}
   cached(const soil::buffer buffer): impl{make(buffer)} {}
+
+  constexpr soil::dnode node() noexcept override {
+    return soil::CACHED;
+  }
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {

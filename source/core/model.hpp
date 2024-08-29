@@ -48,7 +48,7 @@ struct model {
   void add(const size_t index, const float value, const matrix_t matrix) {
     auto height = this->operator[](soil::component::HEIGHT);
     soil::select(height.type(), [self = this, index, &height, value]<typename S>() {
-      auto cached = std::get<soil::cached>(height._node).as<float>();
+      auto cached = height.as<soil::cached>().as<float>();
       cached.buffer[index] += value;
     });
   }

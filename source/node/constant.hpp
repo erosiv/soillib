@@ -29,12 +29,16 @@ private:
 //!
 //! constant can be safely and unsafely cast
 //! to a statically known constant_t<T>.
-struct constant {
+struct constant: nodebase {
 
   constant() {}
 
   template<typename T>
   constant(const soil::dtype type, const T value): impl{make<T>(type, value)} {}
+
+  constexpr soil::dnode node() noexcept override {
+    return soil::CONSTANT;
+  }
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {

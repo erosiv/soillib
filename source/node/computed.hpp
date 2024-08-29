@@ -35,7 +35,7 @@ private:
 
 //! computed is a dynamically typed computed layer.
 //!
-struct computed {
+struct computed: nodebase {
 
   template<typename T>
   using func_t = std::function<T(const size_t)>;
@@ -44,6 +44,10 @@ struct computed {
 
   template<typename T>
   computed(const soil::dtype type, func_t<T> func): impl{make<T>(type, func)} {}
+
+  constexpr soil::dnode node() noexcept override {
+    return soil::COMPUTED;
+  }
 
   //! retrieve the strict-typed type enumerator
   inline soil::dtype type() const noexcept {

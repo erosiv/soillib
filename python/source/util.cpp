@@ -9,7 +9,6 @@ namespace nb = nanobind;
 
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
-#include <nanobind/stl/variant.h>
 #include <nanobind/stl/optional.h>
 
 #include <soillib/util/timer.hpp>

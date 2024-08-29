@@ -94,6 +94,7 @@ This requires a working installation of `nanobind`. Note that the building code 
 
 This is a list of changes I would like to integrate into `soillib`. If you are reading this and motivated to implement any of these, I would be happy to accept any pull requests.
 
+- Make the enum switch based polymorphism more generic / nicely structured in the code
 - Lazy Node Evaluation w. Deep Inlining
 	- Similar to `pytorch`, figure out the most elegant way to make the node evaluation lazy and efficient.
 - Node caching / baking

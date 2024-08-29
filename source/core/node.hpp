@@ -11,6 +11,20 @@
 
 namespace soil {
 
+template<typename F, typename... Args>
+auto select(const soil::dnode type, F lambda, Args &&...args) {
+  switch (type) {
+    case soil::CACHED:
+      return lambda.template operator()<soil::cached>(std::forward<Args>(args)...);
+    case soil::CONSTANT:
+      return lambda.template operator()<soil::constant>(std::forward<Args>(args)...);
+    case soil::COMPUTED:
+      return lambda.template operator()<soil::computed>(std::forward<Args>(args)...);
+  default:
+    throw std::invalid_argument("type not supported");
+  }
+}
+
 //! A layer represents constant, stored or computed
 //! quantity distributed over the domain.
 //!
@@ -21,55 +35,70 @@ namespace soil {
 //! Layers can also cache and pre-compute results for
 //! efficient deferred computation.
 
-using node_v = std::variant<
-    soil::cached,
-    soil::constant,
-    soil::computed>;
-
 struct node {
 
   node() {}
 
-  node(const soil::buffer buffer): _node{soil::cached{buffer}} {}
+  node(const soil::buffer buffer):
+   impl{std::make_shared<soil::cached>(buffer)}{}
 
-  node(soil::cached &&_node): _node{_node} {}
 
-  node(soil::constant &&_node): _node{_node} {}
+  node(soil::cached &&_node): impl{std::make_shared<soil::cached>(_node)} {}
 
-  node(soil::computed &&_node): _node{_node} {}
+  node(soil::constant &&_node): impl{std::make_shared<soil::constant>(_node)} {}
 
-  node(node_v &&_node): _node{_node} {}
+  node(soil::computed &&_node): impl{std::make_shared<soil::computed>(_node)} {}
+
+  //! unsafe cast to strict-type
+  template<typename T>
+  inline T& as() noexcept {
+    return static_cast<T&>(*(this->impl));
+  }
 
   template<typename T>
-  T operator()(const size_t index) {
-    return std::visit([index](auto &&args) {
-      return args.template operator()<T>(index);
-    },
-                      this->_node);
+  inline const T& as() const noexcept {
+    return static_cast<T&>(*(this->impl));
+  }
+
+  // Polymorphic Type Deduction
+
+  soil::dnode dnode() const {
+    return this->impl->node();
   }
 
   soil::dtype type() const {
-    return std::visit([](auto &&args) {
-      return args.type();
-    },
-                      this->_node);
+    return soil::select(this->dnode(), [self=this]<typename T>(){
+      return self->as<T>().type();
+    });
+  }
+
+  // Call Operator
+
+  template<typename T>
+  T operator()(const size_t index) {
+    return soil::select(this->dnode(), [self=this, index]<typename S>(){
+      return self->as<S>().template operator()<T>(index);
+    });
   }
 
   // Bake a Node!
   node bake(const soil::index index) {
-    return std::visit([index](auto &&args) {
-      return soil::select(args.type(), [args, index]<typename T>() {
-        auto node_t = args.template as<T>();
+
+    return soil::select(this->dnode(), [self=this, index]<typename S>(){
+      const auto node = self->as<S>();
+      return soil::select(node.type(), [node, index]<typename T>() {
+        auto node_t = node.template as<T>();
         auto buffer_t = soil::buffer_t<T>(index.elem());
         for (size_t i = 0; i < buffer_t.elem(); ++i)
           buffer_t[i] = node_t(i);
         return soil::node(std::move(soil::cached(buffer_t)));
       });
-    },
-                      this->_node);
+    });
   }
 
-  node_v _node;
+private:
+  using ptr_t = std::shared_ptr<nodebase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
 };
 
 } // end of namespace soil

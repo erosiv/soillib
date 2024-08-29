@@ -167,6 +167,22 @@ struct indexbase {
   }
 };
 
+// Node Base
+
+enum dnode: size_t {
+  CACHED,
+  CONSTANT,
+  COMPUTED
+};
+
+struct nodebase {
+  virtual ~nodebase() {};
+  constexpr virtual soil::dnode node() noexcept {
+    return {};
+  }
+};
+
+
 } // namespace soil
 
 #endif
