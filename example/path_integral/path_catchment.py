@@ -12,6 +12,7 @@ The data is given in .TIFF format.
 import os
 import soillib as soil
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 import numpy as np
 
 from scipy.ndimage import gaussian_filter
@@ -47,10 +48,10 @@ def calc_d8(data):
 
 def main():
 
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
-  #input = "G-T4831-52_BLURRED.tif"
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
+  #input = "out_altmuenster.tiff"
   image = soil.tiff(input)
   node = image.node()
 
@@ -80,37 +81,42 @@ def main():
   # Get original position...
   
   shape = dir_d8.shape
-  samples = 2048
+  samples = 5000
 
   pos = np.random.rand(samples, 2, 1)
   pos[:,0,:] *= shape[0]
   pos[:,1,:] *= shape[1]
   pos = pos.astype(np.int64)
 
-  for n in range(2048):
+  for n in range(512):
     # compute the next position
     npos = pos[..., -1].astype(np.int64)
     direction = dir_d8[npos[:,0], npos[:,1]]
 
     # For the Gaussian:
-    npos[direction == 0] += 2 * np.array([ 1, 0])
-    npos[direction == 1] += 2 * np.array([ 1, 1])
-    npos[direction == 2] += 2 * np.array([ 0, 1])
-    npos[direction == 3] += 2 * np.array([-1, 1])
-    npos[direction == 4] += 2 * np.array([-1, 0])
-    npos[direction == 5] += 2 * np.array([-1,-1])
-    npos[direction == 6] += 2 * np.array([ 0,-1])
-    npos[direction == 7] += 2 * np.array([ 1,-1])
+    npos[direction == 0] += np.array([ 1, 0])
+    npos[direction == 1] += np.array([ 1, 1])
+    npos[direction == 2] += np.array([ 0, 1])
+    npos[direction == 3] += np.array([-1, 1])
+    npos[direction == 4] += np.array([-1, 0])
+    npos[direction == 5] += np.array([-1,-1])
+    npos[direction == 6] += np.array([ 0,-1])
+    npos[direction == 7] += np.array([ 1,-1])
 
     npos = np.clip(npos, [0,0], [shape[0]-1,shape[1]-1])
     pos = np.append(pos, npos[..., np.newaxis], axis=-1)
 
-  plt.imshow(dir_d8)
-  plt.colorbar()
+  fig, ax = plt.subplots()
+  ax.set_xlim(0, shape[1])
+  ax.set_ylim(0, shape[0])
 
-  #plt.scatter(pos[:,1,0], pos[:,0,0], color='w')
-  for n in range(samples):
-    plt.plot(pos[n,1,:], pos[n,0,:], color='black')
+  #plt.imshow(dir_d8)
+  #plt.colorbar()
+
+  pos = np.flip(pos, 1)
+  line_collection = LineCollection(pos.transpose(0,2,1), color='black')
+  ax.add_collection(line_collection)
+  ax.scatter(pos[:,0,0], pos[:,1,0], color='black')
 
   plt.show()
 
