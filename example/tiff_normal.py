@@ -18,7 +18,7 @@ def iter_tiff(path):
 
   if os.path.isfile(path):
     file = os.path.basename(path)
-    return file, path
+    yield file, path.decode('utf-8')
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
@@ -28,7 +28,7 @@ def main(input):
 
   for file, path in iter_tiff(input):
 
-    image = soil.geotiff(path)
+    image = soil.tiff(path)
     node = image.node()
 
     print(f"File: {file}, {node.type}")
@@ -41,5 +41,6 @@ def main(input):
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "out_ebensee.tiff"
   main(data)
