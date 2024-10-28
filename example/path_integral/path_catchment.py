@@ -46,19 +46,17 @@ def calc_d8(data):
   d8[d >= 15.0 / 16.0] = 0
   return d8
 
-def main():
+def main(input = ""):
 
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
-  #input = "out_altmuenster.tiff"
+  # Load the Image, Get the Data
   image = soil.tiff(input)
-  node = image.node()
+  raw_node = image.node()
+  raw_data = raw_node.numpy(image.index)
+  print(f"File: {input}, {raw_node.type}, {raw_data.shape}")
 
-  print(f"File: {input}, {node.type}")
+  # Apply Transformations, Construct 
 
-  normal = soil.normal(image.index, node)
-  data = normal.full().numpy(image.index)
+  raw_data = gaussian_filter(raw_data, sigma=3.0)
 
   # Temporary Gaussian
   # data = np.full((512, 512, 3), 1)
@@ -67,9 +65,17 @@ def main():
   # data[:,:,0] = grid[0]
   # data[:,:,1] = grid[1]
 
+  # Note: Make this easier to construct!
+  buffer = soil.buffer(raw_node.type, raw_data.size)
+  raw_data = raw_data.flatten()
+  for i in range(raw_data.size):
+    buffer[i] = raw_data[i]
+
+  normal = soil.normal(image.index, soil.cached(buffer))
+  data = normal.full().numpy(image.index)
   dir_d8 = calc_d8(data).astype(np.int64)
 
-  # print(p)
+  shape = dir_d8.shape
 
   # Generate a Set of Paths...?
   # 1. Seed Random Points
@@ -80,18 +86,23 @@ def main():
 
   # Get original position...
   
-  shape = dir_d8.shape
-  samples = 5000
+  #samples = 15000
+  #pos = np.random.rand(samples, 2, 1)
+  #pos[:,0,:] *= shape[0]
+  #pos[:,1,:] *= shape[1]
+  #pos = pos.astype(np.int64)
 
-  pos = np.random.rand(samples, 2, 1)
-  pos[:,0,:] *= shape[0]
-  pos[:,1,:] *= shape[1]
-  pos = pos.astype(np.int64)
+  print("Computing Paths...")
 
-  for n in range(512):
+  pos = np.indices((int(shape[0]/4), int(shape[1]/4)))
+  pos = pos*4
+  pos = pos.transpose(1,2,0)
+  pos = pos[..., np.newaxis]
+
+  for n in range(128):
     # compute the next position
     npos = pos[..., -1].astype(np.int64)
-    direction = dir_d8[npos[:,0], npos[:,1]]
+    direction = dir_d8[npos[:,:,0], npos[:,:,1]]
 
     # For the Gaussian:
     npos[direction == 0] += np.array([ 1, 0])
@@ -106,19 +117,29 @@ def main():
     npos = np.clip(npos, [0,0], [shape[0]-1,shape[1]-1])
     pos = np.append(pos, npos[..., np.newaxis], axis=-1)
 
+  print("Plotting Paths...")
+  pos = np.reshape(pos, (pos.shape[0]*pos.shape[1],pos.shape[2],pos.shape[3]))
+
   fig, ax = plt.subplots()
   ax.set_xlim(0, shape[1])
   ax.set_ylim(0, shape[0])
 
-  #plt.imshow(dir_d8)
-  #plt.colorbar()
+  ax.imshow(dir_d8)
+  #ax.imshow(data)
+#  ax.colorbar()
 
   pos = np.flip(pos, 1)
-  line_collection = LineCollection(pos.transpose(0,2,1), color='black')
+  line_collection = LineCollection(pos.transpose(0,2,1), color='w', alpha=0.05)
   ax.add_collection(line_collection)
-  ax.scatter(pos[:,0,0], pos[:,1,0], color='black')
+#  ax.scatter(pos[:,0,0], pos[:,1,0], color='w')
 
   plt.show()
 
 if __name__ == "__main__":
-  main()
+
+  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
+  #input = "out_altmuenster.tiff"
+
+  main(input)
