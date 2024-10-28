@@ -14,7 +14,7 @@ import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
 
-def clamp_dirs(data):
+def calc_d8(data):
 
   # De-Normalize
   data = 2.0*data - 1.0
@@ -25,21 +25,12 @@ def clamp_dirs(data):
   norm = norm[..., np.newaxis]
   direction = direction / norm
 
-  # Show 2D Direction
-  # direction = 0.5 + 0.5*direction
-  # direction = np.append(direction, np.full(norm.shape, 0), axis=2)
-  # return direction
-
-  # Compute the D8 Direction
-
-  #d8[direction[:,:,0] >= 0] += 1
-  #d8[direction[:,:,1] >= 0] += 1
-
+  # Compute the Angle (Range [0, 1])
   d = np.arctan2(direction[:,:,1], direction[:,:,0])
   d = d / (2.0 * np.pi)
   d[d < 0] += 1.0
 
-  #print(d.shape)
+  # Compute the Clamped Directions (Anti-Clockwise f. East)
   d8 = np.full((norm.shape[0], norm.shape[1]), 0)
   d8[d >=  1.0 / 16.0] += 1
   d8[d >=  3.0 / 16.0] += 1
@@ -54,7 +45,7 @@ def clamp_dirs(data):
 def main():
 
   input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   image = soil.tiff(input)
   node = image.node()
 
@@ -70,9 +61,16 @@ def main():
   # data[:,:,0] = grid[0]
   # data[:,:,1] = grid[1]
 
-  new_data = clamp_dirs(data)
-
+  new_data = calc_d8(data)
   new_data = np.transpose(new_data, (1,0))
+
+  # Generate a Set of Paths...?
+  # 1. Seed Random Points
+  # 2. Step Based on D8 Position?
+  # 3. Iterate this... store somehow
+  # 4. See if we can visualize these paths somehow??
+  # 5. That would basically confirm that we are doing it right.
+
   plt.imshow(new_data)
   plt.colorbar()
   plt.show()
