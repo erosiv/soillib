@@ -3,6 +3,7 @@
 
 #include <soillib/index/flat.hpp>
 #include <soillib/index/quad.hpp>
+#include <iostream>
 
 //! index is a polymorphic index_t wrapper
 //!
@@ -40,7 +41,8 @@ struct index {
   template<size_t D>
   using vec_t = glm::vec<D, int>;
 
-  index() {}
+  index(){}
+  //index(const index& other):impl{other.impl}{}
 
   //! \todo remove this template for something better.
   index(const vec_t<1> vec) { this->impl = std::make_shared<flat_t<1>>(vec); }

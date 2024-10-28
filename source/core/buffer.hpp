@@ -6,6 +6,7 @@
 
 #include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
+#include <iostream>
 
 namespace soil {
 
@@ -86,6 +87,8 @@ void buffer_t<T>::deallocate() {
 struct buffer {
 
   buffer() = default;
+  //buffer(const buffer& buffer):impl{buffer.impl}{}
+
   buffer(const soil::dtype type, const size_t size): impl{make(type, size)} {}
 
   //! Note that since it holds a shared pointer to a buffer_t,

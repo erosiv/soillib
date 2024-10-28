@@ -148,6 +148,9 @@ def main(input):
 
   array, shape = merge(input, pscale=0.1)
 
+  tiff_out = soil.tiff(array, shape)
+  tiff_out.write("out.tiff")
+
   #show_relief(array, shape)
   show_normal(array, shape)
   #show_height(array, shape)
@@ -155,8 +158,8 @@ def main(input):
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   main(data)

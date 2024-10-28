@@ -16,6 +16,8 @@ namespace nb = nanobind;
 #include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
 
+#include <soillib/util/select.hpp>
+
 #include "glm.hpp"
 
 //
@@ -189,6 +191,19 @@ buffer.def("numpy", [](soil::buffer& buffer) -> nb::object {
     throw std::invalid_argument("can't convert this buffer to numpy");
   });
 });
+
+//
+//
+//
+
+module.def("test", []() -> nb::object {
+  soil::EnumA value = soil::EnumA::A;
+  return soil::_select(value, []<typename T>() -> nb::object {
+    return nb::cast(T{0});
+  });
+});
+
+
 
 }
 

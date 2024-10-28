@@ -21,7 +21,7 @@ struct tiff {
   tiff() {}
   tiff(const char *filename) { read(filename); };
 
-  tiff(soil::buffer _buffer, soil::index index): _index{_index}, _buffer{_buffer} {
+  tiff(const soil::buffer& _buffer, const soil::index& _index): _index{_index}, _buffer{_buffer} {
 
     auto type = _buffer.type();
 

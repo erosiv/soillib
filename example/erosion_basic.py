@@ -50,7 +50,8 @@ def render(model):
   height_data = model[soil.height].numpy(index)
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(model[soil.discharge].numpy(index))
+  discharge_data = sigmoid(100.0*model[soil.discharge].numpy(index))
+  #discharge_data = model[soil.discharge].numpy(index)
 
 #  momentum_data = sigmoid(model.momentum.numpy(index))
 #  momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
@@ -110,7 +111,7 @@ def erode(model, steps=512):
 
   for step in range(steps):
 
-    if no_basin_track >= 0.99:
+    if no_basin_track >= 0.995:
       break;
 
     # Fraction of "Exited" Particles
@@ -161,8 +162,8 @@ def main():
 
   np.random.seed(0)
   index = soil.index([512, 512])
-  model = make_model(index, seed = 4.0)
-  for h, d in erode(model, steps = 1024):
+  model = make_model(index, seed = 25.0)
+  for h, d in erode(model, steps = 512):
     pass
 
   render(model)
