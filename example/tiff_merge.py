@@ -4,6 +4,7 @@ import os
 import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage.transform as skt
 
 def relief_shade(h, n):
 
@@ -70,7 +71,10 @@ def merge(input, pscale = 0.1):
 
     geotiff = soil.geotiff()
     geotiff.meta(path)
-    meta = geotiff.get_meta()
+    _meta = geotiff.get_meta()
+    if meta == None and _meta.metadata != "":
+      meta = _meta
+      print(meta.metadata)
 
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -93,35 +97,32 @@ def merge(input, pscale = 0.1):
 
   for file, path in iter_tiff(input):
 
-    # Load the Geotiff, Get the Buffer in Numpy
-    geotiff = soil.geotiff(path)
-    buf = geotiff.buffer()
-    buf = buf.numpy().reshape((geotiff.height, geotiff.width))
-  
-    # Get the World-Space Position of the Image
-    gmin = np.array(geotiff.min)
-    gmax = np.array(geotiff.max)
-    gscale = np.array(geotiff.scale)
-    
-    # Get the Pixel-Space Extent of the Image
-    pmin = (pscale * (gmin - wmin) / wscale).astype(np.int64)
-    pmax = (pscale * (gmax - wmin) / wscale).astype(np.int64)
-    shape = buf.shape
-
     print(f"Merging: {file}")
     with soil.timer(soil.ms) as timer:
 
+      # Load the Geotiff, Get the Buffer in Numpy, Downscale
+      geotiff = soil.geotiff(path)
+      buf = geotiff.buffer()
+      buf = buf.numpy().reshape((geotiff.height, geotiff.width))
+      buf = skt.rescale(buf, pscale, anti_aliasing=True)
+  
+      # Get the World-Space Position of the Image
+      gmin = np.array(geotiff.min)
+      gmax = np.array(geotiff.max)
+      gscale = np.array(geotiff.scale)
+      
+      # Get the Pixel-Space Extent of the Image
+      pmin = (pscale * (gmin - wmin) / wscale).astype(np.int64)
+      pmax = (pscale * (gmax - wmin) / wscale).astype(np.int64)
+      shape = buf.shape
+
+      # Re-Sample the Image
       for x in range(pmin[0], pmax[0]):
         for y in range(pmin[1], pmax[1]):
-          px = int((x - pmin[0]) / pscale)
-          py = int((pmax[1]-y-1) / pscale)
           index = x*pixels[1] + (pixels[1] - y - 1)
+          px = int((x - pmin[0]))
+          py = int((pmax[1]-y-1))
           array[index] = buf[py, px]
-
-          '''
-          from skimage.transform import resize
-          bottle_resized = resize(bottle, (140, 54))
-          '''
 
   return array, mshape, meta
 
@@ -176,7 +177,7 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   main(data)
