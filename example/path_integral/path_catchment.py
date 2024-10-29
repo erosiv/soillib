@@ -124,19 +124,19 @@ def main(input = ""):
   ax.set_xlim(0, shape[1])
   ax.set_ylim(0, shape[0])
 
-  ax.imshow(dir_d8)
-  #ax.imshow(data)
+  #ax.imshow(dir_d8)
+  ax.imshow(data)
 #  ax.colorbar()
 
   pos = np.flip(pos, 1)
   line_collection = LineCollection(pos.transpose(0,2,1), color='w', alpha=0.05)
   ax.add_collection(line_collection)
-#  ax.scatter(pos[:,0,0], pos[:,1,0], color='w')
 
   plt.show()
 
 if __name__ == "__main__":
 
+#  input = "/home/nickmcdonald/Downloads/elevation.tiff"
   input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
