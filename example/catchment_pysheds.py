@@ -23,10 +23,10 @@ def condition(model):
   grid, dem = model
 
   dem_pit = grid.fill_pits(dem)               # Fill Single Pits
-  dem_flood = grid.fill_depressions(dem_pit)  # Fill Large Pits
-  dem_slope = grid.resolve_flats(dem_flood)   # Fix Flat Sections
+  #dem_flood = grid.fill_depressions(dem_pit)  # Fill Large Pits
+  #dem_slope = grid.resolve_flats(dem_flood)   # Fix Flat Sections
 
-  return (grid, dem_slope)
+  return (grid, dem_flood)
 
 def flow(model):
 
@@ -84,11 +84,12 @@ def plot_flow(model):
 def plot_acc(model):
 
   grid, acc = model
+  acc = np.transpose(acc)
 
   fig, ax = plt.subplots(figsize=(8,6))
   fig.patch.set_alpha(0)
   plt.grid('on', zorder=0)
-  im = ax.imshow(acc, extent=grid.extent, zorder=2,
+  im = ax.imshow(acc, zorder=2,
                 cmap='cubehelix',
                 norm=colors.LogNorm(1, acc.max()),
                 interpolation='bilinear')
@@ -108,8 +109,8 @@ def main(filename):
   print("Loading File...")
   model = load(filename)
   
-  print("Conditioning DEM...")
-  model = condition(model)
+  #print("Conditioning DEM...")
+  #model = condition(model)
 
   #print("Plotting DEM...")
   #plot_dem(model)
@@ -127,9 +128,9 @@ def main(filename):
 if __name__ == "__main__":
 
   #input = "/home/nickmcdonald/Downloads/elevation.tiff"
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #input = "out_altmuenster.tiff"
-
+  input = "out.tiff"
   main(input)

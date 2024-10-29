@@ -46,6 +46,7 @@ def iter_tiff(path):
   elif os.path.isdir(path):
     for file in os.listdir(path):
       yield file, os.path.join(path, file).decode('utf-8')
+      #return
 
   else:
     raise RuntimeError("path must be file or directory")
@@ -61,6 +62,7 @@ def merge(input, pscale = 0.1):
   wmin = np.array([np.finfo(np.float32).max, np.finfo(np.float32).max])
   wmax = np.array([np.finfo(np.float32).min, np.finfo(np.float32).min])
   wscale = None
+  meta = None
 
   for file, path in iter_tiff(input):
   
@@ -68,6 +70,7 @@ def merge(input, pscale = 0.1):
 
     geotiff = soil.geotiff()
     geotiff.meta(path)
+    meta = geotiff.get_meta()
 
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -83,20 +86,24 @@ def merge(input, pscale = 0.1):
   # Create Merged Filling Array
   
   pixels = (pscale * ((wmax - wmin)/wscale)).astype(np.int64)
-  pixels_ = soil.index(pixels)
-  array = soil.buffer(soil.float32, pixels_.elem())
+  mshape = soil.index(pixels)
+
+  array = soil.buffer(soil.float32, mshape.elem())
   array.fill(np.nan)
 
   for file, path in iter_tiff(input):
 
+    # Load the Geotiff, Get the Buffer in Numpy
     geotiff = soil.geotiff(path)
     buf = geotiff.buffer()
     buf = buf.numpy().reshape((geotiff.height, geotiff.width))
   
+    # Get the World-Space Position of the Image
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
     gscale = np.array(geotiff.scale)
     
+    # Get the Pixel-Space Extent of the Image
     pmin = (pscale * (gmin - wmin) / wscale).astype(np.int64)
     pmax = (pscale * (gmax - wmin) / wscale).astype(np.int64)
     shape = buf.shape
@@ -111,7 +118,12 @@ def merge(input, pscale = 0.1):
           index = x*pixels[1] + (pixels[1] - y - 1)
           array[index] = buf[py, px]
 
-  return array, pixels_
+          '''
+          from skimage.transform import resize
+          bottle_resized = resize(bottle, (140, 54))
+          '''
+
+  return array, mshape, meta
 
 def show_height(array, index):
 
@@ -146,9 +158,14 @@ def show_relief(array, index):
 
 def main(input):
 
-  array, shape = merge(input, pscale=0.1)
+  array, shape, meta = merge(input, pscale=0.1)
 
-  tiff_out = soil.tiff(array, shape)
+  '''
+  Figure out how to export this is a valid GeoTIFF!
+  '''
+
+  tiff_out = soil.geotiff(array, shape)
+  tiff_out.set_meta(meta)
   tiff_out.write("out.tiff")
 
   #show_relief(array, shape)
@@ -159,7 +176,7 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   main(data)

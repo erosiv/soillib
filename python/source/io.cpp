@@ -18,6 +18,8 @@ void bind_io(nb::module_& module){
 //! TIFF Datatype
 
 auto tiff = nb::class_<soil::io::tiff>(module, "tiff");
+
+tiff.def(nb::init<>());
 tiff.def(nb::init<const char*>());
 tiff.def("__init__", [](soil::io::tiff* tiff, const soil::buffer& buffer, const soil::index& index){
   new (tiff) soil::io::tiff(buffer, index);
@@ -42,9 +44,13 @@ auto geotiff = nb::class_<soil::io::geotiff, soil::io::tiff>(module, "geotiff");
 
 geotiff.def(nb::init<>());
 geotiff.def(nb::init<const char*>());
+geotiff.def("__init__", [](soil::io::geotiff* geotiff, const soil::buffer& buffer, const soil::index& index){
+  new (geotiff) soil::io::geotiff(buffer, index);
+});
 
 geotiff.def("meta", &soil::io::geotiff::meta);
 geotiff.def("read", &soil::io::geotiff::read);
+geotiff.def("write", &soil::io::geotiff::write);
 
 geotiff.def_prop_ro("min", [](soil::io::geotiff& geotiff){
   return geotiff.min();
@@ -57,6 +63,11 @@ geotiff.def_prop_ro("max", [](soil::io::geotiff& geotiff){
 geotiff.def_prop_ro("scale", [](soil::io::geotiff& geotiff){
   return geotiff.scale();
 });
+
+auto geotiff_meta = nb::class_<soil::io::geotiff::meta_t>(module, "geotiff_meta");
+
+geotiff.def("get_meta", &soil::io::geotiff::get_meta);
+geotiff.def("set_meta", &soil::io::geotiff::set_meta);
 
 }
 

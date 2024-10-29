@@ -128,18 +128,18 @@ def main(input = ""):
   ax.imshow(data)
 #  ax.colorbar()
 
-  pos = np.flip(pos, 1)
-  line_collection = LineCollection(pos.transpose(0,2,1), color='w', alpha=0.05)
-  ax.add_collection(line_collection)
+  #pos = np.flip(pos, 1)
+  #line_collection = LineCollection(pos.transpose(0,2,1), color='w', alpha=0.05)
+  #ax.add_collection(line_collection)
 
   plt.show()
 
 if __name__ == "__main__":
 
 #  input = "/home/nickmcdonald/Downloads/elevation.tiff"
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
-  #input = "out_altmuenster.tiff"
+  input = "out_altmuenster.tiff"
 
   main(input)
