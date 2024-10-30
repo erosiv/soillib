@@ -74,7 +74,7 @@ def merge(input, pscale = 0.1):
     _meta = geotiff.get_meta()
     if meta == None and _meta.metadata != "":
       meta = _meta
-      print(meta.metadata)
+      #print(meta.metadata)
 
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -159,7 +159,7 @@ def show_relief(array, index):
 
 def main(input):
 
-  array, shape, meta = merge(input, pscale=0.1)
+  array, shape, meta = merge(input, pscale=0.2)
 
   '''
   Figure out how to export this is a valid GeoTIFF!
