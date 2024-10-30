@@ -128,9 +128,9 @@ def main(filename):
 if __name__ == "__main__":
 
   #input = "/home/nickmcdonald/Downloads/elevation.tiff"
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #input = "out_altmuenster.tiff"
-  input = "out.tiff"
+  #input = "out.tiff"
   main(input)
