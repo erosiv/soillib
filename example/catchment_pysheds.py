@@ -22,11 +22,14 @@ def condition(model):
 
   grid, dem = model
 
+  print("PIT")
   dem_pit = grid.fill_pits(dem)               # Fill Single Pits
-  #dem_flood = grid.fill_depressions(dem_pit)  # Fill Large Pits
-  #dem_slope = grid.resolve_flats(dem_flood)   # Fix Flat Sections
+  print("FLOOD")
+  dem_flood = grid.fill_depressions(dem_pit)  # Fill Large Pits
+  print("SLOPE")
+  dem_slope = grid.resolve_flats(dem_flood)   # Fix Flat Sections
 
-  return (grid, dem_flood)
+  return (grid, dem_slope)
 
 def flow(model):
 
@@ -109,8 +112,8 @@ def main(filename):
   print("Loading File...")
   model = load(filename)
   
-  #print("Conditioning DEM...")
-  #model = condition(model)
+  print("Conditioning DEM...")
+  model = condition(model)
 
   #print("Plotting DEM...")
   #plot_dem(model)
@@ -127,8 +130,9 @@ def main(filename):
 
 if __name__ == "__main__":
 
-  #input = "/home/nickmcdonald/Downloads/elevation.tiff"
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  input = "/home/nickmcdonald/Datasets/elevation.tiff"
+  #input = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #input = "out_altmuenster.tiff"

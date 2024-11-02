@@ -42,7 +42,7 @@ def iter_tiff(path):
 
   if os.path.isfile(path):
     file = os.path.basename(path)
-    return file, path
+    yield file, path.decode('utf-8')
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
@@ -180,4 +180,6 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
   data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+
   main(data)

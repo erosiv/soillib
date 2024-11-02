@@ -141,14 +141,14 @@ def condition(model):
         t = np.argmin(E)
         flow[x, y] = dirmap[t]
 
-  N = 32    # Number of Iterations
-  K = 2**16 # Samples per Iteration
+  N = 64     # Number of Iterations
+  K = 2**14 # Samples per Iteration
 
   for n in range(N):
 
     print(n)
 
-    flow_next = flow.copy()
+#    flow_next = flow.copy()
     area = grid.accumulation(flow, dirmap=dirmap)
 
     # Note: Add a way to compute total energy cost
@@ -165,6 +165,9 @@ def condition(model):
       f_state = flow[x-1:x+2, y-1:y+2]
       a_state = area[x-1:x+2, y-1:y+2]
 
+      if area[x,y] < 1E2:
+        continue
+
       E = []
       for i in range(8):
         E = np.append(E, energy(f_state, a_state, i))
@@ -174,9 +177,11 @@ def condition(model):
       # -> Update the Local State
 
       t = np.argmin(E)
-      flow_next[x, y] = dirmap[t]
+      flow[x, y] = dirmap[t]
     
-    flow = flow_next
+#    plt.imshow(flow != flow_next)
+#    plt.show()
+   # flow = flow_next
 
   return (grid, dem, dirmap, flow)
 
@@ -293,9 +298,9 @@ def main(filename):
 if __name__ == "__main__":
 
   #input = "/home/nickmcdonald/Downloads/elevation.tiff"
-  input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #input = "out_altmuenster.tiff"
-  #input = "out.tiff"
+  input = "out.tiff"
   main(input)
