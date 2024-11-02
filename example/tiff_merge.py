@@ -84,15 +84,17 @@ def merge(input, pscale = 0.1):
 
 def main(input):
 
-  array, shape, meta = merge(input, pscale=0.2)
+  array, shape, meta = merge(input, pscale=0.1)
 
   '''
   Figure out how to export this is a valid GeoTIFF!
   '''
 
   tiff_out = soil.geotiff(array, shape)
-#  tiff_out.set_meta(meta)
-  tiff_out.write("out.tiff")
+  tiff_out.set_meta(meta)
+  print("NODATA VALUE", meta.nodata)
+  tiff_out.unsetnan()
+  tiff_out.write("merge.tiff")
 
   #show_relief(array, shape)
   #show_normal(array, shape)
@@ -104,8 +106,8 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
-  data = "/home/nickmcdonald/Datasets/elevation.tiff"
+  #data = "/home/nickmcdonald/Datasets/elevation.tiff"
 
   main(data)

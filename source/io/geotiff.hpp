@@ -121,6 +121,7 @@ struct geotiff: soil::io::tiff {
     this->_meta.params = _meta.params;
   }
 
+  void unsetNaN();  //!< Set Available NoData Values to NaN=
 private:
   void setNaN();  //!< Set Available NoData Values to NaN=
   meta_t _meta;   //!< Local Meta-Data
@@ -228,6 +229,16 @@ void geotiff::setNaN() {
   if(this->_meta.gdal_nodata == "")
     return;
 
+  if (this->bits() == 16) {
+    auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto buffer = this->_buffer.as<float>();
+    const float _nodata = std::stof(this->_meta.gdal_nodata);
+    for (size_t i = 0; i < buffer.elem(); ++i) {
+      if (buffer[i] == _nodata)
+        buffer[i] = nan;
+    }
+  }
+
   if (this->bits() == 32) {
     auto nan = std::numeric_limits<float>::quiet_NaN();
     auto buffer = this->_buffer.as<float>();
@@ -241,12 +252,50 @@ void geotiff::setNaN() {
   if (this->bits() == 64) {
     auto nan = std::numeric_limits<double>::quiet_NaN();
     auto buffer = this->_buffer.as<double>();
-    const double _nodata = std::stof(this->_meta.gdal_nodata);
+    const double _nodata = std::stod(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == _nodata)
         buffer[i] = nan;
     }
   }
+}
+
+void geotiff::unsetNaN() {
+
+  if(this->_meta.gdal_nodata == "")
+    return;
+
+  if (this->bits() == 16) {
+    auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto buffer = this->_buffer.as<float>();
+    const float _nodata = std::stof(this->_meta.gdal_nodata);
+    for (size_t i = 0; i < buffer.elem(); ++i) {
+      if (buffer[i] == nan){
+          buffer[i] = _nodata;
+      }
+    }
+  }
+
+  if (this->bits() == 32) {
+    auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto buffer = this->_buffer.as<float>();
+    const float _nodata = std::stof(this->_meta.gdal_nodata);
+    for (size_t i = 0; i < buffer.elem(); ++i) {
+      if (buffer[i] == nan)
+        buffer[i] = _nodata;
+    }
+  }
+
+  if (this->bits() == 64) {
+    auto nan = std::numeric_limits<double>::quiet_NaN();
+    auto buffer = this->_buffer.as<double>();
+    const double _nodata = std::stod(this->_meta.gdal_nodata);
+    for (size_t i = 0; i < buffer.elem(); ++i) {
+      if (buffer[i] == nan)
+        buffer[i] = _nodata;
+    }
+  }
+
 }
 
 }; // end of namespace io

@@ -69,8 +69,14 @@ auto geotiff_meta = nb::class_<soil::io::geotiff::meta_t>(module, "geotiff_meta"
 geotiff.def("get_meta", &soil::io::geotiff::get_meta);
 geotiff.def("set_meta", &soil::io::geotiff::set_meta);
 
+geotiff.def("unsetnan", &soil::io::geotiff::unsetNaN);
+
 geotiff_meta.def_prop_ro("metadata", [](soil::io::geotiff::meta_t& m){
   return m.gdal_metadata;
+});
+
+geotiff_meta.def_prop_ro("nodata", [](soil::io::geotiff::meta_t& m){
+  return m.gdal_nodata;
 });
 
 }

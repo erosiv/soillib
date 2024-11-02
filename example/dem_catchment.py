@@ -90,5 +90,7 @@ if __name__ == "__main__":
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #input = "out_altmuenster.tiff"
   #input = "/home/nickmcdonald/Datasets/elevation.tiff"
-  input = "elevation_conditioned.tiff"
+  input = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  #input = "merge.tiff"
+  #input = "conditioned.tiff"
   main(input)

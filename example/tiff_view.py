@@ -27,6 +27,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/elevation.tiff"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
-  data = "./elevation_conditioned.tiff"
+  #data = "./elevation_conditioned.tiff"
+  data = "merge.tiff"
 
   main(data)
