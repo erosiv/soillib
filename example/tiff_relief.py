@@ -18,7 +18,7 @@ def iter_tiff(path):
 
   if os.path.isfile(path):
     file = os.path.basename(path)
-    return file, path
+    yield file, path.decode('utf-8')
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
@@ -32,9 +32,10 @@ def relief_shade(h, n):
   h = (h - h_min)/(h_max - h_min)
 
   # Light Direction, Diffuse Lighting
-  light = np.array([-1, 1, 2])
+  light = np.array([-1, 2, 1])
   light = light / np.linalg.norm(light)
 
+  n = 0.5*n + 0.5
   diffuse = np.sum(light * n, axis=-1)
   diffuse = 0.05 + 0.9*diffuse
 
@@ -70,5 +71,6 @@ def main(input):
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+#  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "out_ebensee.tiff"
   main(data)

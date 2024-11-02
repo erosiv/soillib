@@ -166,12 +166,12 @@ def main(input):
   '''
 
   tiff_out = soil.geotiff(array, shape)
-  tiff_out.set_meta(meta)
+#  tiff_out.set_meta(meta)
   tiff_out.write("out.tiff")
 
   #show_relief(array, shape)
-  show_normal(array, shape)
-  #show_height(array, shape)
+  #show_normal(array, shape)
+  show_height(array, shape)
 
 if __name__ == "__main__":
 
@@ -180,6 +180,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
   data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  data = "/home/nickmcdonald/Datasets/elevation.tiff"
 
   main(data)

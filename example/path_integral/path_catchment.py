@@ -20,8 +20,8 @@ from scipy.ndimage import gaussian_filter
 def calc_d8(data):
 
   # De-Normalize
-  data = 2.0*data - 1.0
-  data[:,:,1] *= -1
+#  data = 2.0*data - 1.0
+#  data[:,:,1] *= -1
   direction = data[:,:,:2]
 
   # Get 2D Normal Vectors
@@ -93,13 +93,13 @@ def main(input = ""):
   #pos = pos.astype(np.int64)
 
   print("Computing Paths...")
+#
+#  pos = np.indices((int(shape[0]/4), int(shape[1]/4)))
+#  pos = pos*4
+#  pos = pos.transpose(1,2,0)
+#  pos = pos[..., np.newaxis]
 
-  pos = np.indices((int(shape[0]/4), int(shape[1]/4)))
-  pos = pos*4
-  pos = pos.transpose(1,2,0)
-  pos = pos[..., np.newaxis]
-
-  for n in range(128):
+  for n in range(4):
     # compute the next position
     npos = pos[..., -1].astype(np.int64)
     direction = dir_d8[npos[:,:,0], npos[:,:,1]]
@@ -136,10 +136,11 @@ def main(input = ""):
 
 if __name__ == "__main__":
 
-#  input = "/home/nickmcdonald/Downloads/elevation.tiff"
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
-  #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
-  input = "out_altmuenster.tiff"
+  #data = "/home/nickmcdonald/Downloads/elevation.tiff"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
+  #data = "out_altmuenster.tiff"
+  data = "/home/nickmcdonald/Datasets/elevation.tiff"
 
-  main(input)
+  main(data)

@@ -82,6 +82,7 @@ glm::vec3 normal_impl(const soil::buffer &buffer, const soil::index index, glm::
 
   auto _buffer = buffer.as<T>();
 
+  // Gather 5x5 Region
   sample_t<T> px[5], py[5];
   for (size_t i = 0; i < 5; ++i) {
 
@@ -104,11 +105,11 @@ glm::vec3 normal_impl(const soil::buffer &buffer, const soil::index index, glm::
     }
   }
 
+  // Compute Local Gradient
   const glm::vec2 g = gradient_detailed<T>(px, py);
 
   // Normal Vector from Gradient
-
-  glm::vec3 n = glm::vec3(-g.x, 1.0f, -g.y);
+  glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
   if (length(n) > 0)
     n = normalize(n);
   return n;
@@ -152,8 +153,6 @@ struct normal {
 
         for (const auto &pos : index.iter()) {
           glm::vec3 n = self->operator()(pos);
-          n = {n.x, -n.z, n.y};
-          n = 0.5f * n + 0.5f;
           out[index.flatten(pos)] = {n.x, n.y, n.z};
         }
 
