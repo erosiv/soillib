@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 
-import os
+from __common__ import *
+
 import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
-
-def iter_tiff(path):
-
-  '''
-  Generator for all Files in 
-  Directory, or a Single File
-  '''
-
-  path = os.fsencode(path)
-  if not os.path.exists(path):
-    raise RuntimeError("path does not exist")
-
-  if os.path.isfile(path):
-    file = os.path.basename(path)
-    yield file, path.decode('utf-8')
-
-  elif os.path.isdir(path):
-    for file in os.listdir(path):
-      yield file, os.path.join(path, file).decode('utf-8')
 
 def main(input):
 
@@ -41,9 +23,10 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "./out.tiff"
+  #data = "./out.tiff"
   #data = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
   #data = "out_ebensee.tiff"
+  data = "/home/nickmcdonald/Datasets/elevation.tiff"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
 
-  #data = "/home/nickmcdonald/Datasets/elevation.tiff"
   main(data)

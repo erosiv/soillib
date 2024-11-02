@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os
+from __common__ import *
+
 import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,29 +29,6 @@ def relief_shade(h, n):
   # Full Diffuse Shading Value
   diffuse = (1.0 - weight) * diffuse + weight * flattone
   return diffuse
-
-def iter_tiff(path):
-
-  '''
-  Generator for all Files in 
-  Directory, or a Single File
-  '''
-
-  path = os.fsencode(path)
-  if not os.path.exists(path):
-    raise RuntimeError("path does not exist")
-
-  if os.path.isfile(path):
-    file = os.path.basename(path)
-    yield file, path.decode('utf-8')
-
-  elif os.path.isdir(path):
-    for file in os.listdir(path):
-      yield file, os.path.join(path, file).decode('utf-8')
-      #return
-
-  else:
-    raise RuntimeError("path must be file or directory")
 
 def merge(input, pscale = 0.1):
 
@@ -90,7 +68,7 @@ def merge(input, pscale = 0.1):
   # Create Merged Filling Array
   
   pixels = (pscale * ((wmax - wmin)/wscale)).astype(np.int64)
-  mshape = soil.index(pixels)
+  mshape = soil.index([pixels[1], pixels[0]])
 
   array = soil.buffer(soil.float32, mshape.elem())
   array.fill(np.nan)
@@ -102,9 +80,10 @@ def merge(input, pscale = 0.1):
 
       # Load the Geotiff, Get the Buffer in Numpy, Downscale
       geotiff = soil.geotiff(path)
-      buf = geotiff.buffer()
-      buf = buf.numpy().reshape((geotiff.height, geotiff.width))
-      buf = skt.rescale(buf, pscale, anti_aliasing=True)
+      node = geotiff.node()
+
+      data = node.numpy(geotiff.index)
+      data = skt.rescale(data, pscale, anti_aliasing=True)
   
       # Get the World-Space Position of the Image
       gmin = np.array(geotiff.min)
@@ -114,15 +93,15 @@ def merge(input, pscale = 0.1):
       # Get the Pixel-Space Extent of the Image
       pmin = (pscale * (gmin - wmin) / wscale).astype(np.int64)
       pmax = (pscale * (gmax - wmin) / wscale).astype(np.int64)
-      shape = buf.shape
+      shape = data.shape
 
       # Re-Sample the Image
-      for x in range(pmin[0], pmax[0]):
-        for y in range(pmin[1], pmax[1]):
-          index = x*pixels[1] + (pixels[1] - y - 1)
-          px = int((x - pmin[0]))
-          py = int((pmax[1]-y-1))
-          array[index] = buf[py, px]
+      for x in range(pmin[1], pmax[1]):
+        for y in range(pmin[0], pmax[0]):
+          index = y + pixels[0]*(pixels[1] - x - 1)
+          px = int((pmax[1]-x-1))
+          py = int((y-pmin[0]))
+          array[index] = data[px, py]
 
   return array, mshape, meta
 
@@ -130,7 +109,6 @@ def show_height(array, index):
 
   array = soil.cached(array)
   data = array.numpy(index)
-  data = np.transpose(data)
   plt.imshow(data)
   plt.show()
 
@@ -140,7 +118,6 @@ def show_normal(array, index):
   normal = soil.normal(index, array)
 
   data = normal.full().numpy(index)
-  data = np.transpose(data, (1, 0, 2))
   plt.imshow(data)
   plt.show()
 
@@ -153,7 +130,6 @@ def show_relief(array, index):
   height_data = array.numpy(index)
   
   relief = relief_shade(height_data, normal_data) 
-  relief = np.transpose(relief, (1, 0))
   plt.imshow(relief, cmap='gray')
   plt.show()
 
@@ -179,7 +155,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   data = "/home/nickmcdonald/Datasets/elevation.tiff"
 
