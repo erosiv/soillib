@@ -23,10 +23,10 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  #data = "./out.tiff"
   #data = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
-  #data = "out_ebensee.tiff"
-  data = "/home/nickmcdonald/Datasets/elevation.tiff"
+  #data = "/home/nickmcdonald/Datasets/elevation.tiff"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "./elevation_conditioned.tiff"
 
   main(data)

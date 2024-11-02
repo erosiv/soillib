@@ -9,48 +9,7 @@ from pysheds.grid import Grid
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
-
-# Load the Digital Elevation Model
-def load(filename):
-
-  grid = Grid.from_raster(filename)
-  dem = grid.read_raster(filename)
-
-  return (grid, dem)
-
-def condition(model):
-
-  grid, dem = model
-
-  print("PIT")
-  dem_pit = grid.fill_pits(dem)               # Fill Single Pits
-  print("FLOOD")
-  dem_flood = grid.fill_depressions(dem_pit)  # Fill Large Pits
-  print("SLOPE")
-  dem_slope = grid.resolve_flats(dem_flood)   # Fix Flat Sections
-
-  return (grid, dem_slope)
-
-def flow(model):
-
-  grid, dem = model
-
-  dirmap = (64, 128, 1, 2, 4, 8, 16, 32)
-  fdir = grid.flowdir(dem, dirmap=dirmap)
-
-  return (grid, fdir, dirmap)
-
-def catchment(model):
-
-  grid, fdir, dirmap = model
-
-  acc = grid.accumulation(fdir, dirmap=dirmap)
- 
-  return (grid, acc)
-
-'''
-Plotting Functions
-'''
+import soillib as soil
 
 def plot_dem(model):
 
@@ -84,10 +43,9 @@ def plot_flow(model):
   plt.tight_layout()
   plt.show()
 
-def plot_acc(model):
+def plot_area(model):
 
   grid, acc = model
-  acc = np.transpose(acc)
 
   fig, ax = plt.subplots(figsize=(8,6))
   fig.patch.set_alpha(0)
@@ -109,32 +67,28 @@ Main Control Flow
 
 def main(filename):
 
-  print("Loading File...")
-  model = load(filename)
-  
-  print("Conditioning DEM...")
-  model = condition(model)
+  print(f"Loading DEM ({filename})...")
 
-  #print("Plotting DEM...")
-  #plot_dem(model)
+  grid = Grid.from_raster(filename)
+  dem = grid.read_raster(filename)
+  model = (grid, dem)
 
   print("Computing Flow...")
-  fmodel = flow(model)
 
-  #print("Plotting Flow...")
-  #plot_flow(fmodel)
+  dirmap = (64, 128, 1, 2, 4, 8, 16, 32)
+  flow = grid.flowdir(dem, dirmap=dirmap)
 
   print("Computing Catchment...")
-  amodel = catchment(fmodel)
-  plot_acc(amodel)
+
+  area = grid.accumulation(flow, dirmap=dirmap)
+  plot_area((grid, area))
 
 if __name__ == "__main__":
-
-  input = "/home/nickmcdonald/Datasets/elevation.tiff"
   #input = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #input = "out_altmuenster.tiff"
-  #input = "out.tiff"
+  #input = "/home/nickmcdonald/Datasets/elevation.tiff"
+  input = "elevation_conditioned.tiff"
   main(input)

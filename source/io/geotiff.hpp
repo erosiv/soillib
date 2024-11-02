@@ -115,6 +115,10 @@ struct geotiff: soil::io::tiff {
     this->_meta.keydir = _meta.keydir;
     this->_meta.geoasciiparams = _meta.geoasciiparams;
     this->_meta.gdal_metadata = _meta.gdal_metadata;
+    this->_meta.gdal_nodata = _meta.gdal_nodata;
+    this->_meta.scale = _meta.scale;
+    this->_meta.coords = _meta.coords;
+    this->_meta.params = _meta.params;
   }
 
 private:
