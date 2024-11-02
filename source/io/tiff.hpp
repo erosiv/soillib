@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <tiffio.h>
+#include <stdfloat>
 
 namespace soil {
 namespace io {
@@ -99,6 +100,9 @@ bool tiff::read(const char *filename) {
 
   this->_index = soil::index(soil::ivec2{(int)this->height(), (int)this->width()});
 
+  if (this->bits() == 16) { // Note: Internal Type is still Float32
+    this->_buffer = soil::buffer(soil::FLOAT32, _index.elem());
+  }
   if (this->bits() == 32) {
     this->_buffer = soil::buffer(soil::FLOAT32, _index.elem());
   }
@@ -111,14 +115,42 @@ bool tiff::read(const char *filename) {
   // Load Tiled / Non-Tiled Images
   if (!this->tiled_image) {
 
+
     auto data = this->_buffer.data();
     uint8_t *buf = (uint8_t *)data;
 
+    uint8_t *nbuf = new uint8_t[this->width() * (this->bits() / 8)];
+
     for (size_t row = 0; row < this->height(); row++) {
-      TIFFReadScanline(tif, buf, row);
-      buf += this->width() * (this->bits() / 8);
+      TIFFReadScanline(tif, nbuf, row);
+
+      for(size_t i = 0; i < this->width(); ++i){
+
+        if(this->bits() == 16){
+          ((float*)buf)[i] = ((std::float16_t*)nbuf)[i];
+        }
+        if(this->bits() == 32){
+          ((float*)buf)[i] = ((float*)nbuf)[i];
+        }
+        if(this->bits() == 64){
+          ((double*)buf)[i] = ((double*)nbuf)[i];
+        }
+
+      }
+
+      if(this->bits() == 16){
+        buf += this->width() * (32 / 8);
+      }
+      if(this->bits() == 32){
+        buf += this->width() * (32 / 8);
+      }
+      if(this->bits() == 64){
+        buf += this->width() * (64 / 8);
+      }
+
     }
 
+    delete[] nbuf;
   }
 
   else {
@@ -153,12 +185,16 @@ bool tiff::read(const char *filename) {
             if (fpos.y >= this->height())
               continue;
 
-            const size_t shift = (this->bits() / 8);
-            for (size_t i = 0; i < shift; ++i) {
-              if (buf[shift * (fpos.y * this->width() + fpos.x) + i] == 0) {
-                buf[shift * (fpos.y * this->width() + fpos.x) + i] = nbuf[shift * (iy * this->_twidth + ix) + i];
-              }
+            if(this->bits() == 16){
+              ((float*)buf)[fpos.y * this->width() + fpos.x] = ((std::float16_t*)nbuf)[iy * this->_twidth + ix];
             }
+            if(this->bits() == 32){
+              ((float*)buf)[fpos.y * this->width() + fpos.x] = ((float*)nbuf)[iy * this->_twidth + ix];
+            }
+            if(this->bits() == 64){
+              ((double*)buf)[fpos.y * this->width() + fpos.x] = ((double*)nbuf)[iy * this->_twidth + ix];
+            }
+
           }
       }
 

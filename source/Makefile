@@ -6,7 +6,7 @@ DIRNAME = soillib
 
 # Compiler Settings
 
-CC = g++ -std=c++20
+CC = g++ -std=c++23
 CF = -Wfatal-errors -O2
 
 # OS Specific Configuration
@@ -20,7 +20,7 @@ ifeq ($(UNAME), Darwin)			# Detect MacOS
 
 INCPATH = /opt/homebrew/include
 LIBPATH = /opt/homebrew/lib
-CC = g++-13 -std=c++20
+CC = g++-13 -std=c++23
 
 endif
 
