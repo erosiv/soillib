@@ -43,71 +43,68 @@ def calc_d8(data):
 def main(input = ""):
 
   # Load the Image, Get the Data
-
   image = soil.geotiff(input)
   raw_node = image.node()
   raw_data = raw_node.numpy(image.index)
-
   print(f"File: {input}, {raw_node.type}, {raw_data.shape}")
 
-  # Compute the Flow Direction
+  # Generate a Set of Paths...?
+  # 1. Seed Random Points
+  # 2. Step Based on D8 Position?
+  # 3. Iterate this... store somehow
+  # 4. See if we can visualize these paths somehow??
+  # 5. That would basically confirm that we are doing it right.
 
   print("Computing Direction...")
 
   dir_d8 = calc_d8(raw_data)
   shape = dir_d8.shape
+  
+  print("Sampling Positions...")
+  samples = 4096#*64
+  steps = 4096
+  pos = np.full((samples, 2, steps+1), 0.0)
+  pos[..., 0] = np.random.rand(samples, 2)
+  pos[..., 0, 0] *= shape[0]
+  pos[..., 1, 0] *= shape[1]
+  pos = pos.astype(np.int64)
+ 
+  print("Generating Paths...")
 
-  # We should just compute an actual direction map...
-  direction = np.full((shape[0], shape[1], 2), 0)
-  direction[dir_d8 == dirmap[0]] = coords[0]
-  direction[dir_d8 == dirmap[1]] = coords[1]
-  direction[dir_d8 == dirmap[2]] = coords[2]
-  direction[dir_d8 == dirmap[3]] = coords[3]
-  direction[dir_d8 == dirmap[4]] = coords[4]
-  direction[dir_d8 == dirmap[5]] = coords[5]
-  direction[dir_d8 == dirmap[6]] = coords[6]
-  direction[dir_d8 == dirmap[7]] = coords[7]
+  for n in tqdm(range(steps)):
 
-  print("Computing Area")
+    npos = pos[..., n]
+    direction = dir_d8[npos[:,1], npos[:,0]]
 
-  area = np.full(shape, 0)
+    npos[direction == dirmap[0]] += coords[0]
+    npos[direction == dirmap[1]] += coords[1]
+    npos[direction == dirmap[2]] += coords[2]
+    npos[direction == dirmap[3]] += coords[3]
+    npos[direction == dirmap[4]] += coords[4]
+    npos[direction == dirmap[5]] += coords[5]
+    npos[direction == dirmap[6]] += coords[6]
+    npos[direction == dirmap[7]] += coords[7]
 
-  iterations = 256
-  samples = 4096
-  steps = 8192
+    npos = np.clip(npos, [0,0], [shape[0]-1,shape[1]-1])
+    pos[..., n+1] = npos
 
-  for i in range(iterations):
-    print(f"ITERATION {i}")
-    
-    pos = np.random.rand(samples, 2)
-    pos[..., 0] *= shape[0]
-    pos[..., 1] *= shape[1]
-    pos = pos.astype(np.int64)
-
-    for n in tqdm(range(steps)):
-      pos += direction[pos[:,1], pos[:,0]]
-      pos = np.clip(pos, [0,0], [shape[0]-1,shape[1]-1])
-      area[pos[:,1], pos[:,0]] += 1
-
-  print("Plotting Accumulation...")
-
-  area = area / (iterations*samples) * shape[0]*shape[1]
-  area += 1
-
-  area = area[1:-2,1:-2]
+  print("Plotting Paths...")
 
   fig = plt.figure(figsize=(8,6))
   fig.patch.set_alpha(0)
   ax = fig.add_subplot(1, 1, 1) 
 
-  im = ax.imshow(area, zorder=2,
-    cmap='cubehelix',
-    norm=colors.LogNorm(1, area.max()),
-    interpolation='bilinear')
-
-  plt.colorbar(im, ax=ax, label='Upstream Cells')
+  boundaries = ([-2,-1,0,1,2,3,4,5,6,7,8])
+  plt.imshow(1+dir_d8, cmap='viridis', zorder=2, vmin=-2, vmax=8)
+  plt.colorbar(boundaries= boundaries)
+  plt.xlabel('Longitude')
+  plt.ylabel('Latitude')
+  plt.title('Flow direction grid', size=14)
   plt.grid(zorder=-1)
   plt.tight_layout()
+
+  line_collection = LineCollection(pos.transpose(0,2,1), color='black', alpha=1.0)
+  ax.add_collection(line_collection)
 
   plt.show()
 

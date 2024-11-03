@@ -62,9 +62,9 @@ def plot_area(area):
                 norm=colors.LogNorm(1, area.max()),
                 interpolation='bilinear')
   plt.colorbar(im, ax=ax, label='Upstream Cells')
-  plt.title('Flow Accumulation', size=14)
-  plt.xlabel('Longitude')
-  plt.ylabel('Latitude')
+#  plt.title('Flow Accumulation', size=14)
+#  plt.xlabel('Longitude')
+#  plt.ylabel('Latitude')
   plt.tight_layout()
   plt.show()
 
