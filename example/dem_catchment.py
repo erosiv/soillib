@@ -8,87 +8,31 @@ Also used to condition field for uniformity.
 from pysheds.grid import Grid
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import colors
 import soillib as soil
-
-def plot_dem(model):
-
-  grid, dem = model
-
-  fig, ax = plt.subplots(figsize=(8,6))
-  fig.patch.set_alpha(0)
-  plt.imshow(dem, extent=grid.extent, cmap='terrain', zorder=1)
-  plt.colorbar(label='Elevation (m)')
-  plt.grid(zorder=0)
-  plt.title('Digital elevation map', size=14)
-  plt.xlabel('Longitude')
-  plt.ylabel('Latitude')
-  plt.tight_layout()
-  plt.show()
-
-def plot_flow(model):
-
-  grid, fdir, dirmap = model
-
-  fig = plt.figure(figsize=(8,6))
-  fig.patch.set_alpha(0)
-  plt.imshow(fdir, cmap='viridis', zorder=2)
-  boundaries = ([0] + sorted(list(dirmap)))
-  plt.colorbar()#boundaries= boundaries,
-              #values=sorted(dirmap))
-  plt.xlabel('Longitude')
-  plt.ylabel('Latitude')
-  plt.title('Flow direction grid', size=14)
-  plt.grid(zorder=-1)
-  plt.tight_layout()
-  plt.show()
-
-def plot_area(model):
-
-  grid, acc = model
-
-  fig, ax = plt.subplots(figsize=(8,6))
-  fig.patch.set_alpha(0)
-  plt.grid('on', zorder=0)
-  im = ax.imshow(acc, zorder=2,
-                cmap='cubehelix',
-                norm=colors.LogNorm(1, acc.max()),
-                interpolation='bilinear')
-  plt.colorbar(im, ax=ax, label='Upstream Cells')
-  plt.title('Flow Accumulation', size=14)
-  plt.xlabel('Longitude')
-  plt.ylabel('Latitude')
-  plt.tight_layout()
-  plt.show()
+from __common__ import *
 
 '''
 Main Control Flow
 '''
 
 dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
-
 coords = [
-  np.array([ 0,-1]),
-  np.array([ 1,-1]),
-  np.array([ 1, 0]),
-  np.array([ 1, 1]),
-  np.array([ 0, 1]),
-  np.array([-1, 1]),
-  np.array([-1, 0]),
-  np.array([-1,-1]),
+  np.array([ 0,-1]),  # N
+  np.array([ 1,-1]),  # NE
+  np.array([ 1, 0]),  # E
+  np.array([ 1, 1]),  # SE
+  np.array([ 0, 1]),  # S
+  np.array([-1, 1]),  # SW
+  np.array([-1, 0]),  # W
+  np.array([-1,-1]),  # NW
 ]
 
 def calc_d8(data):
 
-  data_copy = np.copy(data)
   slope_stack = np.full((8, data.shape[0], data.shape[1]), 0.0)
-  for k in range(len(coords)):
-#  for k, coord in enumerate(coords):
-    coord = coords[k]
+  for k, coord in enumerate(coords):
     dist = np.sqrt(coord[0]**2 + coord[1]**2)
     slope_stack[k] = (data_copy - np.roll(data, (-coord[0], -coord[1]), axis=(1,0)))/dist
-  
-#  print(slope_stack[:,1,1])
 
   d8 = np.argmax(slope_stack, axis=0)
   d8 = np.asarray(list(dirmap))[d8]
@@ -100,16 +44,17 @@ def main(filename):
 
   grid = Grid.from_raster(filename)
   dem = grid.read_raster(filename)
-  model = (grid, dem)
 
   print("Computing Flow...")
 
-  flow = grid.flowdir(dem, dirmap=dirmap, inplace=False)
+  flow = grid.flowdir(dem, dirmap=dirmap)
+#  my_flow = calc_d8(np.copy(dem))
+#  flow[1:-2,1:-2] = my_flow[1:-2,1:-2]
 
   print("Computing Catchment...")
 
   area = grid.accumulation(flow, dirmap=dirmap)
-  plot_area((grid, area))
+  plot_area(area)
 
 if __name__ == "__main__":
   #input = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"

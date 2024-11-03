@@ -14,14 +14,9 @@ import soillib as soil
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import numpy as np
-
 from tqdm import tqdm
 
-from scipy.ndimage import gaussian_filter
-
 dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
-#dirmap = (0,1,2,3,4,5,6,7)
-
 coords = [
   np.array([ 0,-1]),
   np.array([ 1,-1]),
@@ -35,36 +30,14 @@ coords = [
 
 def calc_d8(data):
 
-  data_copy = np.copy(data)
   slope_stack = np.full((8, data.shape[0], data.shape[1]), 0.0)
-  for k in range(len(coords)):
-#  for k, coord in enumerate(coords):
-    coord = coords[k]
+  for k, coord in enumerate(coords):
     dist = np.sqrt(coord[0]**2 + coord[1]**2)
-    slope_stack[k] = (data_copy - np.roll(data, (-coord[0], -coord[1]), axis=(1,0)))/dist
+    slope_stack[k] = (data - np.roll(data, (-coord[0], -coord[1]), axis=(1,0)))/dist
 
   d8 = np.argmax(slope_stack, axis=0)
   d8 = np.asarray(list(dirmap))[d8]
   return d8
-
-'''
-def plot_flow(model):
-
-  grid, fdir, dirmap = model
-
-  fig = plt.figure(figsize=(8,6))
-  fig.patch.set_alpha(0)
-  plt.imshow(fdir, extent=grid.extent, cmap='viridis', zorder=2)
-  boundaries = ([0] + sorted(list(dirmap)))
-  plt.colorbar(boundaries= boundaries,
-              values=sorted(dirmap))
-  plt.xlabel('Longitude')
-  plt.ylabel('Latitude')
-  plt.title('Flow direction grid', size=14)
-  plt.grid(zorder=-1)
-  plt.tight_layout()
-  plt.show()
-'''
 
 def main(input = ""):
 
@@ -87,8 +60,8 @@ def main(input = ""):
   shape = dir_d8.shape
   
   print("Sampling Positions...")
-  samples = 4096*64
-  steps = 32
+  samples = 4096#*64
+  steps = 4096
   pos = np.full((samples, 2, steps+1), 0.0)
   pos[..., 0] = np.random.rand(samples, 2)
   pos[..., 0, 0] *= shape[0]
@@ -123,8 +96,6 @@ def main(input = ""):
   boundaries = ([-2,-1,0,1,2,3,4,5,6,7,8])
   plt.imshow(1+dir_d8, cmap='viridis', zorder=2, vmin=-2, vmax=8)
   plt.colorbar(boundaries= boundaries)
-             # values=sorted([1,2,3,4,5,6,7,8]))
-
   plt.xlabel('Longitude')
   plt.ylabel('Latitude')
   plt.title('Flow direction grid', size=14)

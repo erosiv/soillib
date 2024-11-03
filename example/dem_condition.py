@@ -19,24 +19,6 @@ import rasterio
 Main Control Flow
 '''
 
-def plot_area(model):
-
-  grid, acc = model
-
-  fig, ax = plt.subplots(figsize=(8,6))
-  fig.patch.set_alpha(0)
-  plt.grid('on', zorder=0)
-  im = ax.imshow(acc, zorder=2,
-                cmap='cubehelix',
-                norm=colors.LogNorm(1, acc.max()),
-                interpolation='bilinear')
-  plt.colorbar(im, ax=ax, label='Upstream Cells')
-  plt.title('Flow Accumulation', size=14)
-  plt.xlabel('Longitude')
-  plt.ylabel('Latitude')
-  plt.tight_layout()
-  plt.show()
-
 def main(filename):
 
   print(f"Loading DEM ({filename})...")
@@ -74,6 +56,7 @@ def main(filename):
   tiff_out.unsetnan()
   tiff_out.write("conditioned.tiff")
 
+  '''
   print("Computing Flow...")
 
   dirmap = (64, 128, 1, 2, 4, 8, 16, 32)
@@ -82,7 +65,8 @@ def main(filename):
   print("Computing Catchment...")
 
   area = grid.accumulation(flow, dirmap=dirmap)
-  plot_area((grid, area))
+  plot_area(area)
+  '''
 
 if __name__ == "__main__":
 

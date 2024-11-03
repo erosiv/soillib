@@ -1,6 +1,7 @@
 import os
 import soillib as soil
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 def iter_tiff(path):
 
@@ -46,6 +47,58 @@ def relief_shade(h, n):
   # Full Diffuse Shading Value
   diffuse = (1.0 - weight) * diffuse + weight * flattone
   return diffuse
+
+'''
+Specialized Plotting Functions
+'''
+
+def plot_area(area):
+
+  fig, ax = plt.subplots(figsize=(8,6))
+  fig.patch.set_alpha(0)
+  plt.grid('on', zorder=0)
+  im = ax.imshow(area, zorder=2,
+                cmap='cubehelix',
+                norm=colors.LogNorm(1, area.max()),
+                interpolation='bilinear')
+  plt.colorbar(im, ax=ax, label='Upstream Cells')
+  plt.title('Flow Accumulation', size=14)
+  plt.xlabel('Longitude')
+  plt.ylabel('Latitude')
+  plt.tight_layout()
+  plt.show()
+
+def plot_dem(model):
+
+  grid, dem = model
+
+  fig, ax = plt.subplots(figsize=(8,6))
+  fig.patch.set_alpha(0)
+  plt.imshow(dem, extent=grid.extent, cmap='terrain', zorder=1)
+  plt.colorbar(label='Elevation (m)')
+  plt.grid(zorder=0)
+  plt.title('Digital elevation map', size=14)
+  plt.xlabel('Longitude')
+  plt.ylabel('Latitude')
+  plt.tight_layout()
+  plt.show()
+
+def plot_flow(model):
+
+  grid, fdir, dirmap = model
+
+  fig = plt.figure(figsize=(8,6))
+  fig.patch.set_alpha(0)
+  plt.imshow(fdir, cmap='viridis', zorder=2)
+  boundaries = ([0] + sorted(list(dirmap)))
+  plt.colorbar()#boundaries= boundaries,
+              #values=sorted(dirmap))
+  plt.xlabel('Longitude')
+  plt.ylabel('Latitude')
+  plt.title('Flow direction grid', size=14)
+  plt.grid(zorder=-1)
+  plt.tight_layout()
+  plt.show()
 
 def show_height(array, index):
 
