@@ -106,25 +106,6 @@ def main(filename):
 
   flow = grid.flowdir(dem, dirmap=dirmap, inplace=False)
 
-  my_flow = calc_d8(np.copy(dem))
-  old_flow = np.copy(flow)
-
-  print(np.sum(my_flow != old_flow))
-
-  print(dem[0:6, 0:6])
-
-  print(old_flow[0:6,0:6])
-  print(my_flow[0:6,0:6])
-
-  plt.imshow(old_flow != my_flow)
-  plt.show()
-
-  return
-
-
-  plot_flow((grid, flow, dirmap))
-  return
-
   print("Computing Catchment...")
 
   area = grid.accumulation(flow, dirmap=dirmap)

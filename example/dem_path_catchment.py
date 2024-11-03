@@ -87,23 +87,21 @@ def main(input = ""):
   shape = dir_d8.shape
   
   print("Sampling Positions...")
-  samples = 512
-  steps = 512
-  pos = np.random.rand(samples, 2, 1)
-  pos[:,0] *= shape[0]
-  pos[:,1] *= shape[1]
+  samples = 4096*64
+  steps = 32
+  pos = np.full((samples, 2, steps+1), 0.0)
+  pos[..., 0] = np.random.rand(samples, 2)
+  pos[..., 0, 0] *= shape[0]
+  pos[..., 1, 0] *= shape[1]
   pos = pos.astype(np.int64)
-
+ 
   print("Generating Paths...")
 
   for n in tqdm(range(steps)):
-    # compute the next position
-    npos = pos[..., -1].astype(np.int64)
-    #print(npos.shape)
 
+    npos = pos[..., n]
     direction = dir_d8[npos[:,1], npos[:,0]]
 
-    # For the Gaussian:
     npos[direction == dirmap[0]] += coords[0]
     npos[direction == dirmap[1]] += coords[1]
     npos[direction == dirmap[2]] += coords[2]
@@ -114,7 +112,7 @@ def main(input = ""):
     npos[direction == dirmap[7]] += coords[7]
 
     npos = np.clip(npos, [0,0], [shape[0]-1,shape[1]-1])
-    pos = np.append(pos, npos[..., np.newaxis], axis=-1)
+    pos[..., n+1] = npos
 
   print("Plotting Paths...")
 
@@ -133,7 +131,7 @@ def main(input = ""):
   plt.grid(zorder=-1)
   plt.tight_layout()
 
-  line_collection = LineCollection(pos.transpose(0,2,1), color='w', alpha=1.0)
+  line_collection = LineCollection(pos.transpose(0,2,1), color='black', alpha=1.0)
   ax.add_collection(line_collection)
 
   plt.show()
