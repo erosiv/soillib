@@ -16,11 +16,11 @@ def iter_tiff(path):
 
   if os.path.isfile(path):
     file = os.path.basename(path)
-    yield file, path.decode('utf-8')
+    yield file.decode('utf-8'), path.decode('utf-8')
 
   elif os.path.isdir(path):
     for file in os.listdir(path):
-      yield file, os.path.join(path, file).decode('utf-8')
+      yield file.decode('utf-8'), os.path.join(path, file).decode('utf-8')
 
   else:
     raise RuntimeError("path must be file or directory")
@@ -58,7 +58,7 @@ def plot_area(area):
   fig.patch.set_alpha(0)
   plt.grid('on', zorder=0)
   im = ax.imshow(area, zorder=2,
-                cmap='cubehelix',
+                cmap='CMRmap',
                 norm=colors.LogNorm(1, area.max()),
                 interpolation='bilinear')
   plt.colorbar(im, ax=ax, label='Upstream Cells')

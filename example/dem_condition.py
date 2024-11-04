@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import soillib as soil
 import rasterio
+import math
 
 '''
 Main Control Flow
@@ -27,6 +28,11 @@ def main(filename):
   dem = grid.read_raster(filename)
 
   print("Conditioning DEM...")
+
+  dem.nodata = np.nan
+  dem = grid.fill_pits(dem)
+  dem = grid.fill_depressions(dem)
+  dem = grid.resolve_flats(dem)
 
   dem = grid.fill_pits(dem)
   dem = grid.fill_depressions(dem)
@@ -55,18 +61,6 @@ def main(filename):
   tiff_out.set_meta(t.get_meta())
   tiff_out.unsetnan()
   tiff_out.write("conditioned.tiff")
-
-  '''
-  print("Computing Flow...")
-
-  dirmap = (64, 128, 1, 2, 4, 8, 16, 32)
-  flow = grid.flowdir(dem, dirmap=dirmap)
-
-  print("Computing Catchment...")
-
-  area = grid.accumulation(flow, dirmap=dirmap)
-  plot_area(area)
-  '''
 
 if __name__ == "__main__":
 

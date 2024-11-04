@@ -68,8 +68,8 @@ def merge(input, pscale = 0.1):
       gscale = np.array(geotiff.scale)
       
       # Get the Pixel-Space Extent of the Image
-      pmin = (pscale * (gmin - wmin) / wscale).astype(np.int64)
-      pmax = (pscale * (gmax - wmin) / wscale).astype(np.int64)
+      pmin = np.round(pscale * (gmin - wmin) / wscale).astype(np.int64)
+      pmax = np.round(pscale * (gmax - wmin) / wscale).astype(np.int64)
       shape = data.shape
 
       # Re-Sample the Image
@@ -92,7 +92,6 @@ def main(input):
 
   tiff_out = soil.geotiff(array, shape)
   tiff_out.set_meta(meta)
-  print("NODATA VALUE", meta.nodata)
   tiff_out.unsetnan()
   tiff_out.write("merge.tiff")
 
@@ -103,11 +102,19 @@ def main(input):
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
+  #data = "/home/nickmcdonald/Datasets/elevation.tiff"
+
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
-  #data = "/home/nickmcdonald/Datasets/elevation.tiff"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41225_DGM_tif_Ried"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41709_DGM_tif_Frankenburg"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40706_DGM_tif_Gosau"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern"
+  
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41234_DGM_tif_Waldzell"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41403_DGM_tif_Brunnenthal"
 
   main(data)
