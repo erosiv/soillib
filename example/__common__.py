@@ -2,6 +2,7 @@ import os
 import soillib as soil
 import matplotlib.pyplot as plt
 from matplotlib import colors
+import numpy as np
 
 def iter_tiff(path):
 

@@ -54,6 +54,9 @@ def main(filename):
   print("Computing Catchment...")
 
   area = grid.accumulation(flow, dirmap=dirmap)
+
+  #catch = grid.catchment(x=1873, y=692, fdir=flow, dirmap=dirmap, xytype='index')
+  #area[catch == 0] = 1
   plot_area(area)
 
 if __name__ == "__main__":
@@ -67,3 +70,5 @@ if __name__ == "__main__":
   input = "merge.tiff"
   input = "conditioned.tiff"
   main(input)
+
+  #1640, 812
