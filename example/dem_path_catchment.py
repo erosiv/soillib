@@ -104,18 +104,17 @@ def _area(height, flow, direction, area_gt):
 
   shape = height.shape
   area = np.full(shape, 0.0)
+  count = np.full(shape, 0)
 
-  iterations = 6
-  samples = 4096
+  iterations = 1024
+  samples = 1024
   steps = 3072
 
-  np.random.seed(0)
+  #np.random.seed(0)
 
   for i in range(iterations):
 
-    P = (shape[0] * shape[1]) / samples
-    area_step = np.full(shape, 0.0)
-
+    mask = np.full(samples, False)
     pos = np.random.rand(samples, 2)
     pos[..., 0] *= shape[0]
     pos[..., 1] *= shape[1]
@@ -123,48 +122,35 @@ def _area(height, flow, direction, area_gt):
 
     # Print Metrics
 
-    sum_dist = np.sum(np.abs(area - area_gt))
+    P = (i * samples)/(shape[0] * shape[1])
+    sum_dist = np.sum(np.abs(area_gt-area))
     dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
-  
-    print(f"({i:3d}), {sum_dist/np.sum(area_gt):.5f}, {dist_sum/np.sum(area_gt):.5f}")
+
+    print(f"({i:3d}, {P:.5f}), {sum_dist/np.sum(area_gt):.5f}, {dist_sum/np.sum(area_gt):.5f}")
+
+    # Count the Positions
 
     for n in range(steps):
 
-      # Mask at Next Position
-
-      mask_oob_0 = np.logical_or(pos[:,0] < 0, pos[:,1] < 0)
-      mask_oob_1 = np.logical_or(pos[:,0] >= shape[0], pos[:,1] >= shape[1])
-      mask_oob = np.logical_or(mask_oob_0, mask_oob_1)
-      mask_nan = np.isnan(height[pos[:,0], pos[:,1]])
-      mask_flow = (flow[pos[:,0], pos[:,1]] <= 0)
-
-      # Step first, then add!
+      # Sample the Next Position, Check for Motion
+      # Mask at Next Position if Out-Of-Bounds
 
       pos_next = pos + direction[pos[:,0], pos[:,1]]
-      mask_static = (pos_next == pos).all(axis=1)
+      mask = np.logical_or(mask, pos_next[:,0] < 0)
+      mask = np.logical_or(mask, pos_next[:,1] < 0)
+      mask = np.logical_or(mask, pos_next[:,0] >= shape[0])
+      mask = np.logical_or(mask, pos_next[:,1] >= shape[1])
 
-      mask = np.logical_or(mask_oob, mask_static)
-      mask = np.logical_or(mask, mask_nan)
-      mask = np.logical_or(mask, mask_flow)
+      # Mask if Position has not Moved
+      # Note: Implicit when flow <= 0, or height is nan
+      mask = np.logical_or(mask, (pos_next == pos).all(axis=1))
 
+      # Clip Position and Accumulate Value
       pos = np.clip(pos_next, [0,0], [shape[0]-1,shape[1]-1])
+      np.add.at(count, (pos[:,0], pos[:,1]), ~mask)
 
-      np.add.at(area_step, (pos[:,0], pos[:,1]), ~mask)
-      
-    # Plot Similarity Metric
-  
-    area_step = 1.0 + area_step * P
-    area = area * (i/(i+1.0)) + area_step * (1.0/(i+1.0))
-
-    dist = area - area_gt
-    print(np.min(dist), np.max(dist))
-    
-    i_min = np.argmin(dist)
-    i_max = np.argmax(dist)
-    print(dist.flatten()[i_min]/area_gt.flatten()[i_min], dist.flatten()[i_max]/area_gt.flatten()[i_max])
-
-  plot_area(area_gt)
-  plot_area(np.abs((area - area_gt)/area_gt))
+    P = (shape[0] * shape[1])/((i+1)*(samples))
+    area = 1.0 + P * count
 
   return area
 
@@ -183,9 +169,6 @@ def main(input = ""):
   flow_gt = grid.flowdir(dem, dirmap=dirmap)
   print("Computing Catchment...")
   area_gt = np.copy(grid.accumulation(flow_gt, dirmap=dirmap))
-  print(area_gt.shape)
-
-  print(area_gt)
 
  # plt.imshow(np.log(area_gt))
  # plt.show()
@@ -211,7 +194,44 @@ def main(input = ""):
   print("Computing Area")
 
   area = _area(raw_data, flow, direction, area_gt)
-  plot_area(area)
+
+  fig, ax = plt.subplots(2, 2, figsize=(8,6))
+  fig.patch.set_alpha(0)
+  plt.grid('on', zorder=0)
+
+  im = ax[0, 0].imshow(area_gt, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, area_gt.max()),
+    interpolation='bilinear')
+  #plt.colorbar(im, ax=ax[0], label='Upstream Cells')
+
+  im = ax[0, 1].imshow(area, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, area.max()),
+    interpolation='bilinear')
+  #plt.colorbar(im, ax=ax[1], label='Upstream Cells')
+
+  '''
+  Area Histogram Plot: Because of the fractal nature,
+  we should expect the connectivity of the graph to follow
+  a power law. This means a log-log plot should be linear.
+
+  Note that a minimum possible surface area estimate exists,
+  which is when a single sample hits. = 1 * area / samples
+  '''
+
+  mask = (flow > 0)
+  area_gt = area_gt[mask]
+  area = area[mask]
+
+  counts, bins, = np.histogram(np.log(area_gt), bins=32)
+  ax[1, 0].stairs(np.log(counts), bins)
+
+  counts, bins, = np.histogram(np.log(area), bins=32)
+  ax[1, 0].stairs(np.log(counts), bins)
+
+  plt.tight_layout()
+  plt.show()
 
 if __name__ == "__main__":
 
