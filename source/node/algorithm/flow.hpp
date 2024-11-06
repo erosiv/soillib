@@ -29,6 +29,17 @@ const std::vector<glm::ivec2> coords = {
   glm::ivec2{-1,-1},
 };
 
+const std::vector<double> dist = {
+  1.0,
+  sqrt(2.0),
+  1.0,
+  sqrt(2.0),
+  1.0,
+  sqrt(2.0),
+  1.0,
+  sqrt(2.0)
+};
+
 }
 
 //! Surface Flow Operator
@@ -72,23 +83,24 @@ struct flow {
 
         const glm::ivec2 coord = coords[k];
         const glm::ivec2 npos = pos + coord;
+
         if(!index.oob(npos)){
           
           const size_t n = index.flatten(npos);
           const double nvalue = in[n];
-          const double dist = sqrt(coord[0]*coord[0] + coord[1]*coord[1]);
-          const double ndiff = (hvalue - nvalue)/dist;
+          const double ndiff = (hvalue - nvalue)/dist[k];
           
           if(ndiff > diffmax){
             value = k;
             diffmax = ndiff;
           }
 
-          if(ndiff > 0.0)            
-            has_flow = true;
-        
-          if(ndiff >= 0.0)
-            pit = false;
+          has_flow |= (ndiff > 0.0);
+          pit &= (ndiff < 0.0);
+
+          // note: equivalent
+          // if(ndiff > 0.0) has_flow = true;
+          // if(ndiff >= 0.0) pit = false;
 
         }
 
@@ -96,7 +108,7 @@ struct flow {
 
       if(pit) value = -2;
       if(!has_flow && !pit) value = -1;
-      
+
       if(value >= 0)
         out[i] = dirmap[value];
       else out[i] = value;
@@ -139,14 +151,15 @@ struct direction {
     for(size_t i = 0; i < elem; ++i){
       glm::ivec2 val(0, 0);
       for(size_t k = 0; k < 8; ++k){
-        if(in[i] == dirmap[k])
+        if(in[i] == dirmap[k]){
           val = coords[k];
+          break;
+        }
       }
       out[i] = val;
     }
 
     return std::move(soil::buffer(std::move(out)));
-
   }
 
 private:
@@ -182,6 +195,8 @@ struct accumulation {
     auto in = this->buffer.as<ivec2>();
     auto out = buffer_t<double>{elem};
 
+    const double P = double(elem)/double(iterations*samples);
+
     for(size_t i = 0; i < elem; ++i)
       out[i] = 0.0;
 
@@ -191,9 +206,6 @@ struct accumulation {
     std::uniform_int_distribution<std::mt19937::result_type> dist_y(0, index[1]-1);
 
     for(size_t i = 0; i < iterations; ++i){
-
-      std::cout<<i<<std::endl;
-
       for(size_t n = 0; n < samples; ++n){
 
         ivec2 pos{dist_x(rng), dist_y(rng)};
@@ -202,26 +214,26 @@ struct accumulation {
         for(size_t s = 0; s < steps; ++s){
 
           const ivec2 dir = in[ind];
+          pos += dir;
           if(dir[0] == 0 && dir[1] == 0)
             break;
-        
-          pos += dir;
 
           if(index.oob(pos))
             break;
-
+ 
           ind = index.flatten(pos);
-          out[ind] += 1;
+          out[ind] += 1.0;
 
         }
-
       }
-
     }
 
-    const double P = double(elem)/double(iterations*samples);
+    // Note:
+    // We could techincally also accumulate P,
+    // then add 1. For some reason, slower.
+
     for(size_t i = 0; i < elem; i++){
-      out[i] = 1.0 + P * out[i];
+      out[i] = 1.0 + P*out[i];
     }
 
     return std::move(soil::buffer(std::move(out)));

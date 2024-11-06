@@ -1,14 +1,5 @@
 #!/usr/bin/env python
 
-'''
-Compute the Upstream Catchment Area for a DEM
-The data is given in .TIFF format.
-
-1. Compute Gradient / Surface Normal
-2. Get Clamped D8 Map
-3. Accumulate Upstream Nodes!
-'''
-
 import os
 from pysheds.grid import Grid
 import soillib as soil
@@ -31,10 +22,13 @@ def main(input = ""):
   dem = grid.read_raster(input)
 
   print("Computing Flow...")
+  #with soil.timer() as timer:
   dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
   flow_gt = grid.flowdir(dem, dirmap=dirmap)
+  
   print("Computing Catchment...")
-  area_gt = np.copy(grid.accumulation(flow_gt, dirmap=dirmap))
+  with soil.timer() as timer:
+    area_gt = np.copy(grid.accumulation(flow_gt, dirmap=dirmap))
 
   # Load the Image, Get the Data
 
@@ -48,13 +42,18 @@ def main(input = ""):
   # Compute the Flow Direction
 
   print("Flow Node")
-  flow_node = soil.flow(image.index, raw_node)
-  dir_node = soil.direction(image.index, flow_node())
+  #with soil.timer() as timer:
+  flow_node = soil.flow(image.index, raw_node)()
+  #with soil.timer() as timer:
+  dir_node = soil.direction(image.index, flow_node)()
+  
   print("Computing Area")
-  area_node = soil.accumulation(image.index, dir_node())
-  area_node.iterations = 128
+  area_node = soil.accumulation(image.index, dir_node)
+  area_node.iterations = 32
   area_node.samples = 1024
   area_node.steps = 4096
+  with soil.timer() as timer:
+    area = area_node()
 
 #  areas = []
 
@@ -63,7 +62,7 @@ def main(input = ""):
 #  direction = dir_node.full().numpy(image.index)
 #  shape = flow.shape
 
-  area = area_node().numpy(image.index)
+  area = area.numpy(image.index)
   sum_dist = np.sum(np.abs(area_gt-area))
   dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
 
@@ -94,6 +93,7 @@ def main(input = ""):
   which is when a single sample hits. = 1 * area / samples
   '''
 
+  '''
   area_gt[raw_mask] = 0
 
   vals = np.sort(area_gt[area_gt >= 1])
@@ -116,6 +116,7 @@ def main(input = ""):
   #vals = np.sort(area[area >= 1])
   #counts, bins, = np.histogram(np.log10(vals), bins=16)
   #ax[1,0].stairs(np.log10(counts), bins)
+  '''
 
   plt.show()
 
