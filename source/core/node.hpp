@@ -42,7 +42,6 @@ struct node {
   node(const soil::buffer buffer):
    impl{std::make_shared<soil::cached>(buffer)}{}
 
-
   node(soil::cached &&_node): impl{std::make_shared<soil::cached>(_node)} {}
 
   node(soil::constant &&_node): impl{std::make_shared<soil::constant>(_node)} {}

@@ -331,23 +331,46 @@ void bind_node(nb::module_& module){
     return soil::node(std::move(normal.full()));
   });
 
-
   auto flow = nb::class_<soil::flow>(module, "flow");
   flow.def(nb::init<const soil::index&, const soil::node&>());
-  flow.def("full", [](const soil::flow& flow){
+  flow.def("__call__", [](const soil::flow& flow){
     return soil::node(std::move(flow.full()));
   });
 
   auto direction = nb::class_<soil::direction>(module, "direction");
   direction.def(nb::init<const soil::index&, const soil::node&>());
-  direction.def("full", [](const soil::direction& direction){
+  direction.def("__call__", [](const soil::direction& direction){
     return soil::node(std::move(direction.full()));
   });
 
   auto accumulation = nb::class_<soil::accumulation>(module, "accumulation");
   accumulation.def(nb::init<const soil::index&, const soil::node&>());
-  accumulation.def("full", [](const soil::accumulation& accumulation){
+  accumulation.def("__call__", [](const soil::accumulation& accumulation){
     return soil::node(std::move(accumulation.full()));
+  });
+
+  accumulation.def_prop_rw("steps", 
+  [](const soil::accumulation& accumulation){
+    return accumulation.steps;
+  },
+  [](soil::accumulation& accumulation, const size_t steps){
+    accumulation.steps = steps;
+  });
+
+  accumulation.def_prop_rw("iterations", 
+  [](const soil::accumulation& accumulation){
+    return accumulation.iterations;
+  },
+  [](soil::accumulation& accumulation, const size_t iterations){
+    accumulation.iterations = iterations;
+  });
+
+  accumulation.def_prop_rw("samples", 
+  [](const soil::accumulation& accumulation){
+    return accumulation.samples;
+  },
+  [](soil::accumulation& accumulation, const size_t samples){
+    accumulation.samples = samples;
   });
 
   //

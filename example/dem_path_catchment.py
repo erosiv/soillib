@@ -48,30 +48,23 @@ def main(input = ""):
   # Compute the Flow Direction
 
   print("Flow Node")
-
   flow_node = soil.flow(image.index, raw_node)
-  flow = flow_node.full().numpy(image.index)
-  print("Flow Difference", np.sum(flow_gt != flow))
-
-#  print(type(flow_node.full()))
-  
-  dir_node = soil.direction(image.index, flow_node.full())
-  direction = dir_node.full().numpy(image.index)
-  shape = flow.shape
-
+  dir_node = soil.direction(image.index, flow_node())
   print("Computing Area")
+  area_node = soil.accumulation(image.index, dir_node())
+  area_node.iterations = 256
 
-  area_node = soil.accumulation(image.index, dir_node.full())
-  area = area_node.full().numpy(image.index)
+#  
+#  print("Flow Difference", np.sum(flow_gt != flow))
+#  print(type(flow_node.full()))
+#  direction = dir_node.full().numpy(image.index)
+#  shape = flow.shape
 
+  area = area_node().numpy(image.index)
   sum_dist = np.sum(np.abs(area_gt-area))
   dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
 
   print(f"{sum_dist/np.sum(area_gt):.5f}, {dist_sum/np.sum(area_gt):.5f}")
-
-
-  plt.imshow(np.abs(area - area_gt)/area_gt)
-  plt.show()
 
   fig, ax = plt.subplots(2, 2, figsize=(8,6))
   fig.patch.set_alpha(0)
@@ -98,6 +91,7 @@ def main(input = ""):
   which is when a single sample hits. = 1 * area / samples
   '''
 
+  flow = flow_node().numpy(image.index)
   # Set of Valid Area Values
   # Number of Occurences corresponds in this array
   vals = np.sort(area_gt[flow > 0])
