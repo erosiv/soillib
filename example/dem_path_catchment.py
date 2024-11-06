@@ -26,71 +26,6 @@ Utilizes the Steepest Neighbor
 to Compute D8 Flow Direction.
 '''
 
-dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
-
-# coords = [
-#   np.array([ 0,-1]), # N
-#   np.array([ 1,-1]), # NE
-#   np.array([ 1, 0]), # E
-#   np.array([ 1, 1]), # SE
-#   np.array([ 0, 1]), # S
-#   np.array([-1, 1]), # SW
-#   np.array([-1, 0]), # W
-#   np.array([-1,-1]), # NW
-# ]
-
-coords = [
-    np.array([-1, 0]), # N
-    np.array([-1, 1]), # NE
-    np.array([ 0, 1]), # E
-    np.array([ 1, 1]), # SE
-    np.array([ 1, 0]), # S
-    np.array([ 1,-1]), # SW
-    np.array([ 0,-1]), # W
-    np.array([-1,-1]), # NW
-  ]
-
-
-def _flow(data):
-
-  slopes = np.full((8, data.shape[0], data.shape[1]), 0.0)
-  for k, coord in enumerate(coords):
-    distance = np.sqrt(coord[0]**2 + coord[1]**2)
-    slopes[k] = (data - np.roll(data, (-coord[0], -coord[1]), axis=(0,1)))/distance
-
-  has_flow = np.greater(slopes, 0.0).any(axis=0)
-  slopes[np.isnan(slopes)] = -1.0
-
-  flow = np.argmax(slopes, axis=0)
-  flow = np.asarray(list(dirmap))[flow]
-
-  pits = np.less(slopes, 0.0).all(axis=0)
-
-  flat = ~has_flow & ~pits
-  flow[~has_flow] = -1
-
-  mask = np.isnan(data)
-  flow[flat] = -1
-  flow[pits] = -2
-  flow[mask] = -2
-
-  return flow
-
-def _direction(flow):
-
-  shape = flow.shape
-  direction = np.full((shape[0], shape[1], 2), 0)
-  direction[flow == dirmap[0]] = coords[0]
-  direction[flow == dirmap[1]] = coords[1]
-  direction[flow == dirmap[2]] = coords[2]
-  direction[flow == dirmap[3]] = coords[3]
-  direction[flow == dirmap[4]] = coords[4]
-  direction[flow == dirmap[5]] = coords[5]
-  direction[flow == dirmap[6]] = coords[6]
-  direction[flow == dirmap[7]] = coords[7]
-
-  return direction
-
 def _area(height, flow, direction, area_gt):
 
   '''
@@ -101,7 +36,7 @@ def _area(height, flow, direction, area_gt):
   area = np.full(shape, 0.0)
   count = np.full(shape, 0)
 
-  iterations = 32
+  iterations = 128
   samples = 1024
   steps = 3072
 
@@ -161,6 +96,7 @@ def main(input = ""):
   dem = grid.read_raster(input)
 
   print("Computing Flow...")
+  dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
   flow_gt = grid.flowdir(dem, dirmap=dirmap)
   print("Computing Catchment...")
   area_gt = np.copy(grid.accumulation(flow_gt, dirmap=dirmap))
@@ -176,18 +112,45 @@ def main(input = ""):
 
   # Compute the Flow Direction
 
-  print("Computing Direction...")
+  print("Flow Node")
 
-  flow = _flow(raw_data)
+  flow_node = soil.flow(image.index, raw_node)
+  flow = flow_node.full().numpy(image.index)
+  print("Flow Difference", np.sum(flow_gt != flow))
 
-  print("Flow Difference", np.sum(flow_gt != flow))  
+#  print(type(flow_node.full()))
   
-  direction = _direction(flow)
+  dir_node = soil.direction(image.index, flow_node.full())
+  direction = dir_node.full().numpy(image.index)
   shape = flow.shape
 
   print("Computing Area")
 
   area = _area(raw_data, flow, direction, area_gt)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   fig, ax = plt.subplots(2, 2, figsize=(8,6))
   fig.patch.set_alpha(0)
@@ -287,8 +250,6 @@ def main(input = ""):
 #  count = count[1:] - index
 #  ax[1,0].plot(np.log(x), np.log(count))
 
-
-
 #  vals = np.sort(area[mask])
 #  X, F = np.unique(vals, return_index=True)
 #  ax[1,0].plot(np.log10(X), F)
@@ -302,8 +263,6 @@ def main(input = ""):
   mask = (flow > 0)
   area_gt = area_gt[mask]
   area = area[mask]
-
-
 
   counts, bins, = np.histogram(np.log(area), bins=32)
   ax[1, 0].stairs(np.log(counts), bins)

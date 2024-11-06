@@ -19,6 +19,7 @@ namespace nb = nanobind;
 
 #include <soillib/node/algorithm/noise.hpp>
 #include <soillib/node/algorithm/normal.hpp>
+#include <soillib/node/algorithm/flow.hpp>
 
 #include <iostream>
 
@@ -212,6 +213,42 @@ void bind_node(nb::module_& module){
           );
           return nb::cast(std::move(array));
 
+        } else if constexpr(std::same_as<T, soil::ivec2>) {
+
+          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+
+          // Typed Buffer of Flat Size
+          //! \todo make sure this is de-allocated correctly,
+          //! i.e. the numpy buffer should perform a copy.
+          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+
+          // Fill w. NaN Value
+          //! \todo automate the related NaN value determination
+          //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
+
+          T value = T{std::numeric_limits<int>::quiet_NaN()};
+          for(size_t i = 0; i < buffer->elem(); ++i)
+            buffer->operator[](i) = value;
+
+          // Iterate over Flat Index
+          for(const auto& pos: index_t.iter()){
+            const size_t i = index_t.flatten(pos);
+            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+          }
+
+          size_t shape[I::n_dims + 1]{0};
+          for(size_t d = 0; d < I::n_dims; ++d)
+            shape[d] = flat[d];
+          shape[I::n_dims] = 2;
+
+          nb::ndarray<nb::numpy, int, nb::ndim<I::n_dims+1>> array(
+            buffer->data(),
+            I::n_dims+1,
+            shape,
+            nb::handle()
+          );
+          return nb::cast(std::move(array));
+
         } else {
 
           throw std::invalid_argument("can't convert type to numpy array");
@@ -233,13 +270,17 @@ void bind_node(nb::module_& module){
       throw std::invalid_argument("nodes are not of the same type");
 
     soil::select(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
-      auto lhs_t = lhs.as<soil::cached>().as<T>().buffer;
-      auto rhs_t = rhs.as<soil::cached>().as<T>().buffer;
-      for(size_t i = 0; i < lhs_t.elem(); ++i){
-        const T lhs_value = lhs_t[i];
-        const T rhs_value = rhs_t[i];
-        lhs_t[i] = lhs_value * (1.0f - lrate) + rhs_value * lrate;
-      }
+      if constexpr (std::is_floating_point_v<T>) {
+        auto lhs_t = lhs.as<soil::cached>().as<T>().buffer;
+        auto rhs_t = rhs.as<soil::cached>().as<T>().buffer;
+        for(size_t i = 0; i < lhs_t.elem(); ++i){
+          const T lhs_value = lhs_t[i];
+          const T rhs_value = rhs_t[i];
+          lhs_t[i] = lhs_value * (T(1.0) - lrate) + rhs_value * lrate;
+        }
+      } else
+        throw std::invalid_argument("invalid type for operation");
+      // throw soil::error::type_op_error<T>();
     });
 
   });
@@ -288,7 +329,19 @@ void bind_node(nb::module_& module){
   normal.def(nb::init<const soil::index&, const soil::node&>());
   normal.def("full", [](const soil::normal& normal){
     return soil::node(std::move(normal.full()));
-//    &soil::normal::full
+  });
+
+
+  auto flow = nb::class_<soil::flow>(module, "flow");
+  flow.def(nb::init<const soil::index&, const soil::node&>());
+  flow.def("full", [](const soil::flow& flow){
+    return soil::node(std::move(flow.full()));
+  });
+
+  auto direction = nb::class_<soil::direction>(module, "direction");
+  direction.def(nb::init<const soil::index&, const soil::node&>());
+  direction.def("full", [](const soil::direction& direction){
+    return soil::node(std::move(direction.full()));
   });
 
   //

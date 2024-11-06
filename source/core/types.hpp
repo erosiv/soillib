@@ -98,6 +98,18 @@ struct typedesc<vec3> {
   static constexpr dtype type = VEC3;
 };
 
+template<>
+struct typedesc<ivec2> {
+  static constexpr std::string name = "ivec2";
+  static constexpr dtype type = IVEC2;
+};
+
+template<>
+struct typedesc<ivec3> {
+  static constexpr std::string name = "ivec3";
+  static constexpr dtype type = IVEC3;
+};
+
 // Enum-Based Runtime Polymorphic Visitor Pattern:
 //
 //  Strict-typed, templated implementations of polymorphic
@@ -146,6 +158,10 @@ auto select(const soil::dtype type, F lambda, Args &&...args) {
     return lambda.template operator()<vec2>(std::forward<Args>(args)...);
   case soil::VEC3:
     return lambda.template operator()<vec3>(std::forward<Args>(args)...);
+  case soil::IVEC2:
+    return lambda.template operator()<ivec2>(std::forward<Args>(args)...);
+  case soil::IVEC3:
+    return lambda.template operator()<ivec3>(std::forward<Args>(args)...);
   default:
     throw std::invalid_argument("type not supported");
   }
