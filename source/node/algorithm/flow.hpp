@@ -192,8 +192,7 @@ struct accumulation {
 
     for(size_t i = 0; i < iterations; ++i){
 
-      if(i%10 == 0)
-        std::cout<<i<<std::endl;
+      std::cout<<i<<std::endl;
 
       for(size_t n = 0; n < samples; ++n){
 

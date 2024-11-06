@@ -52,9 +52,10 @@ def main(input = ""):
   dir_node = soil.direction(image.index, flow_node())
   print("Computing Area")
   area_node = soil.accumulation(image.index, dir_node())
-  area_node.iterations = 256
+  area_node.iterations = 128
 
-#  
+#  areas = []
+
 #  print("Flow Difference", np.sum(flow_gt != flow))
 #  print(type(flow_node.full()))
 #  direction = dir_node.full().numpy(image.index)
@@ -91,100 +92,30 @@ def main(input = ""):
   which is when a single sample hits. = 1 * area / samples
   '''
 
-  flow = flow_node().numpy(image.index)
-  # Set of Valid Area Values
-  # Number of Occurences corresponds in this array
-  vals = np.sort(area_gt[flow > 0])
+  area_gt[raw_mask] = 0
 
-  # Set of Unique Values gives us an x coordinate
-  # The index is the first occurence in the sorted array
-
+  vals = np.sort(area_gt[area_gt >= 1])
   x, index = np.unique(vals, return_index=True)
-  
-  # Therefore, the total number of values is the total
-  # "area" of the domain, the number of elements
-  # The count is the number of occurences for each unique
-  # element. We now have a map count(area_value).
+  count = np.append(index, len(vals))[1:] - index
+  cdf = np.cumsum(count*x)#/len(vals)
+  ax[1,0].plot(np.log10(x), np.log(cdf))
 
-  index_max = len(vals)
-  count = np.append(index, index_max)[1:] - index
+  for k, val in enumerate([16, 32, 64]):#, 128, 256, 512, 1024]):
+    area_node.iterations = val
+    area = area_node().numpy(image.index)
+    area[raw_mask] = 0
 
-  # Scaling the count by the value, we get the total
-  # contribution to the accumulation.
-  # We then accumlate 
+    vals = np.sort(area[area > 1])
+    x, index = np.unique(vals, return_index=True)
+    count = np.append(index, len(vals))[1:] - index
+    cdf = np.cumsum(count*x)#/len(vals)
+    ax[1,0].plot(np.log10(x), np.log(cdf))
 
-  area_t = count * x
-  t = np.cumsum(area_t)
-
-  ax[1,0].plot(np.log(x), np.log(t))
-
-  # do the same thing again!
-
-  vals = np.sort(area[flow > 0])
-
-  # Set of Unique Values gives us an x coordinate
-  # The index is the first occurence in the sorted array
-
-  x, index = np.unique(vals, return_index=True)
-  
-  # Therefore, the total number of values is the total
-  # "area" of the domain, the number of elements
-  # The count is the number of occurences for each unique
-  # element. We now have a map count(area_value).
-
-  index_max = len(vals)
-  count = np.append(index, index_max)[1:] - index
-
-  # Scaling the count by the value, we get the total
-  # contribution to the accumulation.
-  # We then accumlate 
-
-  area_t = count * x
-  t = np.cumsum(area_t)
-
-  ax[1,0].plot(np.log(x), np.log(t))
-
-#  def _p(ax, area):
-#    
-#    vals = np.log(vals)
-#  #  vals = np.floor(50*vals)/50
-#
-#    
-#
-#    count = np.append(index, len(vals))
-#    count = count[1:] - index
-#    ax.plot(x, np.log(count))
-#
-#  _p(ax[1,0], area_gt)
-#  _p(ax[1,0], area)
-
-#  vals = np.sort(area[flow > 0])
-#  x, index = np.unique(vals, return_index=True)
-#
-#  count = np.append(index, len(vals))
-#  count = count[1:] - index
-#  ax[1,0].plot(np.log(x), np.log(count))
-
-#  vals = np.sort(area[mask])
-#  X, F = np.unique(vals, return_index=True)
-#  ax[1,0].plot(np.log10(X), F)
-
-#  counts, bins, = np.histogram(np.log10(vals), bins=512)
-#  ax[1,0].stairs(np.log10(counts), bins)
+  #vals = np.sort(area[area >= 1])
+  #counts, bins, = np.histogram(np.log10(vals), bins=16)
+  #ax[1,0].stairs(np.log10(counts), bins)
 
   plt.show()
-
-  '''
-  mask = (flow > 0)
-  area_gt = area_gt[mask]
-  area = area[mask]
-
-  counts, bins, = np.histogram(np.log(area), bins=32)
-  ax[1, 0].stairs(np.log(counts), bins)
-
-  plt.tight_layout()
-  plt.show()
-  '''
 
 if __name__ == "__main__":
 
