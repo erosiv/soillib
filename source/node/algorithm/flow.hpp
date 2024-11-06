@@ -6,10 +6,30 @@
 #include <soillib/core/node.hpp>
 #include <soillib/soillib.hpp>
 #include <soillib/util/error.hpp>
+#include <random>
 
 namespace soil {    
 
 //! \todo Make this generic! Constructing an operator like this should be much simpler.
+
+namespace {
+
+const double dirmap[8] = {
+  7, 8, 1, 2, 3, 4, 5, 6,
+};
+
+const std::vector<glm::ivec2> coords = {
+  glm::ivec2{-1, 0},
+  glm::ivec2{-1, 1},
+  glm::ivec2{ 0, 1},
+  glm::ivec2{ 1, 1},
+  glm::ivec2{ 1, 0},
+  glm::ivec2{ 1,-1},
+  glm::ivec2{ 0,-1},
+  glm::ivec2{-1,-1},
+};
+
+}
 
 //! Surface Flow Operator
 //!
@@ -22,23 +42,6 @@ struct flow {
     this->buffer = soil::buffer(cached.as<double>().buffer);
   }
 
-  struct sample_t {
-    glm::ivec2 pos;
-    double value;
-    bool oob = true;
-  };
-
-  const std::vector<glm::ivec2> coords = {
-    glm::ivec2{-1, 0},
-    glm::ivec2{-1, 1},
-    glm::ivec2{ 0, 1},
-    glm::ivec2{ 1, 1},
-    glm::ivec2{ 1, 0},
-    glm::ivec2{ 1,-1},
-    glm::ivec2{ 0,-1},
-    glm::ivec2{-1,-1},
-  };
-
   //! Bake a whole buffer!
   //! Note: we make sure that the indexing structure of the buffer is respected.
   soil::buffer full() const {
@@ -46,15 +49,9 @@ struct flow {
     return soil::select(index.type(), [self = this]<typename T>() -> soil::buffer {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
 
-        const double dirmap[8] = {
-          7, 8, 1, 2, 3, 4, 5, 6,
-        };
-
         auto index = self->index.as<T>();
         auto in = self->buffer.as<double>();
         auto out = buffer_t<int>{index.elem()};
-
-        sample_t values[8];
 
         for (const auto &pos : index.iter()) {
         
@@ -68,7 +65,7 @@ struct flow {
 
           for(size_t k = 0; k < 8; ++k){
 
-            const glm::ivec2 coord = self->coords[k];
+            const glm::ivec2 coord = coords[k];
             const glm::ivec2 npos = pos + coord;
             if(!index.oob(npos)){
               
@@ -128,21 +125,6 @@ struct direction {
     return soil::select(index.type(), [self = this]<typename T>() -> soil::buffer {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
 
-        const double dirmap[8] = {
-          7, 8, 1, 2, 3, 4, 5, 6,
-        };
-
-        const std::vector<glm::ivec2> coords = {
-          glm::ivec2{-1, 0},
-          glm::ivec2{-1, 1},
-          glm::ivec2{ 0, 1},
-          glm::ivec2{ 1, 1},
-          glm::ivec2{ 1, 0},
-          glm::ivec2{ 1,-1},
-          glm::ivec2{ 0,-1},
-          glm::ivec2{-1,-1},
-        };
-
         auto index = self->index.as<T>();
         const size_t elem = index.elem();
         auto in = self->buffer.as<int>();
@@ -155,6 +137,86 @@ struct direction {
               val = coords[k];
           }
           out[i] = val;
+        }
+
+        return std::move(soil::buffer(std::move(out)));
+
+      } else {
+        throw std::invalid_argument("can't extract a full flow buffer from a non-2D index");
+      }
+    });
+  }
+
+private:
+  soil::index index;
+  soil::buffer buffer;
+};
+
+struct accumulation {
+
+  accumulation(soil::index index, const soil::node &node): index{index} {
+    auto cached = node.as<soil::cached>();
+    this->buffer = soil::buffer(cached.as<int>().buffer);
+  }
+
+  //! Bake a whole buffer!
+  //! Note: we make sure that the indexing structure of the buffer is respected.
+  soil::buffer full() const {
+
+    return soil::select(index.type(), [self = this]<typename T>() -> soil::buffer {
+      if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
+
+        auto index = self->index.as<T>();
+        const size_t elem = index.elem();
+        auto in = self->buffer.as<ivec2>();
+        auto out = buffer_t<double>{elem};
+
+        for(size_t i = 0; i < elem; ++i)
+          out[i] = 0.0;
+
+        std::random_device dev;
+        std::mt19937 rng(dev());
+        std::uniform_int_distribution<std::mt19937::result_type> dist_x(0, index[0]-1);
+        std::uniform_int_distribution<std::mt19937::result_type> dist_y(0, index[1]-1);
+
+        const size_t iterations = 2048;
+        const size_t samples = 1024;
+        const size_t steps = 3072;
+
+        for(size_t i = 0; i < iterations; ++i){
+
+          std::cout<<i<<std::endl;
+
+          const double P = double(i * samples) / double(elem);
+
+          for(size_t n = 0; n < samples; ++n){
+
+            ivec2 pos{dist_x(rng), dist_y(rng)};
+            size_t ind = index.flatten(pos);
+
+            for(size_t s = 0; s < steps; ++s){
+
+              const ivec2 dir = in[ind];
+              if(dir[0] == 0 && dir[1] == 0)
+                break;
+            
+              pos += dir;
+
+              if(index.oob(pos))
+                break;
+
+              ind = index.flatten(pos);
+              out[ind] += 1;
+
+            }
+
+          }
+
+        }
+
+        const double P = double(elem)/double(iterations*(samples));
+        for(size_t i = 0; i < elem; i++){
+          out[i] = 1.0 + P * out[i];
         }
 
         return std::move(soil::buffer(std::move(out)));

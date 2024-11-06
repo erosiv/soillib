@@ -344,6 +344,12 @@ void bind_node(nb::module_& module){
     return soil::node(std::move(direction.full()));
   });
 
+  auto accumulation = nb::class_<soil::accumulation>(module, "accumulation");
+  accumulation.def(nb::init<const soil::index&, const soil::node&>());
+  accumulation.def("full", [](const soil::accumulation& accumulation){
+    return soil::node(std::move(accumulation.full()));
+  });
+
   //
   // Noise Sampler Type
   //

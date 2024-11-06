@@ -20,71 +20,6 @@ from tqdm import tqdm
 from __common__ import *
 
 '''
-Flow and Direction Map Computation
-
-Utilizes the Steepest Neighbor
-to Compute D8 Flow Direction.
-'''
-
-def _area(height, flow, direction, area_gt):
-
-  '''
-  Iteratively Compute the Accumulation Area
-  '''
-
-  shape = height.shape
-  area = np.full(shape, 0.0)
-  count = np.full(shape, 0)
-
-  iterations = 128
-  samples = 1024
-  steps = 3072
-
-  #np.random.seed(0)
-
-  for i in range(iterations):
-
-    mask = np.full(samples, False)
-    pos = np.random.rand(samples, 2)
-    pos[..., 0] *= shape[0]
-    pos[..., 1] *= shape[1]
-    pos = pos.astype(np.int64)
-
-    # Print Metrics
-
-    P = (i * samples)/(shape[0] * shape[1])
-    sum_dist = np.sum(np.abs(area_gt-area))
-    dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
-
-    print(f"({i:3d}, {P:.5f}), {sum_dist/np.sum(area_gt):.5f}, {dist_sum/np.sum(area_gt):.5f}")
-
-    # Count the Positions
-
-    for n in range(steps):
-
-      # Sample the Next Position, Check for Motion
-      # Mask at Next Position if Out-Of-Bounds
-
-      pos_next = pos + direction[pos[:,0], pos[:,1]]
-      mask = np.logical_or(mask, pos_next[:,0] < 0)
-      mask = np.logical_or(mask, pos_next[:,1] < 0)
-      mask = np.logical_or(mask, pos_next[:,0] >= shape[0])
-      mask = np.logical_or(mask, pos_next[:,1] >= shape[1])
-
-      # Mask if Position has not Moved
-      # Note: Implicit when flow <= 0, or height is nan
-      mask = np.logical_or(mask, (pos_next == pos).all(axis=1))
-
-      # Clip Position and Accumulate Value
-      pos = np.clip(pos_next, [0,0], [shape[0]-1,shape[1]-1])
-      np.add.at(count, (pos[:,0], pos[:,1]), ~mask)
-
-    P = (shape[0] * shape[1])/((i+1)*(samples))
-    area = 1.0 + P * count
-
-  return area
-
-'''
 Main Control Flow
 '''
 
@@ -126,31 +61,17 @@ def main(input = ""):
 
   print("Computing Area")
 
-  area = _area(raw_data, flow, direction, area_gt)
+  area_node = soil.accumulation(image.index, dir_node.full())
+  area = area_node.full().numpy(image.index)
+
+  sum_dist = np.sum(np.abs(area_gt-area))
+  dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
+
+  print(f"{sum_dist/np.sum(area_gt):.5f}, {dist_sum/np.sum(area_gt):.5f}")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  plt.imshow(np.abs(area - area_gt)/area_gt)
+  plt.show()
 
   fig, ax = plt.subplots(2, 2, figsize=(8,6))
   fig.patch.set_alpha(0)
