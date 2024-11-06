@@ -28,51 +28,18 @@ to Compute D8 Flow Direction.
 
 dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
 
+# coords = [
+#   np.array([ 0,-1]), # N
+#   np.array([ 1,-1]), # NE
+#   np.array([ 1, 0]), # E
+#   np.array([ 1, 1]), # SE
+#   np.array([ 0, 1]), # S
+#   np.array([-1, 1]), # SW
+#   np.array([-1, 0]), # W
+#   np.array([-1,-1]), # NW
+# ]
+
 coords = [
-  np.array([ 0,-1]), # N
-  np.array([ 1,-1]), # NE
-  np.array([ 1, 0]), # E
-  np.array([ 1, 1]), # SE
-  np.array([ 0, 1]), # S
-  np.array([-1, 1]), # SW
-  np.array([-1, 0]), # W
-  np.array([-1,-1]), # NW
-]
-
-def _flow(data):
-
-  slopes = np.full((8, data.shape[0], data.shape[1]), 0.0)
-  for k, coord in enumerate(coords):
-    distance = np.sqrt(coord[0]**2 + coord[1]**2)
-    slopes[k] = (data - np.roll(data, (-coord[0], -coord[1]), axis=(0,1)))/distance
-
-  flow = np.argmax(slopes, axis=0)
-
-  flow = np.asarray(list(dirmap))[flow]
-  mask = np.isnan(data)
-  flow[mask] = 0
-
-  mask = np.less_equal(slopes, 0).all(axis=0)
-  flow[mask] = 0
-
-  '''
-  print("FLOW IS ZERO")
-  print(flow.shape)
-  print(flow)
-
-  # What if for some reason we stil have a pit?
-
-  print(np.sum())
-
-#  print(slopes.shape)
-#  print(slopes[:,flow])
-  '''
-
-  return flow
-
-def _direction(flow):
-
-  coords = [
     np.array([-1, 0]), # N
     np.array([-1, 1]), # NE
     np.array([ 0, 1]), # E
@@ -82,6 +49,34 @@ def _direction(flow):
     np.array([ 0,-1]), # W
     np.array([-1,-1]), # NW
   ]
+
+
+def _flow(data):
+
+  slopes = np.full((8, data.shape[0], data.shape[1]), 0.0)
+  for k, coord in enumerate(coords):
+    distance = np.sqrt(coord[0]**2 + coord[1]**2)
+    slopes[k] = (data - np.roll(data, (-coord[0], -coord[1]), axis=(0,1)))/distance
+
+  has_flow = np.greater(slopes, 0.0).any(axis=0)
+  slopes[np.isnan(slopes)] = -1.0
+
+  flow = np.argmax(slopes, axis=0)
+  flow = np.asarray(list(dirmap))[flow]
+
+  pits = np.less(slopes, 0.0).all(axis=0)
+
+  flat = ~has_flow & ~pits
+  flow[~has_flow] = -1
+
+  mask = np.isnan(data)
+  flow[flat] = -1
+  flow[pits] = -2
+  flow[mask] = -2
+
+  return flow
+
+def _direction(flow):
 
   shape = flow.shape
   direction = np.full((shape[0], shape[1], 2), 0)
@@ -106,7 +101,7 @@ def _area(height, flow, direction, area_gt):
   area = np.full(shape, 0.0)
   count = np.full(shape, 0)
 
-  iterations = 1024
+  iterations = 32
   samples = 1024
   steps = 3072
 
@@ -170,9 +165,6 @@ def main(input = ""):
   print("Computing Catchment...")
   area_gt = np.copy(grid.accumulation(flow_gt, dirmap=dirmap))
 
- # plt.imshow(np.log(area_gt))
- # plt.show()
-
   # Load the Image, Get the Data
 
   image = soil.geotiff(input)
@@ -186,8 +178,10 @@ def main(input = ""):
 
   print("Computing Direction...")
 
-  flow = np.copy(flow_gt)
-  #flow = _flow(raw_data)
+  flow = _flow(raw_data)
+
+  print("Flow Difference", np.sum(flow_gt != flow))  
+  
   direction = _direction(flow)
   shape = flow.shape
 
@@ -220,18 +214,103 @@ def main(input = ""):
   which is when a single sample hits. = 1 * area / samples
   '''
 
+  # Set of Valid Area Values
+  # Number of Occurences corresponds in this array
+  vals = np.sort(area_gt[flow > 0])
+
+  # Set of Unique Values gives us an x coordinate
+  # The index is the first occurence in the sorted array
+
+  x, index = np.unique(vals, return_index=True)
+  
+  # Therefore, the total number of values is the total
+  # "area" of the domain, the number of elements
+  # The count is the number of occurences for each unique
+  # element. We now have a map count(area_value).
+
+  index_max = len(vals)
+  count = np.append(index, index_max)[1:] - index
+
+  # Scaling the count by the value, we get the total
+  # contribution to the accumulation.
+  # We then accumlate 
+
+  area_t = count * x
+  t = np.cumsum(area_t)
+
+  ax[1,0].plot(np.log(x), np.log(t))
+
+  # do the same thing again!
+
+  vals = np.sort(area[flow > 0])
+
+  # Set of Unique Values gives us an x coordinate
+  # The index is the first occurence in the sorted array
+
+  x, index = np.unique(vals, return_index=True)
+  
+  # Therefore, the total number of values is the total
+  # "area" of the domain, the number of elements
+  # The count is the number of occurences for each unique
+  # element. We now have a map count(area_value).
+
+  index_max = len(vals)
+  count = np.append(index, index_max)[1:] - index
+
+  # Scaling the count by the value, we get the total
+  # contribution to the accumulation.
+  # We then accumlate 
+
+  area_t = count * x
+  t = np.cumsum(area_t)
+
+  ax[1,0].plot(np.log(x), np.log(t))
+
+#  def _p(ax, area):
+#    
+#    vals = np.log(vals)
+#  #  vals = np.floor(50*vals)/50
+#
+#    
+#
+#    count = np.append(index, len(vals))
+#    count = count[1:] - index
+#    ax.plot(x, np.log(count))
+#
+#  _p(ax[1,0], area_gt)
+#  _p(ax[1,0], area)
+
+#  vals = np.sort(area[flow > 0])
+#  x, index = np.unique(vals, return_index=True)
+#
+#  count = np.append(index, len(vals))
+#  count = count[1:] - index
+#  ax[1,0].plot(np.log(x), np.log(count))
+
+
+
+#  vals = np.sort(area[mask])
+#  X, F = np.unique(vals, return_index=True)
+#  ax[1,0].plot(np.log10(X), F)
+
+#  counts, bins, = np.histogram(np.log10(vals), bins=512)
+#  ax[1,0].stairs(np.log10(counts), bins)
+
+  plt.show()
+
+  '''
   mask = (flow > 0)
   area_gt = area_gt[mask]
   area = area[mask]
 
-  counts, bins, = np.histogram(np.log(area_gt), bins=32)
-  ax[1, 0].stairs(np.log(counts), bins)
+
 
   counts, bins, = np.histogram(np.log(area), bins=32)
   ax[1, 0].stairs(np.log(counts), bins)
 
   plt.tight_layout()
   plt.show()
+  '''
 
 if __name__ == "__main__":
 
