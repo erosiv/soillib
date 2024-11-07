@@ -111,7 +111,6 @@ struct buffer_t: typedbase {
     other._size = 0;
 	}
 
-
   #ifdef HAS_CUDA
 
   // GPU Uploading Procedure?

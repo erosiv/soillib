@@ -3,6 +3,7 @@
 #include <soillib/node/algorithm/flow.hpp>
 
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
 #include <math_constants.h>
 
 #include <iostream>
@@ -87,7 +88,7 @@ __global__ void _flow(soil::buffer_t<double> in, soil::buffer_t<int> out, soil::
 
 }
 
-__global__ void _select(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> out){
+__global__ void _direction(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> out){
 
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
   if(index >= in.elem()) return;
@@ -108,11 +109,12 @@ soil::buffer soil::flow::full() const {
 
   const int elem = index.elem();
   auto in = this->buffer.as<double>();
-  auto out = buffer_t<int>{index.elem(), GPU};
   in.to_gpu();
 
   const int thread = 1024;
   const int block = (elem + thread - 1)/thread;
+  
+  auto out = buffer_t<int>{index.elem(), GPU};
   _flow<<<block, thread>>>(in, out, index);
 
   return std::move(soil::buffer(std::move(out)));
@@ -123,14 +125,13 @@ soil::buffer soil::direction::full() const {
 
   const int elem = index.elem();
   auto in = this->buffer.as<int>();
-  auto out = buffer_t<ivec2>{elem, GPU};
   in.to_gpu();
 
   const int thread = 1024;
   const int block = (elem + thread - 1)/thread;
-  _select<<<block, thread>>>(in, out);
 
-  out.to_cpu();
+  auto out = buffer_t<ivec2>{index.elem(), GPU};
+  _direction<<<block, thread>>>(in, out);
 
   return std::move(soil::buffer(std::move(out)));
 
@@ -144,57 +145,98 @@ soil::buffer soil::direction::full() const {
 
 
 
+template<typename T>
+__global__ void _fill(soil::buffer_t<T> buf, const T val){
+  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if(index < buf.size())
+    buf[index] = val;
+}
 
+__global__ void init_randstate(curandState* states, const size_t N, const size_t seed) {
+  const int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if(index < N)
+    curand_init(seed, index, 0, &states[index]);
+}
 
+__global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int steps){
 
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= in.elem()) return;
+
+  curandState* state = &randStates[n];
+  glm::ivec2 pos {
+    curand_uniform(state)*index[0],
+    curand_uniform(state)*index[1]
+  };
+  size_t ind = index.flatten(pos);
+
+  for(size_t s = 0; s < steps; ++s){
+
+    const glm::ivec2 dir = in[ind];
+    pos += dir;
+    if(dir[0] == 0 && dir[1] == 0)
+      break;
+
+    if(index.oob(pos))
+      break;
+
+    ind = index.flatten(pos);
+    out[ind] += 1;
+//    atomicAdd(&(out[ind]), 1);
+  }
+
+}
+
+__global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, double P){
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= in.elem()) return;
+  out[n] = 1.0 + P * in[n];
+}
 
 soil::buffer soil::accumulation::full() const {
 
   const size_t elem = index.elem();
   auto in = this->buffer.as<ivec2>();
-  auto out = buffer_t<double>{elem};
+  in.to_gpu();
 
-  const double P = double(elem)/double(iterations*samples);
+  auto out = buffer_t<int>{elem, GPU};
+  int thread = 1024;
+  int block = (elem + thread - 1)/thread;
+  _fill<<<block, thread>>>(out, 0);
+  
+  std::cout<<"Filled"<<std::endl;
 
-  for(size_t i = 0; i < elem; ++i)
-    out[i] = 0.0;
+  curandState* randStates;
+  cudaMalloc((void**)&randStates, elem * sizeof(curandState));
+  init_randstate<<<block, thread>>>(randStates, elem, 0);
 
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<std::mt19937::result_type> dist_x(0, index[0]-1);
-  std::uniform_int_distribution<std::mt19937::result_type> dist_y(0, index[1]-1);
+  std::cout<<"Init Randsate"<<std::endl;
 
-  for(size_t i = 0; i < iterations; ++i){
-    for(size_t n = 0; n < samples; ++n){
+  thread = this->samples;
+  block = 1;//(elem + thread - 1)/thread;
 
-      ivec2 pos{dist_x(rng), dist_y(rng)};
-      size_t ind = index.flatten(pos);
-
-      for(size_t s = 0; s < steps; ++s){
-
-        const ivec2 dir = in[ind];
-        pos += dir;
-        if(dir[0] == 0 && dir[1] == 0)
-          break;
-
-        if(index.oob(pos))
-          break;
-
-        ind = index.flatten(pos);
-        out[ind] += 1.0;
-
-      }
-    }
-  }
+//  for(int n = 0; n < this->iterations; ++n)
+  _accumulate<<<block, thread>>>(in, out, index, randStates, this->steps);
+  cudaFree(randStates);
 
   // Note:
+  out.to_cpu();
+
+  std::cout<<"Accumulated"<<std::endl;
+  return std::move(soil::buffer(std::move(out)));
+
   // We could techincally also accumulate P,
   // then add 1. For some reason, slower.
 
-  for(size_t i = 0; i < elem; i++){
-    out[i] = 1.0 + P*out[i];
-  }
+  auto out2 = buffer_t<double>{elem, GPU};
 
-  return std::move(soil::buffer(std::move(out)));
+
+  thread = 1024;
+  block = (elem + thread - 1)/thread;
+  const double P = double(elem)/double(iterations*samples);
+  _normalize<<<thread, block>>>(out, out2, P);
+
+  out2.to_cpu();
+  return std::move(soil::buffer(std::move(out2)));
 
 }
