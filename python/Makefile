@@ -1,26 +1,29 @@
 # soillib/python Makefile
 # Compiler Configuration
 
-INCPATH = -I$(HOME)/.local/include
+INCPATH = -I$(HOME)/.local/include -I/usr/local/cuda-12/include
 LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
 LINKLIB = -ltiff -lnanobind
 
 CC = g++ -std=c++23
+#CC = nvcc --std=c++20
 CF = -Wfatal-errors -O3
 
+
+#CC = nvcc -ccbin /usr/bin/gcc-13
 # OS Specific Configuration
 
 UNAME := $(shell uname)
 
-ifeq ($(UNAME), Linux)			# Detect GNU/Linux
-endif
-
-ifeq ($(UNAME), Darwin)			# Detect MacOS
-INCPATH = -I/opt/homebrew/include
-LIBPATH = -L/opt/homebrew/lib
-CC = g++-13 -std=c++23
-endif
+# ifeq ($(UNAME), Linux)			# Detect GNU/Linux
+# endif
+# 
+# ifeq ($(UNAME), Darwin)			# Detect MacOS
+# INCPATH = -I/opt/homebrew/include
+# LIBPATH = -L/opt/homebrew/lib
+# CC = g++-13 -std=c++23
+# endif
 
 CF += -fvisibility=hidden \
     	-DNDEBUG -DNB_COMPACT_ASSERTIONS \
@@ -45,6 +48,9 @@ build:
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
 	@echo "Building Module: ${MODULE}"
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
+# Build CUDA Files
+	@nvcc -ccbin /usr/bin/gcc-13 --shared -Xcompiler -fPIC $(INCPATH) $(LIBPATH) source/flow.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/libFlow.so
+
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/soillib.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp 		$(LINKLIB) -Os -c -o $(BUILDDIR)/index.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp 				$(LINKLIB) -Os -c -o $(BUILDDIR)/io.o
@@ -53,8 +59,11 @@ build:
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/model.cpp 		$(LINKLIB) -Os -c -o $(BUILDDIR)/model.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/node.cpp 			$(LINKLIB) -Os -c -o $(BUILDDIR)/node.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/particle.o
+# Cuda files?
+
 	@echo "Linking..."
-	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff \
+#	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff -L./wheel -lFlow
+	@nvcc -ccbin /usr/bin/gcc-13 -shared -ltiff -L./wheel -lFlow \
 			$(BUILDDIR)/soillib.o \
 			$(BUILDDIR)/index.o \
 			$(BUILDDIR)/io.o \

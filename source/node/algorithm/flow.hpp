@@ -8,6 +8,8 @@
 #include <soillib/util/error.hpp>
 #include <random>
 
+#include <soillib/node/algorithm/flow_test.hpp>
+
 namespace soil {    
 
 //! \todo Make this generic! Constructing an operator like this should be much simpler.
@@ -142,7 +144,14 @@ struct direction {
 
   //! Bake a whole buffer!
   //! Note: we make sure that the indexing structure of the buffer is respected.
+ // soil::buffer full() const;
+
+  //! Bake a whole buffer!
+  //! Note: we make sure that the indexing structure of the buffer is respected.
   soil::buffer full() const {
+
+    flow_test t;
+    t.test();
 
     const size_t elem = index.elem();
     auto in = this->buffer.as<int>();

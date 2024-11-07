@@ -90,6 +90,17 @@ Note that this will install the headers, compile the python shared object, build
 
 This requires a working installation of `nanobind`. Note that the building code has not been made fully platform independent yet - some effort is needed to build on alternative platforms by modifying the parameters in the `Makefiles`.
 
+#### Building with CUDA Enabled
+
+The build will automatically detect whether you have CUDA installed:
+
+```bash
+sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/fedora39/x86_64/cuda-fedora39.repo
+sudo dnf clean all
+sudo dnf module disable nvidia-driver
+sudo dnf -y install cuda
+```
+
 ## ToDo
 
 This is a list of changes I would like to integrate into `soillib`. If you are reading this and motivated to implement any of these, I would be happy to accept any pull requests.
