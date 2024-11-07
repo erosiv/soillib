@@ -8,6 +8,10 @@
 #include <soillib/soillib.hpp>
 #include <iostream>
 
+#ifdef HAS_CUDA
+#include <cuda_runtime.h>
+#endif
+
 namespace soil {
 
 // basically we need an even more raw data extent...
@@ -120,6 +124,42 @@ struct buffer_t: typedbase {
     other._size = 0;
 	}
 
+
+  #ifdef HAS_CUDA
+
+  // GPU Uploading Procedure?
+  // GPU Uploading Procedure:
+  // If we are already on the GPU: continue.
+  // If we are not already on the GPU:
+  // directly upload this guy... note that we can copy construct.
+  void to_gpu() {
+
+    if(this->_host == GPU)
+      return;
+
+    if(this->_data == NULL)
+      return;
+
+    if(this->_size == 0)
+      return;
+
+    // 
+    
+    T* _data;
+    size_t _size = this->_size;
+
+    cudaMalloc(&_data, this->size());
+    cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
+    __cleanup__();
+    this->_data = _data;
+    this->_refs = new size_t(1);
+    this->_size = _size;
+    this->_host = GPU;
+
+  }
+
+  #endif
+
   //! Type Enumerator Retrieval
   constexpr soil::dtype type() noexcept override {
     return soil::typedesc<T>::type;
@@ -143,16 +183,32 @@ private:
 	void __cleanup__(){
     if(*this->_refs == 0)
       return;
-		(*this->_refs)--;
-		if(*this->_refs == 0){
-      if(this->_data != NULL){
+		
+    (*this->_refs)--;
+		if(*this->_refs > 0)
+      return;
+
+    delete this->_refs;
+
+    if(this->_data != NULL){
+      if(this->_host == CPU){
         delete[] this->_data;
+        this->_data = NULL;
+        this->_size = 0;
+        this->_host = CPU;
       }
-      delete this->_refs;
-		}
+
+      #ifdef HAS_CUDA
+      if(this->_host == GPU){
+        cudaFree(this->_data);
+        this->_data = NULL;
+        this->_size = 0;
+        this->_host = CPU;
+      }
+      #endif
+    }
 	}
 
-private:
   T* _data = NULL;          //!< Raw Data Pointer (Device Agnostic)
   size_t _size = 0;         //!< Number of Data Elements
   host_t _host = CPU;       //!< 
