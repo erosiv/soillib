@@ -10,6 +10,33 @@
 
 namespace soil {
 
+// basically we need an even more raw data extent...
+// one which can be on the CPU and the GPU...
+// what does this look like?
+
+template<typename T>
+struct buf_t {
+
+  void allocate(const size_t size){
+    if(this->_data == NULL){
+      this->_data = new T[size];
+      this->_size = size;
+    }
+  }
+
+  void deallocate(){
+    if(this->_data != NULL){
+      delete[] this->_data;
+      this->_data = NULL;
+      this->_size = 0;
+    }
+  }
+
+  T* _data = NULL;
+  size_t _size = 0;
+  bool on_device = false;
+};
+
 //! \todo Make sure that buffers are "re-interpretable"!
 
 //! buffer_t<T> is a strict-typed, raw-data extent.
@@ -54,6 +81,7 @@ struct buffer_t: typedbase {
   inline void *data() { return (void *)this->_data.get(); }       //!< Raw Data Pointer
 
 private:
+//  std::shared_ptr<buf_t<T>> _buf;
   std::shared_ptr<T[]> _data; //!< Raw Data Pointer Member
   size_t _size;               //!< Number of Data Elements
 };
@@ -66,10 +94,15 @@ void buffer_t<T>::allocate(const size_t size) {
     throw std::invalid_argument("size must be greater than 0");
   this->_data = std::make_shared<T[]>(size);
   this->_size = size;
+  //this->_buf = std::make_shared<buf_t<T>>(new T[size],  false);
+  //this->_buf = std::make_shared<buf_t<T>>();
+  //this->_buf->allocate(size);
 }
 
 template<typename T>
 void buffer_t<T>::deallocate() {
+//  this->_buf->deallocate();
+//  this->_buf = NULL;
   this->_data = NULL;
   this->_size = 0;
 }
