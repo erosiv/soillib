@@ -36,7 +36,7 @@ LIBDIST = libsoil
 #WHLTAG 		= py3-none-manylinux_2_17_x86_64
 
 GCCBIN = /usr/bin/gcc-13
-CC = nvcc -ccbin $(GCCBIN)
+CC = nvcc -ccbin $(GCCBIN) -std c++20
 INC_CUDA = -I/usr/local/cuda-12/include
 LINKLIB = #-ltiff -lnanobind
 

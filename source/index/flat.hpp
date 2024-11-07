@@ -1,8 +1,8 @@
 #ifndef SOILLIB_INDEX_FLAT
 #define SOILLIB_INDEX_FLAT
 
-#include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
+#include <soillib/core/types.hpp>
 #include <soillib/util/yield.hpp>
 
 #include <vector>
@@ -12,7 +12,7 @@ namespace soil {
 namespace {
 
 template<size_t D>
-size_t prod(const glm::vec<D, int> vec) {
+GPU_ENABLE size_t prod(const glm::vec<D, int> vec) {
   switch (D) {
   case 1:
     return vec[0];
@@ -22,9 +22,10 @@ size_t prod(const glm::vec<D, int> vec) {
     return vec[0] * vec[1] * vec[2];
   case 4:
     return vec[0] * vec[1] * vec[2] * vec[3];
-  default:
-    throw std::invalid_argument("can't flatten vector of dimension > 4");
-  }
+  default: return 0;
+//  default:
+//    throw std::invalid_argument("can't flatten vector of dimension > 4");
+  } 
 }
 
 } // namespace
@@ -66,22 +67,22 @@ struct flat_t: indexbase {
   }
 
   //! Number of Elements
-  inline size_t elem() const {
+  GPU_ENABLE inline size_t elem() const {
     return prod<D>(this->_vec);
   }
 
-  vec_t min() const noexcept { return vec_t{0}; }
-  vec_t max() const noexcept { return this->_vec; }
-  vec_t ext() const noexcept { return this->_vec; }
+  GPU_ENABLE vec_t min() const noexcept { return vec_t{0}; }
+  GPU_ENABLE vec_t max() const noexcept { return this->_vec; }
+  GPU_ENABLE vec_t ext() const noexcept { return this->_vec; }
 
   //! Extent Subscript Operator
-  inline size_t operator[](const size_t d) const {
+  GPU_ENABLE inline size_t operator[](const size_t d) const {
     return this->_vec[d];
   }
 
   // Flattening / Unflattening
 
-  size_t flatten(const vec_t pos) const {
+  GPU_ENABLE size_t flatten(const vec_t pos) const {
     int value{0};
     for (size_t d = 0; d < D; ++d) {
       value *= this->operator[](d);
@@ -90,7 +91,7 @@ struct flat_t: indexbase {
     return value;
   }
 
-  vec_t unflatten(const int index) const {
+  GPU_ENABLE vec_t unflatten(const int index) const {
     vec_t value{0};
     int scale = 1;
     for (int d = D - 1; d >= 0; --d) {
@@ -101,7 +102,7 @@ struct flat_t: indexbase {
   }
 
   //! Out-Of-Bounds Check (Compact)
-  bool oob(const vec_t pos) const {
+  GPU_ENABLE bool oob(const vec_t pos) const {
     for (size_t d = 0; d < D; ++d)
       if (pos[d] < 0 || pos[d] >= this->operator[](d))
         return true;

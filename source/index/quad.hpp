@@ -88,7 +88,7 @@ struct quad: indexbase {
         return base + node.flatten(pos);
       base += node.elem();
     }
-    return -1;
+    throw std::invalid_argument("out of bounds");
   }
 
   vec_t unflatten(const size_t index) const {
