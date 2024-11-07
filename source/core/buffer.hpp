@@ -39,6 +39,11 @@ struct buf_t {
 
 //! \todo Make sure that buffers are "re-interpretable"!
 
+enum host_t {
+  CPU,
+  GPU
+};
+
 //! buffer_t<T> is a strict-typed, raw-data extent.
 //!
 //! buffer_t<T> contains a shared pointer to the
@@ -48,64 +53,111 @@ struct buf_t {
 template<typename T>
 struct buffer_t: typedbase {
 
-  buffer_t(): _data{NULL}, _size{0} {}
+  buffer_t(){
+    this->_data = NULL;
+    this->_refs = new size_t(0);
+    this->_size = 0;
+    this->_host = CPU;
+  }
+
+  // Specialized Constructors
 
   buffer_t(const size_t size) {
-    this->allocate(size);
+    if (size == 0)
+      throw std::invalid_argument("size must be greater than 0");
+    this->_data = new T[size];
+    this->_refs = new size_t(1);
+    this->_size = size;
   }
 
   ~buffer_t() override {
-    this->deallocate();
+    __cleanup__();
   }
 
-  void allocate(const size_t size); //!< Allocate Raw Data Buffer
-  void deallocate();                //!< De-Allocate Raw Data Buffer
+  // Copy Semantics
 
-  //! Const Subscript Operator
-  T operator[](const size_t index) const noexcept {
-    return this->_data[index];
+  buffer_t(const buffer_t<T>& other){
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_size = other._size;
+    this->_host = other._host;
+    if(this->_data != NULL){
+      ++(*this->_refs);
+    }
+	}
+
+	buffer_t& operator=(const buffer_t<T>& other){
+		__cleanup__(); 
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_size = other._size;
+    this->_host = other._host;
+    if(this->_data != NULL){
+      ++(*this->_refs);
+    }
+	}
+
+  // Move Semantics
+
+  buffer_t(buffer_t<T>&& other){
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_size = other._size;
+    this->_host = other._host;
+    other._data = NULL;
+    other._refs = NULL;
+    other._size = 0;
   }
 
-  //! Non-Const Subscript Operator
-  T &operator[](const size_t index) noexcept {
-    return this->_data[index];
-  }
+	buffer_t& operator=(buffer_t<T>&& other){
+		__cleanup__();
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_size = other._size;
+    this->_host = other._host;
+    other._data = NULL;
+    other._refs = NULL;
+    other._size = 0;
+	}
 
   //! Type Enumerator Retrieval
   constexpr soil::dtype type() noexcept override {
     return soil::typedesc<T>::type;
   }
 
-  inline size_t elem() const { return this->_size; }              //!< Number of Elements
-  inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
-  inline void *data() { return (void *)this->_data.get(); }       //!< Raw Data Pointer
+  GPU_ENABLE inline size_t elem() const { return this->_size; }              //!< Number of Elements
+  GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
+  GPU_ENABLE inline void *data() { return (void *)this->_data; }               //!< Raw Data Pointer
+
+  //! Const Subscript Operator
+  GPU_ENABLE T operator[](const size_t index) const noexcept {
+    return this->_data[index];
+  }
+
+  //! Non-Const Subscript Operator
+  GPU_ENABLE T &operator[](const size_t index) noexcept {
+    return this->_data[index];
+  }
 
 private:
-//  std::shared_ptr<buf_t<T>> _buf;
-  std::shared_ptr<T[]> _data; //!< Raw Data Pointer Member
-  size_t _size;               //!< Number of Data Elements
+	void __cleanup__(){
+    if(*this->_refs == 0)
+      return;
+		(*this->_refs)--;
+		if(*this->_refs == 0){
+      if(this->_data != NULL){
+        delete[] this->_data;
+      }
+      delete this->_refs;
+		}
+	}
+
+private:
+  T* _data = NULL;          //!< Raw Data Pointer (Device Agnostic)
+  size_t _size = 0;         //!< Number of Data Elements
+  host_t _host = CPU;       //!< 
+  size_t* _refs = NULL; 
 };
-
-template<typename T>
-void buffer_t<T>::allocate(const size_t size) {
-  if (this->_data != NULL)
-    throw std::runtime_error("can't allocate over allocated buffer");
-  if (size == 0)
-    throw std::invalid_argument("size must be greater than 0");
-  this->_data = std::make_shared<T[]>(size);
-  this->_size = size;
-  //this->_buf = std::make_shared<buf_t<T>>(new T[size],  false);
-  //this->_buf = std::make_shared<buf_t<T>>();
-  //this->_buf->allocate(size);
-}
-
-template<typename T>
-void buffer_t<T>::deallocate() {
-//  this->_buf->deallocate();
-//  this->_buf = NULL;
-  this->_data = NULL;
-  this->_size = 0;
-}
 
 //
 //

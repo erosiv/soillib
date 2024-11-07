@@ -95,10 +95,12 @@ soil::buffer soil::flow::full() const {
   // GPU Buffer Equivalents
 
   soil::buf_t<double> g_in;
+  g_in.on_device = true;
   g_in._size = in.elem();
   cudaMalloc(&g_in._data, in.size());
 
   soil::buf_t<int> g_out;
+  g_out.on_device = true;
   g_out._size = out.elem();
   cudaMalloc(&g_out._data, out.size());
 
@@ -142,9 +144,11 @@ soil::buffer soil::direction::full() const {
   auto out = buffer_t<ivec2>{elem};
 
   soil::buf_t<int> g_in;
+  g_in.on_device = true;
   g_in._size = in.elem();
 
   soil::buf_t<glm::ivec2> g_out;
+  g_out.on_device = true;
   g_out._size = out.elem();
 
   cudaMalloc(&g_in._data, in.size());
