@@ -94,6 +94,13 @@ void bind_node(nb::module_& module){
     });
   });
 
+  node.def("to_cpu", [](soil::node& node){
+    auto cached = node.as<soil::cached>();
+    soil::select(cached.type(), [&cached]<typename T>(){
+      cached.as<T>().buffer.to_cpu();
+    });
+  });
+
   node.def("numpy", [](soil::node& node, soil::index& index){
     
     return soil::select(index.type(), [&]<typename I>() -> nb::object {

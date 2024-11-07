@@ -111,66 +111,14 @@ struct buffer_t: typedbase {
     other._size = 0;
 	}
 
-  #ifdef HAS_CUDA
-
   // GPU Uploading Procedure?
   // GPU Uploading Procedure:
   // If we are already on the GPU: continue.
   // If we are not already on the GPU:
   // directly upload this guy... note that we can copy construct.
-  void to_gpu() {
 
-    if(this->_host == GPU)
-      return;
-
-    if(this->_data == NULL)
-      return;
-
-    if(this->_size == 0)
-      return;
-
-    // 
-    
-    T* _data;
-    size_t _size = this->_size;
-
-    cudaMalloc(&_data, this->size());
-    cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
-    
-    __cleanup__();
-    this->_data = _data;
-    this->_refs = new size_t(1);
-    this->_size = _size;
-    this->_host = GPU;
-
-  }
-
-  void to_cpu() {
-
-    if(this->_host == CPU)
-      return;
-
-    if(this->_data == NULL)
-      return;
-
-    if(this->_size == 0)
-      return;
-
-    // 
-
-    size_t _size = this->_size;
-    T* _data = new T[_size];
-    cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyDeviceToHost);
-    __cleanup__();
-  
-    this->_data = _data;
-    this->_refs = new size_t(1);
-    this->_size = _size;
-    this->_host = CPU;
-
-  }
-
-  #endif
+  void to_gpu();
+  void to_cpu();
 
   //! Type Enumerator Retrieval
   constexpr soil::dtype type() noexcept override {

@@ -42,7 +42,6 @@ def main(input = ""):
   # Compute the Flow Direction
 
   print("Flow Node")
-  #with soil.timer() as timer:
   with soil.timer() as timer:
     flow_node = soil.flow(image.index, raw_node)()
   with soil.timer() as timer:
@@ -50,11 +49,12 @@ def main(input = ""):
   
   print("Computing Area")
   area_node = soil.accumulation(image.index, dir_node)
-  area_node.iterations = 128
+  area_node.iterations = 512
   area_node.samples = 1024
-  area_node.steps = 4096
+  area_node.steps = 8192
   with soil.timer() as timer:
     area = area_node()
+  area.to_cpu()
 
 #  areas = []
 

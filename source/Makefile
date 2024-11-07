@@ -51,8 +51,30 @@ all:
 	@cp -r ./* $(INCPATH)/$(DIRNAME)
 	@echo "Building Library: ${LIBDIST}"
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
+
 # Build CUDA Files
 	@$(CC) --shared -diag-suppress 20012 -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/$(LIBDIST).so
+
+#	@$(CC) -diag-suppress 20012 -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/flow.o
+#	@$(CC) -diag-suppress 20012 -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/buffer.o
+#	@$(CC) --shared -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH)  $(INCCUDA) \
+#			$(BUILDDIR)/flow.o \
+#			$(BUILDDIR)/buffer.o \
+#			-o $(BUILDDIR)/$(LIBDIST).so
+			
+#	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/particle.o
+#	@nvcc -ccbin /usr/bin/gcc-13 -shared -ltiff $(LIBPATH) -lsoil \
+#			$(BUILDDIR)/soillib.o \
+#			$(BUILDDIR)/index.o \
+#			$(BUILDDIR)/io.o \
+#			$(BUILDDIR)/util.o \
+#			$(BUILDDIR)/matrix.o \
+#			$(BUILDDIR)/model.o \
+#			$(BUILDDIR)/node.o \
+#			$(BUILDDIR)/particle.o \
+#		$(HOME)/.local/lib/libnanobind.o -o $(BUILDDIR)/${MODULE}
+#	@rm $(BUILDDIR)/*.o
+	
 	@echo "Installing Library ($(LIBDIST))..."
 	@mv $(BUILDDIR)/$(LIBDIST).so $(LIBPATH)/$(LIBDIST).so
 	@rmdir $(BUILDDIR)

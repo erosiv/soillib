@@ -137,14 +137,6 @@ soil::buffer soil::direction::full() const {
 
 }
 
-
-
-
-
-
-
-
-
 template<typename T>
 __global__ void _fill(soil::buffer_t<T> buf, const T val){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -154,14 +146,14 @@ __global__ void _fill(soil::buffer_t<T> buf, const T val){
 
 __global__ void init_randstate(curandState* states, const size_t N, const size_t seed) {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < N)
-    curand_init(seed, index, 0, &states[index]);
+  if(index >= N) return;
+  curand_init(seed, index, 0, &states[index]);
 }
 
-__global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int steps){
+__global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int steps, const int N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= in.elem()) return;
+  if(n >= N) return;
 
   curandState* state = &randStates[n];
   glm::ivec2 pos {
@@ -181,8 +173,7 @@ __global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> o
       break;
 
     ind = index.flatten(pos);
-    out[ind] += 1;
-//    atomicAdd(&(out[ind]), 1);
+    atomicAdd(&(out[ind]), 1);
   }
 
 }
@@ -190,7 +181,7 @@ __global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> o
 __global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, double P){
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= in.elem()) return;
-  out[n] = 1.0 + P * in[n];
+  out[n] = 1.0 + P * (double)in[n];
 }
 
 soil::buffer soil::accumulation::full() const {
@@ -203,40 +194,111 @@ soil::buffer soil::accumulation::full() const {
   int thread = 1024;
   int block = (elem + thread - 1)/thread;
   _fill<<<block, thread>>>(out, 0);
-  
-  std::cout<<"Filled"<<std::endl;
-
-  curandState* randStates;
-  cudaMalloc((void**)&randStates, elem * sizeof(curandState));
-  init_randstate<<<block, thread>>>(randStates, elem, 0);
-
-  std::cout<<"Init Randsate"<<std::endl;
-
-  thread = this->samples;
-  block = 1;//(elem + thread - 1)/thread;
-
-//  for(int n = 0; n < this->iterations; ++n)
-  _accumulate<<<block, thread>>>(in, out, index, randStates, this->steps);
-  cudaFree(randStates);
-
-  // Note:
-  out.to_cpu();
-
-  std::cout<<"Accumulated"<<std::endl;
-  return std::move(soil::buffer(std::move(out)));
-
-  // We could techincally also accumulate P,
-  // then add 1. For some reason, slower.
 
   auto out2 = buffer_t<double>{elem, GPU};
+  
+  curandState* randStates;
+  cudaMalloc((void**)&randStates, this->samples * sizeof(curandState));
 
+  thread = 1024;
+  block = (this->samples + thread - 1)/thread;
+
+  init_randstate<<<block, thread>>>(randStates, this->samples, 0);
+
+  for(int n = 0; n < this->iterations; ++n)
+    _accumulate<<<block, thread>>>(in, out, index, randStates, this->steps, this->samples);
+  cudaFree(randStates);
 
   thread = 1024;
   block = (elem + thread - 1)/thread;
   const double P = double(elem)/double(iterations*samples);
-  _normalize<<<thread, block>>>(out, out2, P);
+  _normalize<<<block, thread>>>(out, out2, P);
 
-  out2.to_cpu();
   return std::move(soil::buffer(std::move(out2)));
+
+}
+
+// note: move this to a different file
+
+namespace soil {
+
+template<typename T>
+void soil::buffer_t<T>::to_gpu() {
+
+  if(this->_host == GPU)
+    return;
+
+  if(this->_data == NULL)
+    return;
+
+  if(this->_size == 0)
+    return;
+
+  // 
+
+//    #ifdef HAS_CUDA
+  
+  T* _data;
+  size_t _size = this->_size;
+
+  cudaMalloc(&_data, this->size());
+  cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
+  
+  __cleanup__();
+  this->_data = _data;
+  this->_refs = new size_t(1);
+  this->_size = _size;
+  this->_host = GPU;
+
+//    #endif
+
+}
+
+template<typename T>
+void soil::buffer_t<T>::to_cpu() {
+
+  if(this->_host == CPU)
+    return;
+
+  if(this->_data == NULL)
+    return;
+
+  if(this->_size == 0)
+    return;
+
+  // 
+
+//   #ifdef HAS_CUDA
+
+  size_t _size = this->_size;
+  T* _data = new T[_size];
+  cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyDeviceToHost);
+  __cleanup__();
+
+  this->_data = _data;
+  this->_refs = new size_t(1);
+  this->_size = _size;
+  this->_host = CPU;
+
+//   #endif
+
+}
+
+// explicit template instantiation: this sucks
+template void soil::buffer_t<int>::to_gpu();
+template void soil::buffer_t<float>::to_gpu();
+template void soil::buffer_t<double>::to_gpu();
+template void soil::buffer_t<vec2>::to_gpu();
+template void soil::buffer_t<vec3>::to_gpu();
+template void soil::buffer_t<ivec2>::to_gpu();
+template void soil::buffer_t<ivec3>::to_gpu();
+
+template void soil::buffer_t<int>::to_cpu();
+template void soil::buffer_t<float>::to_cpu();
+template void soil::buffer_t<double>::to_cpu();
+template void soil::buffer_t<vec2>::to_cpu();
+template void soil::buffer_t<vec3>::to_cpu();
+template void soil::buffer_t<ivec2>::to_cpu();
+template void soil::buffer_t<ivec3>::to_cpu();
 
 }
