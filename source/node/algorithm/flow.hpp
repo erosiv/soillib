@@ -149,24 +149,11 @@ struct direction {
   //! Bake a whole buffer!
   //! Note: we make sure that the indexing structure of the buffer is respected.
   soil::buffer full() const {
-
-    flow_test t;
-    t.test();
-
     const size_t elem = index.elem();
     auto in = this->buffer.as<int>();
     auto out = buffer_t<ivec2>{elem};
 
-    for(size_t i = 0; i < elem; ++i){
-      glm::ivec2 val(0, 0);
-      for(size_t k = 0; k < 8; ++k){
-        if(in[i] == dirmap[k]){
-          val = coords[k];
-          break;
-        }
-      }
-      out[i] = val;
-    }
+    flow_test::test(in.data(), in.elem(), out.data(), out.elem());
 
     return std::move(soil::buffer(std::move(out)));
   }

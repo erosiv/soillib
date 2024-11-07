@@ -44,8 +44,8 @@ def main(input = ""):
   print("Flow Node")
   #with soil.timer() as timer:
   flow_node = soil.flow(image.index, raw_node)()
-  #with soil.timer() as timer:
-  dir_node = soil.direction(image.index, flow_node)()
+  with soil.timer() as timer:
+    dir_node = soil.direction(image.index, flow_node)()
   
   print("Computing Area")
   area_node = soil.accumulation(image.index, dir_node)
