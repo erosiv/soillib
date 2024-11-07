@@ -1,17 +1,14 @@
 # soillib/python Makefile
 # Compiler Configuration
 
-INCPATH = -I$(HOME)/.local/include -I/usr/local/cuda-12/include
+INCPATH = -I$(HOME)/.local/include
 LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
 LINKLIB = -ltiff -lnanobind
 
 CC = g++ -std=c++23
-#CC = nvcc --std=c++20
 CF = -Wfatal-errors -O3
 
-
-#CC = nvcc -ccbin /usr/bin/gcc-13
 # OS Specific Configuration
 
 UNAME := $(shell uname)
@@ -48,9 +45,6 @@ build:
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
 	@echo "Building Module: ${MODULE}"
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
-# Build CUDA Files
-	@nvcc -ccbin /usr/bin/gcc-13 --shared -Xcompiler -fPIC $(INCPATH) $(LIBPATH) source/flow.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/libFlow.so
-
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/soillib.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp 		$(LINKLIB) -Os -c -o $(BUILDDIR)/index.o
 	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp 				$(LINKLIB) -Os -c -o $(BUILDDIR)/io.o
@@ -63,7 +57,7 @@ build:
 
 	@echo "Linking..."
 #	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff -L./wheel -lFlow
-	@nvcc -ccbin /usr/bin/gcc-13 -shared -ltiff -L./wheel -lFlow \
+	@nvcc -ccbin /usr/bin/gcc-13 -shared -ltiff $(LIBPATH) -lsoil \
 			$(BUILDDIR)/soillib.o \
 			$(BUILDDIR)/index.o \
 			$(BUILDDIR)/io.o \

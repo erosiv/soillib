@@ -1,3 +1,5 @@
+#pragma diag_suppress 20012
+
 #include <soillib/node/algorithm/flow_test.hpp>
 #include <cuda_runtime.h>
 #include <iostream>
@@ -41,7 +43,7 @@ __global__ void _select(gpu_buf<int> in, gpu_buf<glm::ivec2> out){
 }
 
 void soil::flow_test::test(void* in, const size_t size_in, void* out, const size_t size_out){
-  std::cout<<"KERNEL CALLED"<<std::endl;
+  std::cout<<"KERNEL CALLED HERE"<<std::endl;
 
   // malloc, copy, 
   gpu_buf<int> g_in;
