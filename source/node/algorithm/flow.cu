@@ -38,15 +38,15 @@ __device__ const int dirmap[8] = {
 
 }
 
-__global__ void _flow(soil::buf_t<double> in, soil::buf_t<int> out, soil::flat_t<2> index){
+__global__ void _flow(soil::buffer_t<double> in, soil::buffer_t<int> out, soil::flat_t<2> index){
 
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if(i >= in._size) return;
+  if(i >= in.elem()) return;
 
   const glm::ivec2 pos = index.unflatten(i);
     
   double diffmax = 0.0f;
-  double hvalue = in._data[i];
+  double hvalue = in[i];
   int value = -2;   // default also for nan
   bool pit = true;
   bool has_flow = false;
@@ -59,7 +59,7 @@ __global__ void _flow(soil::buf_t<double> in, soil::buf_t<int> out, soil::flat_t
     if(!index.oob(npos)){
       
       const size_t n = index.flatten(npos);
-      const double nvalue = in._data[n];
+      const double nvalue = in[n];
       const double ndiff = (hvalue - nvalue)/dist[k];
       
       if(ndiff > diffmax){
@@ -82,92 +82,71 @@ __global__ void _flow(soil::buf_t<double> in, soil::buf_t<int> out, soil::flat_t
   if(!has_flow && !pit) value = -1;
 
   if(value >= 0)
-    out._data[i] = dirmap[value];
-  else out._data[i] = value;
+    out[i] = dirmap[value];
+  else out[i] = value;
 
 }
 
-soil::buffer soil::flow::full() const {
-
-  auto in = this->buffer.as<double>();
-  auto out = buffer_t<int>{index.elem()};
-
-  // GPU Buffer Equivalents
-
-  soil::buf_t<double> g_in;
-  g_in.on_device = true;
-  g_in._size = in.elem();
-  cudaMalloc(&g_in._data, in.size());
-
-  soil::buf_t<int> g_out;
-  g_out.on_device = true;
-  g_out._size = out.elem();
-  cudaMalloc(&g_out._data, out.size());
-
-  cudaMemcpy(g_in._data, in.data(), in.size(), cudaMemcpyHostToDevice);
-
-  const int elem = index.elem();
-  const int thread = 1024;
-  const int block = (elem + thread - 1)/thread;
-  _flow<<<block, thread>>>(g_in, g_out, index);
-
-  cudaMemcpy(out.data(), g_out._data, out.size(), cudaMemcpyDeviceToHost);
-
-  cudaFree(g_in._data);
-  cudaFree(g_out._data);
-
-  return std::move(soil::buffer(std::move(out)));
-
-}
-
-__global__ void _select(soil::buf_t<int> in, soil::buf_t<glm::ivec2> out){
+__global__ void _select(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> out){
 
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index >= in._size) return;
+  if(index >= in.elem()) return;
 
   glm::ivec2 val(0, 0);
   for(size_t k = 0; k < 8; ++k){
-    if(in._data[index] == dirmap[k]){
+    if(in[index] == dirmap[k]){
       val = coords[k];
       break;
     }
   }
 
-  out._data[index] = val;
+  out[index] = val;
+
+}
+
+soil::buffer soil::flow::full() const {
+
+  const int elem = index.elem();
+  auto in = this->buffer.as<double>();
+  auto out = buffer_t<int>{index.elem(), GPU};
+  in.to_gpu();
+
+  const int thread = 1024;
+  const int block = (elem + thread - 1)/thread;
+  _flow<<<block, thread>>>(in, out, index);
+
+  return std::move(soil::buffer(std::move(out)));
 
 }
 
 soil::buffer soil::direction::full() const {
 
-  const size_t elem = index.elem();
+  const int elem = index.elem();
   auto in = this->buffer.as<int>();
-  auto out = buffer_t<ivec2>{elem};
-
-  soil::buf_t<int> g_in;
-  g_in.on_device = true;
-  g_in._size = in.elem();
-
-  soil::buf_t<glm::ivec2> g_out;
-  g_out.on_device = true;
-  g_out._size = out.elem();
-
-  cudaMalloc(&g_in._data, in.size());
-  cudaMalloc(&g_out._data, out.size());
-
-  cudaMemcpy(g_in._data, in.data(), in.size(), cudaMemcpyHostToDevice);
+  auto out = buffer_t<ivec2>{elem, GPU};
+  in.to_gpu();
 
   const int thread = 1024;
   const int block = (elem + thread - 1)/thread;
-  _select<<<block, thread>>>(g_in, g_out);
+  _select<<<block, thread>>>(in, out);
 
-  cudaMemcpy(out.data(), g_out._data, out.size(), cudaMemcpyDeviceToHost);
-
-  cudaFree(g_in._data);
-  cudaFree(g_out._data);
+  out.to_cpu();
 
   return std::move(soil::buffer(std::move(out)));
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 soil::buffer soil::accumulation::full() const {
 

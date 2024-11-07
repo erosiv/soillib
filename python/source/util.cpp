@@ -97,6 +97,11 @@ bind_yield_t<soil::flat_t<4>::vec_t>(module, "yield_shape_t_arr_4");
 // Array Type Binding
 //
 
+nb::enum_<soil::host_t>(module, "host")
+  .value("cpu", soil::host_t::CPU)
+  .value("gpu", soil::host_t::GPU)
+  .export_values();
+
 auto buffer = nb::class_<soil::buffer>(module, "buffer");
 buffer.def(nb::init<>());
 buffer.def(nb::init<const soil::dtype, const size_t>());
@@ -105,6 +110,7 @@ buffer.def_prop_ro("type", &soil::buffer::type);
 
 buffer.def("elem", &soil::buffer::elem);
 buffer.def("size", &soil::buffer::size);
+buffer.def("host", &soil::buffer::host);
 
 buffer.def("zero", [](soil::buffer& buffer){
   return soil::select(buffer.type(), [&buffer]<typename S>(){
@@ -141,6 +147,11 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb:
 //! \todo clean this up once the method for converting vector types is figured out.
 
 buffer.def("numpy", [](soil::buffer& buffer) -> nb::object {
+
+  if(buffer.host() != soil::host_t::CPU){
+    throw std::invalid_argument("buffer is not on CPU. call buffer.cpu() first");
+  }
+
   return soil::select(buffer.type(), [&buffer]<typename S>() -> nb::object {
     if constexpr(std::same_as<S, int>){
       size_t shape[1]{buffer.elem()};

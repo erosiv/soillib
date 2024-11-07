@@ -14,33 +14,6 @@
 
 namespace soil {
 
-// basically we need an even more raw data extent...
-// one which can be on the CPU and the GPU...
-// what does this look like?
-
-template<typename T>
-struct buf_t {
-
-  void allocate(const size_t size){
-    if(this->_data == NULL){
-      this->_data = new T[size];
-      this->_size = size;
-    }
-  }
-
-  void deallocate(){
-    if(this->_data != NULL){
-      delete[] this->_data;
-      this->_data = NULL;
-      this->_size = 0;
-    }
-  }
-
-  T* _data = NULL;
-  size_t _size = 0;
-  bool on_device = false;
-};
-
 //! \todo Make sure that buffers are "re-interpretable"!
 
 enum host_t {
@@ -66,12 +39,26 @@ struct buffer_t: typedbase {
 
   // Specialized Constructors
 
-  buffer_t(const size_t size) {
+  buffer_t(const size_t size, const host_t host = CPU) {
     if (size == 0)
       throw std::invalid_argument("size must be greater than 0");
-    this->_data = new T[size];
-    this->_refs = new size_t(1);
+    
     this->_size = size;
+
+    if(host == CPU){
+      this->_data = new T[size];
+    }
+
+    else if(host == GPU){
+      #ifdef HAS_CUDA
+        cudaMalloc(&this->_data, this->size());
+      #else
+        throw std::invalid_argument("CUDA is not available");
+      #endif
+    }
+
+    this->_host = host;
+    this->_refs = new size_t(1); 
   }
 
   ~buffer_t() override {
@@ -150,11 +137,37 @@ struct buffer_t: typedbase {
 
     cudaMalloc(&_data, this->size());
     cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
+    
     __cleanup__();
     this->_data = _data;
     this->_refs = new size_t(1);
     this->_size = _size;
     this->_host = GPU;
+
+  }
+
+  void to_cpu() {
+
+    if(this->_host == CPU)
+      return;
+
+    if(this->_data == NULL)
+      return;
+
+    if(this->_size == 0)
+      return;
+
+    // 
+
+    size_t _size = this->_size;
+    T* _data = new T[_size];
+    cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyDeviceToHost);
+    __cleanup__();
+  
+    this->_data = _data;
+    this->_refs = new size_t(1);
+    this->_size = _size;
+    this->_host = CPU;
 
   }
 
@@ -168,6 +181,9 @@ struct buffer_t: typedbase {
   GPU_ENABLE inline size_t elem() const { return this->_size; }              //!< Number of Elements
   GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
   GPU_ENABLE inline void *data() { return (void *)this->_data; }               //!< Raw Data Pointer
+
+  GPU_ENABLE inline size_t refs() const { return *this->_refs; }
+  GPU_ENABLE inline host_t host() const { return this->_host; }
 
   //! Const Subscript Operator
   GPU_ENABLE T operator[](const size_t index) const noexcept {
@@ -297,6 +313,12 @@ struct buffer {
   void *data() {
     return select(this->type(), [self = this]<typename S>() {
       return self->as<S>().data();
+    });
+  }
+
+  host_t host() const {
+    return select(this->type(), [self = this]<typename S>() {
+      return self->as<S>().host();
     });
   }
 
