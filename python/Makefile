@@ -4,10 +4,10 @@
 INCPATH = -I$(HOME)/.local/include
 LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
-LINKLIB = -ltiff -lnanobind
+LINKLIB = -lsoil -ltiff -lnanobind 
 
 CC = g++ -std=c++23
-CF = -Wfatal-errors -O3
+CF = -Wfatal-errors -O3 -Os
 
 # OS Specific Configuration
 
@@ -22,12 +22,6 @@ UNAME := $(shell uname)
 # CC = g++-13 -std=c++23
 # endif
 
-CF += -fvisibility=hidden \
-    	-DNDEBUG -DNB_COMPACT_ASSERTIONS \
-    	`python3-config --includes` -fPIC \
-			-O3 -fno-strict-aliasing \
-      -ffunction-sections -fdata-sections
-
 # Wheel File / Distributable Configuration
 
 BUILDDIR 	= wheel
@@ -39,34 +33,43 @@ WHLTAG 		= py3-none-manylinux_2_17_x86_64
 # Binary Compilation
 #
 
+CF += -fvisibility=hidden \
+    	-DNDEBUG -DNB_COMPACT_ASSERTIONS \
+    	`python3-config --includes` \
+			-fno-strict-aliasing \
+      -ffunction-sections -fdata-sections
+
 .PHONY: build
 build:
 #	Compile the Extension Code
 	@$(eval MODULE:= soillib$(shell python3-config --extension-suffix))
-	@echo "Building Module: ${MODULE}"
+	@echo "  Building Python Module: ${MODULE}"
+	@echo "  Compiling Binding Object Files..."
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/soillib.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/soillib.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/index.cpp 		$(LINKLIB) -Os -c -o $(BUILDDIR)/index.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/io.cpp 				$(LINKLIB) -Os -c -o $(BUILDDIR)/io.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/util.cpp 			$(LINKLIB) -Os -c -o $(BUILDDIR)/util.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/matrix.cpp 		$(LINKLIB) -Os -c -o $(BUILDDIR)/matrix.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/model.cpp 		$(LINKLIB) -Os -c -o $(BUILDDIR)/model.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/node.cpp 			$(LINKLIB) -Os -c -o $(BUILDDIR)/node.o
-	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/particle.o
-# Cuda files?
-
-	@echo "Linking..."
-#	@$(CC) -shared -Wl,-s -Wl,--gc-sections -ltiff -L./wheel -lFlow
-	@nvcc -ccbin /usr/bin/gcc-13 -shared -ltiff $(LIBPATH) -lsoil \
-			$(BUILDDIR)/soillib.o \
-			$(BUILDDIR)/index.o \
-			$(BUILDDIR)/io.o \
-			$(BUILDDIR)/util.o \
-			$(BUILDDIR)/matrix.o \
-			$(BUILDDIR)/model.o \
-			$(BUILDDIR)/node.o \
-			$(BUILDDIR)/particle.o \
-		$(HOME)/.local/lib/libnanobind.o -o $(BUILDDIR)/${MODULE}
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/soillib.cpp 	-o $(BUILDDIR)/soillib.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/index.cpp 	 	-o $(BUILDDIR)/index.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/io.cpp 				-o $(BUILDDIR)/io.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/util.cpp 			-o $(BUILDDIR)/util.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/matrix.cpp 		-o $(BUILDDIR)/matrix.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/model.cpp 	  -o $(BUILDDIR)/model.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/node.cpp 	 		-o $(BUILDDIR)/node.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/particle.cpp 	-o $(BUILDDIR)/particle.o
+	@echo "  Linking Object Files..."
+	@$(CC) -shared -o $(BUILDDIR)/${MODULE} \
+		$(LIBPATH) \
+		$(BUILDDIR)/soillib.o \
+		$(BUILDDIR)/index.o \
+		$(BUILDDIR)/io.o \
+		$(BUILDDIR)/util.o \
+		$(BUILDDIR)/matrix.o \
+		$(BUILDDIR)/model.o \
+		$(BUILDDIR)/node.o \
+		$(BUILDDIR)/particle.o \
+		$(HOME)/.local/lib/libnanobind.o \
+		-lnanobind \
+		-lsoil \
+		-ltiff \
+		-L/usr/local/cuda-12/lib64 -lcudart -lcuda
 	@rm $(BUILDDIR)/*.o
 
 #
@@ -76,6 +79,7 @@ build:
 .PHONY: wheel
 wheel:
 #	Packaging Parameters
+	@echo "  Building Wheel File..."
 	@$(eval WHEEL:= ${WHLDIST}-${VERSION}-${WHLTAG}.whl)
 	@$(eval INFODIR:= ${WHLDIST}-${VERSION}.dist-info)
 	@$(eval DATADIR:= ${WHLDIST}-${VERSION}.data)
@@ -95,8 +99,7 @@ wheel:
 	@cd ${BUILDDIR}; $(foreach FILE,$(FILES), \
 		echo -n "${FILE},sha256=" >> ${WHLDIST}-${VERSION}.dist-info/RECORD; \
 		cat ${FILE} | sha256sum >> ${WHLDIST}-${VERSION}.dist-info/RECORD;)
-
-# Zip Wheel File!
+	@echo "  Compressing..."
 	@cd ${BUILDDIR}; zip -r ../${WHEEL} .;
 
 #

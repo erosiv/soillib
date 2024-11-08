@@ -40,6 +40,10 @@ CC = nvcc -ccbin $(GCCBIN) -std c++20
 INC_CUDA = -I/usr/local/cuda-12/include
 LINKLIB = #-ltiff -lnanobind
 
+# Note: This means we compile a pure object file, no linking,
+# which has relocatable code.
+CF = -diag-suppress 20012 -Xcompiler -fPIC -c -O3
+
 .PHONY: all
 all:
 	@echo "soillib: copying header files...";
@@ -52,31 +56,30 @@ all:
 	@echo "Building Library: ${LIBDIST}"
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
 
-# Build CUDA Files
-	@$(CC) --shared -diag-suppress 20012 -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/$(LIBDIST).so
+#nvcc  -o liblibrary.so --shared library.cu
+#	@$(CC) -diag-suppress 20012 --compiler-options '-fPIC' --shared -o $(BUILDDIR)/$(LIBDIST).so \
+#	 -I$(INCPATH) $(INCCUDA) \
+#		node/algorithm/flow.cu \
+#		core/buffer.cu
 
-#	@$(CC) -diag-suppress 20012 -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/flow.o
-#	@$(CC) -diag-suppress 20012 -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu $(LINKLIB) -O3 -c -o $(BUILDDIR)/buffer.o
-#	@$(CC) --shared -Xcompiler -fPIC -I$(INCPATH) -L$(LIBPATH)  $(INCCUDA) \
-#			$(BUILDDIR)/flow.o \
-#			$(BUILDDIR)/buffer.o \
-#			-o $(BUILDDIR)/$(LIBDIST).so
-			
-#	@$(CC) $(CF) $(INCPATH) $(LIBPATH) source/particle.cpp 	$(LINKLIB) -Os -c -o $(BUILDDIR)/particle.o
-#	@nvcc -ccbin /usr/bin/gcc-13 -shared -ltiff $(LIBPATH) -lsoil \
-#			$(BUILDDIR)/soillib.o \
-#			$(BUILDDIR)/index.o \
-#			$(BUILDDIR)/io.o \
-#			$(BUILDDIR)/util.o \
-#			$(BUILDDIR)/matrix.o \
-#			$(BUILDDIR)/model.o \
-#			$(BUILDDIR)/node.o \
-#			$(BUILDDIR)/particle.o \
-#		$(HOME)/.local/lib/libnanobind.o -o $(BUILDDIR)/${MODULE}
-#	@rm $(BUILDDIR)/*.o
-	
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu 	-o $(BUILDDIR)/flow.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu 					-o $(BUILDDIR)/buffer.o
+	@nvcc -dlink -Xcompiler -fPIC -o $(BUILDDIR)/$(LIBDIST).o \
+		$(BUILDDIR)/buffer.o \
+		$(BUILDDIR)/flow.o
+	@nvcc -lib -o $(BUILDDIR)/$(LIBDIST).a $(BUILDDIR)/$(LIBDIST).o \
+		$(BUILDDIR)/buffer.o \
+		$(BUILDDIR)/flow.o
+
+#	@ar rcs $(BUILDDIR)/$(LIBDIST).a $(BUILDDIR)/$(LIBDIST).o \
+#		$(BUILDDIR)/buffer.o \
+#		$(BUILDDIR)/flow.o
+#	@ranlib $(BUILDDIR)/$(LIBDIST).a
+
 	@echo "Installing Library ($(LIBDIST))..."
-	@mv $(BUILDDIR)/$(LIBDIST).so $(LIBPATH)/$(LIBDIST).so
+	@mv $(BUILDDIR)/$(LIBDIST).a $(LIBPATH)/$(LIBDIST).a
+	@mv $(BUILDDIR)/$(LIBDIST).o $(LIBPATH)/$(LIBDIST).o
+	@rm $(BUILDDIR)/*.o
 	@rmdir $(BUILDDIR)
 
 .PHONY: lint

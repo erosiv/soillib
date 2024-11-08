@@ -4,13 +4,9 @@
 //! A buffer represents a raw data extent
 //! \todo add more detail about this file
 
-#include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
+#include <soillib/core/types.hpp>
 #include <iostream>
-
-#ifdef HAS_CUDA
-#include <cuda_runtime.h>
-#endif
 
 namespace soil {
 
@@ -40,29 +36,11 @@ struct buffer_t: typedbase {
   // Specialized Constructors
 
   buffer_t(const size_t size, const host_t host = CPU) {
-    if (size == 0)
-      throw std::invalid_argument("size must be greater than 0");
-    
-    this->_size = size;
-
-    if(host == CPU){
-      this->_data = new T[size];
-    }
-
-    else if(host == GPU){
-      #ifdef HAS_CUDA
-        cudaMalloc(&this->_data, this->size());
-      #else
-        throw std::invalid_argument("CUDA is not available");
-      #endif
-    }
-
-    this->_host = host;
-    this->_refs = new size_t(1); 
+    this->allocate(size, host);
   }
 
   ~buffer_t() override {
-    __cleanup__();
+    this->deallocate();
   }
 
   // Copy Semantics
@@ -78,7 +56,7 @@ struct buffer_t: typedbase {
 	}
 
 	buffer_t& operator=(const buffer_t<T>& other){
-		__cleanup__(); 
+    this->deallocate();
     this->_data = other._data;
     this->_refs = other._refs;
     this->_size = other._size;
@@ -86,6 +64,7 @@ struct buffer_t: typedbase {
     if(this->_data != NULL){
       ++(*this->_refs);
     }
+    return *this;
 	}
 
   // Move Semantics
@@ -101,7 +80,7 @@ struct buffer_t: typedbase {
   }
 
 	buffer_t& operator=(buffer_t<T>&& other){
-		__cleanup__();
+    this->deallocate();
     this->_data = other._data;
     this->_refs = other._refs;
     this->_size = other._size;
@@ -109,6 +88,7 @@ struct buffer_t: typedbase {
     other._data = NULL;
     other._refs = NULL;
     other._size = 0;
+    return *this;
 	}
 
   // GPU Uploading Procedure?
@@ -143,34 +123,9 @@ struct buffer_t: typedbase {
   }
 
 private:
-	void __cleanup__(){
-    if(*this->_refs == 0)
-      return;
-		
-    (*this->_refs)--;
-		if(*this->_refs > 0)
-      return;
 
-    delete this->_refs;
-
-    if(this->_data != NULL){
-      if(this->_host == CPU){
-        delete[] this->_data;
-        this->_data = NULL;
-        this->_size = 0;
-        this->_host = CPU;
-      }
-
-      #ifdef HAS_CUDA
-      if(this->_host == GPU){
-        cudaFree(this->_data);
-        this->_data = NULL;
-        this->_size = 0;
-        this->_host = CPU;
-      }
-      #endif
-    }
-	}
+  void allocate(const size_t size, const host_t host = CPU);
+  void deallocate();
 
   T* _data = NULL;          //!< Raw Data Pointer (Device Agnostic)
   size_t _size = 0;         //!< Number of Data Elements

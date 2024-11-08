@@ -49,7 +49,7 @@ def main(input = ""):
   
   print("Computing Area")
   area_node = soil.accumulation(image.index, dir_node)
-  area_node.iterations = 512
+  area_node.iterations = 256
   area_node.samples = 1024
   area_node.steps = 8192
   with soil.timer() as timer:
