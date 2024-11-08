@@ -131,6 +131,18 @@ buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
   });
 });
 
+buffer.def("to_cpu", [](soil::buffer& buffer){
+  soil::select(buffer.type(), [&buffer]<typename T>(){
+    buffer.as<T>().to_cpu();
+  });
+});
+
+buffer.def("to_gpu", [](soil::buffer& buffer){
+  soil::select(buffer.type(), [&buffer]<typename T>(){
+    buffer.as<T>().to_gpu();
+  });
+});
+
 buffer.def("__getitem__", [](const soil::buffer& buffer, const size_t index) -> nb::object {
   return soil::select(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
     S value = buffer.as<S>().operator[](index);

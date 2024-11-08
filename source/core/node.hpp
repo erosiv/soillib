@@ -71,14 +71,17 @@ struct node {
     });
   }
 
-  // Call Operator
-
   template<typename T>
   T operator()(const size_t index) {
     return soil::select(this->dnode(), [self=this, index]<typename S>(){
       return self->as<S>().template operator()<T>(index);
     });
   }
+  
+  /*
+  // Call Operator
+
+
 
   // Bake a Node!
   node bake(const soil::index index) {
@@ -94,6 +97,7 @@ struct node {
       });
     });
   }
+  */
 
 private:
   using ptr_t = std::shared_ptr<nodebase>;

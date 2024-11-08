@@ -132,13 +132,13 @@ void WaterParticle::track(soil::model &model) {
 
   {
     auto cached = model[soil::DISCHARGE_TRACK].as<soil::cached>();
-    soil::buffer_t<float> buffer = cached.as<float>().buffer;
+    soil::buffer_t<float> buffer = cached.buffer.as<float>();
     buffer[index] += this->volume;
   }
 
   {
     auto cached = model[soil::MOMENTUM_TRACK].as<soil::cached>();
-    soil::buffer_t<vec2> buffer = cached.as<vec2>().buffer;
+    soil::buffer_t<vec2> buffer = cached.buffer.as<vec2>();
     buffer[index] += this->volume * this->speed;
   }
 }

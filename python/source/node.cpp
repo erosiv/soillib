@@ -33,28 +33,31 @@ void bind_node(nb::module_& module){
   //
 
   auto node = nb::class_<soil::node>(module, "node");
-  node.def_prop_ro("type", &soil::node::type);
-
   node.def(nb::init<const soil::buffer>());
   node.def(nb::init<soil::cached&&>());
   node.def(nb::init<soil::constant&&>());
   node.def(nb::init<soil::computed&&>());
 
-  node.def("bake", &soil::node::bake);
+  node.def_prop_ro("type", &soil::node::type);
+  node.def_prop_ro("buffer", [](soil::node& node){
+    return node.as<soil::cached>().buffer;
+  }, nb::rv_policy::reference_internal);
 
-  node.def("buffer", [](soil::node& node){
-    auto cached = node.as<soil::cached>();
-    return soil::select(cached.type(), [&cached]<typename T>() -> soil::buffer {
-      return soil::buffer(cached.as<T>().buffer);
-    });
-  });
+
+
+
+
+
+
+
+  // node.def("bake", &soil::node::bake);
 
   node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::object value){
 
-    auto cached = node.as<soil::cached>();
-    soil::select(cached.type(), [&cached, &slice, &value]<typename S>(){
+    auto buffer = node.as<soil::cached>().buffer;
+    soil::select(buffer.type(), [&buffer, &slice, &value]<typename S>(){
 
-      auto buffer_t = cached.as<S>().buffer;    // Assignable Strict-Type Buffer
+      auto buffer_t = buffer.as<S>();           // Assignable Strict-Type Buffer
       const auto value_t = nb::cast<S>(value);  // Assignable Value
 
       // Read Slice:
@@ -69,6 +72,7 @@ void bind_node(nb::module_& module){
     });
   });
 
+  /*
   node.def("__call__", [](soil::node& node, const size_t index){
     return soil::select(node.dnode(), [&node, index]<typename S>() -> nb::object {
       auto node_t = node.as<S>();
@@ -78,6 +82,7 @@ void bind_node(nb::module_& module){
       });
     });
   });
+  */
 
 //  node.def("__getitem__", [](soil::node& ))
 
@@ -94,20 +99,6 @@ void bind_node(nb::module_& module){
     });
   });
 
-  node.def("to_cpu", [](soil::node& node){
-    auto cached = node.as<soil::cached>();
-    soil::select(cached.type(), [&cached]<typename T>(){
-      cached.as<T>().buffer.to_cpu();
-    });
-  });
-
-  node.def("to_gpu", [](soil::node& node){
-    auto cached = node.as<soil::cached>();
-    soil::select(cached.type(), [&cached]<typename T>(){
-      cached.as<T>().buffer.to_gpu();
-    });
-  });
-
   node.def("numpy", [](soil::node& node, soil::index& index){
     
     return soil::select(index.type(), [&]<typename I>() -> nb::object {
@@ -116,28 +107,28 @@ void bind_node(nb::module_& module){
       soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
 
       //! \todo Remove this requirement, not actually necessary.
-      auto cached = node.as<soil::cached>();
+      auto buffer = node.as<soil::cached>().buffer;
 
-      return soil::select(cached.type(), [&]<typename T>() -> nb::object {
+      return soil::select(buffer.type(), [&]<typename T>() -> nb::object {
 
         if constexpr(nb::detail::is_ndarray_scalar_v<T>){
 
-          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
           // Typed Buffer of Flat Size
           //! \todo make sure this is de-allocated correctly,
           //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+          soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
 
           // Fill w. NaN Value
           T value = std::numeric_limits<T>::quiet_NaN();
-          for(size_t i = 0; i < buffer->elem(); ++i)
-            buffer->operator[](i) = value;
+          for(size_t i = 0; i < target->elem(); ++i)
+            target->operator[](i) = value;
 
           // Iterate over Flat Index
           for(const auto& pos: index_t.iter()){
             const size_t i = index_t.flatten(pos);
-            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+            target->operator[](flat.flatten(pos - index_t.min())) = source[i];
           }
 
           size_t shape[I::n_dims]{0};
@@ -145,7 +136,7 @@ void bind_node(nb::module_& module){
             shape[d] = flat[d];
 
           nb::ndarray<nb::numpy, T, nb::ndim<I::n_dims>> array(
-            buffer->data(),
+            target->data(),
             I::n_dims,
             shape,
             nb::handle()
@@ -157,25 +148,25 @@ void bind_node(nb::module_& module){
         //! \todo Make this Generic
         else if constexpr(std::same_as<T, soil::vec3>) {
 
-          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
           // Typed Buffer of Flat Size
           //! \todo make sure this is de-allocated correctly,
           //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+          soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
 
           // Fill w. NaN Value
           //! \todo automate the related NaN value determination
           //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
 
           T value = T{std::numeric_limits<float>::quiet_NaN()};
-          for(size_t i = 0; i < buffer->elem(); ++i)
-            buffer->operator[](i) = value;
+          for(size_t i = 0; i < target->elem(); ++i)
+            target->operator[](i) = value;
 
           // Iterate over Flat Index
           for(const auto& pos: index_t.iter()){
             const size_t i = index_t.flatten(pos);
-            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+            target->operator[](flat.flatten(pos - index_t.min())) = source[i];
           }
 
           size_t shape[I::n_dims + 1]{0};
@@ -184,7 +175,7 @@ void bind_node(nb::module_& module){
           shape[I::n_dims] = 3;
 
           nb::ndarray<nb::numpy, float, nb::ndim<I::n_dims+1>> array(
-            buffer->data(),
+            target->data(),
             I::n_dims+1,
             shape,
             nb::handle()
@@ -193,7 +184,7 @@ void bind_node(nb::module_& module){
 
         } else if constexpr(std::same_as<T, soil::vec2>) {
 
-          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
           // Typed Buffer of Flat Size
           //! \todo make sure this is de-allocated correctly,
@@ -211,7 +202,7 @@ void bind_node(nb::module_& module){
           // Iterate over Flat Index
           for(const auto& pos: index_t.iter()){
             const size_t i = index_t.flatten(pos);
-            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+            buffer->operator[](flat.flatten(pos - index_t.min())) = source[i];
           }
 
           size_t shape[I::n_dims + 1]{0};
@@ -229,25 +220,25 @@ void bind_node(nb::module_& module){
 
         } else if constexpr(std::same_as<T, soil::ivec2>) {
 
-          soil::cached_t<T> source = cached.as<T>();  // Source Buffer w. Index
+          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
           // Typed Buffer of Flat Size
           //! \todo make sure this is de-allocated correctly,
           //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+          soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
 
           // Fill w. NaN Value
           //! \todo automate the related NaN value determination
           //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
 
           T value = T{std::numeric_limits<int>::quiet_NaN()};
-          for(size_t i = 0; i < buffer->elem(); ++i)
-            buffer->operator[](i) = value;
+          for(size_t i = 0; i < target->elem(); ++i)
+            target->operator[](i) = value;
 
           // Iterate over Flat Index
           for(const auto& pos: index_t.iter()){
             const size_t i = index_t.flatten(pos);
-            buffer->operator[](flat.flatten(pos - index_t.min())) = source(i);
+            target->operator[](flat.flatten(pos - index_t.min())) = source[i];
           }
 
           size_t shape[I::n_dims + 1]{0};
@@ -256,7 +247,7 @@ void bind_node(nb::module_& module){
           shape[I::n_dims] = 2;
 
           nb::ndarray<nb::numpy, int, nb::ndim<I::n_dims+1>> array(
-            buffer->data(),
+            target->data(),
             I::n_dims+1,
             shape,
             nb::handle()
@@ -285,8 +276,8 @@ void bind_node(nb::module_& module){
 
     soil::select(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
       if constexpr (std::is_floating_point_v<T>) {
-        auto lhs_t = lhs.as<soil::cached>().as<T>().buffer;
-        auto rhs_t = rhs.as<soil::cached>().as<T>().buffer;
+        auto lhs_t = lhs.as<soil::cached>().buffer.as<T>();
+        auto rhs_t = rhs.as<soil::cached>().buffer.as<T>();
         for(size_t i = 0; i < lhs_t.elem(); ++i){
           const T lhs_value = lhs_t[i];
           const T rhs_value = rhs_t[i];

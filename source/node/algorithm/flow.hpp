@@ -58,8 +58,7 @@ struct flow {
       }
     });
 
-    auto cached = node.as<soil::cached>();
-    this->buffer = soil::buffer(cached.as<double>().buffer);
+    this->buffer = node.as<soil::cached>().buffer;
   }
 
   //! Bake a whole buffer!
@@ -83,8 +82,7 @@ struct direction {
       }
     });
 
-    auto cached = node.as<soil::cached>();
-    this->buffer = soil::buffer(cached.as<int>().buffer);
+    this->buffer = node.as<soil::cached>().buffer;
   }
 
   //! Bake a whole buffer!
@@ -108,8 +106,7 @@ struct accumulation {
       }
     });
 
-    auto cached = node.as<soil::cached>();
-    this->buffer = soil::buffer(cached.as<int>().buffer);
+    this->buffer = node.as<soil::cached>().buffer;
   }
 
   size_t iterations = 128;
