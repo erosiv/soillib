@@ -105,38 +105,6 @@ __global__ void _direction(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> ou
 
 }
 
-soil::buffer soil::flow::full() const {
-
-  const int elem = index.elem();
-  auto in = this->buffer.as<double>();
-  in.to_gpu();
-
-  const int thread = 1024;
-  const int block = (elem + thread - 1)/thread;
-  
-  auto out = buffer_t<int>{index.elem(), GPU};
-  _flow<<<block, thread>>>(in, out, index);
-
-  return std::move(soil::buffer(std::move(out)));
-
-}
-
-soil::buffer soil::direction::full() const {
-
-  const int elem = index.elem();
-  auto in = this->buffer.as<int>();
-  in.to_gpu();
-
-  const int thread = 1024;
-  const int block = (elem + thread - 1)/thread;
-
-  auto out = buffer_t<ivec2>{index.elem(), GPU};
-  _direction<<<block, thread>>>(in, out);
-
-  return std::move(soil::buffer(std::move(out)));
-
-}
-
 template<typename T>
 __global__ void _fill(soil::buffer_t<T> buf, const T val){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -182,6 +150,38 @@ __global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, d
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= in.elem()) return;
   out[n] = 1.0 + P * (double)in[n];
+}
+
+soil::buffer soil::flow::full() const {
+
+  const int elem = index.elem();
+  auto in = this->buffer.as<double>();
+  in.to_gpu();
+
+  const int thread = 1024;
+  const int block = (elem + thread - 1)/thread;
+  
+  auto out = buffer_t<int>{index.elem(), GPU};
+  _flow<<<block, thread>>>(in, out, index);
+
+  return std::move(soil::buffer(std::move(out)));
+
+}
+
+soil::buffer soil::direction::full() const {
+
+  const int elem = index.elem();
+  auto in = this->buffer.as<int>();
+  in.to_gpu();
+
+  const int thread = 1024;
+  const int block = (elem + thread - 1)/thread;
+
+  auto out = buffer_t<ivec2>{index.elem(), GPU};
+  _direction<<<block, thread>>>(in, out);
+
+  return std::move(soil::buffer(std::move(out)));
+
 }
 
 soil::buffer soil::accumulation::full() const {
