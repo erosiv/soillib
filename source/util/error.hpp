@@ -69,11 +69,28 @@ private:
 struct mismatch_host: std::exception {
   mismatch_host(host_t lhs, host_t rhs){
     std::stringstream ss;
-    ss << "mismatch host. want lhs(";
+    ss << "mismatched host. want lhs<";
     ss << soil::select(lhs, []<host_t S>(){ return hostdesc<S>::name; });
-    ss << "), have rhs(";
+    ss << ">, have rhs<";
     ss << soil::select(rhs, []<host_t S>(){ return hostdesc<S>::name; });
-    ss << ")";
+    ss << ">";
+    this->msg = ss.str();
+  }
+  const char *what() const noexcept override {
+    return this->msg.c_str();
+  }
+private:
+  std::string msg;
+};
+
+struct unsupported_host: std::exception {
+  unsupported_host(host_t lhs, host_t rhs){
+    std::stringstream ss;
+    ss << "operation not support for host. want <";
+    ss << soil::select(lhs, []<host_t S>(){ return hostdesc<S>::name; });
+    ss << ">, have <";
+    ss << soil::select(rhs, []<host_t S>(){ return hostdesc<S>::name; });
+    ss << ">";
     this->msg = ss.str();
   }
   const char *what() const noexcept override {
