@@ -45,12 +45,12 @@ def render(model):
   index = model.index
 
   normal = soil.normal(index, model[soil.height]).full()
-  normal_data = normal.numpy(index)
+  normal_data = normal.buffer.numpy(index)
 
-  height_data = model[soil.height].numpy(index)
+  height_data = model[soil.height].buffer.numpy(index)
   relief = relief_shade(height_data, normal_data)
 
-  discharge_data = sigmoid(100.0*model[soil.discharge].numpy(index))
+  discharge_data = sigmoid(100.0*model[soil.discharge].buffer.numpy(index))
   #discharge_data = model[soil.discharge].numpy(index)
 
 #  momentum_data = sigmoid(model.momentum.numpy(index))
@@ -81,13 +81,15 @@ def make_model(index, seed=0.0):
   model = soil.model()
   model.index = index
 
-  noise = soil.noise(index, seed) * 80.0
-  model[soil.height] = noise.bake(index)
+  noise = soil.noise(index, seed)
+  noise = soil.bake(noise, index)
+  soil.multiply(noise.buffer, 80.0)
+  model[soil.height] = noise
 
-  model[soil.discharge]       = soil.constant(soil.float32, 0.0).bake(index)
-  model[soil.discharge_track] = soil.constant(soil.float32, 0.0).bake(index)
-  model[soil.momentum]        = soil.constant(soil.vec2, [0.0, 0.0]).bake(index)
-  model[soil.momentum_track]  = soil.constant(soil.vec2, [0.0, 0.0]).bake(index)
+  model[soil.discharge]       = soil.bake(soil.constant(soil.float32, 0.0), index)
+  model[soil.discharge_track] = soil.bake(soil.constant(soil.float32, 0.0), index)
+  model[soil.momentum]        = soil.bake(soil.constant(soil.vec2, [0.0, 0.0]), index)
+  model[soil.momentum_track]  = soil.bake(soil.constant(soil.vec2, [0.0, 0.0]), index)
 
   model[soil.resistance] = soil.constant(soil.float32, 0.0)
   model[soil.maxdiff]    = soil.constant(soil.float32, 0.8)

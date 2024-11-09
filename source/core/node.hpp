@@ -78,23 +78,6 @@ struct node {
     });
   }
 
-  /*
-  // Bake a Node!
-  node bake(const soil::index index) {
-
-    return soil::select(this->dnode(), [self=this, index]<typename S>(){
-      const auto node = self->as<S>();
-      return soil::select(node.type(), [node, index]<typename T>() {
-        auto node_t = node.template as<T>();
-        auto buffer_t = soil::buffer_t<T>(index.elem());
-        for (size_t i = 0; i < buffer_t.elem(); ++i)
-          buffer_t[i] = node_t(i);
-        return soil::node(std::move(soil::cached(buffer_t)));
-      });
-    });
-  }
-  */
-
 private:
   using ptr_t = std::shared_ptr<nodebase>;
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer

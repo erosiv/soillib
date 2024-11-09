@@ -68,7 +68,7 @@ struct constant: nodebase {
   //! A static check is performed to guarantee that the
   //! cast of the actual internal type is valid.
   template<typename T>
-  T operator()(const size_t index) {
+  T operator()(const size_t index) const {
     return select(this->type(), [self = this, index]<typename S>() -> T {
       if constexpr (std::same_as<T, S>) {
         return self->as<S>().operator()(index);

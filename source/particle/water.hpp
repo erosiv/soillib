@@ -67,10 +67,10 @@ bool WaterParticle::move(soil::model &model, const WaterParticle_c &param) {
   // Termination Checks
 
   const glm::ivec2 ipos = pos;
-  const size_t index = model.index.flatten<2>(ipos);
-
   if (model.index.oob<2>(ipos))
     return false;
+
+  const size_t index = model.index.flatten<2>(ipos);
 
   if (age > param.maxAge) {
 
@@ -105,7 +105,7 @@ bool WaterParticle::move(soil::model &model, const WaterParticle_c &param) {
 
   // Gravity Force
 
-  speed += param.gravity * glm::vec2(n.x, n.z) / volume;
+  speed += param.gravity * glm::vec2(n.x, n.y) / volume;
 
   // Momentum Transfer Force
 

@@ -43,8 +43,6 @@ void bind_node(nb::module_& module){
     return node.as<soil::cached>().buffer;
   }, nb::rv_policy::reference_internal);
 
-  // node.def("bake", &soil::node::bake);
-
   node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::object value){
 
     auto buffer = node.as<soil::cached>().buffer;
@@ -99,13 +97,14 @@ void bind_node(nb::module_& module){
   //  These will be unified and expanded later!
   //
 
-  node.def("track", [](soil::node& lhs, soil::node& rhs, const float lrate){
+  node.def("track", [](soil::node& lhs, soil::node& rhs, const nb::object _lrate){
 
     if(lhs.type() != rhs.type())
       throw std::invalid_argument("nodes are not of the same type");
 
-    soil::select(rhs.type(), [&lhs, &rhs, lrate]<typename T>(){
-      if constexpr (std::is_floating_point_v<T>) {
+    soil::select(rhs.type(), [&lhs, &rhs, _lrate]<typename T>(){
+      if constexpr (std::is_scalar_v<T>) {
+        const T lrate = nb::cast<T>(_lrate);
         auto lhs_t = lhs.as<soil::cached>().buffer.as<T>();
         auto rhs_t = rhs.as<soil::cached>().buffer.as<T>();
         for(size_t i = 0; i < lhs_t.elem(); ++i){
@@ -113,9 +112,17 @@ void bind_node(nb::module_& module){
           const T rhs_value = rhs_t[i];
           lhs_t[i] = lhs_value * (T(1.0) - lrate) + rhs_value * lrate;
         }
-      } else
-        throw std::invalid_argument("invalid type for operation");
-      // throw soil::error::type_op_error<T>();
+      } else {
+        using V = typename T::value_type;
+        const V lrate = nb::cast<V>(_lrate);
+        auto lhs_t = lhs.as<soil::cached>().buffer.as<T>();
+        auto rhs_t = rhs.as<soil::cached>().buffer.as<T>();
+        for(size_t i = 0; i < lhs_t.elem(); ++i){
+          const T lhs_value = lhs_t[i];
+          const T rhs_value = rhs_t[i];
+          lhs_t[i] = lhs_value * (V(1.0) - lrate) + rhs_value * lrate;
+        }
+      }
     });
 
   });
@@ -213,6 +220,28 @@ void bind_node(nb::module_& module){
   //
 
   module.def("noise", soil::make_noise);
+
+  //
+  // Buffer Baking...
+  // I suppose this could also be done when a buffer is requested,
+  // but that hides the explicitness of it not always being available.
+  //
+
+  module.def("bake", [](soil::node& node, soil::index& index){
+    return soil::select(node.dnode(), [&node, &index]<typename S>(){
+      if constexpr(std::same_as<S, soil::cached>){
+        return node;
+      } else {
+        const auto node_t = node.as<S>();
+        return soil::select(node_t.type(), [&node_t, &index]<typename T>() {  
+          auto buffer_t = soil::buffer_t<T>(index.elem());
+          for (size_t i = 0; i < buffer_t.elem(); ++i)
+            buffer_t[i] = node_t.template as<T>()(i);
+          return soil::node(std::move(soil::cached(buffer_t)));
+        });
+      }
+    });
+  });
 
 }
 
