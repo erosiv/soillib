@@ -4,6 +4,8 @@ import soillib as soil
 import numpy as np
 import time
 
+import matplotlib.pyplot as plt
+
 '''
 Test the Index Types
 - Construction, Return Values
@@ -121,3 +123,10 @@ for pos in shape.iter():
   assert shape.flatten(pos) == i
   i += 1
 assert i == shape.elem()
+
+buffer = soil.buffer(soil.int, shape.elem())
+soil.set(buffer, 1)
+numpy = buffer.numpy(shape)
+plt.imshow(numpy)
+plt.show()
+print(numpy)

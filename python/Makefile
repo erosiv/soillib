@@ -7,7 +7,7 @@ DIRNAME = soillib
 LINKLIB = -lsoil -ltiff -lnanobind 
 
 CC = g++ -std=c++23
-CF = -Wfatal-errors -O3 -Os
+CF = -Wfatal-errors -O3 -Os #-fno-char8_t
 
 # OS Specific Configuration
 

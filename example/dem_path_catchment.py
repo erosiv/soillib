@@ -41,7 +41,7 @@ def main(input = ""):
 
   # Compute the Flow Direction
 
-  raw_node.buffer.to_gpu()
+  raw_node.buffer.gpu()
 
   print("Flow Node")
   with soil.timer() as timer:
@@ -56,7 +56,7 @@ def main(input = ""):
   area_node.steps = 8192
   with soil.timer() as timer:
     area = area_node()
-  area.buffer.to_cpu()
+  area.buffer.cpu()
 
 #  areas = []
 

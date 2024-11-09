@@ -28,6 +28,38 @@ enum dtype {
   DVEC4
 };
 
+// Compute Device Enumerator
+
+enum host_t {
+  CPU,
+  GPU
+};
+
+template<host_t T>
+struct hostdesc;
+
+template<>
+struct hostdesc<CPU> {
+  static constexpr std::string name = "CPU";
+};
+
+template<>
+struct hostdesc<GPU> {
+  static constexpr std::string name = "GPU";
+};
+
+template<typename F, typename... Args>
+auto select(const soil::host_t host, F lambda, Args &&...args) {
+  switch (host) {
+  case soil::CPU:
+    return lambda.template operator()<CPU>(std::forward<Args>(args)...);
+  case soil::GPU:
+    return lambda.template operator()<GPU>(std::forward<Args>(args)...);
+  default:
+    throw std::invalid_argument("host not supported");
+  }
+}
+
 // Vector Type Aliases (Convenience)
 
 constexpr auto defaultp = glm::qualifier::packed_highp;

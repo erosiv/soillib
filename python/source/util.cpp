@@ -15,8 +15,11 @@ namespace nb = nanobind;
 #include <soillib/core/types.hpp>
 #include <soillib/core/index.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/util/error.hpp>
 
 #include <soillib/util/select.hpp>
+
+#include <soillib/node/algorithm/common.hpp>
 
 #include "glm.hpp"
 
@@ -107,41 +110,30 @@ buffer.def(nb::init<>());
 buffer.def(nb::init<const soil::dtype, const size_t>());
 
 buffer.def_prop_ro("type", &soil::buffer::type);
+buffer.def_prop_ro("elem", &soil::buffer::elem);
+buffer.def_prop_ro("size", &soil::buffer::size);
+buffer.def_prop_ro("host", &soil::buffer::host);
 
-buffer.def("elem", &soil::buffer::elem);
-buffer.def("size", &soil::buffer::size);
-buffer.def("host", &soil::buffer::host);
+// Device-Switching Functions:
+// Return a Copy of the Buffer Directly
+// Note: Buffer handles internal reference counting.
+// Therefore, the copy here is fine. Swap is in-place.
 
-buffer.def("zero", [](soil::buffer& buffer){
-  return soil::select(buffer.type(), [&buffer]<typename S>(){
-    auto buffer_t = buffer.as<S>();
-    for(size_t i = 0; i < buffer_t.elem(); ++i)
-      buffer_t[i] = S{0};
-    return buffer;
-  });
-});
-
-buffer.def("fill", [](soil::buffer& buffer, const nb::object value){
-  return soil::select(buffer.type(), [&buffer, &value]<typename S>(){
-    auto buffer_t = buffer.as<S>();
-    auto value_t = nb::cast<S>(value);
-    for(size_t i = 0; i < buffer_t.elem(); ++i)
-      buffer_t[i] = value_t;
-    return buffer;
-  });
-});
-
-buffer.def("to_cpu", [](soil::buffer& buffer){
+buffer.def("cpu", [](soil::buffer& buffer){
   soil::select(buffer.type(), [&buffer]<typename T>(){
     buffer.as<T>().to_cpu();
   });
+  return buffer;
 });
 
-buffer.def("to_gpu", [](soil::buffer& buffer){
+buffer.def("gpu", [](soil::buffer& buffer){
   soil::select(buffer.type(), [&buffer]<typename T>(){
     buffer.as<T>().to_gpu();
   });
+  return buffer;
 });
+
+// 
 
 buffer.def("__getitem__", [](const soil::buffer& buffer, const size_t index) -> nb::object {
   return soil::select(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
@@ -156,10 +148,143 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb:
   });
 });
 
+//
+// Generic Buffer Functions
+//
+
+module.def("set", [](soil::buffer& lhs, const soil::buffer& rhs){
+  if(lhs.type() != rhs.type())
+    throw soil::error::mismatch_type(lhs.type(), rhs.type());
+  soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
+    soil::set<S>(lhs.as<S>(), rhs.as<S>());
+  });
+});
+
+module.def("set", [](soil::buffer& buffer, const nb::object value){
+  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
+    auto buffer_t = buffer.as<S>();
+    auto value_t = nb::cast<S>(value);
+    soil::set<S>(buffer_t, value_t);
+  });
+});
+
+module.def("add", [](soil::buffer& lhs, const soil::buffer& rhs){
+  if(lhs.type() != rhs.type())
+    throw soil::error::mismatch_type(lhs.type(), rhs.type());
+  soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
+    soil::add<S>(lhs.as<S>(), rhs.as<S>());
+  });
+});
+
+module.def("add", [](soil::buffer& buffer, const nb::object value){
+  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
+    auto buffer_t = buffer.as<S>();
+    auto value_t = nb::cast<S>(value);
+    soil::add<S>(buffer_t, value_t);
+  });
+});
+
+module.def("multiply", [](soil::buffer& lhs, const soil::buffer& rhs){
+  if(lhs.type() != rhs.type())
+    throw soil::error::mismatch_type(lhs.type(), rhs.type());
+  soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
+    soil::multiply<S>(lhs.as<S>(), rhs.as<S>());
+  });
+});
+
+module.def("multiply", [](soil::buffer& buffer, const nb::object value){
+  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
+    auto buffer_t = buffer.as<S>();
+    auto value_t = nb::cast<S>(value);
+    soil::multiply<S>(buffer_t, value_t);
+  });
+});
+
+//
+// External Library Interop Interface
+//
+
+buffer.def("numpy", [](soil::buffer& buffer){
+
+  // buffer arrives as a python object. we tie the lifetime of the buffer to
+  // the numpy array, so that the memory is always accessible / not deleted.
+
+  if(buffer.host() != soil::host_t::CPU){
+    throw std::invalid_argument("buffer is not on the cpu and can't be viewed by numpy");
+  }
+
+  return soil::select(buffer.type(), [&]<typename T>() -> nb::object {
+
+    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+
+      soil::buffer_t<T> source = buffer.as<T>();
+      size_t shape[1] = { source.elem() };
+
+      nb::ndarray<nb::numpy, T, nb::ndim<1>> array(
+        source.data(),    // raw data pointer
+        1,                // number of dimensions
+        shape,            // shape of array
+        nb::find(buffer)  // lifetime guarantee
+      );
+      return nb::cast(std::move(array));
+
+    } else if constexpr(std::same_as<T, soil::vec2>) {
+
+      soil::buffer_t<T> source = buffer.as<T>();
+      size_t shape[2] = { source.elem(), 2 };
+
+      nb::ndarray<nb::numpy, float, nb::ndim<2>> array(
+        source.data(),
+        2,
+        shape,
+        nb::find(buffer)
+      );
+      return nb::cast(std::move(array));
+
+    } else if constexpr(std::same_as<T, soil::vec3>) {
+
+      soil::buffer_t<T> source = buffer.as<T>();
+      size_t shape[2] = { source.elem(), 3 };
+
+      nb::ndarray<nb::numpy, float, nb::ndim<2>> array(
+        source.data(),
+        2,
+        shape,
+        nb::find(buffer)
+      );
+      return nb::cast(std::move(array));
+
+    } else if constexpr(std::same_as<T, soil::ivec2>) {
+
+      soil::buffer_t<T> source = buffer.as<T>();
+      size_t shape[2] = { source.elem(), 2 };
+
+      nb::ndarray<nb::numpy, int, nb::ndim<2>> array(
+        source.data(),
+        2,
+        shape,
+        nb::find(buffer)
+      );
+      return nb::cast(std::move(array));
+
+    } else {
+
+      throw std::invalid_argument("can't convert non-scalar buffer type (yet)");
+
+    }
+
+  });      
+
+});
+
 //! \todo clean this up once the method for converting vector types is figured out.
 
 buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
   
+  if(buffer.host() != soil::host_t::CPU){
+    throw std::invalid_argument("buffer is not on the cpu and can't be viewed by numpy");
+  }
+
   return soil::select(index.type(), [&]<typename I>() -> nb::object {
 
     auto index_t = index.as<I>();                 // Cast Index to Strict-Type
@@ -171,10 +296,10 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
 
         soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
-        // Typed Buffer of Flat Size
-        //! \todo make sure this is de-allocated correctly,
-        //! i.e. the numpy buffer should perform a copy.
         soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
+        nb::capsule owner(target, [](void *p) noexcept {
+          delete (soil::buffer_t<T>*)p;
+        });
 
         // Fill w. NaN Value
         T value = std::numeric_limits<T>::quiet_NaN();
@@ -195,7 +320,7 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
           target->data(),
           I::n_dims,
           shape,
-          nb::handle()
+          owner
         );
         return nb::cast(std::move(array));
 
@@ -206,10 +331,10 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
 
         soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
-        // Typed Buffer of Flat Size
-        //! \todo make sure this is de-allocated correctly,
-        //! i.e. the numpy buffer should perform a copy.
         soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
+        nb::capsule owner(target, [](void *p) noexcept {
+          delete (soil::buffer_t<T>*)p;
+        });
 
         // Fill w. NaN Value
         //! \todo automate the related NaN value determination
@@ -234,31 +359,31 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
           target->data(),
           I::n_dims+1,
           shape,
-          nb::handle()
+          owner
         );
         return nb::cast(std::move(array));
 
       } else if constexpr(std::same_as<T, soil::vec2>) {
 
         soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
-
-        // Typed Buffer of Flat Size
-        //! \todo make sure this is de-allocated correctly,
-        //! i.e. the numpy buffer should perform a copy.
-        soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
+        
+        soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
+        nb::capsule owner(target, [](void *p) noexcept {
+          delete (soil::buffer_t<T>*)p;
+        });
 
         // Fill w. NaN Value
         //! \todo automate the related NaN value determination
         //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
 
         T value = T{std::numeric_limits<float>::quiet_NaN()};
-        for(size_t i = 0; i < buffer->elem(); ++i)
-          buffer->operator[](i) = value;
+        for(size_t i = 0; i < target->elem(); ++i)
+          target->operator[](i) = value;
 
         // Iterate over Flat Index
         for(const auto& pos: index_t.iter()){
           const size_t i = index_t.flatten(pos);
-          buffer->operator[](flat.flatten(pos - index_t.min())) = source[i];
+          target->operator[](flat.flatten(pos - index_t.min())) = source[i];
         }
 
         size_t shape[I::n_dims + 1]{0};
@@ -267,10 +392,10 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
         shape[I::n_dims] = 2;
 
         nb::ndarray<nb::numpy, float, nb::ndim<I::n_dims+1>> array(
-          buffer->data(),
+          target->data(),
           I::n_dims+1,
           shape,
-          nb::handle()
+          owner
         );
         return nb::cast(std::move(array));
 
@@ -278,10 +403,10 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
 
         soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
 
-        // Typed Buffer of Flat Size
-        //! \todo make sure this is de-allocated correctly,
-        //! i.e. the numpy buffer should perform a copy.
         soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
+        nb::capsule owner(target, [](void *p) noexcept {
+          delete (soil::buffer_t<T>*)p;
+        });
 
         // Fill w. NaN Value
         //! \todo automate the related NaN value determination
@@ -306,7 +431,7 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
           target->data(),
           I::n_dims+1,
           shape,
-          nb::handle()
+          owner
         );
         return nb::cast(std::move(array));
 

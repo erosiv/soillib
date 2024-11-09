@@ -15,7 +15,7 @@ def main(input):
 
     print(f"File: {file}, {node.type}")
 
-    data = node.numpy(image.index)
+    data = node.buffer.numpy(image.index)
     plt.imshow(data)
     plt.show()
 
@@ -24,7 +24,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
   #data = "/home/nickmcdonald/Datasets/elevation.tiff"
   #data = "./conditioned.tiff"
-  #data = "merge.tiff"
+  data = "merge.tiff"
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
 

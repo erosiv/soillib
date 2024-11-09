@@ -16,7 +16,7 @@ def main(input):
     print(f"File: {file}, {node.type}")
 
     normal = soil.normal(image.index, node)
-    data = normal.full().numpy(image.index)
+    data = normal.full().buffer.numpy(image.index)
     data = 0.5 + 0.5*data
     plt.imshow(data)
     plt.show()
@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
   data = "merge.tiff"
 
   main(data)

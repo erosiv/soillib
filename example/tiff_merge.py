@@ -48,7 +48,7 @@ def merge(input, pscale = 0.1):
   mshape = soil.index([pixels[1], pixels[0]])
 
   array = soil.buffer(soil.float32, mshape.elem())
-  array.fill(np.nan)
+  soil.set(array, np.nan)
 
   for file, path in iter_tiff(input):
 
@@ -59,7 +59,7 @@ def merge(input, pscale = 0.1):
       geotiff = soil.geotiff(path)
       node = geotiff.node()
 
-      data = node.numpy(geotiff.index)
+      data = node.buffer.numpy(geotiff.index)
       data = skt.rescale(data, pscale, anti_aliasing=True)
   
       # Get the World-Space Position of the Image

@@ -34,19 +34,19 @@ def relief_shade(h, n):
   h = (h - h_min)/(h_max - h_min)
 
   # Light Direction, Diffuse Lighting
-  light = np.array([ 1, 1, 2])
+  light = np.array([-1, 2, 1])
   light = light / np.linalg.norm(light)
 
   diffuse = np.sum(light * n, axis=-1)
   diffuse = 0.05 + 0.9*diffuse
 
   # Flat-Toning
-  flattone = np.full(h.shape, 0.9)
-  weight = 1.0 - n[:,:,2]
-  weight = weight * (1.0 - h * h)
+  flattone = np.full(h.shape, 0.75)
+  weight = np.maximum(0, 1.0 - n[:,:,2])
+  #weight = weight * (1.0 - h * h)
 
   # Full Diffuse Shading Value
-  diffuse = (1.0 - weight) * diffuse + weight * flattone
+  diffuse = weight * diffuse + (1.0 - weight) * flattone
   return diffuse
 
 '''
@@ -104,7 +104,7 @@ def plot_flow(model):
 def show_height(array, index):
 
   array = soil.cached(array)
-  data = array.numpy(index)
+  data = array.buffer.numpy(index)
   plt.imshow(data)
   plt.show()
 
@@ -113,7 +113,7 @@ def show_normal(array, index):
   array = soil.cached(array)
   normal = soil.normal(index, array)
 
-  data = normal.full().numpy(index)
+  data = normal.full().buffer.numpy(index)
   plt.imshow(data)
   plt.show()
 
@@ -122,8 +122,8 @@ def show_relief(array, index):
   array = soil.cached(array)
   normal = soil.normal(index, array)
 
-  normal_data = normal.full().numpy(index)
-  height_data = array.numpy(index)
+  normal_data = normal.full().buffer.numpy(index)
+  height_data = array.buffer.numpy(index)
   
   relief = relief_shade(height_data, normal_data) 
   plt.imshow(relief, cmap='gray')

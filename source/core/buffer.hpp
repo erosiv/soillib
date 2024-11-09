@@ -12,11 +12,6 @@ namespace soil {
 
 //! \todo Make sure that buffers are "re-interpretable"!
 
-enum host_t {
-  CPU,
-  GPU
-};
-
 //! buffer_t<T> is a strict-typed, raw-data extent.
 //!
 //! buffer_t<T> contains a shared pointer to the
@@ -202,7 +197,7 @@ struct buffer {
     return this->as<T>()[index];
 //    return select(this->type(), [self = this, index]<typename S>() -> T& {
 //      if constexpr (std::same_as<S, T>) {
-//        return this->as<T>()[index];
+//        return self->as<T>()[index];
 //      } else {
 //        throw soil::error::cast_error<S, T>();
 //      }
@@ -229,7 +224,7 @@ struct buffer {
     });
   }
 
-  host_t host() const {
+  soil::host_t host() const {
     return select(this->type(), [self = this]<typename S>() {
       return self->as<S>().host();
     });

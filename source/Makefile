@@ -42,7 +42,7 @@ LINKLIB = #-ltiff -lnanobind
 
 # Note: This means we compile a pure object file, no linking,
 # which has relocatable code.
-CF = -diag-suppress 20012 -Xcompiler -fPIC -c -O3
+CF = -diag-suppress 20012 -diag-suppress 445 -Xcompiler -fPIC -c -O3 -Xcompiler #-fno-char8_t
 
 .PHONY: all
 all:
@@ -62,19 +62,18 @@ all:
 #		node/algorithm/flow.cu \
 #		core/buffer.cu
 
-	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu 	-o $(BUILDDIR)/flow.o
-	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu 					-o $(BUILDDIR)/buffer.o
+	@echo "Compiling Source Code..."
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu 						-o $(BUILDDIR)/buffer.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu 		-o $(BUILDDIR)/flow.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/common.cu 	-o $(BUILDDIR)/common.o
 	@nvcc -dlink -Xcompiler -fPIC -o $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
-		$(BUILDDIR)/flow.o
+		$(BUILDDIR)/flow.o \
+		$(BUILDDIR)/common.o
 	@nvcc -lib -o $(BUILDDIR)/$(LIBDIST).a $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
-		$(BUILDDIR)/flow.o
-
-#	@ar rcs $(BUILDDIR)/$(LIBDIST).a $(BUILDDIR)/$(LIBDIST).o \
-#		$(BUILDDIR)/buffer.o \
-#		$(BUILDDIR)/flow.o
-#	@ranlib $(BUILDDIR)/$(LIBDIST).a
+		$(BUILDDIR)/flow.o \
+		$(BUILDDIR)/common.o
 
 	@echo "Installing Library ($(LIBDIST))..."
 	@mv $(BUILDDIR)/$(LIBDIST).a $(LIBPATH)/$(LIBDIST).a

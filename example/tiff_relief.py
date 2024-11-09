@@ -17,8 +17,8 @@ def main(input):
 
     print(f"File: {file}, {height_node.type}")
 
-    height_data = height_node.numpy(index)
-    normal_data = normal_node.full().numpy(index)
+    height_data = height_node.buffer.numpy(index)
+    normal_data = normal_node.full().buffer.numpy(index)
 
     # Compute Shading
     relief = relief_shade(height_data, normal_data)
@@ -28,6 +28,6 @@ def main(input):
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-#  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "out_ebensee.tiff"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
+  data = "merge.tiff"
   main(data)
