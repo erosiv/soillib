@@ -3,7 +3,6 @@
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/types.hpp>
-#include <soillib/util/error.hpp>
 
 namespace soil {
 
@@ -32,15 +31,13 @@ struct cached: nodebase {
   //! A static check is performed to guarantee that the
   //! cast of the actual internal type is valid.
   template<typename T>
-  T operator()(const size_t index) const {
-    return select(this->buffer.type(), [self = this, index]<typename S>() -> T {
-      if constexpr (std::same_as<T, S>) {
-        return self->buffer.as<S>().operator[](index);
-      } else if constexpr (std::convertible_to<S, T>) {
-        return (T)self->buffer.as<S>().operator[](index);
-      } else
-        throw soil::error::cast_error<S, T>();
-    });
+  T operator()(const size_t index) const { 
+    return this->buffer.operator[]<T>(index);
+  }
+
+  template<typename T>
+  T& operator()(const size_t index){ 
+    return this->buffer.operator[]<T>(index);
   }
 
   soil::buffer buffer;

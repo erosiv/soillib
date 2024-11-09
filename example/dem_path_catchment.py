@@ -34,7 +34,7 @@ def main(input = ""):
 
   image = soil.geotiff(input)
   raw_node = image.node()
-  raw_data = raw_node.numpy(image.index)
+  raw_data = raw_node.buffer.numpy(image.index)
   raw_mask = np.isnan(raw_data)
 
   print(f"File: {input}, {raw_node.type}, {raw_data.shape}")
@@ -65,7 +65,7 @@ def main(input = ""):
 #  direction = dir_node.full().numpy(image.index)
 #  shape = flow.shape
 
-  area = area.numpy(image.index)
+  area = area.buffer.numpy(image.index)
   sum_dist = np.sum(np.abs(area_gt-area))
   dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
 

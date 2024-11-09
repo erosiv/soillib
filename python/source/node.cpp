@@ -43,13 +43,6 @@ void bind_node(nb::module_& module){
     return node.as<soil::cached>().buffer;
   }, nb::rv_policy::reference_internal);
 
-
-
-
-
-
-
-
   // node.def("bake", &soil::node::bake);
 
   node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::object value){
@@ -86,6 +79,7 @@ void bind_node(nb::module_& module){
 
 //  node.def("__getitem__", [](soil::node& ))
 
+  /*
   node.def("__mul__", [](soil::node node, const nb::object object){
     return soil::select(node.type(), [node, object]<typename T>() -> soil::node {
       T value = nb::cast<T>(object);
@@ -98,171 +92,7 @@ void bind_node(nb::module_& module){
       return soil::node(std::move(soil::computed(node.type(), func)));
     });
   });
-
-  node.def("numpy", [](soil::node& node, soil::index& index){
-    
-    return soil::select(index.type(), [&]<typename I>() -> nb::object {
-
-      auto index_t = index.as<I>();                 // Cast Index to Strict-Type
-      soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
-
-      //! \todo Remove this requirement, not actually necessary.
-      auto buffer = node.as<soil::cached>().buffer;
-
-      return soil::select(buffer.type(), [&]<typename T>() -> nb::object {
-
-        if constexpr(nb::detail::is_ndarray_scalar_v<T>){
-
-          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
-
-          // Typed Buffer of Flat Size
-          //! \todo make sure this is de-allocated correctly,
-          //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
-
-          // Fill w. NaN Value
-          T value = std::numeric_limits<T>::quiet_NaN();
-          for(size_t i = 0; i < target->elem(); ++i)
-            target->operator[](i) = value;
-
-          // Iterate over Flat Index
-          for(const auto& pos: index_t.iter()){
-            const size_t i = index_t.flatten(pos);
-            target->operator[](flat.flatten(pos - index_t.min())) = source[i];
-          }
-
-          size_t shape[I::n_dims]{0};
-          for(size_t d = 0; d < I::n_dims; ++d)
-            shape[d] = flat[d];
-
-          nb::ndarray<nb::numpy, T, nb::ndim<I::n_dims>> array(
-            target->data(),
-            I::n_dims,
-            shape,
-            nb::handle()
-          );
-          return nb::cast(std::move(array));
-
-        }
-        
-        //! \todo Make this Generic
-        else if constexpr(std::same_as<T, soil::vec3>) {
-
-          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
-
-          // Typed Buffer of Flat Size
-          //! \todo make sure this is de-allocated correctly,
-          //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
-
-          // Fill w. NaN Value
-          //! \todo automate the related NaN value determination
-          //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
-
-          T value = T{std::numeric_limits<float>::quiet_NaN()};
-          for(size_t i = 0; i < target->elem(); ++i)
-            target->operator[](i) = value;
-
-          // Iterate over Flat Index
-          for(const auto& pos: index_t.iter()){
-            const size_t i = index_t.flatten(pos);
-            target->operator[](flat.flatten(pos - index_t.min())) = source[i];
-          }
-
-          size_t shape[I::n_dims + 1]{0};
-          for(size_t d = 0; d < I::n_dims; ++d)
-            shape[d] = flat[d];
-          shape[I::n_dims] = 3;
-
-          nb::ndarray<nb::numpy, float, nb::ndim<I::n_dims+1>> array(
-            target->data(),
-            I::n_dims+1,
-            shape,
-            nb::handle()
-          );
-          return nb::cast(std::move(array));
-
-        } else if constexpr(std::same_as<T, soil::vec2>) {
-
-          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
-
-          // Typed Buffer of Flat Size
-          //! \todo make sure this is de-allocated correctly,
-          //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* buffer  = new soil::buffer_t<T>(flat.elem()); 
-
-          // Fill w. NaN Value
-          //! \todo automate the related NaN value determination
-          //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
-
-          T value = T{std::numeric_limits<float>::quiet_NaN()};
-          for(size_t i = 0; i < buffer->elem(); ++i)
-            buffer->operator[](i) = value;
-
-          // Iterate over Flat Index
-          for(const auto& pos: index_t.iter()){
-            const size_t i = index_t.flatten(pos);
-            buffer->operator[](flat.flatten(pos - index_t.min())) = source[i];
-          }
-
-          size_t shape[I::n_dims + 1]{0};
-          for(size_t d = 0; d < I::n_dims; ++d)
-            shape[d] = flat[d];
-          shape[I::n_dims] = 2;
-
-          nb::ndarray<nb::numpy, float, nb::ndim<I::n_dims+1>> array(
-            buffer->data(),
-            I::n_dims+1,
-            shape,
-            nb::handle()
-          );
-          return nb::cast(std::move(array));
-
-        } else if constexpr(std::same_as<T, soil::ivec2>) {
-
-          soil::buffer_t<T> source = buffer.as<T>();  // Source Buffer w. Index
-
-          // Typed Buffer of Flat Size
-          //! \todo make sure this is de-allocated correctly,
-          //! i.e. the numpy buffer should perform a copy.
-          soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); 
-
-          // Fill w. NaN Value
-          //! \todo automate the related NaN value determination
-          //buffer->fill(T{std::numeric_limits<float>::quiet_NaN()});
-
-          T value = T{std::numeric_limits<int>::quiet_NaN()};
-          for(size_t i = 0; i < target->elem(); ++i)
-            target->operator[](i) = value;
-
-          // Iterate over Flat Index
-          for(const auto& pos: index_t.iter()){
-            const size_t i = index_t.flatten(pos);
-            target->operator[](flat.flatten(pos - index_t.min())) = source[i];
-          }
-
-          size_t shape[I::n_dims + 1]{0};
-          for(size_t d = 0; d < I::n_dims; ++d)
-            shape[d] = flat[d];
-          shape[I::n_dims] = 2;
-
-          nb::ndarray<nb::numpy, int, nb::ndim<I::n_dims+1>> array(
-            target->data(),
-            I::n_dims+1,
-            shape,
-            nb::handle()
-          );
-          return nb::cast(std::move(array));
-
-        } else {
-
-          throw std::invalid_argument("can't convert type to numpy array");
-
-        }
-      
-      });
-    });
-  });
+  */
 
   //
   // Special Layer-Based Operations

@@ -77,12 +77,8 @@ struct node {
       return self->as<S>().template operator()<T>(index);
     });
   }
-  
+
   /*
-  // Call Operator
-
-
-
   // Bake a Node!
   node bake(const soil::index index) {
 

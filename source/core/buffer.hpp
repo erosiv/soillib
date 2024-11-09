@@ -6,7 +6,7 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
-#include <iostream>
+#include <soillib/util/error.hpp>
 
 namespace soil {
 
@@ -185,17 +185,28 @@ struct buffer {
   //! Const Subscript Operator
   template<typename T>
   T operator[](const size_t index) const {
-    return select(this->type(), [self = this, index]<typename S>() {
-      return self->as<S>().template operator[](index);
+    return select(this->type(), [self = this, index]<typename S>() -> T {
+      if constexpr (std::same_as<S, T>) {
+        return self->as<T>().operator[](index);
+      } else if constexpr (std::convertible_to<S, T>) {
+        return (T)self->as<S>().operator[](index);
+      } else {
+        throw soil::error::cast_error<S, T>();
+      }
     });
   }
 
   //! Non-Const Subscript Operator
   template<typename T>
   T &operator[](const size_t index) {
-    return select(this->type(), [self = this, index]<typename S>() {
-      return self->as<S>().template operator[](index);
-    });
+    return this->as<T>()[index];
+//    return select(this->type(), [self = this, index]<typename S>() -> T& {
+//      if constexpr (std::same_as<S, T>) {
+//        return this->as<T>()[index];
+//      } else {
+//        throw soil::error::cast_error<S, T>();
+//      }
+//    });
   }
 
   // Data Inspection Operations (Type-Deducing)
