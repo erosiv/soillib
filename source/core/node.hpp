@@ -11,6 +11,130 @@
 
 namespace soil {
 
+/*
+Node: Contains Input Edge, Output Edge and Map
+Edge: References Source Node + Type
+Map:  Stores Typed State to Convert.
+*/
+
+struct _node;
+
+template<typename T>
+struct map_t: typedbase {
+
+  using param_t = std::vector<_node>;
+  using func_t = std::function<T(const param_t&, const size_t)>;
+
+  map_t(func_t func): func(func) {}
+
+  constexpr soil::dtype type() noexcept override {
+    return soil::typedesc<T>::type;
+  }
+
+  T operator()(const param_t& param, const size_t index) const noexcept {
+    return this->func(param, index);
+  }
+
+private:
+  func_t func;
+};
+
+struct map {
+
+  using param_t = std::vector<_node>;
+
+  template<typename T>
+  using func_t = std::function<T(const param_t&, const size_t)>;
+
+  map() {}
+
+  template<typename T>
+  map(func_t<T> func): impl{make<T>(func)}{}
+
+  inline soil::dtype type() const noexcept {
+    return this->impl->type();
+  }
+
+  template<typename T>
+  inline map_t<T> &as() noexcept {
+    return static_cast<map_t<T> &>(*(this->impl));
+  }
+
+  //! unsafe cast to strict-type
+//  template<typename T>
+//  inline const map_t<T> &as() const noexcept {
+//    return static_cast<map_t<T> &>(*(this->impl));
+//  }
+
+  template<typename T>
+  T operator()(std::vector<_node> in, const size_t index){
+    return this->as<T>()(in, index);
+  }
+
+private:
+  using ptr_t = std::shared_ptr<typedbase>;
+  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
+
+  template<typename T>
+  static ptr_t make(func_t<T> func) {
+    return std::make_shared<soil::map_t<T>>(func);
+  }
+};
+
+struct _node {
+
+  _node(soil::map map): map{map}{}
+  _node(soil::map map, std::vector<_node> in): map{map}, in{in}{}
+
+  // in particular, for a cached buffer type,
+  // the map's lambda would simply capture the
+  // buffer and sample it directly with no inputs.
+
+  // note that this system will not necessarily
+  // allow for node inspection: any data attached
+  // to a not will have parameters available.
+  // how do we deal with this from a python perspective?
+
+  // note: all validity checks should happen at
+  // construction time of the map.
+
+  inline soil::dtype type() const noexcept {
+    return this->map.type();
+  }
+
+  inline bool is(const soil::dtype type) const noexcept {
+    return this->type() == type;
+  }
+
+  // theoretically for a single position...
+  // but I could also do it for an entire
+  // position at the same time! which would
+  // in principle return a buffer
+  // I DONT have to return a node, because I
+  // literally already am that node.
+
+  // note: make sure this is strict-typed as
+  // long as possible for maximum performance.
+  // I want minimal type deductions in general.
+
+  template<typename T>
+  T operator()(const size_t index) {
+    return this->map.template operator()<T>(this->in, index);
+  }
+
+/*
+  template<typename T>
+  soil::buffer_t<T> operator()() {
+    return this->map.template operator()<T>(this->in);
+  }
+*/
+
+  std::vector<_node> in;
+  soil::map map;
+};
+
+/*
+
 // Note: Nodes in general need to be overhauled, so that they
 // act like "nodes" in the expected sense of being composable.
 // They can still be dynamically typed, but their composition
@@ -224,6 +348,8 @@ private:
   using ptr_t = std::shared_ptr<nodebase>;
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer
 };
+
+*/
 
 } // end of namespace soil
 

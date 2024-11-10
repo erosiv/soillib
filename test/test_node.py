@@ -8,8 +8,9 @@ print("Testing layer.constant...")
 
 value = 3.14
 layer = soil.constant(soil.float32, value)
-assert type(layer) == soil.node
-assert layer.buffer == None
+assert type(layer) == soil._node
+assert layer.type == soil.float32
+assert vars(layer) == {}
 
 for i in range(64):
   assert np.isclose(layer(0), value)
@@ -19,8 +20,11 @@ print("Testing layer.cached...")
 index = soil.index([32, 32])
 value = [0.0, 3.14]
 
+#buffer = soil.buffer(soil.vec2, index.elem())
+#layer = soil.cached(buffer)
 layer = soil.cached(soil.vec2, index.elem())
-assert type(layer) == soil.node
+assert type(layer) == soil._node
+assert layer.type == soil.vec2
 assert layer.buffer != None
 
 soil.set(layer.buffer, value)
@@ -31,8 +35,9 @@ for i in range(index.elem()):
 print("Testing layer.computed...")
 
 layer = soil.computed(soil.int, lambda i: i)
-assert type(layer) == soil.node
-assert layer.buffer == None
+assert type(layer) == soil._node
+assert layer.type == soil.int
+assert vars(layer) == {}
 
 for i in range(64):
   assert layer(i) == i
