@@ -49,7 +49,7 @@ struct model {
     auto height = this->operator[](soil::component::HEIGHT);
 
     soil::select(height.type(), [self = this, index, &height, value]<typename T>() {
-      height.template operator[]<T>(index) += value;
+      height.ref<T>(index) += value;
 //      auto cached = height.as<soil::cached>();
 //      auto buffer = cached.buffer.as<float>();
 //      buffer[index] += value;

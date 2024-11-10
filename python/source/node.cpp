@@ -109,7 +109,7 @@ node.def_prop_ro("type", &soil::node::type);
 
 node.def("__call__", [](soil::node& node, const size_t index){
   return soil::select(node.type(), [&node, index]<typename T>() -> nb::object {
-    T value = node.template operator()<T>(index);
+    T value = node.val<T>(index);
     return nb::cast<T>(std::move(value));
   });
 });
@@ -129,7 +129,7 @@ node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::o
     
     const auto value_t = nb::cast<S>(value);  // Assignable Value
     for(int index = start; index < stop; index += step)
-      node.template operator[]<S>(index) = value_t; 
+      node.ref<S>(index) = value_t; 
   
   });
 
@@ -147,17 +147,17 @@ node.def("track", [](soil::node& lhs, soil::node& rhs, const nb::object _lrate){
     if constexpr (std::is_scalar_v<T>) {
       const T lrate = nb::cast<T>(_lrate);
       for(size_t i = 0; i < lhs.size; ++i){
-        const T lhs_value = lhs.template operator()<T>(i);
-        const T rhs_value = rhs.template operator()<T>(i);
-        lhs.template operator[]<T>(i) = lhs_value * (T(1.0) - lrate) + rhs_value * lrate;
+        const T lhs_value = lhs.val<T>(i);
+        const T rhs_value = rhs.val<T>(i);
+        lhs.ref<T>(i) = lhs_value * (T(1.0) - lrate) + rhs_value * lrate;
       }
     } else {
       using V = typename T::value_type;
       const V lrate = nb::cast<V>(_lrate);
       for(size_t i = 0; i < lhs.size; ++i){
-        const T lhs_value = lhs.template operator()<T>(i);
-        const T rhs_value = rhs.template operator()<T>(i);
-        lhs.template operator[]<T>(i) = lhs_value * (V(1.0) - lrate) + rhs_value * lrate;
+        const T lhs_value = lhs.val<T>(i);
+        const T rhs_value = rhs.val<T>(i);
+        lhs.ref<T>(i) = lhs_value * (V(1.0) - lrate) + rhs_value * lrate;
       }
     }
   });
@@ -303,7 +303,7 @@ module.def("bake", [](soil::node& node, soil::index& index){
   return soil::select(node.type(), [&node, &index]<typename T>() {  
     auto buffer_t = soil::buffer_t<T>(index.elem());
     for (size_t i = 0; i < buffer_t.elem(); ++i)
-      buffer_t[i] = node.template operator()<T>(i);
+      buffer_t[i] = node.val<T>(i);
     return soil::buffer(std::move(buffer_t));
   });
 });

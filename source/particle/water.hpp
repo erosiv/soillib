@@ -96,8 +96,8 @@ bool WaterParticle::move(soil::model &model, const WaterParticle_c &param) {
   static auto normal = soil::normal(model.index, model[soil::HEIGHT]);
   const glm::vec3 n = normal(ipos);
 
-  const glm::vec2 fspeed = model[soil::MOMENTUM].template operator()<vec2>(index);
-  const float discharge = erf(0.4f * model[soil::DISCHARGE].template operator()<float>(index));
+  const glm::vec2 fspeed = model[soil::MOMENTUM].val<vec2>(index);
+  const float discharge = erf(0.4f * model[soil::DISCHARGE].val<float>(index));
 
   // Gravity Force
 
@@ -127,11 +127,11 @@ void WaterParticle::track(soil::model &model) {
   const size_t index = model.index.flatten<2>(this->pos);
 
   {
-    model[soil::DISCHARGE_TRACK].template operator[]<float>(index) += this->volume;
+    model[soil::DISCHARGE_TRACK].ref<float>(index) += this->volume;
   }
 
   {
-    model[soil::MOMENTUM_TRACK].template operator[]<vec2>(index) += this->volume * this->speed;
+    model[soil::MOMENTUM_TRACK].ref<vec2>(index) += this->volume * this->speed;
   }
 }
 
@@ -145,21 +145,21 @@ bool WaterParticle::interact(soil::model &model, const WaterParticle_c &param) {
   if (model.index.oob<2>(ipos))
     return false;
 
-  const float discharge = erf(0.4f * model[soil::DISCHARGE].template operator()<float>(index));
-  const float resistance = model[soil::RESISTANCE].template operator()<float>(index);
+  const float discharge = erf(0.4f * model[soil::DISCHARGE].val<float>(index));
+  const float resistance = model[soil::RESISTANCE].val<float>(index);
 
   // Out-Of-Bounds
 
   float h2;
   if (model.index.oob<2>(pos))
-    h2 = 0.99f * model[soil::HEIGHT].template operator()<float>(index);
+    h2 = 0.99f * model[soil::HEIGHT].val<float>(index);
   else {
     const size_t index = model.index.flatten<2>(pos);
-    h2 = model[soil::HEIGHT].template operator()<float>(index);
+    h2 = model[soil::HEIGHT].val<float>(index);
   }
 
   // Mass-Transfer (in MASS)
-  float c_eq = (1.0f + param.entrainment * discharge) * (model[soil::HEIGHT].template operator()<float>(index) - h2);
+  float c_eq = (1.0f + param.entrainment * discharge) * (model[soil::HEIGHT].val<float>(index) - h2);
   if (c_eq < 0)
     c_eq = 0;
 

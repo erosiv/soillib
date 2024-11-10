@@ -92,7 +92,7 @@ glm::vec3 normal_impl(const soil::node& node, const soil::index index, glm::ivec
       px[i].pos = pos_x;
 
       const size_t ind = index.flatten<2>(pos_x);
-      px[i].value = node.template operator()<T>(ind);
+      px[i].value = node.val<T>(ind);
     }
 
     const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
@@ -101,7 +101,7 @@ glm::vec3 normal_impl(const soil::node& node, const soil::index index, glm::ivec
       py[i].pos = pos_y;
 
       const size_t ind = index.flatten<2>(pos_y);
-      py[i].value = node.template operator()<T>(ind);
+      py[i].value = node.val<T>(ind);
     }
   }
 

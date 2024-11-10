@@ -61,7 +61,7 @@ void cascade(soil::model &model, const glm::ivec2 ipos) {
       continue;
 
     const size_t index = model.index.flatten<2>(npos);
-    const float height = model[soil::HEIGHT].template operator()<float>(index);
+    const float height = model[soil::HEIGHT].val<float>(index);
     sn[num++] = {npos, height, matrix_t{}, length(glm::vec2(nn))};
   }
 
@@ -70,7 +70,7 @@ void cascade(soil::model &model, const glm::ivec2 ipos) {
   const matrix_t matrix{}; // = map.matrix(ipos);
 
   const size_t index = model.index.flatten<2>(ipos);
-  const float height = model[soil::HEIGHT].template operator()<float>(index);
+  const float height = model[soil::HEIGHT].val<float>(index);
   float h_ave = height;
   for (int i = 0; i < num; ++i)
     h_ave += sn[i].h;
@@ -90,8 +90,8 @@ void cascade(soil::model &model, const glm::ivec2 ipos) {
     const size_t tindex = model.index.flatten<2>(tpos);
     const size_t bindex = model.index.flatten<2>(bpos);
 
-    const float maxdiff = model[soil::MAXDIFF].template operator()<float>(tindex);
-    const float settling = model[soil::SETTLING].template operator()<float>(tindex);
+    const float maxdiff = model[soil::MAXDIFF].val<float>(tindex);
+    const float settling = model[soil::SETTLING].val<float>(tindex);
 
     // The Amount of Excess Difference!
     float excess = 0.0f;
