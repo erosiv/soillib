@@ -93,8 +93,8 @@ bool WaterParticle::move(soil::model &model, const WaterParticle_c &param) {
 
   // Apply Forces to Particle
 
-  static auto normal = soil::normal(model.index, model[soil::HEIGHT]);
-  const glm::vec3 n = normal(ipos);
+  static auto normal = soil::normal::make_node(model.index, model[soil::HEIGHT]);
+  const glm::vec3 n = normal.val<glm::vec3>(model.index.flatten<2>(ipos));
 
   const glm::vec2 fspeed = model[soil::MOMENTUM].val<vec2>(index);
   const float discharge = erf(0.4f * model[soil::DISCHARGE].val<float>(index));

@@ -44,8 +44,8 @@ def render(model):
 
   index = model.index
 
-  normal = soil.normal(index, model[soil.height]).full()
-  normal_data = normal.numpy(index)
+  normal = soil.normal(index, model[soil.height])
+  normal_data = soil.bake(normal, index).numpy(index)
 
   height_data = soil.bake(model[soil.height], index).numpy(index)
   relief = relief_shade(height_data, normal_data)
@@ -94,6 +94,8 @@ def make_model(index, seed=0.0):
   model[soil.resistance] = soil.constant(soil.float32, 0.0)
   model[soil.maxdiff]    = soil.constant(soil.float32, 0.8)
   model[soil.settling]   = soil.constant(soil.float32, 1.0)
+
+#  model[soil.settling][:] = 0
 
   return model
 

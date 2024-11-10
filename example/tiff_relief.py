@@ -17,7 +17,7 @@ def main(input):
     normal_node = soil.normal(index, height_node)
 
     height_data = height_node.buffer.numpy(index)
-    normal_data = normal_node.full().numpy(index)
+    normal_data = soil.bake(normal_node, index).numpy(index)
 
     # Compute Shading
     relief = relief_shade(height_data, normal_data)

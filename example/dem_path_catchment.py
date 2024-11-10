@@ -45,10 +45,10 @@ def main(input = ""):
 
   print("Flow Node")
   with soil.timer() as timer:
-    flow_node = soil.flow(image.index, raw_node)()
+    flow_node = soil.flow(image.index, raw_node.buffer)
   with soil.timer() as timer:
-    dir_node = soil.direction(image.index, flow_node)()
-  
+    dir_node = soil.direction(image.index, flow_node)
+ 
   print("Computing Area")
   area_node = soil.accumulation(image.index, dir_node)
   area_node.iterations = 64
@@ -56,7 +56,7 @@ def main(input = ""):
   area_node.steps = 8192
   with soil.timer() as timer:
     area = area_node()
-  area.buffer.cpu()
+  area.cpu()
 
 #  areas = []
 
@@ -65,7 +65,7 @@ def main(input = ""):
 #  direction = dir_node.full().numpy(image.index)
 #  shape = flow.shape
 
-  area = area.buffer.numpy(image.index)
+  area = area.numpy(image.index)
   sum_dist = np.sum(np.abs(area_gt-area))
   dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
 

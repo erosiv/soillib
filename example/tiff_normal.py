@@ -15,7 +15,7 @@ def main(input):
 
     node = soil.cached(image.buffer)
     normal = soil.normal(image.index, node)
-    data = normal.full().numpy(image.index)
+    data = soil.bake(normal, image.index).numpy(image.index)
     data = 0.5 + 0.5*data
     plt.imshow(data)
     plt.show()

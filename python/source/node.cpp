@@ -17,6 +17,9 @@ namespace nb = nanobind;
 #include <soillib/node/normal.hpp>
 #include <soillib/node/flow.hpp>
 
+
+#include <soillib/node/constant.hpp>
+
 #include <iostream>
 
 #include "glm.hpp"
@@ -24,85 +27,9 @@ namespace nb = nanobind;
 //! General Node Binding Function
 void bind_node(nb::module_& module){
 
-  /*
-  //
-  // Layer Wrapper Type
-  //
-
-  auto node = nb::class_<soil::node>(module, "node");
-  node.def(nb::init<const soil::buffer>());
-  node.def(nb::init<soil::cached&&>());
-  node.def(nb::init<soil::computed&&>());
-
-  node.def_prop_ro("type", &soil::node::type);
-  node.def_prop_ro("buffer", [](soil::node& node) -> nb::object {
-    if(node.dnode() == soil::CACHED){
-      auto buffer = node.as<soil::cached>().buffer;
-      return nb::cast(buffer);
-    }
-    else return nb::none();
-  }, nb::rv_policy::reference_internal);
-
-  node.def("__call__", [](soil::node& node, const size_t index){
-    return soil::select(node.type(), [&node, index]<typename T>() -> nb::object {
-      T value = node.template operator()<T>(index);
-      return nb::cast<T>(std::move(value));
-    });
-  });
-
-  //
-  //
-  //
-
-  auto flow = nb::class_<soil::flow>(module, "flow");
-  flow.def(nb::init<const soil::index&, const soil::node&>());
-  flow.def("__call__", [](const soil::flow& flow){
-    return soil::node(std::move(flow.full()));
-  });
-
-  auto direction = nb::class_<soil::direction>(module, "direction");
-  direction.def(nb::init<const soil::index&, const soil::node&>());
-  direction.def("__call__", [](const soil::direction& direction){
-    return soil::node(std::move(direction.full()));
-  });
-
-  auto accumulation = nb::class_<soil::accumulation>(module, "accumulation");
-  accumulation.def(nb::init<const soil::index&, const soil::node&>());
-  accumulation.def("__call__", [](const soil::accumulation& accumulation){
-    return soil::node(std::move(accumulation.full()));
-  });
-
-  accumulation.def_prop_rw("steps", 
-  [](const soil::accumulation& accumulation){
-    return accumulation.steps;
-  },
-  [](soil::accumulation& accumulation, const size_t steps){
-    accumulation.steps = steps;
-  });
-
-  accumulation.def_prop_rw("iterations", 
-  [](const soil::accumulation& accumulation){
-    return accumulation.iterations;
-  },
-  [](soil::accumulation& accumulation, const size_t iterations){
-    accumulation.iterations = iterations;
-  });
-
-  accumulation.def_prop_rw("samples", 
-  [](const soil::accumulation& accumulation){
-    return accumulation.samples;
-  },
-  [](soil::accumulation& accumulation, const size_t samples){
-    accumulation.samples = samples;
-  });
-
-
-*/
-
 //
 // New Node Interface
 //
-
 
 auto node = nb::class_<soil::node>(module, "node", nb::dynamic_attr());
 node.def_prop_ro("type", &soil::node::type);
@@ -113,6 +40,16 @@ node.def("__call__", [](soil::node& node, const size_t index){
     return nb::cast<T>(std::move(value));
   });
 });
+
+/*
+node.def_prop_ro("buffer", [](soil::node& node) -> nb::object {
+  if(node.dnode() == soil::CACHED){
+    auto buffer = node.as<soil::cached>().buffer;
+    return nb::cast(buffer);
+  }
+  else return nb::none();
+}, nb::rv_policy::reference_internal);
+*/
 
 //
 // Special Layer-Based Operations
@@ -169,20 +106,28 @@ node.def("track", [](soil::node& lhs, soil::node& rhs, const nb::object _lrate){
 //
 
 module.def("constant", [](const soil::dtype type, const nb::object object){
-  return soil::select(type, [type, &object]<typename T>() -> soil::node {
-    
+  // note: value is considered state. how can this be reflected here?
+  return soil::select(type, [&object]<typename T>() -> soil::node {
     const T value = nb::cast<T>(object);
-    
-    using func_t = soil::map_t<T>::func_t;
-    using param_t = soil::map_t<T>::param_t;
-    const func_t func = [value](const param_t& in, const size_t index) -> T {
-      return value;
-    };
-
-    soil::map map = soil::map(func);
-    return soil::node(map, {});
-
+    return soil::constant::make_node<T>(value);
   });
+});
+
+//
+// Noise Sampler Type
+//
+
+module.def("noise", [](const soil::index index, const float seed){
+  // note: seed is considered state. how can this be reflected here?
+  return soil::noise::make_node(index, seed);
+});
+
+//
+// Normal Map ?
+//
+
+module.def("normal", [](const soil::index& index, const soil::node& node){
+  return soil::normal::make_node(index, node);
 });
 
 //
@@ -281,17 +226,52 @@ module.def("cached", [](const soil::dtype type, const size_t size){
 
 });
 
-auto normal = nb::class_<soil::normal>(module, "normal");
-normal.def(nb::init<const soil::index&, const soil::node&>());
-normal.def("full", [](const soil::normal& normal){
-  return normal.full();//soil::node(std::move());
+// note: consider how to implement this deferred using the nodes
+// direct computation? immediate evaluation...
+
+module.def("flow", [](const soil::index& index, const soil::buffer& buffer){
+  auto flow = soil::flow(index, buffer);
+  return flow.full();
 });
 
-//
-// Noise Sampler Type
-//
+module.def("direction", [](const soil::index& index, const soil::buffer& buffer){
+  auto direction = soil::direction(index, buffer);
+  return direction.full();
+});
 
-module.def("noise", soil::make_noise);
+// this should be replaced with something else...
+// the noise layer is also "stateful" - how do we handle
+// stateful nodes / conversion operations 
+
+auto accumulation = nb::class_<soil::accumulation>(module, "accumulation");
+accumulation.def(nb::init<const soil::index&, const soil::buffer&>());
+accumulation.def("__call__", [](const soil::accumulation& accumulation){
+  return accumulation.full();
+});
+
+accumulation.def_prop_rw("steps", 
+[](const soil::accumulation& accumulation){
+  return accumulation.steps;
+},
+[](soil::accumulation& accumulation, const size_t steps){
+  accumulation.steps = steps;
+});
+
+accumulation.def_prop_rw("iterations", 
+[](const soil::accumulation& accumulation){
+  return accumulation.iterations;
+},
+[](soil::accumulation& accumulation, const size_t iterations){
+  accumulation.iterations = iterations;
+});
+
+accumulation.def_prop_rw("samples", 
+[](const soil::accumulation& accumulation){
+  return accumulation.samples;
+},
+[](soil::accumulation& accumulation, const size_t samples){
+  accumulation.samples = samples;
+});
 
 //
 // Buffer Baking...
