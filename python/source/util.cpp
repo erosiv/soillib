@@ -17,8 +17,6 @@ namespace nb = nanobind;
 #include <soillib/core/buffer.hpp>
 #include <soillib/util/error.hpp>
 
-#include <soillib/util/select.hpp>
-
 #include <soillib/node/algorithm/common.hpp>
 
 #include "glm.hpp"
@@ -227,6 +225,37 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
     });
   }
   throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
+});
+
+//
+// Construct Buffer from Numpy
+//
+
+buffer.def("from_numpy", [](soil::buffer& buffer, const nb::object& object){
+
+  /*
+  
+  // I suppose that this does not necessarily matter.
+  // we could in principle have either torch or numpy.
+
+  // We also need a way to select the underlying type of the
+  // numpy buffer... of course.
+
+  // and tie the lifetimes!
+
+  if(buffer.host() == soil::host_t::CPU){
+    soil::select(buffer.type(), [&buffer, &object]<typename T>() {
+      const auto array = nb::cast<nb::ndarray<nb::numpy, T>>(object);
+      // const soil::buffer_t<T> source {
+      //   array.
+      // };
+      // note: tie the object lifetimes somehow!
+      buffer = std::move(soil::buffer(std::move(source)));
+    });
+  }
+  throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
+  */
+
 });
 
 }

@@ -108,6 +108,16 @@ assert np.isclose(buffer[1], values[0]).all()
 
 numpy = buffer.numpy()
 
+print(f"Testing Numpy (CPU) Interop...")
+
+buffer = soil.buffer(soil.vec2, elem)
+soil.set(buffer, [0, 0])
+
+numpy = buffer.numpy()
+assert numpy.shape == (elem, 2)
+numpy[0, :] = [1, 1]
+assert buffer[0] == [1, 1]
+
 print(f"Testing GPU Methods...")
 
 buffer = soil.buffer(soil.float64, elem).gpu()

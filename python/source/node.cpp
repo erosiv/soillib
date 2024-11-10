@@ -39,9 +39,20 @@ void bind_node(nb::module_& module){
   node.def(nb::init<soil::computed&&>());
 
   node.def_prop_ro("type", &soil::node::type);
-  node.def_prop_ro("buffer", [](soil::node& node){
-    return node.as<soil::cached>().buffer;
+  node.def_prop_ro("buffer", [](soil::node& node) -> nb::object {
+    if(node.dnode() == soil::CACHED){
+      auto buffer = node.as<soil::cached>().buffer;
+      return nb::cast(buffer);
+    }
+    else return nb::none();
   }, nb::rv_policy::reference_internal);
+
+  node.def("__call__", [](soil::node& node, const size_t index){
+    return soil::select(node.type(), [&node, index]<typename T>() -> nb::object {
+      T value = node.template operator()<T>(index);
+      return nb::cast<T>(std::move(value));
+    });
+  });
 
   node.def("__setitem__", [](soil::node& node, const nb::slice& slice, const nb::object value){
 
@@ -62,35 +73,6 @@ void bind_node(nb::module_& module){
     
     });
   });
-
-  /*
-  node.def("__call__", [](soil::node& node, const size_t index){
-    return soil::select(node.dnode(), [&node, index]<typename S>() -> nb::object {
-      auto node_t = node.as<S>();
-      return soil::select(node_t.type(), [&node_t, index]<typename T>() -> nb::object {
-        T value = node_t.template as<T>()(index);
-        return nb::cast<T>(std::move(value));
-      });
-    });
-  });
-  */
-
-//  node.def("__getitem__", [](soil::node& ))
-
-  /*
-  node.def("__mul__", [](soil::node node, const nb::object object){
-    return soil::select(node.type(), [node, object]<typename T>() -> soil::node {
-      T value = nb::cast<T>(object);
-      std::function<T(const size_t)> func = [node, value](const size_t index) -> T {
-        return value * select(node.dnode(), [node, index]<typename S>(){
-          auto node_t = node.template as<S>();
-          return node_t.template operator()<T>(index);
-        });
-      };
-      return soil::node(std::move(soil::computed(node.type(), func)));
-    });
-  });
-  */
 
   //
   // Special Layer-Based Operations
@@ -228,6 +210,7 @@ void bind_node(nb::module_& module){
   //
 
   module.def("bake", [](soil::node& node, soil::index& index){
+  
     return soil::select(node.dnode(), [&node, &index]<typename S>(){
       if constexpr(std::same_as<S, soil::cached>){
         return node;
