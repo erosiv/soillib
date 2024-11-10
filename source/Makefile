@@ -56,16 +56,10 @@ all:
 	@echo "Building Library: ${LIBDIST}"
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
 
-#nvcc  -o liblibrary.so --shared library.cu
-#	@$(CC) -diag-suppress 20012 --compiler-options '-fPIC' --shared -o $(BUILDDIR)/$(LIBDIST).so \
-#	 -I$(INCPATH) $(INCCUDA) \
-#		node/algorithm/flow.cu \
-#		core/buffer.cu
-
 	@echo "Compiling Source Code..."
-	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu 						-o $(BUILDDIR)/buffer.o
-	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/flow.cu 		-o $(BUILDDIR)/flow.o
-	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/algorithm/common.cu 	-o $(BUILDDIR)/common.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu 	-o $(BUILDDIR)/buffer.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/flow.cu 		-o $(BUILDDIR)/flow.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/common.cu 	-o $(BUILDDIR)/common.o
 	@nvcc -dlink -Xcompiler -fPIC -o $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/flow.o \

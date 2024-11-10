@@ -219,7 +219,6 @@ struct indexbase {
 
 enum dnode: size_t {
   CACHED,
-  CONSTANT,
   COMPUTED
 };
 

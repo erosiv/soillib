@@ -6,8 +6,6 @@
 #include <soillib/soillib.hpp>
 
 #include <soillib/core/node.hpp>
-#include <soillib/node/cached.hpp>
-#include <soillib/node/constant.hpp>
 
 #include <soillib/core/matrix.hpp>
 #include <soillib/core/model.hpp>

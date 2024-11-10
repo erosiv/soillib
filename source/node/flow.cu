@@ -1,6 +1,6 @@
 #define HAS_CUDA
 
-#include <soillib/node/algorithm/flow.hpp>
+#include <soillib/node/flow.hpp>
 
 #include <cuda_runtime.h>
 #include <curand_kernel.h>

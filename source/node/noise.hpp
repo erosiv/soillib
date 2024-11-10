@@ -6,7 +6,6 @@
 #include <soillib/core/types.hpp>
 
 #include <soillib/core/node.hpp>
-#include <soillib/node/computed.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 #include <soillib/external/FastNoiseLite.h>

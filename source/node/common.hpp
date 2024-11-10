@@ -1,5 +1,5 @@
-#ifndef SOILLIB_NODE_ALGORITHM_COMMON
-#define SOILLIB_NODE_ALGORITHM_COMMON
+#ifndef SOILLIB_NODE_COMMON
+#define SOILLIB_NODE_COMMON
 
 #include <soillib/core/buffer.hpp>
 

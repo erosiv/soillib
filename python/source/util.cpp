@@ -17,7 +17,7 @@ namespace nb = nanobind;
 #include <soillib/core/buffer.hpp>
 #include <soillib/util/error.hpp>
 
-#include <soillib/node/algorithm/common.hpp>
+#include <soillib/node/common.hpp>
 
 #include "glm.hpp"
 

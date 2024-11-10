@@ -13,13 +13,9 @@ namespace nb = nanobind;
 
 #include <soillib/core/node.hpp>
 
-#include <soillib/node/cached.hpp>
-#include <soillib/node/constant.hpp>
-#include <soillib/node/computed.hpp>
-
-#include <soillib/node/algorithm/noise.hpp>
-#include <soillib/node/algorithm/normal.hpp>
-#include <soillib/node/algorithm/flow.hpp>
+#include <soillib/node/noise.hpp>
+#include <soillib/node/normal.hpp>
+#include <soillib/node/flow.hpp>
 
 #include <iostream>
 
@@ -35,7 +31,6 @@ void bind_node(nb::module_& module){
   auto node = nb::class_<soil::node>(module, "node");
   node.def(nb::init<const soil::buffer>());
   node.def(nb::init<soil::cached&&>());
-  node.def(nb::init<soil::constant&&>());
   node.def(nb::init<soil::computed&&>());
 
   node.def_prop_ro("type", &soil::node::type);
@@ -129,7 +124,9 @@ void bind_node(nb::module_& module){
   module.def("constant", [](const soil::dtype type, const nb::object object){
     return soil::select(type, [type, &object]<typename T>(){
       const T value = nb::cast<T>(object);
-      return soil::node(std::move(soil::constant(type, value)));
+      using func_t = std::function<T(const size_t)>;
+      func_t func = [value](const size_t i){ return value; };
+      return soil::node(std::move(soil::computed(type, func)));
     });
   });
 

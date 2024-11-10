@@ -8,11 +8,7 @@
 #include <soillib/core/model.hpp>
 #include <soillib/core/node.hpp>
 
-#include <soillib/node/cached.hpp>
-#include <soillib/node/computed.hpp>
-#include <soillib/node/constant.hpp>
-
-#include <soillib/node/algorithm/normal.hpp>
+#include <soillib/node/normal.hpp>
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/matrix.hpp>
