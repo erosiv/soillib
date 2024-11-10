@@ -149,6 +149,25 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb:
   });
 });
 
+buffer.def("__setitem__", [](soil::buffer& buffer, const nb::slice& slice, const nb::object value){
+
+  soil::select(buffer.type(), [&buffer, &slice, &value]<typename S>(){
+
+    auto buffer_t = buffer.as<S>();           // Assignable Strict-Type Buffer
+    const auto value_t = nb::cast<S>(value);  // Assignable Value
+
+    // Read Slice:
+    Py_ssize_t start, stop, step;
+    if(PySlice_GetIndices(slice.ptr(), buffer_t.elem(), &start, &stop, &step) != 0)
+      throw std::runtime_error("slice is invalid!");
+    
+    // Assign Values!
+    for(int index = start; index < stop; index += step)
+      buffer_t[index] = value_t;
+  
+  });
+});
+
 //
 // Generic Buffer Functions
 //

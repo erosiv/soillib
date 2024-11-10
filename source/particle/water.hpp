@@ -127,15 +127,11 @@ void WaterParticle::track(soil::model &model) {
   const size_t index = model.index.flatten<2>(this->pos);
 
   {
-    auto cached = model[soil::DISCHARGE_TRACK].as<soil::cached>();
-    soil::buffer_t<float> buffer = cached.buffer.as<float>();
-    buffer[index] += this->volume;
+    model[soil::DISCHARGE_TRACK].template operator[]<float>(index) += this->volume;
   }
 
   {
-    auto cached = model[soil::MOMENTUM_TRACK].as<soil::cached>();
-    soil::buffer_t<vec2> buffer = cached.buffer.as<vec2>();
-    buffer[index] += this->volume * this->speed;
+    model[soil::MOMENTUM_TRACK].template operator[]<vec2>(index) += this->volume * this->speed;
   }
 }
 

@@ -48,7 +48,7 @@ const std::vector<double> dist = {
 //!
 struct flow {
 
-  flow(soil::index index, const soil::node &node){
+  flow(soil::index index, const soil::buffer& buffer){
     
     soil::select(index.type(), [self = this, index]<typename T>() {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
@@ -58,7 +58,7 @@ struct flow {
       }
     });
 
-    this->buffer = node.as<soil::cached>().buffer;
+    this->buffer = buffer;
   }
 
   //! Bake a whole buffer!
@@ -72,7 +72,7 @@ private:
 
 struct direction {
 
-  direction(soil::index index, const soil::node &node){
+  direction(soil::index index, const soil::buffer& buffer){
 
     soil::select(index.type(), [self = this, index]<typename T>() {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
@@ -82,7 +82,7 @@ struct direction {
       }
     });
 
-    this->buffer = node.as<soil::cached>().buffer;
+    this->buffer = buffer;
   }
 
   //! Bake a whole buffer!
@@ -96,7 +96,7 @@ private:
 
 struct accumulation {
 
-  accumulation(soil::index index, const soil::node &node) {
+  accumulation(soil::index index, const soil::buffer& buffer) {
 
     soil::select(index.type(), [self = this, index]<typename T>() {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
@@ -106,7 +106,7 @@ struct accumulation {
       }
     });
 
-    this->buffer = node.as<soil::cached>().buffer;
+    this->buffer = buffer;
   }
 
   size_t iterations = 128;

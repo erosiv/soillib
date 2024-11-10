@@ -11,12 +11,11 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    node = image.node()
+    print(f"File: {file}, {image.buffer.type}")
 
-    print(f"File: {file}, {node.type}")
-
+    node = soil.cached(image.buffer)
     normal = soil.normal(image.index, node)
-    data = normal.full().buffer.numpy(image.index)
+    data = normal.full().numpy(image.index)
     data = 0.5 + 0.5*data
     plt.imshow(data)
     plt.show()

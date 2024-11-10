@@ -78,9 +78,9 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
 }
 
 template<typename T>
-glm::vec3 normal_impl(const soil::buffer &buffer, const soil::index index, glm::ivec2 p) {
+glm::vec3 normal_impl(const soil::node& node, const soil::index index, glm::ivec2 p) {
 
-  auto _buffer = buffer.as<T>();
+//  auto _buffer = buffer.as<T>();
 
   // Gather 5x5 Region
   sample_t<T> px[5], py[5];
@@ -92,7 +92,7 @@ glm::vec3 normal_impl(const soil::buffer &buffer, const soil::index index, glm::
       px[i].pos = pos_x;
 
       const size_t ind = index.flatten<2>(pos_x);
-      px[i].value = _buffer[ind];
+      px[i].value = node.template operator()<T>(ind);
     }
 
     const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
@@ -101,7 +101,7 @@ glm::vec3 normal_impl(const soil::buffer &buffer, const soil::index index, glm::
       py[i].pos = pos_y;
 
       const size_t ind = index.flatten<2>(pos_y);
-      py[i].value = _buffer[ind];
+      py[i].value = node.template operator()<T>(ind);
     }
   }
 
@@ -125,15 +125,13 @@ glm::vec3 normal_impl(const soil::buffer &buffer, const soil::index index, glm::
 //!
 struct normal {
 
-  normal(soil::index index, const soil::node &node): index{index} {
-    this->buffer = node.as<soil::cached>().buffer;
-  }
+  normal(soil::index index, const soil::node& node): index{index}, node{node} {}
 
   //! Single Sample Value
   glm::vec3 operator()(const glm::ivec2 pos) const {
-    return soil::select(buffer.type(), [self = this, pos]<typename T>() -> glm::vec3 {
+    return soil::select(node.type(), [self = this, pos]<typename T>() -> glm::vec3 {
       if constexpr (std::is_floating_point_v<T>) {
-        return normal_impl<T>(self->buffer, self->index, pos);
+        return normal_impl<T>(self->node, self->index, pos);
       } else
         throw std::invalid_argument("invalid type for operation");
       // throw soil::error::type_op_error<T>();
@@ -165,7 +163,7 @@ struct normal {
 
 private:
   soil::index index;
-  soil::buffer buffer;
+  soil::node node;
 };
 
 } // end of namespace soil

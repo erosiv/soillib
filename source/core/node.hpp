@@ -1,5 +1,5 @@
-#ifndef SOILLIB_NODE
-#define SOILLIB_NODE
+#ifndef SOILLIBnode
+#define SOILLIBnode
 
 #include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>
@@ -17,15 +17,17 @@ Edge: References Source Node + Type
 Map:  Stores Typed State to Convert.
 */
 
-struct _node;
+struct node;
 
 template<typename T>
 struct map_t: typedbase {
 
-  using param_t = std::vector<_node>;
+  using param_t = std::vector<node>;
   using func_t = std::function<T(const param_t&, const size_t)>;
+  using rfunc_t = std::function<T&(const param_t&, const size_t)>;
 
   map_t(func_t func): func(func) {}
+  map_t(func_t func, rfunc_t rfunc): func(func), rfunc{rfunc} {}
 
   constexpr soil::dtype type() noexcept override {
     return soil::typedesc<T>::type;
@@ -35,21 +37,37 @@ struct map_t: typedbase {
     return this->func(param, index);
   }
 
+  T& get_ref(const param_t& param, const size_t index) noexcept {
+    return this->rfunc(param, index);
+  }
+
 private:
+
   func_t func;
+//  T dump;
+  rfunc_t rfunc = [](const param_t& param, const size_t index) -> T& {
+    // return self->dump;
+    throw std::runtime_error("NO BACKPROPAGATION POSSIBLE");
+  };
 };
 
 struct map {
 
-  using param_t = std::vector<_node>;
+  using param_t = std::vector<node>;
 
   template<typename T>
   using func_t = std::function<T(const param_t&, const size_t)>;
+
+  template<typename T>
+  using rfunc_t = std::function<T&(const param_t&, const size_t)>;
 
   map() {}
 
   template<typename T>
   map(func_t<T> func): impl{make<T>(func)}{}
+
+  template<typename T>
+  map(func_t<T> func, rfunc_t<T> rfunc): impl{make<T>(func, rfunc)}{}
 
   inline soil::dtype type() const noexcept {
     return this->impl->type();
@@ -61,14 +79,19 @@ struct map {
   }
 
   //! unsafe cast to strict-type
-//  template<typename T>
-//  inline const map_t<T> &as() const noexcept {
-//    return static_cast<map_t<T> &>(*(this->impl));
-//  }
+  template<typename T>
+  inline const map_t<T> &as() const noexcept {
+    return static_cast<map_t<T> &>(*(this->impl));
+  }
 
   template<typename T>
-  T operator()(std::vector<_node> in, const size_t index){
+  T operator()(std::vector<node> in, const size_t index) const {
     return this->as<T>()(in, index);
+  }
+
+  template<typename T>
+  T& get_ref(std::vector<node> in, const size_t index){
+    return this->as<T>().get_ref(in, index);
   }
 
 private:
@@ -79,12 +102,23 @@ private:
   static ptr_t make(func_t<T> func) {
     return std::make_shared<soil::map_t<T>>(func);
   }
+
+  template<typename T>
+  static ptr_t make(func_t<T> func, rfunc_t<T> rfunc) {
+    return std::make_shared<soil::map_t<T>>(func, rfunc);
+  }
 };
 
-struct _node {
+struct node {
 
-  _node(soil::map map): map{map}{}
-  _node(soil::map map, std::vector<_node> in): map{map}, in{in}{}
+  node(const soil::node& node){
+    this->map = node.map;
+    this->in = node.in;
+    this->size = node.size;
+  }
+
+  node(soil::map map): map{map}{}
+  node(soil::map map, std::vector<node> in): map{map}, in{in}{}
 
   // in particular, for a cached buffer type,
   // the map's lambda would simply capture the
@@ -118,8 +152,17 @@ struct _node {
   // I want minimal type deductions in general.
 
   template<typename T>
-  T operator()(const size_t index) {
+  T operator()(const size_t index) const {
     return this->map.template operator()<T>(this->in, index);
+  }
+
+  // in principle, this should be possible.
+  // we just have to make sure that it is constructed correctly.
+  // in theory this would allow for backpropagation in general...
+
+  template<typename T>
+  T& operator[](const size_t index) {
+    return this->map.get_ref<T>(this->in, index);
   }
 
 /*
@@ -129,8 +172,9 @@ struct _node {
   }
 */
 
-  std::vector<_node> in;
+  std::vector<node> in;
   soil::map map;
+  size_t size = 0;
 };
 
 /*
@@ -310,9 +354,9 @@ struct node {
   node(const soil::buffer buffer):
    impl{std::make_shared<soil::cached>(buffer)}{}
 
-  node(soil::cached &&_node): impl{std::make_shared<soil::cached>(_node)} {}
+  node(soil::cached &&node): impl{std::make_shared<soil::cached>(node)} {}
 
-  node(soil::computed &&_node): impl{std::make_shared<soil::computed>(_node)} {}
+  node(soil::computed &&node): impl{std::make_shared<soil::computed>(node)} {}
 
   //! unsafe cast to strict-type
   template<typename T>

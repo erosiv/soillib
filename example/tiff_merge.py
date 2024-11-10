@@ -57,9 +57,8 @@ def merge(input, pscale = 0.1):
 
       # Load the Geotiff, Get the Buffer in Numpy, Downscale
       geotiff = soil.geotiff(path)
-      node = geotiff.node()
 
-      data = node.buffer.numpy(geotiff.index)
+      data = geotiff.buffer.numpy(geotiff.index)
       data = skt.rescale(data, pscale, anti_aliasing=True)
   
       # Get the World-Space Position of the Image

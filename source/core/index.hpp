@@ -42,7 +42,6 @@ struct index {
   using vec_t = glm::vec<D, int>;
 
   index(){}
-  //index(const index& other):impl{other.impl}{}
 
   //! \todo remove this template for something better.
   index(const vec_t<1> vec) { this->impl = std::make_shared<flat_t<1>>(vec); }
