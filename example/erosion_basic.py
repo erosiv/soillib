@@ -44,25 +44,28 @@ def render(model):
 
   index = model.index
 
-  normal = soil.normal(model[soil.height], index)
-  normal_data = soil.bake(normal, index).numpy(index)
+  height = soil.bake(model[soil.height], index)
+  normal = soil.normal(height, index)
 
-  height_data = soil.bake(model[soil.height], index).numpy(index)
-  relief = relief_shade(height_data, normal_data)
+  height = height.numpy(index)
+  normal = normal.numpy(index)
 
-  discharge_data = sigmoid(100.0*soil.bake(model[soil.discharge], index).numpy(index))
-  #discharge_data = model[soil.discharge].numpy(index)
+  relief = relief_shade(height, normal)
+
+  discharge = soil.bake(model[soil.discharge], index)
+  discharge = 100.0*discharge.numpy(index)
+  discharge = sigmoid(discharge)
 
 #  momentum_data = sigmoid(model.momentum.numpy(index))
 #  momentum_data = np.append(momentum_data, np.zeros((512, 512, 1)), axis=-1)
 
   # Compute Shading
   fig, ax = plt.subplots(2, 2, figsize=(16, 16))
-  ax[0, 0].imshow(discharge_data)
-  ax[0, 1].imshow(height_data)
+  ax[0, 0].imshow(discharge)
+  ax[0, 1].imshow(height)
   #ax[0, 1].imshow(momentum_data)
   ax[1, 0].imshow(relief, cmap='gray')
-  ax[1, 1].imshow(normal_data)
+  ax[1, 1].imshow(normal)
   plt.show()
 
 '''
@@ -87,8 +90,8 @@ def make_model(index, seed=0.0):
   model[soil.height] = soil.cached(noise)
 
   model[soil.discharge]       = soil.cached(soil.bake(soil.constant(soil.float32, 0.0), index))
+  model[soil.discharge_track] = soil.cached(soil.bake(soil.constant(soil.float32, 0.0), index))
   model[soil.momentum]        = soil.cached(soil.bake(soil.constant(soil.vec2, [0.0, 0.0]), index))
-  model[soil.discharge_track] = soil.cached(soil.bake(soil.constant(soil.float32, 0), index))
   model[soil.momentum_track]  = soil.cached(soil.bake(soil.constant(soil.vec2, [0.0, 0.0]), index))
 
   model[soil.resistance] = soil.constant(soil.float32, 0.0)

@@ -20,15 +20,37 @@ template<typename F, typename... Args>
 auto select(const soil::dindex type, F lambda, Args &&...args) {
   switch (type) {
   case soil::dindex::FLAT1:
-    return lambda.template operator()<soil::flat_t<1>>(std::forward<Args>(args)...);
+    if constexpr(matches_lambda<soil::flat_t<1>, F, Args...>){
+      return lambda.template operator()<soil::flat_t<1>>(std::forward<Args>(args)...);
+    } else {
+      throw std::invalid_argument("index type not supported for this operation");
+    }
+    break;
   case soil::dindex::FLAT2:
-    return lambda.template operator()<soil::flat_t<2>>(std::forward<Args>(args)...);
+    if constexpr(matches_lambda<soil::flat_t<2>, F, Args...>){
+      return lambda.template operator()<soil::flat_t<2>>(std::forward<Args>(args)...);
+    } else {
+      throw std::invalid_argument("index type not supported for this operation");
+    }
+    break;
   case soil::dindex::FLAT3:
-    return lambda.template operator()<soil::flat_t<3>>(std::forward<Args>(args)...);
+    if constexpr(matches_lambda<soil::flat_t<3>, F, Args...>){
+      return lambda.template operator()<soil::flat_t<3>>(std::forward<Args>(args)...);
+    } else {
+      throw std::invalid_argument("index type not supported for this operation");
+    }
   case soil::dindex::FLAT4:
-    return lambda.template operator()<soil::flat_t<4>>(std::forward<Args>(args)...);
+    if constexpr(matches_lambda<soil::flat_t<4>, F, Args...>){
+      return lambda.template operator()<soil::flat_t<4>>(std::forward<Args>(args)...);
+    } else {
+      throw std::invalid_argument("index type not supported for this operation");
+    }
   case soil::dindex::QUAD:
-    return lambda.template operator()<soil::quad>(std::forward<Args>(args)...);
+    if constexpr(matches_lambda<soil::quad, F, Args...>){
+      return lambda.template operator()<soil::quad>(std::forward<Args>(args)...);
+    } else {
+      throw std::invalid_argument("index type not supported for this operation");
+    }
   default:
     throw std::invalid_argument("index not supported");
   }

@@ -13,14 +13,11 @@ def main(input):
     print(f"File: {file}, {image.buffer.type}")
 
     index = image.index
-    height_node = soil.cached(image.buffer)
-    normal_node = soil.normal(index, height_node)
-
-    height_data = height_node.buffer.numpy(index)
-    normal_data = soil.bake(normal_node, index).numpy(index)
+    height = image.buffer.numpy(index)
+    normal = soil.normal(image.buffer, index).numpy(index)
 
     # Compute Shading
-    relief = relief_shade(height_data, normal_data)
+    relief = relief_shade(height, normal)
     plt.imshow(relief, cmap='gray')
     plt.show()
 

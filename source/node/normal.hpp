@@ -18,8 +18,8 @@ struct sample_t {
   bool oob = true;
 };
 
-template<typename T>
-void gather(const soil::node_t<T>& node_t, const soil::flat_t<2> index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]){
+template<typename T, typename I>
+void gather(const soil::node_t<T>& node_t, const I index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]){
   for (size_t i = 0; i < 5; ++i) {
 
     const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
@@ -42,8 +42,8 @@ void gather(const soil::node_t<T>& node_t, const soil::flat_t<2> index, glm::ive
   }
 }
 
-template<typename T>
-void gather(const soil::buffer_t<T>& buffer_t, const soil::flat_t<2> index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]){
+template<typename T, typename I>
+void gather(const soil::buffer_t<T>& buffer_t, const I index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]){
   for (size_t i = 0; i < 5; ++i) {
 
     const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
@@ -127,6 +127,12 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
 
 } // namespace
 
+template<class I>
+constexpr bool is_index_2D() { return I::n_dims == 2; }
+
+template<typename I>
+concept index_2D = is_index_2D<I>();
+
 // Surface Normal from Surface Gradient
 
 //! Simple Transform Layer, which takes a 2D Layer
@@ -135,11 +141,11 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
 //!
 struct normal {
 
-  template<std::floating_point T>
-  static glm::vec3 operator()(soil::node_t<T> node_t, soil::flat_t<2> index, const glm::ivec2 pos){
+  template<std::floating_point T, typename I>
+  static glm::vec3 operator()(soil::node_t<T> node_t, I index, const glm::ivec2 pos){
   
     sample_t<T> px[5], py[5];
-    gather<T>(node_t, index, pos, px, py);
+    gather<T, I>(node_t, index, pos, px, py);
     const glm::vec2 g = gradient_detailed<T>(px, py);
     glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
     if (length(n) > 0){
@@ -149,11 +155,11 @@ struct normal {
   
   }
 
-  template<std::floating_point T>
-  static glm::vec3 operator()(soil::buffer_t<T> buffer_t, soil::flat_t<2> index, const glm::ivec2 pos){
+  template<std::floating_point T, typename I>
+  static glm::vec3 operator()(soil::buffer_t<T> buffer_t, I index, const glm::ivec2 pos){
 
     sample_t<T> px[5], py[5];
-    gather<T>(buffer_t, index, pos, px, py);
+    gather<T, I>(buffer_t, index, pos, px, py);
     const glm::vec2 g = gradient_detailed<T>(px, py);
     glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
     if (length(n) > 0){
@@ -169,26 +175,30 @@ struct normal {
 
   // Direct Execution
   static soil::buffer operator()(const soil::buffer& buffer, soil::index index) {
+
+    static_assert(index_2D<soil::quad>, "test");
     
-    if(index.type() != FLAT2)
-      throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+    if(index.dims() != 2)
+      throw std::invalid_argument("normal map can not be computed for non 2D-indexed buffers");
 
     if(buffer.host() != soil::CPU)
       throw soil::error::mismatch_host(soil::CPU, buffer.host());
 
-    return soil::select(buffer.type(), [&]<std::floating_point T>() {
+    return soil::select(index.type(), [&]<index_2D I>() -> soil::buffer {
+      return soil::select(buffer.type(), [&]<std::floating_point T>() -> soil::buffer {
 
-      auto index_t = index.as<soil::flat_t<2>>();
-      auto buffer_t = buffer.as<T>();
+        auto index_t = index.as<I>();
+        auto buffer_t = buffer.as<T>();
 
-      soil::buffer_t<vec3> output(buffer.elem());
-      for(auto [i, b]: output.iter()){
-        soil::ivec2 position = index_t.unflatten(i);
-        *b = soil::normal::operator()(buffer_t, index_t, position);
-      }
+        soil::buffer_t<vec3> output(buffer.elem());
+        for(auto [i, b]: output.iter()){
+          soil::ivec2 position = index_t.unflatten(i);
+          *b = soil::normal::operator()(buffer_t, index_t, position);
+        }
 
-      return soil::buffer(std::move(output));
+        return soil::buffer(std::move(output));
 
+      });
     });
 
   }
@@ -196,26 +206,28 @@ struct normal {
   // Deferred Execution
   static soil::node operator()(const soil::node& node, soil::index index){
 
-    if(index.type() != FLAT2)
-      throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+    if(index.dims() != 2)
+      throw std::invalid_argument("normal map can not be computed for non 2D-indexed buffers");
 
     // Early Type Deduction:
     //  We do this once and return a node which is internally
     //  already aware of its strict-typed inputs, and doesn't
     //  need to deduce them at runtime for every call.
 
-    return soil::select(node.type(), [&]<std::floating_point T>() {
+    return soil::select(index.type(), [&]<index_2D I>() {
+      return soil::select(node.type(), [&]<std::floating_point T>() {
 
-      auto index_t = index.as<soil::flat_t<2>>();
-      auto node_t = node.as<T>();
+        auto index_t = index.as<I>();
+        auto node_t = node.as<T>();
 
-      soil::node_t<glm::vec3> output([index_t, node_t](const size_t i) -> glm::vec3 {
-        soil::ivec2 position = index_t.unflatten(i);
-        return soil::normal::operator()(node_t, index_t, position);
+        soil::node_t<glm::vec3> output([index_t, node_t](const size_t i) -> glm::vec3 {
+          soil::ivec2 position = index_t.unflatten(i);
+          return soil::normal::operator()(node_t, index_t, position);
+        });
+
+        return soil::node(std::move(output));
+
       });
-
-      return soil::node(std::move(output));
-
     });
 
   }

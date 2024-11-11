@@ -103,28 +103,20 @@ def plot_flow(model):
 
 def show_height(array, index):
 
-  array = soil.cached(array)
-  data = array.buffer.numpy(index)
+  data = array.numpy(index)
   plt.imshow(data)
   plt.show()
 
 def show_normal(array, index):
 
-  array = soil.cached(array)
-  normal = soil.normal(index, array)
-
-  data = normal.full().buffer.numpy(index)
-  plt.imshow(data)
+  normal = soil.normal(array, index).numpy(index)
+  plt.imshow(normal)
   plt.show()
 
 def show_relief(array, index):
 
-  array = soil.cached(array)
-  normal = soil.normal(index, array)
-
-  normal_data = normal.full().buffer.numpy(index)
-  height_data = array.buffer.numpy(index)
-  
-  relief = relief_shade(height_data, normal_data) 
+  height = array.numpy(index)
+  normal = soil.normal(array, index).numpy(index)
+  relief = relief_shade(height, normal) 
   plt.imshow(relief, cmap='gray')
   plt.show()
