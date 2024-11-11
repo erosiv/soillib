@@ -20,16 +20,6 @@ struct cast_error: std::exception {
   }
 };
 
-template<typename Type>
-struct type_op_error: std::exception {
-  static std::string value() noexcept {
-    return std::format("invalid type <{}> for operation", typedesc<Type>::name);
-  }
-  const char *what() const noexcept override {
-    return value().c_str();
-  }
-};
-
 // Mismatch Errors
 
 struct mismatch_size: std::exception {

@@ -13,9 +13,9 @@ def main(input):
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
 
-    node = soil.cached(image.buffer)
-    normal = soil.normal(image.index, node)
-    data = soil.bake(normal, image.index).numpy(image.index)
+    normal = soil.normal(image.buffer, image.index)
+    data = normal.numpy(image.index)
+
     data = 0.5 + 0.5*data
     plt.imshow(data)
     plt.show()

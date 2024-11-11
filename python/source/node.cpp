@@ -155,8 +155,12 @@ module.def("noise", [](const soil::index index, const float seed){
 // Normal Map ?
 //
 
-module.def("normal", [](const soil::index& index, const soil::node& node){
-  return soil::normal::make_node(index, node);
+module.def("normal", [](const soil::buffer& buffer, const soil::index& index){
+  return soil::normal::operator()(buffer, index);
+});
+
+module.def("normal", [](const soil::node& node, const soil::index& index){
+  return soil::normal::operator()(node, index);
 });
 
 // note: consider how to implement this deferred using the nodes

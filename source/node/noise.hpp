@@ -75,20 +75,16 @@ struct noise {
     return select(index.type(), [index, seed]<typename T>() -> soil::node {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
 
-        using func_t = soil::map_t<float>::func_t;
-        using param_t = soil::map_t<float>::param_t;
-
-        const func_t func = [index, seed](const param_t& in, const size_t i) -> float {
+        soil::node_t<float> node_t([index, seed](const size_t i) -> float {
 
           soil::noise noise(seed);
           auto index_t = index.as<T>();
           soil::ivec2 position = index_t.unflatten(i);
           return noise.operator()(position);
 
-        };
+        });
 
-        soil::map map = soil::map(func);
-        return soil::node(map, {});
+        return soil::node(std::move(node_t));
 
       } else
         throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");

@@ -44,7 +44,7 @@ def render(model):
 
   index = model.index
 
-  normal = soil.normal(index, model[soil.height])
+  normal = soil.normal(model[soil.height], index)
   normal_data = soil.bake(normal, index).numpy(index)
 
   height_data = soil.bake(model[soil.height], index).numpy(index)

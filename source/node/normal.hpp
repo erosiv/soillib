@@ -19,6 +19,54 @@ struct sample_t {
 };
 
 template<typename T>
+void gather(const soil::node_t<T>& node_t, const soil::flat_t<2> index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]){
+  for (size_t i = 0; i < 5; ++i) {
+
+    const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
+    if (!index.oob(pos_x)) {
+      px[i].oob = false;
+      px[i].pos = pos_x;
+
+      const size_t ind = index.flatten(pos_x);
+      px[i].value = node_t.val(ind);
+    }
+
+    const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
+    if (!index.oob(pos_y)) {
+      py[i].oob = false;
+      py[i].pos = pos_y;
+
+      const size_t ind = index.flatten(pos_y);
+      py[i].value = node_t.val(ind);
+    }
+  }
+}
+
+template<typename T>
+void gather(const soil::buffer_t<T>& buffer_t, const soil::flat_t<2> index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]){
+  for (size_t i = 0; i < 5; ++i) {
+
+    const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
+    if (!index.oob(pos_x)) {
+      px[i].oob = false;
+      px[i].pos = pos_x;
+
+      const size_t ind = index.flatten(pos_x);
+      px[i].value = buffer_t[ind];
+    }
+
+    const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
+    if (!index.oob(pos_y)) {
+      py[i].oob = false;
+      py[i].pos = pos_y;
+
+      const size_t ind = index.flatten(pos_y);
+      py[i].value = buffer_t[ind];
+    }
+  }
+}
+
+template<std::floating_point T>
 glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
 
   glm::vec2 g = glm::vec2(0, 0);
@@ -77,44 +125,6 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
   return g;
 }
 
-template<typename T>
-glm::vec3 normal_impl(const soil::node& node, const soil::flat_t<2> index, glm::ivec2 p) {
-
-//  auto _buffer = buffer.as<T>();
-
-  // Gather 5x5 Region
-  sample_t<T> px[5], py[5];
-  for (size_t i = 0; i < 5; ++i) {
-
-    const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
-    if (!index.oob(pos_x)) {
-      px[i].oob = false;
-      px[i].pos = pos_x;
-
-      const size_t ind = index.flatten(pos_x);
-      px[i].value = node.val<T>(ind);
-    }
-
-    const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
-    if (!index.oob(pos_y)) {
-      py[i].oob = false;
-      py[i].pos = pos_y;
-
-      const size_t ind = index.flatten(pos_y);
-      py[i].value = node.val<T>(ind);
-    }
-  }
-
-  // Compute Local Gradient
-  const glm::vec2 g = gradient_detailed<T>(px, py);
-
-  // Normal Vector from Gradient
-  glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
-  if (length(n) > 0)
-    n = normalize(n);
-  return n;
-}
-
 } // namespace
 
 // Surface Normal from Surface Gradient
@@ -125,42 +135,104 @@ glm::vec3 normal_impl(const soil::node& node, const soil::flat_t<2> index, glm::
 //!
 struct normal {
 
-  //! Single Sample Value
-  static glm::vec3 operator()(soil::node node, soil::flat_t<2> index, const glm::ivec2 pos){
-    // note: consider how we can make it strict-typed at this point already...
-    // in other words: the node is generic, but internally it knows the type
-    // of the nodes that are feeding it.
-    return soil::select(node.type(), [node, index, pos]<typename T>() -> glm::vec3 {
-      if constexpr (std::is_floating_point_v<T>)
-        return normal_impl<T>(node, index, pos);
-      else throw std::invalid_argument("invalid type for operation");
-    });
+  template<std::floating_point T>
+  static glm::vec3 operator()(soil::node_t<T> node_t, soil::flat_t<2> index, const glm::ivec2 pos){
+  
+    sample_t<T> px[5], py[5];
+    gather<T>(node_t, index, pos, px, py);
+    const glm::vec2 g = gradient_detailed<T>(px, py);
+    glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
+    if (length(n) > 0){
+      n = normalize(n);
+    }
+    return n;
+  
   }
 
-  static soil::node make_node(soil::index index, const soil::node& node) {
+  template<std::floating_point T>
+  static glm::vec3 operator()(soil::buffer_t<T> buffer_t, soil::flat_t<2> index, const glm::ivec2 pos){
+
+    sample_t<T> px[5], py[5];
+    gather<T>(buffer_t, index, pos, px, py);
+    const glm::vec2 g = gradient_detailed<T>(px, py);
+    glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
+    if (length(n) > 0){
+      n = normalize(n);
+    }
+    return n;
+  
+  }
+
+  //
+  // Full Sampling Functions
+  //
+
+  // Direct Execution
+  static soil::buffer operator()(const soil::buffer& buffer, soil::index index) {
+    
+    if(index.type() != FLAT2)
+      throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+
+    if(buffer.host() != soil::CPU)
+      throw soil::error::mismatch_host(soil::CPU, buffer.host());
+
+    return soil::select(buffer.type(), [&]<std::floating_point T>() {
+
+      auto index_t = index.as<soil::flat_t<2>>();
+      auto buffer_t = buffer.as<T>();
+
+      soil::buffer_t<vec3> output(buffer.elem());
+      for(auto [i, b]: output.iter()){
+        soil::ivec2 position = index_t.unflatten(i);
+        *b = soil::normal::operator()(buffer_t, index_t, position);
+      }
+
+      return soil::buffer(std::move(output));
+
+    });
+
+  }
+
+  // Deferred Execution
+  static soil::node operator()(const soil::node& node, soil::index index){
 
     if(index.type() != FLAT2)
       throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
 
-    soil::select(node.type(), []<typename T>(){
-      if constexpr (!std::is_floating_point_v<T>)
-        std::invalid_argument("invalid type for operation");
+    // Early Type Deduction:
+    //  We do this once and return a node which is internally
+    //  already aware of its strict-typed inputs, and doesn't
+    //  need to deduce them at runtime for every call.
+
+    return soil::select(node.type(), [&]<std::floating_point T>() {
+
+      auto index_t = index.as<soil::flat_t<2>>();
+      auto node_t = node.as<T>();
+
+      soil::node_t<glm::vec3> output([index_t, node_t](const size_t i) -> glm::vec3 {
+        soil::ivec2 position = index_t.unflatten(i);
+        return soil::normal::operator()(node_t, index_t, position);
+      });
+
+      return soil::node(std::move(output));
+
     });
 
-    auto index_t = index.as<soil::flat_t<2>>();
-
-    using func_t = soil::map_t<glm::vec3>::func_t;
-    using param_t = soil::map_t<glm::vec3>::param_t;
-
-    const func_t func = [index_t, node](const param_t& in, const size_t i) -> glm::vec3 {
-      soil::ivec2 position = index_t.unflatten(i);
-      return soil::normal::operator()(node, index_t, position);
-    };
-
-    soil::map_t<glm::vec3> map_t(func);
-    return soil::node(soil::map(std::move(map_t)), {});
-
   }
+
+  //! Single Sample Value
+  static glm::vec3 operator()(soil::node node, soil::flat_t<2> index, const glm::ivec2 pos){
+    return soil::select(node.type(), [node, index, pos]<std::floating_point T>() -> glm::vec3 {
+      return soil::normal::operator()(node.as<T>(), index, pos);
+    });
+  }
+
+  static glm::vec3 operator()(soil::buffer buffer, soil::flat_t<2> index, const glm::ivec2 pos){
+    return soil::select(buffer.type(), [buffer, index, pos]<std::floating_point T>() -> glm::vec3 {
+      return soil::normal::operator()(buffer.as<T>(), index, pos);
+    });
+  }
+
 };
 
 } // end of namespace soil

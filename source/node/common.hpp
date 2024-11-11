@@ -16,11 +16,11 @@ struct constant {
   template<typename T>
   static soil::node make_node(const T value){
 
-    soil::map_t<T> map_t([value](const auto& in, const size_t index) -> T {
+    soil::node_t<T> node_t([value](const size_t index) -> T {
       return value;
     });
     
-    return soil::node(soil::map(std::move(map_t)), {});
+    return soil::node(std::move(node_t));
   }
 
 };
@@ -33,11 +33,11 @@ struct computed {
   template<typename T>
   static soil::node make_node(const func_t<T> f){
 
-    soil::map_t<T> map_t([f](const auto& in, const size_t index) -> T {
+    soil::node_t<T> node_t([f](const size_t index) -> T {
       return f(index);
     });
     
-    return soil::node(soil::map(std::move(map_t)), {});
+    return soil::node(std::move(node_t));
   }
 
 };
@@ -47,22 +47,16 @@ struct cached {
   template<typename T>
   static soil::node make_node(soil::buffer* buffer_p){
 
-    using func_t = soil::map_t<T>::func_t;
-    using rfunc_t = soil::map_t<T>::rfunc_t;
-    using param_t = soil::map_t<T>::param_t;
+    soil::node_t<T> node_t(
+      [buffer_p](const size_t i) -> T {
+        return buffer_p->as<T>()[i];
+      },
+      [buffer_p](const size_t i) -> T& {
+        return buffer_p->as<T>()[i];
+      }
+    );
 
-    const func_t func = [buffer_p](const param_t& in, const size_t i) -> T {
-      return buffer_p->as<T>()[i];
-    };
-
-    const rfunc_t rfunc = [buffer_p](const param_t& in, const size_t i) -> T& {
-      return buffer_p->as<T>()[i];
-    };
-
-    // delete buffer
-
-    soil::map map = soil::map(func, rfunc);
-    soil::node node = soil::node(map, {});
+    soil::node node = soil::node(std::move(node_t));
     node.size = buffer_p->elem();
     return node;
 

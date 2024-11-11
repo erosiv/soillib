@@ -13,19 +13,17 @@ namespace {
 
 template<size_t D>
 GPU_ENABLE size_t prod(const glm::vec<D, int> vec) {
-  switch (D) {
-  case 1:
+  if constexpr (D == 1){
     return vec[0];
-  case 2:
+  } else if constexpr(D == 2){
     return vec[0] * vec[1];
-  case 3:
+  } else if constexpr(D == 3){
     return vec[0] * vec[1] * vec[2];
-  case 4:
+  } else if constexpr(D == 4){
     return vec[0] * vec[1] * vec[2] * vec[3];
-  default: return 0;
-//  default:
-//    throw std::invalid_argument("can't flatten vector of dimension > 4");
-  } 
+  } else {
+    return 0;
+  }
 }
 
 } // namespace

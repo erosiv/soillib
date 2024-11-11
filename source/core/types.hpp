@@ -4,6 +4,7 @@
 #include <format>
 #include <glm/gtc/type_ptr.hpp>
 #include <soillib/soillib.hpp>
+#include <typeinfo>
 
 namespace soil {
 
@@ -146,7 +147,11 @@ struct typedesc<ivec3> {
 //
 //  Strict-typed, templated implementations of polymorphic
 //  classes are defined statically and selected at runtime
-//  using an enumerator based type identifier.
+//  using an enumerator based type identifier, without inheritance.
+//
+//  The polymorphic wrapper class maintains a pointer to
+//  a stub base-class, which can be cast to the correct type
+//  on demand, requiring a single type deduction switch call.
 //
 //  Note that this pattern allows for receiving the
 //  strict-typed template parameter through the lambda
@@ -172,6 +177,33 @@ struct typedbase {
 
 } // namespace
 
+template<typename Type, typename F>
+struct type_op_error: std::exception {
+  type_op_error(F lambda){
+    this->msg = std::format("invalid type <{}>: failed to match constraints", typedesc<Type>::name);
+  }
+  const char *what() const noexcept override {
+    return this->msg.c_str();
+  }
+private:
+  std::string msg;
+};
+
+// Templated Lambda Concept Matching Interface:
+//
+//  Since the select method switches the runtime dynamic type enumerator,
+//  each possible lambda operator call must compile. Since it possible to
+//  pass a concept into the lambda expression, this won't compile if any
+//  of the types below doesn't match the concept.
+//
+//  Therefore, we ,atch based on a derived concept which is satisfied when the
+//  lambdas original concept is matched (a lambda meta concept).
+
+template<typename T, typename F, typename... Args>
+concept matches_lambda = requires(F lambda, Args &&...args) {
+  { lambda.template operator()<T>(std::forward<Args>(args)...) };
+};
+
 //! select accepts a type enumerator and a templated lambda,
 //! which it subsequently calls with a strict-typed evaluation.
 //!
@@ -179,24 +211,79 @@ struct typedbase {
 //! desired lambda expression, and executes the runtime selection.
 template<typename F, typename... Args>
 auto select(const soil::dtype type, F lambda, Args &&...args) {
+
+  // Note: Separating out the expressions below doesn't work,
+  //  because otherwise the type of select_call would be deduced
+  //  differently at compile time depending on the position in
+  //  the switch-statement, leading to a conflicting return type.
+  //
+  //  It relies on the if constexpr else paths not participating
+  //  in the return type deduction at all, which would be void.
+  //
+  // // DOESNT WORK!
+  // template<typename T, typename F, typename... Args>
+  // constexpr auto select_call(F lambda, Args &&...args){
+  //   if constexpr(matches_lambda<T, F, Args...>){
+  //     return lambda.template operator()<T>(std::forward<Args>(args)...);
+  //   } else {
+  //     throw soil::type_op_error<T, F>(lambda);
+  //   }
+  // }
+
   switch (type) {
-  case soil::INT:
-    return lambda.template operator()<int>(std::forward<Args>(args)...);
-  case soil::FLOAT32:
-    return lambda.template operator()<float>(std::forward<Args>(args)...);
-  case soil::FLOAT64:
-    return lambda.template operator()<double>(std::forward<Args>(args)...);
-  case soil::VEC2:
-    return lambda.template operator()<vec2>(std::forward<Args>(args)...);
-  case soil::VEC3:
-    return lambda.template operator()<vec3>(std::forward<Args>(args)...);
-  case soil::IVEC2:
-    return lambda.template operator()<ivec2>(std::forward<Args>(args)...);
-  case soil::IVEC3:
-    return lambda.template operator()<ivec3>(std::forward<Args>(args)...);
-  default:
-    throw std::invalid_argument("type not supported");
+    case soil::INT:
+      if constexpr(matches_lambda<int, F, Args...>){
+        return lambda.template operator()<int>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<int, F>(lambda);
+      }
+      break;
+    case soil::FLOAT32:
+      if constexpr(matches_lambda<float, F, Args...>){
+        return lambda.template operator()<float>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<float, F>(lambda);
+      }
+      break;
+    case soil::FLOAT64:
+      if constexpr(matches_lambda<double, F, Args...>){
+        return lambda.template operator()<double>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<double, F>(lambda);
+      }
+      break;
+    case soil::VEC2:
+      if constexpr(matches_lambda<vec2, F, Args...>){
+        return lambda.template operator()<vec2>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<vec2, F>(lambda);
+      }
+      break;
+    case soil::VEC3:
+      if constexpr(matches_lambda<vec3, F, Args...>){
+        return lambda.template operator()<vec3>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<vec3, F>(lambda);
+      }
+      break;
+    case soil::IVEC2:
+      if constexpr(matches_lambda<ivec2, F, Args...>){
+        return lambda.template operator()<ivec2>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<ivec2, F>(lambda);
+      }
+      break;
+    case soil::IVEC3:
+      if constexpr(matches_lambda<ivec3, F, Args...>){
+        return lambda.template operator()<ivec3>(std::forward<Args>(args)...);
+      } else {
+        throw soil::type_op_error<ivec3, F>(lambda);
+      }
+      break;
+    default:
+      throw std::invalid_argument("type not supported");
   }
+
 }
 
 enum dindex {
