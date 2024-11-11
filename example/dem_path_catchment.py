@@ -35,12 +35,12 @@ def main(input = ""):
   image = soil.geotiff(input)
   print(f"File: {input}, {image.buffer.type}, ({image.index[0]}, {image.index[1]})")
 
-  raw_node = soil.cached(image.buffer)
   raw_data = image.buffer.numpy(image.index)
   raw_mask = np.isnan(raw_data)
 
   # Compute the Flow Direction
 
+  raw_node = soil.cached(image.buffer)
   raw_node.buffer.gpu()
 
   print("Flow Node")

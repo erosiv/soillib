@@ -59,15 +59,15 @@ all:
 	@echo "Compiling Source Code..."
 	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) core/buffer.cu 	-o $(BUILDDIR)/buffer.o
 	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/flow.cu 		-o $(BUILDDIR)/flow.o
-	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/common.cu 	-o $(BUILDDIR)/common.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) node/math.cu 		-o $(BUILDDIR)/math.o
 	@nvcc -dlink -Xcompiler -fPIC -o $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/flow.o \
-		$(BUILDDIR)/common.o
+		$(BUILDDIR)/math.o
 	@nvcc -lib -o $(BUILDDIR)/$(LIBDIST).a $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/flow.o \
-		$(BUILDDIR)/common.o
+		$(BUILDDIR)/math.o
 
 	@echo "Installing Library ($(LIBDIST))..."
 	@mv $(BUILDDIR)/$(LIBDIST).a $(LIBPATH)/$(LIBDIST).a

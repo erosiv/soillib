@@ -7,6 +7,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
 #include <soillib/util/error.hpp>
+#include <soillib/util/yield.hpp>
 
 namespace soil {
 
@@ -115,6 +116,21 @@ struct buffer_t: typedbase {
   //! Non-Const Subscript Operator
   GPU_ENABLE T &operator[](const size_t index) noexcept {
     return this->_data[index];
+  }
+
+  // Iterators
+
+  //! Simple Const / Non-Const Iterators
+  yield<size_t, T> const_iter() const {
+    for (size_t i = 0; i < this->elem(); ++i)
+      co_yield make_yield(i, this->operator[](i));
+    co_return;
+  }
+
+  yield<size_t, T*> iter() {
+    for (size_t i = 0; i < this->elem(); ++i)
+      co_yield make_yield(i, &this->operator[](i));
+    co_return;
   }
 
 private:

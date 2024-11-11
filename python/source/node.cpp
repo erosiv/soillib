@@ -18,7 +18,7 @@ namespace nb = nanobind;
 #include <soillib/node/flow.hpp>
 
 
-#include <soillib/node/constant.hpp>
+#include <soillib/node/common.hpp>
 
 #include <iostream>
 
@@ -113,6 +113,35 @@ module.def("constant", [](const soil::dtype type, const nb::object object){
   });
 });
 
+module.def("computed", [](const soil::dtype type, const nb::callable object){
+  return soil::select(type, [&object]<typename T>() -> soil::node {
+    const soil::computed::func_t<T> f = nb::cast<soil::computed::func_t<T>>(object);
+    return soil::computed::make_node<T>(f);
+  });
+});
+
+module.def("cached", [](soil::buffer& buffer) -> nb::object {
+  soil::buffer* buffer_p = new soil::buffer(buffer);
+  auto node = soil::select(buffer.type(), [buffer_p]<typename T>() -> soil::node {
+    return soil::cached::make_node<T>(buffer_p);
+  });
+  auto object = nb::cast(std::move(node));
+  auto buffer_obj = nb::cast(*buffer_p);
+  nb::setattr(object, "buffer", buffer_obj);
+  return object;
+});
+
+module.def("cached", [](const soil::dtype type, const size_t size){
+  soil::buffer* buffer_p = new soil::buffer(type, size);
+  auto node = soil::select(type, [buffer_p]<typename T>() -> soil::node {
+    return soil::cached::make_node<T>(buffer_p);
+  });
+  auto object = nb::cast(std::move(node));
+  auto buffer_obj = nb::cast(*buffer_p);
+  nb::setattr(object, "buffer", buffer_obj);
+  return object;
+});
+
 //
 // Noise Sampler Type
 //
@@ -128,102 +157,6 @@ module.def("noise", [](const soil::index index, const float seed){
 
 module.def("normal", [](const soil::index& index, const soil::node& node){
   return soil::normal::make_node(index, node);
-});
-
-//
-// Generic Computed Layer
-//
-
-module.def("computed", [](const soil::dtype type, const nb::callable object){
-  return soil::select(type, [type, &object]<typename T>(){
-
-    using func_s_t = std::function<T(const size_t)>;
-    using func_t = soil::map_t<T>::func_t;
-    using param_t = soil::map_t<T>::param_t;
-    const func_s_t f = nb::cast<func_s_t>(object);
-    const func_t func = [f](const param_t& in, const size_t index) -> T {
-      return f(index);
-    };
-
-    soil::map map = soil::map(func);
-    return soil::node(map, {});
-  
-  });
-});
-
-//
-// Cache-Valued Layer, i.e. Lookup Table
-// Note: Simplify this be extracting the construction to a function.
-//
-
-module.def("cached", [](soil::buffer& buffer) -> nb::object {
-
-  return soil::select(buffer.type(), [&buffer]<typename T>() -> nb::object {
-
-    // explicit buffer copy:
-    // the copy constructor will in fact just create
-    // a reference w. counting.
-    // later, in order to delete the buffer, this
-    // pointer has to be deleted at the appropriate time.
-
-    soil::buffer* buffer_p = new soil::buffer(buffer);
-
-    using func_t = soil::map_t<T>::func_t;
-    using rfunc_t = soil::map_t<T>::rfunc_t;
-    using param_t = soil::map_t<T>::param_t;
-
-    const func_t func = [buffer_p](const param_t& in, const size_t i) -> T {
-      return buffer_p->as<T>()[i];
-    };
-
-    const rfunc_t rfunc = [buffer_p](const param_t& in, const size_t i) -> T& {
-      return buffer_p->as<T>()[i];
-    };
-
-    // delete buffer
-
-    soil::map map = soil::map(func, rfunc);
-    soil::node node = soil::node(map, {});
-    node.size = buffer.elem();
-    auto object = nb::cast(std::move(node));
-
-    auto buffer_obj = nb::cast(*buffer_p);
-    nb::setattr(object, "buffer", buffer_obj);
-    return object;
-
-  });
-
-});
-
-module.def("cached", [](const soil::dtype type, const size_t size){
-
-  return soil::select(type, [&type, size]<typename T>() -> nb::object {
-
-    using func_t = soil::map_t<T>::func_t;
-    using rfunc_t = soil::map_t<T>::rfunc_t;
-    using param_t = soil::map_t<T>::param_t;
-
-    soil::buffer* buffer = new soil::buffer(type, size);
-
-    const func_t func = [buffer](const param_t& in, const size_t index) -> T {
-      return buffer->as<T>()[index];
-    };
-
-    const rfunc_t rfunc = [buffer](const param_t& in, const size_t index) -> T& {
-      return buffer->as<T>()[index];
-    };
-
-    soil::map map = soil::map(func, rfunc);
-    soil::node node = soil::node(map, {});
-    node.size = size;
-    auto object = nb::cast(std::move(node));
-
-    auto buffer_obj = nb::cast(*buffer);
-    nb::setattr(object, "buffer", buffer_obj);
-    return object;
-
-  });
-
 });
 
 // note: consider how to implement this deferred using the nodes

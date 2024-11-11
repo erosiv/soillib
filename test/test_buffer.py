@@ -43,6 +43,7 @@ buffer = soil.buffer(soil.float32, elem)
 assert buffer.type == soil.float32
 assert buffer.elem == elem
 assert buffer.size == 4*elem
+assert buffer.host == soil.cpu
 
 soil.set(buffer, 0)
 assert buffer[0] == 0

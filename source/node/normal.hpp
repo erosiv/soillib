@@ -157,8 +157,8 @@ struct normal {
       return soil::normal::operator()(node, index_t, position);
     };
 
-    soil::map map = soil::map(func);
-    return soil::node(map, {});
+    soil::map_t<glm::vec3> map_t(func);
+    return soil::node(soil::map(std::move(map_t)), {});
 
   }
 };

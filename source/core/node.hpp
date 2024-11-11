@@ -33,7 +33,7 @@ namespace soil {
 //! In the future, this can be used together with autograd concepts.
 struct node;
 
-//! Nodes are constructed using mapping functions. 
+//! Nodes are constructed using mapping functions.
 //! - Applied to a node, the computation is deferred and a node is returned.
 //! - Applied to a buffer, the computation is immediate and a buffer is returned.
 struct map;
@@ -47,6 +47,18 @@ struct map_t: typedbase {
   using param_t = std::vector<node>;
   using func_t = std::function<T(const param_t&, const size_t)>;
   using rfunc_t = std::function<T&(const param_t&, const size_t)>;
+
+//  template<typename F, typename... Args>
+//  map_t(F lambda, Args &&...args): func(F(std::forward<Args>(args)...)){}
+  
+  /*
+  template<typename F, typename... Args>
+  map(F lambda, Args &&...args){
+    auto bind = std::bind(lambda, std::forward<Args>(args)...);
+    this->impl = make<std::decay<lambda>::type>(bind);
+  //lambda, args...))}{}
+  }
+  */
 
   map_t(func_t func): func(func) {}
   map_t(func_t func, rfunc_t rfunc): func(func), rfunc{rfunc} {}
@@ -68,6 +80,8 @@ private:
   rfunc_t rfunc = [](const param_t& param, const size_t index) -> T& {
     throw std::runtime_error("NO BACKPROPAGATION POSSIBLE");
   };
+
+  //!\todo add information about constness / no ref
 };
 
 struct map {
@@ -80,13 +94,22 @@ struct map {
   template<typename T>
   using rfunc_t = std::function<T&(const param_t&, const size_t)>;
 
-  map() {}
+  map(){}
 
   template<typename T>
-  map(func_t<T> func): impl{make<T>(func)}{}
+  map(soil::map_t<T>&& map_t) {
+    this->impl = std::make_shared<soil::map_t<T>>(map_t);
+  }
 
   template<typename T>
-  map(func_t<T> func, rfunc_t<T> rfunc): impl{make<T>(func, rfunc)}{}
+  map(func_t<T> func) {
+    this->impl = std::make_shared<soil::map_t<T>>(func);
+  }
+
+  template<typename T>
+  map(func_t<T> func, rfunc_t<T> rfunc){
+    this->impl = std::make_shared<soil::map_t<T>>(func, rfunc);
+  }
 
   inline soil::dtype type() const noexcept {
     return this->impl->type();
@@ -121,16 +144,6 @@ struct map {
 private:
   using ptr_t = std::shared_ptr<typedbase>;
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer
-
-  template<typename T>
-  static ptr_t make(func_t<T> func) {
-    return std::make_shared<soil::map_t<T>>(func);
-  }
-
-  template<typename T>
-  static ptr_t make(func_t<T> func, rfunc_t<T> rfunc) {
-    return std::make_shared<soil::map_t<T>>(func, rfunc);
-  }
 };
 
 struct node {

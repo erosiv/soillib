@@ -1,178 +1,74 @@
-#ifndef SOILLIB_NODE_COMMON
-#define SOILLIB_NODE_COMMON
+#ifndef SOILLIB_NODE_CONSTANT
+#define SOILLIB_NODE_CONSTANT
 
-#include <soillib/core/buffer.hpp>
+#include <soillib/soillib.hpp>
+#include <soillib/core/node.hpp>
 
 namespace soil {
 
-// Note: This is in principle the minimum set of basic
-//  operations needed to perform basic bufferized algebra.
-//
-// - Copy: Allocate + Set
-// - Subtract: Multiply by -1, Add
-// - Division: Invert and Multiply
-// - Out-Of-Place: Copy first, then In-Place
-//
-// Additional things which would be interesting is taking
-// powers, e.g. roots and exponents, and later functions.
-// This will be done at a later time though when this
-// interface is cleaned up and made more efficient so 
-// that it doesn't require hugeamounts of code.
-//
-//!\todo Inversion requires better handling of vector types,
-//! and a concrete decision about handling integer types (i.e. conversion)
+//! Here are some basic node implementations.
+//!
+//! \todo Consider whether the functions should be made static somehow.
+//!   That way they don't have live on the ether, and can be 'fixed'.
 
-//
-// Set Buffer from Value and Buffer
-//
+struct constant {
 
-template<typename T>
-void set_impl(soil::buffer_t<T> buffer, const T val);
+  template<typename T>
+  static soil::node make_node(const T value){
 
-template<typename T>
-void set(soil::buffer_t<T>& buffer, const T val){
-  // CPU Implementation
-  if(buffer.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < buffer.elem(); ++i)
-      buffer[i] = val;
-  }
-  // GPU Implementation
-  else if(buffer.host() == soil::host_t::GPU){
-    set_impl(buffer, val);
-  }
-}
-
-template<typename T>
-void set_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs);
-
-template<typename T>
-void set(soil::buffer_t<T>& lhs, const soil::buffer_t<T>& rhs){
-
-  if(lhs.elem() != rhs.elem())
-    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
-
-  if(lhs.host() != rhs.host())
-    throw soil::error::mismatch_host(lhs.host(), rhs.host());
-
-  if(lhs.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < lhs.elem(); ++i)
-      lhs[i] = rhs[i];
+    soil::map_t<T> map_t([value](const auto& in, const size_t index) -> T {
+      return value;
+    });
+    
+    return soil::node(soil::map(std::move(map_t)), {});
   }
 
-  else if(lhs.host() == soil::host_t::GPU){
-    set_impl(lhs, rhs);
+};
+
+struct computed {
+
+  template<typename T>
+  using func_t = std::function<T(const size_t)>;
+
+  template<typename T>
+  static soil::node make_node(const func_t<T> f){
+
+    soil::map_t<T> map_t([f](const auto& in, const size_t index) -> T {
+      return f(index);
+    });
+    
+    return soil::node(soil::map(std::move(map_t)), {});
   }
 
-}
+};
 
-//
-// Add Buffer from Buffer and Value In-Place
-//
+struct cached {
 
-template<typename T>
-void add_impl(soil::buffer_t<T> buffer, const T val);
+  template<typename T>
+  static soil::node make_node(soil::buffer* buffer_p){
 
-template<typename T>
-void add(soil::buffer_t<T>& buffer, const T val){
-  // CPU Implementation
-  if(buffer.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < buffer.elem(); ++i)
-      buffer[i] += val;
-  }
-  // GPU Implementation
-  else if(buffer.host() == soil::host_t::GPU){
-    add_impl(buffer, val);
-  }
-}
+    using func_t = soil::map_t<T>::func_t;
+    using rfunc_t = soil::map_t<T>::rfunc_t;
+    using param_t = soil::map_t<T>::param_t;
 
-template<typename T>
-void add_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs);
+    const func_t func = [buffer_p](const param_t& in, const size_t i) -> T {
+      return buffer_p->as<T>()[i];
+    };
 
-template<typename T>
-void add(soil::buffer_t<T>& lhs, const soil::buffer_t<T>& rhs){
+    const rfunc_t rfunc = [buffer_p](const param_t& in, const size_t i) -> T& {
+      return buffer_p->as<T>()[i];
+    };
 
-  if(lhs.elem() != rhs.elem())
-    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
+    // delete buffer
 
-  if(lhs.host() != rhs.host())
-    throw soil::error::mismatch_host(lhs.host(), rhs.host());
+    soil::map map = soil::map(func, rfunc);
+    soil::node node = soil::node(map, {});
+    node.size = buffer_p->elem();
+    return node;
 
-  if(lhs.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < lhs.elem(); ++i)
-      lhs[i] += rhs[i];
   }
 
-  else if(lhs.host() == soil::host_t::GPU){
-    add_impl(lhs, rhs);
-  }
-
-}
-
-//
-// Multiply Buffer from Buffer and Value In-Place
-//
-
-template<typename T>
-void multiply_impl(soil::buffer_t<T> buffer, const T val);
-
-template<typename T>
-void multiply(soil::buffer_t<T>& buffer, const T val){
-  // CPU Implementation
-  if(buffer.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < buffer.elem(); ++i)
-      buffer[i] *= val;
-  }
-  // GPU Implementation
-  else if(buffer.host() == soil::host_t::GPU){
-    multiply_impl(buffer, val);
-  }
-}
-
-template<typename T>
-void multiply_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs);
-
-template<typename T>
-void multiply(soil::buffer_t<T>& lhs, const soil::buffer_t<T>& rhs){
-
-  if(lhs.elem() != rhs.elem())
-    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
-
-  if(lhs.host() != rhs.host())
-    throw soil::error::mismatch_host(lhs.host(), rhs.host());
-
-  if(lhs.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < lhs.elem(); ++i)
-      lhs[i] *= rhs[i];
-  }
-
-  else if(lhs.host() == soil::host_t::GPU){
-    multiply_impl(lhs, rhs);
-  }
-
-}
-
-/*
-
-//
-// Invert Buffer
-//
-
-template<typename T>
-void invert_impl(soil::buffer_t<T> buffer);
-
-template<typename T>
-void invert(soil::buffer_t<T>& buffer){
-  // CPU Implementation
-  if(buffer.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < buffer.elem(); ++i)
-      buffer[i] = 1.0 / buffer[i];
-  }
-  // GPU Implementation
-  else if(buffer.host() == soil::host_t::GPU){
-    invert_impl(buffer);
-  }
-}
-*/
+};
 
 }
 

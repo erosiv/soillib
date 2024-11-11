@@ -17,7 +17,7 @@ namespace nb = nanobind;
 #include <soillib/core/buffer.hpp>
 #include <soillib/util/error.hpp>
 
-#include <soillib/node/common.hpp>
+#include <soillib/node/math.hpp>
 
 #include "glm.hpp"
 
@@ -166,7 +166,7 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const nb::slice& slice, const
       buffer_t[index] = value_t;
   
   });
-});
+}); 
 
 //
 // Generic Buffer Functions
