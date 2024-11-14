@@ -286,6 +286,12 @@ auto select(const soil::dtype type, F lambda, Args &&...args) {
 
 }
 
+template<class I>
+constexpr bool is_index_2D() { return I::n_dims == 2; }
+
+template<typename I>
+concept index_2D = is_index_2D<I>();
+
 enum dindex {
   FLAT1,
   FLAT2,

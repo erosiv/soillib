@@ -127,12 +127,6 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
 
 } // namespace
 
-template<class I>
-constexpr bool is_index_2D() { return I::n_dims == 2; }
-
-template<typename I>
-concept index_2D = is_index_2D<I>();
-
 // Surface Normal from Surface Gradient
 
 //! Simple Transform Layer, which takes a 2D Layer

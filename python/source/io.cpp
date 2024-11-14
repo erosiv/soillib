@@ -8,6 +8,7 @@ namespace nb = nanobind;
 
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/geotiff.hpp>
+#include <soillib/io/mesh.hpp>
 
 #include <soillib/core/node.hpp>
 
@@ -75,6 +76,15 @@ geotiff_meta.def_prop_ro("metadata", [](soil::io::geotiff::meta_t& m){
 geotiff_meta.def_prop_ro("nodata", [](soil::io::geotiff::meta_t& m){
   return m.gdal_nodata;
 });
+
+//
+// Mesh Export
+//
+
+auto mesh = nb::class_<soil::io::mesh>(module, "mesh");
+mesh.def(nb::init<>());
+mesh.def(nb::init<const soil::buffer&, const soil::index&>());
+mesh.def("write", &soil::io::mesh::write);
 
 }
 

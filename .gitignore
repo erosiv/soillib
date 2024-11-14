@@ -48,3 +48,6 @@ _todo.md
 python/wheel
 __pycache__
 source/build
+
+# Mesh Formats
+**/*.ply

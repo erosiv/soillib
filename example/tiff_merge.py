@@ -83,7 +83,7 @@ def merge(input, pscale = 0.1):
 
 def main(input):
 
-  array, shape, meta = merge(input, pscale=0.1)
+  array, shape, meta = merge(input, pscale=0.02)
 
   '''
   Figure out how to export this is a valid GeoTIFF!
