@@ -184,6 +184,78 @@ soil::buffer soil::direction::full() const {
 
 }
 
+__global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  bool found = false;
+  size_t ind = n;
+  glm::ivec2 pos =  index.unflatten(n);
+  size_t target_ind = index.flatten(target);
+
+  // note: upper bound is absolute worst-case scenario
+  for(int step = 0; step < N; ++step){
+
+    if(ind == target_ind){
+      found = true;
+      break;
+    }
+
+    const glm::ivec2 dir = in[ind];
+    pos += dir;
+    if(dir[0] == 0 && dir[1] == 0)
+      break;
+
+    if(index.oob(pos))
+      break;
+
+    ind = index.flatten(pos);
+
+  }
+
+  if(found)
+    out[n] = 1;
+  else out[n] = 0;
+
+}
+
+soil::buffer soil::upstream::full() const {
+
+  // I suppose the ideal solution is to do a random order...
+  // how do we generate a list of random order?
+  // we could do a perfect hash instead...
+  // or we could really just use a random number generator
+  // and speculate that we get sufficient hits.
+  // this determinism is not necessarily suited to GPU computation...
+  // unless I can perform some kind of radix sort on the elements
+  // but that would require some kind of tree index which I might not have.
+  // the sort would basically be: am I above or below a value...
+  // but we would sort over the set of indices...
+
+  /*
+  so if we did a sort that would effectively yield the solution...
+  for now, we will just do it in order and see if shuffling improves performance at all later...
+  */
+
+  // Input Direction Buffer!
+  const size_t elem = index.elem();
+  auto in = this->buffer.as<ivec2>();
+  in.to_gpu();
+
+  auto out = buffer_t<int>{elem, GPU};
+  int thread = 1024;
+  int block = (elem + thread - 1)/thread;
+  _fill<<<block, thread>>>(out, 2); // unknown state...
+  
+  thread = 1024;
+  block = (elem + thread - 1)/thread;
+  _upstream<<<block, thread>>>(in, out, target, index, elem);
+
+  return std::move(soil::buffer(std::move(out)));
+
+}
+
 soil::buffer soil::accumulation::full() const {
 
   const size_t elem = index.elem();

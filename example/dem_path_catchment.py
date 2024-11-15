@@ -58,6 +58,22 @@ def main(input = ""):
     area = area_node()
   area.cpu()
 
+
+  '''
+  Catchment Areas
+  '''
+
+  print("Computing Upstream Mask...")
+  with soil.timer() as timer:
+    catch = soil.upstream(image.index, dir_node, [692, 1873])
+  catch.cpu()
+  catch = catch.numpy(image.index)
+  area = area.numpy(image.index)
+  area[catch == 0] = 1
+
+  catch_gt = grid.catchment(x=1873, y=692, fdir=flow_gt, dirmap=dirmap, xytype='index')
+  area_gt[catch_gt == 0] = 1
+
 #  areas = []
 
 #  print("Flow Difference", np.sum(flow_gt != flow))
@@ -65,7 +81,7 @@ def main(input = ""):
 #  direction = dir_node.full().numpy(image.index)
 #  shape = flow.shape
 
-  area = area.numpy(image.index)
+
   sum_dist = np.sum(np.abs(area_gt-area))
   dist_sum = np.abs(np.sum(area_gt) - np.sum(area))
 

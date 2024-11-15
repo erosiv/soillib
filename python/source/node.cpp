@@ -176,6 +176,11 @@ module.def("direction", [](const soil::index& index, const soil::buffer& buffer)
   return direction.full();
 });
 
+module.def("upstream", [](const soil::index& index, const soil::buffer& buffer, const glm::ivec2 target){
+  auto upstream = soil::upstream(index, buffer, target);
+  return upstream.full();
+});
+
 // this should be replaced with something else...
 // the noise layer is also "stateful" - how do we handle
 // stateful nodes / conversion operations 
