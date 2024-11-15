@@ -5,43 +5,81 @@
 #include <soillib/core/index.hpp>
 #include <fstream>
 
+#include <unordered_map>
+
 namespace soil {
 namespace io {
 
-/*
-Mesh File Structure:
-- Export Only
-- Load from Buffer, Index
-- Generate List of Faces, Indices
-- Option to Add Skirt (Or Not)
-*/
+namespace {
 
+constexpr bool isBigEndianArchitecture(){
+  constexpr uint32_t i = 0x01020304;
+  return reinterpret_cast<const uint8_t*>(&i)[0] == 1;
+}
+
+}
+
+//! Mesh is a simple data-oriented triangle mesh struct
+//!
+//! Mesh can be constructed directly from a buffer and
+//! 2D index, creating a simple terrain triangle mesh.
+//!
+//! The mesh is optimized for compactness, and there is
+//! an option to add a skirt to the terrain mesh.
+//!
+//! The export format is a binary .ply file.
+//!
 struct mesh {
 
   mesh(){}
+  mesh(const soil::buffer& _buffer, const soil::index& _index, const vec3 scale){
 
-  // copy and move constructors...
-  // construct directly from triangle and face data...
-  // bounding box...
+    this->triangulate(_buffer, _index, scale);
 
-  mesh(const soil::buffer& _buffer, const soil::index& _index): _index{_index}, _buffer{_buffer}{
+    // Compute Min, Max
+    this->min = vec3(std::numeric_limits<float>::max());
+    this->max = vec3(std::numeric_limits<float>::min());
+    for(auto v: this->vertices){
+      this->min = glm::min(this->min, v);
+      this->max = glm::max(this->max, v);
+    }
 
-    // Get the Vertices...
+  }
 
-    int ctot = 0;
+  void triangulate(const soil::buffer& buffer, const soil::index& index, const vec3 scale){
 
-    soil::select(_buffer.type(), [&]<std::floating_point T>(){
-      auto buffer_t = _buffer.as<T>();
+    soil::select(buffer.type(), [&]<std::floating_point T>(){
+      auto buffer_t = buffer.as<T>();
 
-      const auto nan = std::numeric_limits<T>::quiet_NaN();
+      soil::select(index.type(), [&]<soil::index_2D I>(){
+        auto index_t = index.as<I>();
 
-      soil::select(_index.type(), [&]<soil::index_2D I>(){
-        auto index_t = _index.as<I>();
+        // Insert Vertices:
+        //  Construct Map from Buffer Index to Mesh Index
+        //  Insert Vertices
+        //  Use Map to Insert Face Triangles
 
+        std::unordered_map<int, unsigned int> vertex_set;
+
+        // Insert Vertices
+        unsigned int count = 0;
         for(auto pos: index_t.iter()){
 
-          // I suppose we could just cheaply duplicate data...
-          // and try to make it more efficient later...
+          int ind = index_t.flatten(pos);   // Buffer Position Index
+          T val = buffer_t[ind];            // Buffer Value
+          if(std::isnan(val))               // Non NaN Values!
+            continue;
+
+          vertex_set.insert({ind, count});  // Map from Buffer to Mesh
+          vec3 p{pos[0], pos[1], val};
+          p /= scale;                       // Scale Position
+          this->vertices.push_back(p);
+          ++count;
+
+        }
+
+        // Insert Faces
+        for(auto pos: index_t.iter()){
 
           if(index_t.oob(pos + ivec2(0, 0))) continue;
           if(index_t.oob(pos + ivec2(0, 1))) continue;
@@ -63,61 +101,38 @@ struct mesh {
           if(std::isnan(v10)) continue;
           if(std::isnan(v11)) continue;
 
-          vec3 p00{ pos[0] + 0, pos[1] + 0, v00};
-          vec3 p01{ pos[0] + 0, pos[1] + 1, v01};
-          vec3 p10{ pos[0] + 1, pos[1] + 0, v10};
-          vec3 p11{ pos[0] + 1, pos[1] + 1, v11};
-
-          if(ctot == 0){
-            this->min = p00;
-            this->max = p00;
-          } else {
-            this->min = glm::min(this->min, p00);
-            this->max = glm::max(this->max, p00);
-          }
-
-          const size_t count = this->vertices.size();
-
-          ivec3 f0 = {count + 0, count + 1, count + 2};
-          ivec3 f1 = {count + 1, count + 2, count + 3};
-
-          this->vertices.push_back(p00);
-          this->vertices.push_back(p01);
-          this->vertices.push_back(p10);
-          this->vertices.push_back(p11);
+          uvec3 f0 = {vertex_set[i01], vertex_set[i00], vertex_set[i10]};
+          uvec3 f1 = {vertex_set[i01], vertex_set[i10], vertex_set[i11]};
 
           this->faces.push_back(f0);
           this->faces.push_back(f1);
 
-          ++ctot;
-
-          // if(ctot > 64000)
-          //   break;
-
         }
-      });
-    });
 
-    std::cout<<"DONE"<<std::endl;
+      });
+
+    });
 
   }
 
+  void center(){
+    auto center = 0.5f*(this->max + this->min);
+    for(auto& v: this->vertices){
+      v -= center;
+    }
+  }
+
   bool write(const char* filename) const;
+  bool write_binary(const char* filename) const;
 
 private:
-  std::vector<vec3> vertices;
-  std::vector<ivec3> faces;
-
+  std::vector<vec3> vertices; //!< Type: float
+  std::vector<uvec3> faces;   //!< Type: unsigned int
   vec3 min;
   vec3 max;
-
-  soil::buffer _buffer;
-  soil::index _index;
 };
 
 bool mesh::write(const char* filename) const {
-
-  std::cout<<"WRITING"<<std::endl;
 
   std::ofstream out(filename, std::ios::out);
   if(!out){
@@ -150,6 +165,44 @@ bool mesh::write(const char* filename) const {
   }
 
   out.close();
+  return true;
+}
+
+bool mesh::write_binary(const char* filename) const {
+
+  std::ofstream fout(filename, std::ios::binary);
+  if(!fout){
+    std::cout<<"Failed to open file "<<filename<<std::endl;
+    return false;
+  }
+
+  // Write header
+  fout << "ply\n";
+  if(isBigEndianArchitecture())
+    fout << "format binary_big_endian 1.0\n";
+  else
+    fout << "format binary_little_endian 1.0\n";
+
+  fout << "element " << "vertex" << " " << this->vertices.size() << std::endl;
+  fout << "property float x" << std::endl;
+  fout << "property float y" << std::endl;
+  fout << "property float z" << std::endl;
+  fout << "element " << "face" << " " << this->faces.size() << std::endl;
+  fout << "property list uchar uint vertex_indices" << std::endl;
+  fout << "end_header" << std::endl;
+
+  for(auto& v: this->vertices){
+    fout.write(reinterpret_cast<const char*>(&v[0]), 3*sizeof(float));
+  }
+
+  for(auto& f: this->faces){
+    const unsigned char count = 3;
+    fout.write(reinterpret_cast<const char*>(&count), sizeof(unsigned char));
+    glm::vec<3, unsigned int, glm::packed_highp> fv = f;
+    fout.write(reinterpret_cast<const char*>(&fv[0]), 3*sizeof(unsigned int));
+  }
+
+  fout.close();
   return true;
 }
 

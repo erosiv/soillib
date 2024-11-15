@@ -83,8 +83,10 @@ geotiff_meta.def_prop_ro("nodata", [](soil::io::geotiff::meta_t& m){
 
 auto mesh = nb::class_<soil::io::mesh>(module, "mesh");
 mesh.def(nb::init<>());
-mesh.def(nb::init<const soil::buffer&, const soil::index&>());
+mesh.def(nb::init<const soil::buffer&, const soil::index&, const soil::vec3>());
 mesh.def("write", &soil::io::mesh::write);
+mesh.def("center", &soil::io::mesh::center);
+mesh.def("write_binary", &soil::io::mesh::write_binary);
 
 }
 

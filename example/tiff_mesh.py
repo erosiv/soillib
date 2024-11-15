@@ -13,8 +13,12 @@ def main(input):
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
 
-    mesh = soil.mesh(image.buffer, image.index)
-    mesh.write("out.ply")
+    scale = image.scale
+    print(scale)
+    mesh = soil.mesh(image.buffer, image.index, [10, 10, 10/scale[0]/scale[1]])
+    mesh.center()
+    #mesh.write("out.ply")
+    mesh.write_binary("out_binary_min.ply")
 
 #    data = image.buffer.numpy(image.index)
 #    plt.imshow(data)

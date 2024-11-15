@@ -68,6 +68,8 @@ constexpr auto defaultp = glm::qualifier::packed_highp;
 template<size_t D>
 using ivec = glm::vec<D, int, defaultp>;
 template<size_t D>
+using uvec = glm::vec<D, unsigned int, defaultp>;
+template<size_t D>
 using fvec = glm::vec<D, float, defaultp>;
 template<size_t D>
 using dvec = glm::vec<D, double, defaultp>;
@@ -78,6 +80,11 @@ using ivec1 = ivec<1>;
 using ivec2 = ivec<2>;
 using ivec3 = ivec<3>;
 using ivec4 = ivec<4>;
+
+using uvec1 = uvec<1>;
+using uvec2 = uvec<2>;
+using uvec3 = uvec<3>;
+using uvec4 = uvec<4>;
 
 using fvec1 = fvec<1>;
 using fvec2 = fvec<2>;
