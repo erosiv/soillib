@@ -166,58 +166,24 @@ module.def("normal", [](const soil::node& node, const soil::index& index){
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
 
-module.def("flow", [](const soil::index& index, const soil::buffer& buffer){
-  auto flow = soil::flow(index, buffer);
-  return flow.full();
+module.def("flow", [](const soil::buffer& buffer, const soil::index& index){
+  return soil::flow(buffer, index);
 });
 
-module.def("direction", [](const soil::index& index, const soil::buffer& buffer){
-  auto direction = soil::direction(index, buffer);
-  return direction.full();
+module.def("direction", [](const soil::buffer& buffer, const soil::index& index){
+  return soil::direction(buffer, index);
 });
 
-module.def("upstream", [](const soil::index& index, const soil::buffer& buffer, const glm::ivec2 target){
-  auto upstream = soil::upstream(index, buffer, target);
-  return upstream.full();
+module.def("accumulation", [](const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
+  return soil::accumulation(buffer, index, iterations, samples, steps);
 });
 
-module.def("distance", [](const soil::index& index, const soil::buffer& buffer, const glm::ivec2 target){
-  auto distance = soil::distance(index, buffer, target);
-  return distance.full();
+module.def("upstream", [](const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
+  return soil::upstream(buffer, index, target);
 });
 
-// this should be replaced with something else...
-// the noise layer is also "stateful" - how do we handle
-// stateful nodes / conversion operations 
-
-auto accumulation = nb::class_<soil::accumulation>(module, "accumulation");
-accumulation.def(nb::init<const soil::index&, const soil::buffer&>());
-accumulation.def("__call__", [](const soil::accumulation& accumulation){
-  return accumulation.full();
-});
-
-accumulation.def_prop_rw("steps", 
-[](const soil::accumulation& accumulation){
-  return accumulation.steps;
-},
-[](soil::accumulation& accumulation, const size_t steps){
-  accumulation.steps = steps;
-});
-
-accumulation.def_prop_rw("iterations", 
-[](const soil::accumulation& accumulation){
-  return accumulation.iterations;
-},
-[](soil::accumulation& accumulation, const size_t iterations){
-  accumulation.iterations = iterations;
-});
-
-accumulation.def_prop_rw("samples", 
-[](const soil::accumulation& accumulation){
-  return accumulation.samples;
-},
-[](soil::accumulation& accumulation, const size_t samples){
-  accumulation.samples = samples;
+module.def("distance", [](const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
+  return soil::distance(buffer, index, target);
 });
 
 //

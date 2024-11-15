@@ -39,15 +39,20 @@ __device__ const int dirmap[8] = {
 
 }
 
-__global__ void _flow(soil::buffer_t<double> in, soil::buffer_t<int> out, soil::flat_t<2> index){
+//
+// Flow Kernel Implementation
+//
+
+template<typename T>
+__global__ void _flow(soil::buffer_t<T> in, soil::buffer_t<int> out, soil::flat_t<2> index){
 
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
   if(i >= in.elem()) return;
 
   const glm::ivec2 pos = index.unflatten(i);
     
-  double diffmax = 0.0f;
-  double hvalue = in[i];
+  T diffmax = 0.0f;
+  T hvalue = in[i];
   int value = -2;   // default also for nan
   bool pit = true;
   bool has_flow = false;
@@ -60,8 +65,8 @@ __global__ void _flow(soil::buffer_t<double> in, soil::buffer_t<int> out, soil::
     if(!index.oob(npos)){
       
       const size_t n = index.flatten(npos);
-      const double nvalue = in[n];
-      const double ndiff = (hvalue - nvalue)/dist[k];
+      const T nvalue = in[n];
+      const T ndiff = (hvalue - nvalue)/T(dist[k]);
       
       if(ndiff > diffmax){
         value = k;
@@ -88,6 +93,34 @@ __global__ void _flow(soil::buffer_t<double> in, soil::buffer_t<int> out, soil::
 
 }
 
+soil::buffer soil::flow(const soil::buffer& buffer, const soil::index& index) {
+
+  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
+    return soil::select(buffer.type(), [&]<std::floating_point T>(){
+
+      auto index_t = index.as<I>();
+      auto buffer_t = buffer.as<T>();
+      buffer_t.to_gpu();
+
+      const int elem = index_t.elem();
+      const int thread = 1024;
+      const int block = (elem + thread - 1)/thread;
+
+      auto out = soil::buffer_t<int>{index_t.elem(), soil::GPU};
+      _flow<<<block, thread>>>(buffer_t, out, index_t);
+
+      return std::move(soil::buffer(std::move(out)));
+
+    });
+
+  });
+
+}
+
+//
+// Direction Kernel Implementation
+//
+
 __global__ void _direction(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> out){
 
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -104,6 +137,34 @@ __global__ void _direction(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> ou
   out[index] = val;
 
 }
+
+soil::buffer soil::direction(const soil::buffer& buffer, const soil::index& index){
+
+  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
+    return soil::select(buffer.type(), [&]<std::same_as<int> T>(){
+
+      auto index_t = index.as<I>();
+      auto buffer_t = buffer.as<T>();
+      buffer_t.to_gpu();
+
+      const int elem = index_t.elem();
+      const int thread = 1024;
+      const int block = (elem + thread - 1)/thread;
+
+      auto out = soil::buffer_t<soil::ivec2>{index_t.elem(), soil::GPU};
+      _direction<<<block, thread>>>(buffer_t, out);
+
+      return std::move(soil::buffer(std::move(out)));
+
+    });
+
+  });
+
+}
+
+//
+// Accumulation Kernel Implementation
+//
 
 template<typename T>
 __global__ void _fill(soil::buffer_t<T> buf, const T val){
@@ -152,37 +213,52 @@ __global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, d
   out[n] = 1.0 + P * (double)in[n];
 }
 
-soil::buffer soil::flow::full() const {
+soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
 
-  const int elem = index.elem();
-  auto in = this->buffer.as<double>();
-  in.to_gpu();
+  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
+    return soil::select(buffer.type(), [&]<std::same_as<soil::ivec2> T>(){
 
-  const int thread = 1024;
-  const int block = (elem + thread - 1)/thread;
-  
-  auto out = buffer_t<int>{index.elem(), GPU};
-  _flow<<<block, thread>>>(in, out, index);
+      auto index_t = index.as<I>();
+      auto buffer_t = buffer.as<soil::ivec2>();
+      buffer_t.to_gpu();
 
-  return std::move(soil::buffer(std::move(out)));
+      const size_t elem = index.elem();
+      int thread = 1024;
+      int block = (elem + thread - 1)/thread;
+
+      auto out = soil::buffer_t<int>{elem, soil::GPU};
+      _fill<<<block, thread>>>(out, 0);
+
+      auto out2 = soil::buffer_t<double>{elem, soil::GPU};
+      
+      curandState* randStates;
+      cudaMalloc((void**)&randStates, samples * sizeof(curandState));
+
+      thread = 1024;
+      block = (samples + thread - 1)/thread;
+
+      init_randstate<<<block, thread>>>(randStates, samples, 0);
+
+      for(int n = 0; n < iterations; ++n)
+        _accumulate<<<block, thread>>>(buffer_t, out, index_t, randStates, steps, samples);
+      cudaFree(randStates);
+
+      thread = 1024;
+      block = (elem + thread - 1)/thread;
+      const double P = double(elem)/double(iterations*samples);
+      _normalize<<<block, thread>>>(out, out2, P);
+
+      return std::move(soil::buffer(std::move(out2)));
+
+    });
+
+  });
 
 }
 
-soil::buffer soil::direction::full() const {
-
-  const int elem = index.elem();
-  auto in = this->buffer.as<int>();
-  in.to_gpu();
-
-  const int thread = 1024;
-  const int block = (elem + thread - 1)/thread;
-
-  auto out = buffer_t<ivec2>{index.elem(), GPU};
-  _direction<<<block, thread>>>(in, out);
-
-  return std::move(soil::buffer(std::move(out)));
-
-}
+//
+// Upstream Mask Kernel Implementation
+//
 
 __global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
 
@@ -220,6 +296,39 @@ __global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
 
 }
 
+// Note: This can potentially be made faster, by batching the upstream kernel execution
+// and testing against positions tested in the previous batch (using the output buffer)
+// This could be done using a shuffled index buffer (e.g. perfect hash), or using some
+// other regular permuation to improve performance. This is not guaranteed to be better.
+soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
+
+  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
+    return soil::select(buffer.type(), [&]<std::same_as<soil::ivec2> T>(){
+
+      auto index_t = index.as<I>();
+      auto buffer_t = buffer.as<soil::ivec2>();
+      buffer_t.to_gpu();
+
+      const size_t elem = index_t.elem();
+      int thread = 1024;
+      int block = (elem + thread - 1)/thread;
+
+      auto out = soil::buffer_t<int>{elem, soil::GPU};
+      _fill<<<block, thread>>>(out, -1);
+      _upstream<<<block, thread>>>(buffer_t, out, target, index_t, elem);
+
+      return std::move(soil::buffer(std::move(out)));
+
+    });
+
+  });
+
+}
+
+//
+// Upstream Distance Kernel Implementation
+//
+
 __global__ void _distance(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -251,93 +360,30 @@ __global__ void _distance(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
 
 }
 
-soil::buffer soil::upstream::full() const {
+soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
 
-  // I suppose the ideal solution is to do a random order...
-  // how do we generate a list of random order?
-  // we could do a perfect hash instead...
-  // or we could really just use a random number generator
-  // and speculate that we get sufficient hits.
-  // this determinism is not necessarily suited to GPU computation...
-  // unless I can perform some kind of radix sort on the elements
-  // but that would require some kind of tree index which I might not have.
-  // the sort would basically be: am I above or below a value...
-  // but we would sort over the set of indices...
+  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
+    return soil::select(buffer.type(), [&]<std::same_as<soil::ivec2> T>(){
 
-  /*
-  so if we did a sort that would effectively yield the solution...
-  for now, we will just do it in order and see if shuffling improves performance at all later...
-  */
+      auto index_t = index.as<I>();
+      auto buffer_t = buffer.as<T>();
+      buffer_t.to_gpu();
 
-  // Input Direction Buffer!
-  const size_t elem = index.elem();
-  auto in = this->buffer.as<ivec2>();
-  in.to_gpu();
+      const size_t elem = index.elem();
+      int thread = 1024;
+      int block = (elem + thread - 1)/thread;
+      
+      auto out = soil::buffer_t<int>{elem, soil::GPU};
+      _fill<<<block, thread>>>(out, 2); // unknown state...
+      
+      thread = 1024;
+      block = (elem + thread - 1)/thread;
+      _distance<<<block, thread>>>(buffer_t, out, target, index_t, elem);
 
-  auto out = buffer_t<int>{elem, GPU};
-  int thread = 1024;
-  int block = (elem + thread - 1)/thread;
-  _fill<<<block, thread>>>(out, -1); // unknown state...
-  
-  thread = 1024;
-  block = (elem + thread - 1)/thread;
-  _upstream<<<block, thread>>>(in, out, target, index, elem);
+      return std::move(soil::buffer(std::move(out)));
 
-  return std::move(soil::buffer(std::move(out)));
-
-}
-
-soil::buffer soil::distance::full() const {
-
-  // Input Direction Buffer!
-  const size_t elem = index.elem();
-  auto in = this->buffer.as<ivec2>();
-  in.to_gpu();
-
-  auto out = buffer_t<int>{elem, GPU};
-  int thread = 1024;
-  int block = (elem + thread - 1)/thread;
-  _fill<<<block, thread>>>(out, 2); // unknown state...
-  
-  thread = 1024;
-  block = (elem + thread - 1)/thread;
-  _distance<<<block, thread>>>(in, out, target, index, elem);
-
-  return std::move(soil::buffer(std::move(out)));
-
-}
-
-soil::buffer soil::accumulation::full() const {
-
-  const size_t elem = index.elem();
-  auto in = this->buffer.as<ivec2>();
-  in.to_gpu();
-
-  auto out = buffer_t<int>{elem, GPU};
-  int thread = 1024;
-  int block = (elem + thread - 1)/thread;
-  _fill<<<block, thread>>>(out, 0);
-
-  auto out2 = buffer_t<double>{elem, GPU};
-  
-  curandState* randStates;
-  cudaMalloc((void**)&randStates, this->samples * sizeof(curandState));
-
-  thread = 1024;
-  block = (this->samples + thread - 1)/thread;
-
-  init_randstate<<<block, thread>>>(randStates, this->samples, 0);
-
-  for(int n = 0; n < this->iterations; ++n)
-    _accumulate<<<block, thread>>>(in, out, index, randStates, this->steps, this->samples);
-  cudaFree(randStates);
-
-  thread = 1024;
-  block = (elem + thread - 1)/thread;
-  const double P = double(elem)/double(iterations*samples);
-  _normalize<<<block, thread>>>(out, out2, P);
-
-  return std::move(soil::buffer(std::move(out2)));
+    });
+  });
 
 }
 
