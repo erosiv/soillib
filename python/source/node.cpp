@@ -181,6 +181,11 @@ module.def("upstream", [](const soil::index& index, const soil::buffer& buffer, 
   return upstream.full();
 });
 
+module.def("distance", [](const soil::index& index, const soil::buffer& buffer, const glm::ivec2 target){
+  auto distance = soil::distance(index, buffer, target);
+  return distance.full();
+});
+
 // this should be replaced with something else...
 // the noise layer is also "stateful" - how do we handle
 // stateful nodes / conversion operations 

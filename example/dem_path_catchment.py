@@ -74,13 +74,21 @@ def main(input = ""):
   catch_gt = grid.catchment(x=1873, y=692, fdir=flow_gt, dirmap=dirmap, xytype='index')
   area_gt[catch_gt == 0] = 1
 
+  print("Computing Upstream Distance...")
+  with soil.timer() as timer:
+    distance = soil.distance(image.index, dir_node, [692, 1873])
+
+  distance.cpu()
+  distance = distance.numpy(image.index)
+  plt.imshow(distance)
+  plt.show()
+
 #  areas = []
 
 #  print("Flow Difference", np.sum(flow_gt != flow))
 #  print(type(flow_node.full()))
 #  direction = dir_node.full().numpy(image.index)
 #  shape = flow.shape
-
 
   sum_dist = np.sum(np.abs(area_gt-area))
   dist_sum = np.abs(np.sum(area_gt) - np.sum(area))

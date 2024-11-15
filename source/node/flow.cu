@@ -220,6 +220,37 @@ __global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
 
 }
 
+__global__ void _distance(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  size_t ind = n;
+  glm::ivec2 pos =  index.unflatten(n);
+  size_t target_ind = index.flatten(target);
+
+  // note: upper bound is absolute worst-case scenario
+  for(int step = 0; step < N; ++step){
+
+    if(ind == target_ind){
+      out[n] = step;
+      break;
+    }
+
+    const glm::ivec2 dir = in[ind];
+    pos += dir;
+    if(dir[0] == 0 && dir[1] == 0)
+      break;
+
+    if(index.oob(pos))
+      break;
+
+    ind = index.flatten(pos);
+
+  }
+
+}
+
 soil::buffer soil::upstream::full() const {
 
   // I suppose the ideal solution is to do a random order...
@@ -246,11 +277,31 @@ soil::buffer soil::upstream::full() const {
   auto out = buffer_t<int>{elem, GPU};
   int thread = 1024;
   int block = (elem + thread - 1)/thread;
-  _fill<<<block, thread>>>(out, 2); // unknown state...
+  _fill<<<block, thread>>>(out, -1); // unknown state...
   
   thread = 1024;
   block = (elem + thread - 1)/thread;
   _upstream<<<block, thread>>>(in, out, target, index, elem);
+
+  return std::move(soil::buffer(std::move(out)));
+
+}
+
+soil::buffer soil::distance::full() const {
+
+  // Input Direction Buffer!
+  const size_t elem = index.elem();
+  auto in = this->buffer.as<ivec2>();
+  in.to_gpu();
+
+  auto out = buffer_t<int>{elem, GPU};
+  int thread = 1024;
+  int block = (elem + thread - 1)/thread;
+  _fill<<<block, thread>>>(out, 2); // unknown state...
+  
+  thread = 1024;
+  block = (elem + thread - 1)/thread;
+  _distance<<<block, thread>>>(in, out, target, index, elem);
 
   return std::move(soil::buffer(std::move(out)));
 

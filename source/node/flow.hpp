@@ -120,6 +120,32 @@ private:
   soil::buffer buffer;
 };
 
+struct distance {
+
+  distance(soil::index index, const soil::buffer& buffer, const glm::ivec2 target){
+    
+    soil::select(index.type(), [self = this, index]<typename T>() {
+      if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
+        self->index = index.as<flat_t<2>>();
+      } else {
+        throw std::invalid_argument("can't extract a full distance buffer from a non-2D index");
+      }
+    });
+
+    this->target = target;
+    this->buffer = buffer;
+  }
+
+  //! Bake a whole buffer!
+  //! Note: we make sure that the indexing structure of the buffer is respected.
+  soil::buffer full() const;
+
+private:
+  glm::ivec2 target;
+  soil::flat_t<2> index;
+  soil::buffer buffer;
+};
+
 struct accumulation {
 
   accumulation(soil::index index, const soil::buffer& buffer) {
