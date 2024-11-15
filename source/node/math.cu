@@ -4,6 +4,7 @@
 #define HAS_CUDA
 #include <soillib/soillib.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/index.hpp>
 
 namespace soil {
 
@@ -56,6 +57,53 @@ template void set_impl<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t
 template void set_impl<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
 template void set_impl<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
 template void set_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
+
+//
+// Resample Kernels
+//
+
+template<typename T, typename Index, typename Flat>
+__global__ void _resample(soil::buffer_t<T> input, soil::buffer_t<T> output, const Index index, const Flat flat){
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= flat.elem()) return;
+
+  auto pos = flat.unflatten(n);
+  if(!index.oob(pos)){
+    output[n] = input[index.flatten(pos)];
+  }
+}
+
+template<typename T>
+soil::buffer_t<T> resample_impl(const soil::buffer_t<T>& input, const soil::index& index){
+
+  return select(index.type(), [&]<typename I>(){
+
+    auto index_t = index.as<I>();
+    soil::flat_t<I::n_dims> flat(index_t.ext());
+
+    soil::buffer_t<T> output(flat.elem(), soil::GPU);
+    using V = soil::typedesc<T>::value_t;
+    T value = T{std::numeric_limits<V>::quiet_NaN()};
+    set_impl<T>(output, value);
+
+    int thread = 1024;
+    int elem = flat.elem();
+    int block = (elem + thread - 1)/thread;
+    _resample<<<block, thread>>>(input, output, index_t, flat);
+
+    return output;
+
+  });
+
+}
+
+template soil::buffer_t<int>    resample_impl<int>   (const soil::buffer_t<int>& buffer,    const soil::index& index);
+template soil::buffer_t<float>  resample_impl<float> (const soil::buffer_t<float>& buffer,  const soil::index& index);
+template soil::buffer_t<double> resample_impl<double>(const soil::buffer_t<double>& buffer, const soil::index& index);
+template soil::buffer_t<vec2>   resample_impl<vec2>  (const soil::buffer_t<vec2>& buffer,   const soil::index& index);
+template soil::buffer_t<vec3>   resample_impl<vec3>  (const soil::buffer_t<vec3>& buffer,   const soil::index& index);
+template soil::buffer_t<ivec2>  resample_impl<ivec2> (const soil::buffer_t<ivec2>& buffer,  const soil::index& index);
+template soil::buffer_t<ivec3>  resample_impl<ivec3> (const soil::buffer_t<ivec3>& buffer,  const soil::index& index);
 
 //
 // Addition Kernels

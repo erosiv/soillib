@@ -38,8 +38,8 @@ yield.def("__iter__", [](soil::yield<T>& iter){
 
 }
 
-template<typename T>
-struct make_numpy;
+template<typename T> struct make_numpy; //!< Buffer to Numpy Exporter
+template<typename T> struct make_torch; //!< Buffer to PyTorch Exporter
 
 //
 //
@@ -246,13 +246,31 @@ buffer.def("numpy", [](soil::buffer& buffer, soil::index& index){
   throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
 });
 
+buffer.def("torch", [](soil::buffer& buffer){
+  if(buffer.host() == soil::host_t::GPU){
+    return soil::select(buffer.type(), [&buffer]<typename T>() -> nb::object {
+      return make_torch<T>::operator()(buffer);
+    });
+  }
+  throw soil::error::unsupported_host(soil::host_t::GPU, buffer.host());
+});
+
+buffer.def("torch", [](soil::buffer& buffer, soil::index& index){
+  if(buffer.host() == soil::host_t::GPU){
+    return soil::select(buffer.type(), [&buffer, &index]<typename T>() -> nb::object {
+      return make_torch<T>::operator()(buffer, index);
+    });
+  }
+  throw soil::error::unsupported_host(soil::host_t::GPU, buffer.host());
+});
+
 //
 // Construct Buffer from Numpy
 //
 
+/*
 buffer.def("from_numpy", [](soil::buffer& buffer, const nb::object& object){
 
-  /*
   
   // I suppose that this does not necessarily matter.
   // we could in principle have either torch or numpy.
@@ -273,9 +291,9 @@ buffer.def("from_numpy", [](soil::buffer& buffer, const nb::object& object){
     });
   }
   throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
-  */
 
 });
+*/
 
 }
 
@@ -304,13 +322,14 @@ struct make_numpy {
       );
       return nb::cast(std::move(array));
 
-    
     } else {
       //! \todo add a concept to explicitly test for vector types
       
       constexpr int D = T::length();
+      using V = soil::typedesc<T>::value_t;
+
       size_t shape[2] = { source.elem(), D };
-      nb::ndarray<nb::numpy, typename T::value_type, nb::ndim<D>> array(
+      nb::ndarray<nb::numpy, V, nb::ndim<D>> array(
         source.data(),
         2,
         shape,
@@ -318,7 +337,7 @@ struct make_numpy {
       );
       return nb::cast(std::move(array));
 
-    } // else throw std::invalid_argument("can't convert non-scalar buffer type (yet)");
+    }
 
   }
 
@@ -331,20 +350,12 @@ struct make_numpy {
       auto index_t = index.as<I>();                 // Cast Index to Strict-Type
       soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
 
-      soil::buffer_t<T>* target  = new soil::buffer_t<T>(flat.elem()); // Target Buffer (Heap)
+      soil::buffer_t<T>* target  = new soil::buffer_t<T>(soil::resample(source, index)); // Target Buffer (Heap)
       nb::capsule owner(target, [](void *p) noexcept {
         delete (soil::buffer_t<T>*)p;
       });
 
       if constexpr(nb::detail::is_ndarray_scalar_v<T>){
-
-        T value = T{std::numeric_limits<T>::quiet_NaN()};
-        soil::set<T>(*target, value);
-
-        for(const auto& pos: index_t.iter()){
-          const size_t i = index_t.flatten(pos);
-          target->operator[](flat.flatten(pos - index_t.min())) = source[i];
-        }
 
         size_t shape[I::n_dims]{0};
         for(size_t d = 0; d < I::n_dims; ++d)
@@ -361,26 +372,133 @@ struct make_numpy {
       } else { //! \todo add a concept to explicitly test for vector types
 
         constexpr int D = T::length();
-        using V = typename T::value_type;
-
-        T value = T{std::numeric_limits<V>::quiet_NaN()};
-        soil::set<T>(*target, value);
-
-        for(const auto& pos: index_t.iter()){
-          const size_t i = index_t.flatten(pos);
-          target->operator[](flat.flatten(pos - index_t.min())) = source[i];
-        }
+        using V = soil::typedesc<T>::value_t;
 
         size_t shape[I::n_dims + 1]{0};
         for(size_t d = 0; d < I::n_dims; ++d)
           shape[d] = flat[d];
         shape[I::n_dims] = D;
 
-        nb::ndarray<nb::numpy, float, nb::ndim<I::n_dims+1>> array(
+        nb::ndarray<nb::numpy, V, nb::ndim<I::n_dims+1>> array(
           target->data(),
           I::n_dims+1,
           shape,
           owner
+        );
+        return nb::cast(std::move(array));
+
+      }
+
+    });
+
+  }
+
+};
+
+//
+// Torch Buffer Generator
+//
+
+template<typename T>
+struct make_torch {
+
+  static nb::object operator()(soil::buffer& buffer){
+
+  // buffer arrives as a python object. we tie the lifetime of the buffer to
+  // the numpy array, so that the memory is always accessible / not deleted.
+
+    soil::buffer_t<T> source = buffer.as<T>();
+
+    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+
+      size_t shape[1] = { source.elem() };
+      nb::ndarray<nb::pytorch, nb::device::cuda, T, nb::ndim<1>> array(
+        source.data(),    // raw data pointer
+        1,                // number of dimensions
+        shape,            // shape of array
+        nb::find(buffer), // lifetime guarantee
+        nullptr,
+        nb::dtype<T>(),
+        nb::device::cuda::value
+      );
+      return nb::cast(std::move(array));
+
+    } else {
+      //! \todo add a concept to explicitly test for vector types
+      
+      constexpr int D = T::length();
+      using V = soil::typedesc<T>::value_t;
+      
+      size_t shape[2] = { source.elem(), D };
+      nb::ndarray<nb::pytorch, nb::device::cuda, V, nb::ndim<D>> array(
+        source.data(),
+        2,
+        shape,
+        nb::find(buffer),
+        nullptr,
+        nb::dtype<V>(),
+        nb::device::cuda::value
+      );
+      return nb::cast(std::move(array));
+
+    } // else throw std::invalid_argument("can't convert non-scalar buffer type (yet)");
+
+  }
+
+  // note: this is generally bad, because it basically says that re-sampling
+  //  can only happen with a CPU tensor type?
+  //  so we really have to implement a re-sample kernel first.
+  // ... so let's do that I guess???
+
+  static nb::object operator()(soil::buffer& buffer, soil::index& index){
+
+    soil::buffer_t<T> source = buffer.as<T>();
+
+    return soil::select(index.type(), [&source, &index]<typename I>() -> nb::object {
+
+      auto index_t = index.as<I>();                 // Cast Index to Strict-Type
+      soil::flat_t<I::n_dims> flat(index_t.ext());  // Hypothetical Flat Buffer
+
+      soil::buffer_t<T>* target = new soil::buffer_t<T>(soil::resample<T>(source, index));
+      nb::capsule owner(target, [](void *p) noexcept {
+        delete (soil::buffer_t<T>*)p;
+      });
+
+      if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+
+        size_t shape[I::n_dims]{0};
+        for(size_t d = 0; d < I::n_dims; ++d)
+          shape[d] = index_t.ext()[d];
+
+        nb::ndarray<nb::pytorch, T, nb::ndim<I::n_dims>> array(
+          target->data(),
+          I::n_dims,
+          shape,
+          owner,
+          nullptr,
+          nb::dtype<T>(),
+          nb::device::cuda::value
+        );
+        return nb::cast(std::move(array));
+
+      } else { //! \todo add a concept to explicitly test for vector types
+
+        constexpr int D = T::length();
+        using V = soil::typedesc<T>::value_t;
+
+        size_t shape[I::n_dims + 1]{0};
+        for(size_t d = 0; d < I::n_dims; ++d)
+          shape[d] = index_t.ext()[d];
+        shape[I::n_dims] = D;
+
+        nb::ndarray<nb::pytorch, V, nb::ndim<I::n_dims+1>> array(
+          target->data(),
+          I::n_dims+1,
+          shape,
+          owner,
+          nullptr,
+          nb::dtype<V>(),
+          nb::device::cuda::value
         );
         return nb::cast(std::move(array));
 
@@ -390,6 +508,6 @@ struct make_numpy {
 
   }
 
-};
+}; 
 
 #endif

@@ -23,25 +23,25 @@ struct quad_node {
 
   // Flatten / Unflatten / Bounds Interface
 
-  size_t flatten(const vec_t pos) const {
+  GPU_ENABLE size_t flatten(const vec_t pos) const {
     return index.flatten(pos - this->_min);
   }
 
-  vec_t unflatten(const int i) const {
+  GPU_ENABLE vec_t unflatten(const int i) const {
     return this->_min + index.unflatten(i);
   }
 
-  bool oob(const vec_t pos) const {
+  GPU_ENABLE bool oob(const vec_t pos) const {
     return index.oob(pos - this->_min);
   }
 
   // Data Inspection Methods
 
   //! Number of Elements of Node
-  vec_t min() const noexcept { return this->_min; }
-  vec_t max() const noexcept { return this->_max; }
-  vec_t ext() const noexcept { return this->_ext; }
-  inline size_t elem() const { return index.elem(); }
+  GPU_ENABLE vec_t min() const noexcept { return this->_min; }
+  GPU_ENABLE vec_t max() const noexcept { return this->_max; }
+  GPU_ENABLE vec_t ext() const noexcept { return this->_ext; }
+  GPU_ENABLE inline size_t elem() const { return index.elem(); }
 
 private:
   const vec_t _min; //!< Min Position of Node (World)
@@ -81,17 +81,18 @@ struct quad: indexbase {
 
   // Flattening / Unflattening Interface
 
-  size_t flatten(const vec_t pos) const {
+  GPU_ENABLE size_t flatten(const vec_t pos) const {
     size_t base = 0;
     for (const auto &node : nodes) {
       if (!node.oob(pos))
         return base + node.flatten(pos);
       base += node.elem();
     }
-    throw std::invalid_argument("out of bounds");
+    return 0;
+//    throw std::invalid_argument("out of bounds");
   }
 
-  vec_t unflatten(const size_t index) const {
+  GPU_ENABLE vec_t unflatten(const size_t index) const {
     size_t base = 0;
     for (const auto &node : nodes) {
       if (index - base < node.elem())
@@ -110,7 +111,7 @@ struct quad: indexbase {
     return vec_t{0};
   }
 
-  bool oob(const vec_t pos) const {
+  GPU_ENABLE bool oob(const vec_t pos) const {
     for (const auto &node : nodes)
       if (!node.oob(pos))
         return false;
@@ -119,11 +120,11 @@ struct quad: indexbase {
 
   // Data Inspection Interface
 
-  vec_t min() const noexcept { return this->_min; }
-  vec_t max() const noexcept { return this->_max; }
-  vec_t ext() const noexcept { return this->_ext; }
+  GPU_ENABLE vec_t min() const noexcept { return this->_min; }
+  GPU_ENABLE vec_t max() const noexcept { return this->_max; }
+  GPU_ENABLE vec_t ext() const noexcept { return this->_ext; }
 
-  inline size_t elem() const {
+  GPU_ENABLE inline size_t elem() const {
     size_t count = 0;
     for (const auto &node : nodes)
       count += node.elem();

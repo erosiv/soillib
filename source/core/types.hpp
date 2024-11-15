@@ -112,42 +112,49 @@ template<>
 struct typedesc<int> {
   static constexpr std::string name = "int";
   static constexpr dtype type = INT;
+  typedef int value_t;
 };
 
 template<>
 struct typedesc<float> {
   static constexpr std::string name = "float";
   static constexpr dtype type = FLOAT32;
+  typedef float value_t;
 };
 
 template<>
 struct typedesc<double> {
   static constexpr std::string name = "double";
   static constexpr dtype type = FLOAT64;
+  typedef double value_t;
 };
 
 template<>
 struct typedesc<vec2> {
   static constexpr std::string name = "vec2";
   static constexpr dtype type = VEC2;
+  typedef float value_t;
 };
 
 template<>
 struct typedesc<vec3> {
   static constexpr std::string name = "vec3";
   static constexpr dtype type = VEC3;
+  typedef float value_t;
 };
 
 template<>
 struct typedesc<ivec2> {
   static constexpr std::string name = "ivec2";
   static constexpr dtype type = IVEC2;
+  typedef int value_t;
 };
 
 template<>
 struct typedesc<ivec3> {
   static constexpr std::string name = "ivec3";
   static constexpr dtype type = IVEC3;
+  typedef int value_t;
 };
 
 // Enum-Based Runtime Polymorphic Visitor Pattern:

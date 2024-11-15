@@ -2,6 +2,7 @@
 #define SOILLIB_NODE_COMMON
 
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/index.hpp>
 
 namespace soil {
 
@@ -62,6 +63,49 @@ void set(soil::buffer_t<T>& lhs, const soil::buffer_t<T>& rhs){
   else if(lhs.host() == soil::host_t::GPU){
     set_impl(lhs, rhs);
   }
+
+}
+
+//
+// Resample Buffer using Index
+//
+
+template<typename T>
+soil::buffer_t<T> resample_impl(const soil::buffer_t<T>& buffer, const soil::index& index);
+
+template<typename T>
+soil::buffer_t<T> resample(const soil::buffer_t<T>& input, const soil::index& index){
+
+  if(input.elem() != index.elem())
+    throw soil::error::mismatch_size(input.elem(), index.elem());
+
+  if(input.host() == soil::host_t::CPU){
+    return select(index.type(), [&]<typename I>(){
+
+      auto index_t = index.as<I>();
+      soil::flat_t<I::n_dims> flat(index_t.ext());
+
+      soil::buffer_t<T> output(flat.elem());
+
+      using V = soil::typedesc<T>::value_t;
+      T value = T{std::numeric_limits<V>::quiet_NaN()};
+      set(output, value);
+
+      for(const auto& pos: index_t.iter()){
+        const size_t i = index_t.flatten(pos);
+        output[flat.flatten(pos - index_t.min())] = input[i];
+      }
+
+      return output;
+
+    });
+  }
+
+  else if(input.host() == soil::host_t::GPU){
+    return resample_impl(input, index);
+  }
+
+  else throw std::invalid_argument("HOST NOT RECOGNIZED");
 
 }
 

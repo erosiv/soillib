@@ -78,8 +78,11 @@ def main(input = ""):
   with soil.timer() as timer:
     distance = soil.distance(image.index, dir_node, [692, 1873])
 
-  distance.cpu()
-  distance = distance.numpy(image.index)
+  distance = distance.torch(image.index)
+  distance = distance.cpu().numpy()
+
+  # distance.cpu()
+  # distance = distance.numpy(image.index)
   plt.imshow(distance)
   plt.show()
 
