@@ -15,9 +15,12 @@ namespace soil {
 
 //! buffer_t<T> is a strict-typed, raw-data extent.
 //!
-//! buffer_t<T> contains a shared pointer to the
-//! underlying data, meaning that copies of the buffer
-//! can be made without copying the raw memory.
+//! buffer_t<T> is reference counting, meaning that 
+//! copies of the buffer can be made without copying
+//! the raw underlying memory. This is for efficiency.
+//!
+//! buffer_t<T> data can be on the CPU or on the GPU.
+//! convenience iterators are also provided.
 //!
 template<typename T>
 struct buffer_t: typedbase {
@@ -87,14 +90,8 @@ struct buffer_t: typedbase {
     return *this;
 	}
 
-  // GPU Uploading Procedure?
-  // GPU Uploading Procedure:
-  // If we are already on the GPU: continue.
-  // If we are not already on the GPU:
-  // directly upload this guy... note that we can copy construct.
-
-  void to_gpu();
-  void to_cpu();
+  void to_cpu();  //!< In-Place Copy Data to the CPU
+  void to_gpu();  //!< In-Place Copy Data to the GPU (if available)
 
   //! Type Enumerator Retrieval
   constexpr soil::dtype type() noexcept override {
@@ -103,10 +100,10 @@ struct buffer_t: typedbase {
 
   GPU_ENABLE inline size_t elem() const { return this->_size; }              //!< Number of Elements
   GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
-  GPU_ENABLE inline void *data() { return (void *)this->_data; }               //!< Raw Data Pointer
+  GPU_ENABLE inline void *data() { return (void *)this->_data; }             //!< Raw Data Pointer
 
-  GPU_ENABLE inline size_t refs() const { return *this->_refs; }
-  GPU_ENABLE inline host_t host() const { return this->_host; }
+  GPU_ENABLE inline size_t refs() const { return *this->_refs; }  //!< Internal Reference Count
+  GPU_ENABLE inline host_t host() const { return this->_host; }   //!< Current Device (CPU / GPU)
 
   //! Const Subscript Operator
   GPU_ENABLE T operator[](const size_t index) const noexcept {
@@ -134,19 +131,14 @@ struct buffer_t: typedbase {
   }
 
 private:
-
   void allocate(const size_t size, const host_t host = CPU);
   void deallocate();
 
-  T* _data = NULL;          //!< Raw Data Pointer (Device Agnostic)
-  size_t _size = 0;         //!< Number of Data Elements
-  host_t _host = CPU;       //!< 
-  size_t* _refs = NULL; 
+  T* _data = NULL;      //!< Raw Data Pointer (Device Agnostic)
+  size_t _size = 0;     //!< Number of Data Elements
+  host_t _host = CPU;   //!< Currently Active Device
+  size_t* _refs = NULL; //!< Pointer to Reference Count
 };
-
-//
-//
-//
 
 //! buffer is a poylymorphic buffer_t wrapper type.
 //!

@@ -169,58 +169,6 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const nb::slice& slice, const
 }); 
 
 //
-// Generic Buffer Functions
-//
-
-module.def("set", [](soil::buffer& lhs, const soil::buffer& rhs){
-  if(lhs.type() != rhs.type())
-    throw soil::error::mismatch_type(lhs.type(), rhs.type());
-  soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
-    soil::set<S>(lhs.as<S>(), rhs.as<S>());
-  });
-});
-
-module.def("set", [](soil::buffer& buffer, const nb::object value){
-  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
-    auto buffer_t = buffer.as<S>();
-    auto value_t = nb::cast<S>(value);
-    soil::set<S>(buffer_t, value_t);
-  });
-});
-
-module.def("add", [](soil::buffer& lhs, const soil::buffer& rhs){
-  if(lhs.type() != rhs.type())
-    throw soil::error::mismatch_type(lhs.type(), rhs.type());
-  soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
-    soil::add<S>(lhs.as<S>(), rhs.as<S>());
-  });
-});
-
-module.def("add", [](soil::buffer& buffer, const nb::object value){
-  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
-    auto buffer_t = buffer.as<S>();
-    auto value_t = nb::cast<S>(value);
-    soil::add<S>(buffer_t, value_t);
-  });
-});
-
-module.def("multiply", [](soil::buffer& lhs, const soil::buffer& rhs){
-  if(lhs.type() != rhs.type())
-    throw soil::error::mismatch_type(lhs.type(), rhs.type());
-  soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
-    soil::multiply<S>(lhs.as<S>(), rhs.as<S>());
-  });
-});
-
-module.def("multiply", [](soil::buffer& buffer, const nb::object value){
-  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
-    auto buffer_t = buffer.as<S>();
-    auto value_t = nb::cast<S>(value);
-    soil::multiply<S>(buffer_t, value_t);
-  });
-});
-
-//
 // External Library Interop Interface
 //
 

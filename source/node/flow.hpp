@@ -42,10 +42,21 @@ const std::vector<double> dist = {
 
 }
 
+//! Compute the Indexed Flow Direction from a Height-Map
+//! The flow directions are given by dirmap(7, 8, 1, 2, 3, 4, 5, 6),
+//! corresponding to (N, NE, E, SE, S, SW, W, NW)
 soil::buffer flow(const soil::buffer& buffer, const soil::index& index);
+
+//! Compute the 2D Flow Direction from the Flow Index Buffer
 soil::buffer direction(const soil::buffer& buffer, const soil::index& index);
+
+//! Compute the Stochastic Accumulation from a 2D Flow Direction Buffer
 soil::buffer accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps);
+
+//! Compute an Upstream Catchment Mask from a Flow Direction Buffer for a given Position
 soil::buffer upstream(const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target);
+
+//! Compute the Upstream Distance from a Flow Direction Buffer for a given Position
 soil::buffer distance(const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target);
 
 } // end of namespace soil

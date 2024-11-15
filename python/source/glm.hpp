@@ -11,7 +11,8 @@
 //! storage order for GLM. Will break otherwise.
 //!
 //! Based on work by Patrik Huber 2016,
-//! adapted for latest Pybind11 / C++23 
+//! adapted for latest Nanobind / C++23
+//! by Nicholas McDonald, 2024
 
 #include <nanobind/stl/array.h>
 #include "glm/gtc/type_ptr.hpp"

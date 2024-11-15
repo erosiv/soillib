@@ -81,5 +81,6 @@ if __name__ == "__main__":
   #data = "out_altmuenster.tiff"
   #data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
   data = "conditioned.tiff"
+  data = "erosion_basic.tiff"
 
   main(data)

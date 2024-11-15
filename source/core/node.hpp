@@ -1,5 +1,5 @@
-#ifndef SOILLIBnode
-#define SOILLIBnode
+#ifndef SOILLIB_NODE
+#define SOILLIB_NODE
 
 #include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>

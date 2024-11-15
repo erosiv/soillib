@@ -23,6 +23,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/elevation.tiff"
   #data = "./conditioned.tiff"
   data = "merge.tiff"
+  #data = "eroded.tiff"
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
 

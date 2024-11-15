@@ -170,9 +170,15 @@ def main():
   np.random.seed(0)
   index = soil.index([512, 512])
   model = make_model(index, seed = 25.0)
-  for h, d in erode(model, steps = 512):
+  for h, d in erode(model, steps = 1024):
     pass
 
+  # Export Generated Height-Map
+  array = soil.bake(model[soil.height], model.index)
+  tiff_out = soil.tiff(array, model.index)
+  tiff_out.write("erosion_basic.tiff")
+
+  # Visualize the Data
   render(model)
 
 if __name__ == "__main__":
