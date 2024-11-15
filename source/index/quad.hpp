@@ -89,7 +89,7 @@ struct quad: indexbase {
       base += node.elem();
     }
     return 0;
-//    throw std::invalid_argument("out of bounds");
+    //    throw std::invalid_argument("out of bounds");
   }
 
   GPU_ENABLE vec_t unflatten(const size_t index) const {

@@ -50,9 +50,9 @@ struct model {
 
     soil::select(height.type(), [self = this, index, &height, value]<typename T>() {
       height.ref<T>(index) += value;
-//      auto cached = height.as<soil::cached>();
-//      auto buffer = cached.buffer.as<float>();
-//      buffer[index] += value;
+      //      auto cached = height.as<soil::cached>();
+      //      auto buffer = cached.buffer.as<float>();
+      //      buffer[index] += value;
     });
   }
 

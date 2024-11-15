@@ -1,8 +1,8 @@
 #ifndef SOILLIB_INDEX_FLAT
 #define SOILLIB_INDEX_FLAT
 
-#include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
+#include <soillib/soillib.hpp>
 #include <soillib/util/yield.hpp>
 
 #include <vector>
@@ -13,13 +13,13 @@ namespace {
 
 template<size_t D>
 GPU_ENABLE size_t prod(const glm::vec<D, int> vec) {
-  if constexpr (D == 1){
+  if constexpr (D == 1) {
     return vec[0];
-  } else if constexpr(D == 2){
+  } else if constexpr (D == 2) {
     return vec[0] * vec[1];
-  } else if constexpr(D == 3){
+  } else if constexpr (D == 3) {
     return vec[0] * vec[1] * vec[2];
-  } else if constexpr(D == 4){
+  } else if constexpr (D == 4) {
     return vec[0] * vec[1] * vec[2] * vec[3];
   } else {
     return 0;

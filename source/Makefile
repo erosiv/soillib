@@ -82,6 +82,5 @@ lint:
 	@clang-format -i ./index/*.hpp
 	@clang-format -i ./io/*.hpp
 	@clang-format -i ./node/*.hpp
-	@clang-format -i ./node/algorithm/*.hpp
 	@clang-format -i ./particle/*.hpp
 	@clang-format -i ./util/*.hpp

@@ -20,15 +20,15 @@ namespace io {
 #define TIFFTAG_GDAL_NODATA 42113
 
 static const TIFFFieldInfo xtiffFieldInfo[] = {
-  {TIFFTAG_GEOPIXELSCALE,     -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoPixelScale"},
-  {TIFFTAG_GEOTIEPOINTS,      -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoTiePoints"},
-  {TIFFTAG_INTERGRAPH_MATRIX, -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"Intergraph TransformationMatrix"},
-  {TIFFTAG_GEOTRANSMATRIX,    -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoTransformationMatrix"},
-  {TIFFTAG_GEODOUBLEPARAMS,   -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoDoubleParams"},
-  {TIFFTAG_GEOASCIIPARAMS,    -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char *)"GeoASCIIParams"},
-  {TIFFTAG_GDAL_METADATA,     -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char *)"GDAL_METADATA"},
-  {TIFFTAG_GDAL_NODATA,       -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char *)"GDAL_NODATA"},
-  {TIFFTAG_GEOKEYDIRECTORY,   -1, -1, TIFF_SHORT, FIELD_CUSTOM, true, true, (char *)"GeoKeyDirectory"},
+    {TIFFTAG_GEOPIXELSCALE, -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoPixelScale"},
+    {TIFFTAG_GEOTIEPOINTS, -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoTiePoints"},
+    {TIFFTAG_INTERGRAPH_MATRIX, -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"Intergraph TransformationMatrix"},
+    {TIFFTAG_GEOTRANSMATRIX, -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoTransformationMatrix"},
+    {TIFFTAG_GEODOUBLEPARAMS, -1, -1, TIFF_DOUBLE, FIELD_CUSTOM, true, true, (char *)"GeoDoubleParams"},
+    {TIFFTAG_GEOASCIIPARAMS, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char *)"GeoASCIIParams"},
+    {TIFFTAG_GDAL_METADATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char *)"GDAL_METADATA"},
+    {TIFFTAG_GDAL_NODATA, -1, -1, TIFF_ASCII, FIELD_CUSTOM, true, false, (char *)"GDAL_NODATA"},
+    {TIFFTAG_GEOKEYDIRECTORY, -1, -1, TIFF_SHORT, FIELD_CUSTOM, true, true, (char *)"GeoKeyDirectory"},
 };
 
 // Custom Tiff-Tag Handling Initializer Hook
@@ -68,7 +68,7 @@ struct geotiff: soil::io::tiff {
   using soil::io::tiff::width;
 
   geotiff() {};
-  geotiff(const soil::buffer& _buffer, const soil::index& _index):tiff(_buffer, _index){
+  geotiff(const soil::buffer &_buffer, const soil::index &_index): tiff(_buffer, _index) {
     // do additional stuff to the metadata struct here?
     this->_meta.coords[3] = _index[0];
     this->_meta.coords[4] = _index[1];
@@ -111,7 +111,7 @@ struct geotiff: soil::io::tiff {
   // Then just copy the essential stuff!
 
   inline meta_t get_meta() const { return this->_meta; }
-  inline void set_meta(const meta_t _meta){
+  inline void set_meta(const meta_t _meta) {
     this->_meta.keydir = _meta.keydir;
     this->_meta.geoasciiparams = _meta.geoasciiparams;
     this->_meta.gdal_metadata = _meta.gdal_metadata;
@@ -121,10 +121,10 @@ struct geotiff: soil::io::tiff {
     this->_meta.params = _meta.params;
   }
 
-  void unsetNaN();  //!< Set Available NoData Values to NaN=
+  void unsetNaN(); //!< Set Available NoData Values to NaN=
 private:
-  void setNaN();  //!< Set Available NoData Values to NaN=
-  meta_t _meta;   //!< Local Meta-Data
+  void setNaN(); //!< Set Available NoData Values to NaN=
+  meta_t _meta;  //!< Local Meta-Data
 };
 
 // Implementations
@@ -146,26 +146,26 @@ bool geotiff::meta(const char *filename) {
   double *values;
   short *short_data;
 
-  if(TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &text_ptr))
+  if (TIFFGetField(tif, TIFFTAG_GDAL_NODATA, &text_ptr))
     this->_meta.gdal_nodata = std::string(text_ptr);
 
-  if(TIFFGetField(tif, TIFFTAG_GDAL_METADATA, &text_ptr))
+  if (TIFFGetField(tif, TIFFTAG_GDAL_METADATA, &text_ptr))
     this->_meta.gdal_metadata = std::string(text_ptr);
 
-  if(TIFFGetField(tif, TIFFTAG_GEOASCIIPARAMS, &text_ptr))
+  if (TIFFGetField(tif, TIFFTAG_GEOASCIIPARAMS, &text_ptr))
     this->_meta.geoasciiparams = std::string(text_ptr);
 
-  if(TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values))
-    this->_meta.scale = std::vector<double>(values, values+count);
+  if (TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values))
+    this->_meta.scale = std::vector<double>(values, values + count);
 
   if (TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &count, &values))
-    this->_meta.coords = std::vector<double>(values, values+count);
+    this->_meta.coords = std::vector<double>(values, values + count);
 
   if (TIFFGetField(tif, TIFFTAG_GEODOUBLEPARAMS, &count, &values))
-    this->_meta.params = std::vector<double>(values, values+count);
+    this->_meta.params = std::vector<double>(values, values + count);
 
   if (TIFFGetField(tif, TIFFTAG_GEOKEYDIRECTORY, &count, &short_data))
-    this->_meta.keydir = std::vector<short>(short_data, short_data+count);
+    this->_meta.keydir = std::vector<short>(short_data, short_data + count);
 
   TIFFClose(tif);
   return true;
@@ -199,14 +199,21 @@ bool geotiff::write(const char *filename) {
 
   // GDAL Tags
 
-  if(!_meta.scale.empty())  TIFFSetField(out, TIFFTAG_GEOPIXELSCALE, _meta.scale.size(), &_meta.scale[0]);
-  if(!_meta.coords.empty()) TIFFSetField(out, TIFFTAG_GEOTIEPOINTS, _meta.coords.size(), &_meta.coords[0]);
-  if(!_meta.params.empty()) TIFFSetField(out, TIFFTAG_GEODOUBLEPARAMS, _meta.params.size(), &_meta.params[0]);
-  if(!_meta.keydir.empty()) TIFFSetField(out, TIFFTAG_GEOKEYDIRECTORY, _meta.keydir.size(), &_meta.keydir[0]);
+  if (!_meta.scale.empty())
+    TIFFSetField(out, TIFFTAG_GEOPIXELSCALE, _meta.scale.size(), &_meta.scale[0]);
+  if (!_meta.coords.empty())
+    TIFFSetField(out, TIFFTAG_GEOTIEPOINTS, _meta.coords.size(), &_meta.coords[0]);
+  if (!_meta.params.empty())
+    TIFFSetField(out, TIFFTAG_GEODOUBLEPARAMS, _meta.params.size(), &_meta.params[0]);
+  if (!_meta.keydir.empty())
+    TIFFSetField(out, TIFFTAG_GEOKEYDIRECTORY, _meta.keydir.size(), &_meta.keydir[0]);
 
-  if(!_meta.gdal_nodata.empty())    TIFFSetField(out, TIFFTAG_GDAL_NODATA, _meta.gdal_nodata.c_str());
-  if(!_meta.gdal_metadata.empty())  TIFFSetField(out, TIFFTAG_GDAL_METADATA, _meta.gdal_metadata.c_str());
-  if(!_meta.geoasciiparams.empty()) TIFFSetField(out, TIFFTAG_GEOASCIIPARAMS, _meta.geoasciiparams.c_str());
+  if (!_meta.gdal_nodata.empty())
+    TIFFSetField(out, TIFFTAG_GDAL_NODATA, _meta.gdal_nodata.c_str());
+  if (!_meta.gdal_metadata.empty())
+    TIFFSetField(out, TIFFTAG_GDAL_METADATA, _meta.gdal_metadata.c_str());
+  if (!_meta.geoasciiparams.empty())
+    TIFFSetField(out, TIFFTAG_GEOASCIIPARAMS, _meta.geoasciiparams.c_str());
 
   // Output Data
 
@@ -221,12 +228,11 @@ bool geotiff::write(const char *filename) {
 
   TIFFClose(out);
   return true;
-
 }
 
 void geotiff::setNaN() {
 
-  if(this->_meta.gdal_nodata == "")
+  if (this->_meta.gdal_nodata == "")
     return;
 
   if (this->bits() == 16) {
@@ -262,7 +268,7 @@ void geotiff::setNaN() {
 
 void geotiff::unsetNaN() {
 
-  if(this->_meta.gdal_nodata == "")
+  if (this->_meta.gdal_nodata == "")
     return;
 
   if (this->bits() == 16) {
@@ -270,8 +276,8 @@ void geotiff::unsetNaN() {
     auto buffer = this->_buffer.as<float>();
     const float _nodata = std::stof(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
-      if (buffer[i] == nan){
-          buffer[i] = _nodata;
+      if (buffer[i] == nan) {
+        buffer[i] = _nodata;
       }
     }
   }
@@ -295,7 +301,6 @@ void geotiff::unsetNaN() {
         buffer[i] = _nodata;
     }
   }
-
 }
 
 }; // end of namespace io

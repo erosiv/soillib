@@ -193,12 +193,13 @@ struct typedbase {
 
 template<typename Type, typename F>
 struct type_op_error: std::exception {
-  type_op_error(F lambda){
+  type_op_error(F lambda) {
     this->msg = std::format("invalid type <{}>: failed to match constraints", typedesc<Type>::name);
   }
   const char *what() const noexcept override {
     return this->msg.c_str();
   }
+
 private:
   std::string msg;
 };
@@ -245,59 +246,58 @@ auto select(const soil::dtype type, F lambda, Args &&...args) {
   // }
 
   switch (type) {
-    case soil::INT:
-      if constexpr(matches_lambda<int, F, Args...>){
-        return lambda.template operator()<int>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<int, F>(lambda);
-      }
-      break;
-    case soil::FLOAT32:
-      if constexpr(matches_lambda<float, F, Args...>){
-        return lambda.template operator()<float>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<float, F>(lambda);
-      }
-      break;
-    case soil::FLOAT64:
-      if constexpr(matches_lambda<double, F, Args...>){
-        return lambda.template operator()<double>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<double, F>(lambda);
-      }
-      break;
-    case soil::VEC2:
-      if constexpr(matches_lambda<vec2, F, Args...>){
-        return lambda.template operator()<vec2>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<vec2, F>(lambda);
-      }
-      break;
-    case soil::VEC3:
-      if constexpr(matches_lambda<vec3, F, Args...>){
-        return lambda.template operator()<vec3>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<vec3, F>(lambda);
-      }
-      break;
-    case soil::IVEC2:
-      if constexpr(matches_lambda<ivec2, F, Args...>){
-        return lambda.template operator()<ivec2>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<ivec2, F>(lambda);
-      }
-      break;
-    case soil::IVEC3:
-      if constexpr(matches_lambda<ivec3, F, Args...>){
-        return lambda.template operator()<ivec3>(std::forward<Args>(args)...);
-      } else {
-        throw soil::type_op_error<ivec3, F>(lambda);
-      }
-      break;
-    default:
-      throw std::invalid_argument("type not supported");
+  case soil::INT:
+    if constexpr (matches_lambda<int, F, Args...>) {
+      return lambda.template operator()<int>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<int, F>(lambda);
+    }
+    break;
+  case soil::FLOAT32:
+    if constexpr (matches_lambda<float, F, Args...>) {
+      return lambda.template operator()<float>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<float, F>(lambda);
+    }
+    break;
+  case soil::FLOAT64:
+    if constexpr (matches_lambda<double, F, Args...>) {
+      return lambda.template operator()<double>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<double, F>(lambda);
+    }
+    break;
+  case soil::VEC2:
+    if constexpr (matches_lambda<vec2, F, Args...>) {
+      return lambda.template operator()<vec2>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<vec2, F>(lambda);
+    }
+    break;
+  case soil::VEC3:
+    if constexpr (matches_lambda<vec3, F, Args...>) {
+      return lambda.template operator()<vec3>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<vec3, F>(lambda);
+    }
+    break;
+  case soil::IVEC2:
+    if constexpr (matches_lambda<ivec2, F, Args...>) {
+      return lambda.template operator()<ivec2>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<ivec2, F>(lambda);
+    }
+    break;
+  case soil::IVEC3:
+    if constexpr (matches_lambda<ivec3, F, Args...>) {
+      return lambda.template operator()<ivec3>(std::forward<Args>(args)...);
+    } else {
+      throw soil::type_op_error<ivec3, F>(lambda);
+    }
+    break;
+  default:
+    throw std::invalid_argument("type not supported");
   }
-
 }
 
 template<class I>

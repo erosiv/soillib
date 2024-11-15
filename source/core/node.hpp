@@ -1,13 +1,13 @@
 #ifndef SOILLIB_NODE
 #define SOILLIB_NODE
 
+#include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>
-#include <soillib/core/buffer.hpp>
 #include <soillib/soillib.hpp>
 
-#include <soillib/util/error.hpp>
 #include <functional>
+#include <soillib/util/error.hpp>
 
 namespace soil {
 
@@ -39,7 +39,7 @@ namespace soil {
 struct node;
 
 //! node_t is a strict-typed node for transforming data.
-//! 
+//!
 template<typename T>
 struct node_t: typedbase {
 
@@ -47,11 +47,11 @@ struct node_t: typedbase {
   //!\todo check if we can make this better w. raw function pointers
 
   using f_val = std::function<T(const size_t)>;
-  using f_ref = std::function<T&(const size_t)>;
+  using f_ref = std::function<T &(const size_t)>;
 
-//  template<typename F, typename... Args>
-//  map_t(F lambda, Args &&...args): func(F(std::forward<Args>(args)...)){}
-  
+  //  template<typename F, typename... Args>
+  //  map_t(F lambda, Args &&...args): func(F(std::forward<Args>(args)...)){}
+
   /*
   template<typename F, typename... Args>
   map(F lambda, Args &&...args){
@@ -61,11 +61,9 @@ struct node_t: typedbase {
   }
   */
 
-  node_t(f_val _val): 
-    _val(_val) {}
-  
-  node_t(f_val _val, f_ref _ref): 
-    _val(_val), _ref(_ref) {}
+  node_t(f_val _val): _val(_val) {}
+
+  node_t(f_val _val, f_ref _ref): _val(_val), _ref(_ref) {}
 
   constexpr soil::dtype type() noexcept override {
     return soil::typedesc<T>::type;
@@ -75,13 +73,13 @@ struct node_t: typedbase {
     return this->_val(index);
   }
 
-  T& ref(const size_t index) noexcept {
+  T &ref(const size_t index) noexcept {
     return this->_ref(index);
   }
 
 private:
   f_val _val;
-  f_ref _ref = [](const size_t index) -> T& {
+  f_ref _ref = [](const size_t index) -> T & {
     throw std::runtime_error("NO BACKPROPAGATION POSSIBLE");
   };
 };
@@ -92,12 +90,12 @@ struct node {
   using func_t = std::function<T(const size_t)>;
 
   template<typename T>
-  using rfunc_t = std::function<T&(const size_t)>;
+  using rfunc_t = std::function<T &(const size_t)>;
 
-  node(){}
+  node() {}
 
   template<typename T>
-  node(soil::node_t<T>&& node_t) {
+  node(soil::node_t<T> &&node_t) {
     this->impl = std::make_shared<soil::node_t<T>>(node_t);
   }
 
@@ -107,7 +105,7 @@ struct node {
   }
 
   template<typename T>
-  node(func_t<T> func, rfunc_t<T> rfunc){
+  node(func_t<T> func, rfunc_t<T> rfunc) {
     this->impl = std::make_shared<soil::node_t<T>>(func, rfunc);
   }
 
@@ -118,12 +116,12 @@ struct node {
   // Strict Type Casting
 
   template<typename T>
-  inline const node_t<T>& as() const noexcept {
+  inline const node_t<T> &as() const noexcept {
     return static_cast<node_t<T> &>(*(this->impl));
   }
 
   template<typename T>
-  inline node_t<T>& as() noexcept {
+  inline node_t<T> &as() noexcept {
     return static_cast<node_t<T> &>(*(this->impl));
   }
 
@@ -137,11 +135,12 @@ struct node {
 
   //! Retrieve Value Reference
   template<typename T>
-  T& ref(const size_t index){
+  T &ref(const size_t index) {
     return this->as<T>().ref(index);
   }
 
   size_t size = 0;
+
 private:
   using ptr_t = std::shared_ptr<typedbase>;
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer

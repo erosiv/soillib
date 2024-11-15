@@ -4,8 +4,8 @@
 #include <coroutine>
 #include <cstdint>
 #include <exception>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 namespace soil {
 
@@ -40,16 +40,16 @@ namespace {
 template<typename... Args>
 struct yield_v {
   static_assert(!(std::is_reference_v<Args> || ...), "references are not permitted in yield return values. use a pointer instead");
-  typedef std::tuple<Args...> value_t; 
+  typedef std::tuple<Args...> value_t;
 };
 
 template<typename T>
 struct yield_v<T> {
   static_assert(!std::is_reference_v<T>, "references are not permitted in yield return values. use a pointer instead");
-  typedef T value_t; 
+  typedef T value_t;
 };
 
-}
+} // namespace
 
 //! make_yield is a convenient constructor function for building
 //! the correct return value type for a given yield.
@@ -59,14 +59,14 @@ struct yield_v<T> {
 //! no template parameters have to be specified.
 //!
 template<typename... Args>
-yield_v<Args...>::value_t make_yield(Args... args){
+yield_v<Args...>::value_t make_yield(Args... args) {
   return typename yield_v<Args...>::value_t(std::forward<Args>(args)...);
 }
 
 //! yield is the primary interface for building yielding iterators.
 //!
 //! It is a convenient alias of yield_t, which packs multiple
-//! template parameters into a single tuple return type. 
+//! template parameters into a single tuple return type.
 //!
 //! Usage:
 //!
@@ -78,7 +78,7 @@ yield_v<Args...>::value_t make_yield(Args... args){
 //!
 //! for(size_t index: my_iterator())
 //!   std::print(index);
-//! 
+//!
 //! yield<size_t, T> my_iterator() const {
 //!   for(size_t i = 0; i < this->size(); ++i)
 //!     co_yield make_yield(i, this->operator[](i));
@@ -205,7 +205,7 @@ public:
                          handle{NULL} {};
 
     explicit iterator(yield_t *handle): terminated{false},
-                                      handle(std::forward<yield_t *>(handle)) {
+                                        handle(std::forward<yield_t *>(handle)) {
       step();
     }
 

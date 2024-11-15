@@ -4,8 +4,8 @@
 //! A buffer represents a raw data extent
 //! \todo add more detail about this file
 
-#include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
+#include <soillib/soillib.hpp>
 #include <soillib/util/error.hpp>
 #include <soillib/util/yield.hpp>
 
@@ -15,7 +15,7 @@ namespace soil {
 
 //! buffer_t<T> is a strict-typed, raw-data extent.
 //!
-//! buffer_t<T> is reference counting, meaning that 
+//! buffer_t<T> is reference counting, meaning that
 //! copies of the buffer can be made without copying
 //! the raw underlying memory. This is for efficiency.
 //!
@@ -25,7 +25,7 @@ namespace soil {
 template<typename T>
 struct buffer_t: typedbase {
 
-  buffer_t(){
+  buffer_t() {
     this->_data = NULL;
     this->_refs = new size_t(0);
     this->_size = 0;
@@ -44,31 +44,31 @@ struct buffer_t: typedbase {
 
   // Copy Semantics
 
-  buffer_t(const buffer_t<T>& other){
+  buffer_t(const buffer_t<T> &other) {
     this->_data = other._data;
     this->_refs = other._refs;
     this->_size = other._size;
     this->_host = other._host;
-    if(this->_data != NULL){
+    if (this->_data != NULL) {
       ++(*this->_refs);
     }
-	}
+  }
 
-	buffer_t& operator=(const buffer_t<T>& other){
+  buffer_t &operator=(const buffer_t<T> &other) {
     this->deallocate();
     this->_data = other._data;
     this->_refs = other._refs;
     this->_size = other._size;
     this->_host = other._host;
-    if(this->_data != NULL){
+    if (this->_data != NULL) {
       ++(*this->_refs);
     }
     return *this;
-	}
+  }
 
   // Move Semantics
 
-  buffer_t(buffer_t<T>&& other){
+  buffer_t(buffer_t<T> &&other) {
     this->_data = other._data;
     this->_refs = other._refs;
     this->_size = other._size;
@@ -78,7 +78,7 @@ struct buffer_t: typedbase {
     other._size = 0;
   }
 
-	buffer_t& operator=(buffer_t<T>&& other){
+  buffer_t &operator=(buffer_t<T> &&other) {
     this->deallocate();
     this->_data = other._data;
     this->_refs = other._refs;
@@ -88,10 +88,10 @@ struct buffer_t: typedbase {
     other._refs = NULL;
     other._size = 0;
     return *this;
-	}
+  }
 
-  void to_cpu();  //!< In-Place Copy Data to the CPU
-  void to_gpu();  //!< In-Place Copy Data to the GPU (if available)
+  void to_cpu(); //!< In-Place Copy Data to the CPU
+  void to_gpu(); //!< In-Place Copy Data to the GPU (if available)
 
   //! Type Enumerator Retrieval
   constexpr soil::dtype type() noexcept override {
@@ -102,8 +102,8 @@ struct buffer_t: typedbase {
   GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
   GPU_ENABLE inline void *data() { return (void *)this->_data; }             //!< Raw Data Pointer
 
-  GPU_ENABLE inline size_t refs() const { return *this->_refs; }  //!< Internal Reference Count
-  GPU_ENABLE inline host_t host() const { return this->_host; }   //!< Current Device (CPU / GPU)
+  GPU_ENABLE inline size_t refs() const { return *this->_refs; } //!< Internal Reference Count
+  GPU_ENABLE inline host_t host() const { return this->_host; }  //!< Current Device (CPU / GPU)
 
   //! Const Subscript Operator
   GPU_ENABLE T operator[](const size_t index) const noexcept {
@@ -124,7 +124,7 @@ struct buffer_t: typedbase {
     co_return;
   }
 
-  yield<size_t, T*> iter() {
+  yield<size_t, T *> iter() {
     for (size_t i = 0; i < this->elem(); ++i)
       co_yield make_yield(i, &this->operator[](i));
     co_return;
@@ -134,10 +134,10 @@ private:
   void allocate(const size_t size, const host_t host = CPU);
   void deallocate();
 
-  T* _data = NULL;      //!< Raw Data Pointer (Device Agnostic)
+  T *_data = NULL;      //!< Raw Data Pointer (Device Agnostic)
   size_t _size = 0;     //!< Number of Data Elements
   host_t _host = CPU;   //!< Currently Active Device
-  size_t* _refs = NULL; //!< Pointer to Reference Count
+  size_t *_refs = NULL; //!< Pointer to Reference Count
 };
 
 //! buffer is a poylymorphic buffer_t wrapper type.
@@ -149,7 +149,7 @@ private:
 struct buffer {
 
   buffer() = default;
-  //buffer(const buffer& buffer):impl{buffer.impl}{}
+  // buffer(const buffer& buffer):impl{buffer.impl}{}
 
   buffer(const soil::dtype type, const size_t size): impl{make(type, size)} {}
 
@@ -203,13 +203,13 @@ struct buffer {
   template<typename T>
   T &operator[](const size_t index) {
     return this->as<T>()[index];
-//    return select(this->type(), [self = this, index]<typename S>() -> T& {
-//      if constexpr (std::same_as<S, T>) {
-//        return self->as<T>()[index];
-//      } else {
-//        throw soil::error::cast_error<S, T>();
-//      }
-//    });
+    //    return select(this->type(), [self = this, index]<typename S>() -> T& {
+    //      if constexpr (std::same_as<S, T>) {
+    //        return self->as<T>()[index];
+    //      } else {
+    //        throw soil::error::cast_error<S, T>();
+    //      }
+    //    });
   }
 
   // Data Inspection Operations (Type-Deducing)

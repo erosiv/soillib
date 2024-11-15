@@ -1,9 +1,9 @@
 #ifndef SOILLIB_INDEX
 #define SOILLIB_INDEX
 
+#include <iostream>
 #include <soillib/index/flat.hpp>
 #include <soillib/index/quad.hpp>
-#include <iostream>
 
 //! index is a polymorphic index_t wrapper
 //!
@@ -20,33 +20,33 @@ template<typename F, typename... Args>
 auto select(const soil::dindex type, F lambda, Args &&...args) {
   switch (type) {
   case soil::dindex::FLAT1:
-    if constexpr(matches_lambda<soil::flat_t<1>, F, Args...>){
+    if constexpr (matches_lambda<soil::flat_t<1>, F, Args...>) {
       return lambda.template operator()<soil::flat_t<1>>(std::forward<Args>(args)...);
     } else {
       throw std::invalid_argument("index type not supported for this operation");
     }
     break;
   case soil::dindex::FLAT2:
-    if constexpr(matches_lambda<soil::flat_t<2>, F, Args...>){
+    if constexpr (matches_lambda<soil::flat_t<2>, F, Args...>) {
       return lambda.template operator()<soil::flat_t<2>>(std::forward<Args>(args)...);
     } else {
       throw std::invalid_argument("index type not supported for this operation");
     }
     break;
   case soil::dindex::FLAT3:
-    if constexpr(matches_lambda<soil::flat_t<3>, F, Args...>){
+    if constexpr (matches_lambda<soil::flat_t<3>, F, Args...>) {
       return lambda.template operator()<soil::flat_t<3>>(std::forward<Args>(args)...);
     } else {
       throw std::invalid_argument("index type not supported for this operation");
     }
   case soil::dindex::FLAT4:
-    if constexpr(matches_lambda<soil::flat_t<4>, F, Args...>){
+    if constexpr (matches_lambda<soil::flat_t<4>, F, Args...>) {
       return lambda.template operator()<soil::flat_t<4>>(std::forward<Args>(args)...);
     } else {
       throw std::invalid_argument("index type not supported for this operation");
     }
   case soil::dindex::QUAD:
-    if constexpr(matches_lambda<soil::quad, F, Args...>){
+    if constexpr (matches_lambda<soil::quad, F, Args...>) {
       return lambda.template operator()<soil::quad>(std::forward<Args>(args)...);
     } else {
       throw std::invalid_argument("index type not supported for this operation");
@@ -63,7 +63,7 @@ struct index {
   template<size_t D>
   using vec_t = glm::vec<D, int>;
 
-  index(){}
+  index() {}
 
   //! \todo remove this template for something better.
   index(const vec_t<1> vec) { this->impl = std::make_shared<flat_t<1>>(vec); }

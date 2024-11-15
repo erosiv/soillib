@@ -23,7 +23,7 @@ struct cast_error: std::exception {
 // Mismatch Errors
 
 struct mismatch_size: std::exception {
-  mismatch_size(size_t lhs, size_t rhs){
+  mismatch_size(size_t lhs, size_t rhs) {
     std::stringstream ss;
     ss << "mismatch size. want lhs(";
     ss << lhs;
@@ -35,57 +35,61 @@ struct mismatch_size: std::exception {
   const char *what() const noexcept override {
     return this->msg.c_str();
   }
+
 private:
   std::string msg;
 };
 
 struct mismatch_type: std::exception {
-  mismatch_type(dtype lhs, dtype rhs){
+  mismatch_type(dtype lhs, dtype rhs) {
     std::stringstream ss;
     ss << "mismatch type. want lhs(";
-    ss << soil::select(lhs, []<typename S>(){ return typedesc<S>::name; });
+    ss << soil::select(lhs, []<typename S>() { return typedesc<S>::name; });
     ss << "), have rhs(";
-    ss << soil::select(rhs, []<typename S>(){ return typedesc<S>::name; });
+    ss << soil::select(rhs, []<typename S>() { return typedesc<S>::name; });
     ss << ")";
     this->msg = ss.str();
   }
   const char *what() const noexcept override {
     return this->msg.c_str();
   }
+
 private:
   std::string msg;
 };
 
 struct mismatch_host: std::exception {
-  mismatch_host(host_t lhs, host_t rhs){
+  mismatch_host(host_t lhs, host_t rhs) {
     std::stringstream ss;
     ss << "mismatched host. want lhs<";
-    ss << soil::select(lhs, []<host_t S>(){ return hostdesc<S>::name; });
+    ss << soil::select(lhs, []<host_t S>() { return hostdesc<S>::name; });
     ss << ">, have rhs<";
-    ss << soil::select(rhs, []<host_t S>(){ return hostdesc<S>::name; });
+    ss << soil::select(rhs, []<host_t S>() { return hostdesc<S>::name; });
     ss << ">";
     this->msg = ss.str();
   }
   const char *what() const noexcept override {
     return this->msg.c_str();
   }
+
 private:
   std::string msg;
 };
 
 struct unsupported_host: std::exception {
-  unsupported_host(host_t lhs, host_t rhs){
+  unsupported_host(host_t lhs, host_t rhs) {
     std::stringstream ss;
     ss << "operation not support for host. want <";
-    ss << soil::select(lhs, []<host_t S>(){ return hostdesc<S>::name; });
+    ss << soil::select(lhs, []<host_t S>() { return hostdesc<S>::name; });
     ss << ">, have <";
-    ss << soil::select(rhs, []<host_t S>(){ return hostdesc<S>::name; });
+    ss << soil::select(rhs, []<host_t S>() { return hostdesc<S>::name; });
     ss << ">";
     this->msg = ss.str();
   }
   const char *what() const noexcept override {
     return this->msg.c_str();
   }
+
 private:
   std::string msg;
 };
