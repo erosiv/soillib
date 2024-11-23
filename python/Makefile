@@ -1,7 +1,7 @@
 # soillib/python Makefile
 # Compiler Configuration
 
-INCPATH = -I$(HOME)/.local/include
+INCPATH = -I$(HOME)/.local/include -I/usr/local/cuda-12/include
 LIBPATH = -L$(HOME)/.local/lib
 DIRNAME = soillib
 LINKLIB = -lsoil -ltiff -lnanobind 

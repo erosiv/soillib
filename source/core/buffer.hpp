@@ -8,8 +8,14 @@
 #include <soillib/soillib.hpp>
 #include <soillib/util/error.hpp>
 #include <soillib/util/yield.hpp>
+#include <cuda_runtime.h>
 
 namespace soil {
+
+namespace buffer_track {
+  extern size_t mem_cpu;  //!< Allocated CPU Memory in Bytes
+  extern size_t mem_gpu;  //!< Allocated GPU Memory in Bytes
+}
 
 //! \todo Make sure that buffers are "re-interpretable"!
 
@@ -100,7 +106,8 @@ struct buffer_t: typedbase {
 
   GPU_ENABLE inline size_t elem() const { return this->_size; }              //!< Number of Elements
   GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
-  GPU_ENABLE inline void *data() { return (void *)this->_data; }             //!< Raw Data Pointer
+  //GPU_ENABLE inline void *data() { return (void *)this->_data; }             //!< Raw Data Pointer
+  GPU_ENABLE inline T *data() { return this->_data; }             //!< Raw Data Pointer
 
   GPU_ENABLE inline size_t refs() const { return *this->_refs; } //!< Internal Reference Count
   GPU_ENABLE inline host_t host() const { return this->_host; }  //!< Current Device (CPU / GPU)
@@ -139,6 +146,119 @@ private:
   host_t _host = CPU;   //!< Currently Active Device
   size_t *_refs = NULL; //!< Pointer to Reference Count
 };
+
+template<typename T>
+void soil::buffer_t<T>::allocate(const size_t size, const host_t host) {
+
+  if (size == 0)
+    throw std::invalid_argument("size must be greater than 0");
+  
+  this->_size = size;
+
+  if(host == CPU){
+    this->_data = new T[size];
+    buffer_track::mem_cpu += this->size();
+  }
+
+  else if(host == GPU){
+    cudaMalloc(&this->_data, this->size());
+    buffer_track::mem_gpu += this->size();
+  }
+
+  else throw std::invalid_argument("device not recognized");
+
+  this->_host = host;
+  this->_refs = new size_t(1); 
+
+}
+
+template<typename T>
+void soil::buffer_t<T>::deallocate() {
+
+  if(*this->_refs == 0)
+  return;
+		
+  (*this->_refs)--;
+  if(*this->_refs > 0)
+    return;
+
+  delete this->_refs;
+
+  if(this->_data != NULL){
+    if(this->_host == CPU){
+      delete[] this->_data;
+      buffer_track::mem_cpu -= this->size();
+      this->_data = NULL;
+      this->_size = 0;
+      this->_host = CPU;
+    }
+
+    if(this->_host == GPU){
+      cudaFree(this->_data);
+      buffer_track::mem_gpu -= this->size();
+      this->_data = NULL;
+      this->_size = 0;
+      this->_host = CPU;
+    }
+  }
+
+}
+
+template<typename T>
+void soil::buffer_t<T>::to_gpu() {
+
+  if(this->_host == GPU)
+    return;
+
+  if(this->_data == NULL)
+    return;
+
+  if(this->_size == 0)
+    return;
+  
+  T* _data;
+  size_t _size = this->_size;
+
+  cudaMalloc(&_data, this->size());
+  cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
+  
+  buffer_track::mem_gpu += this->size();
+//  buffer_track::mem_cpu -= this->size();
+
+  this->deallocate();
+  this->_data = _data;
+  this->_refs = new size_t(1);
+  this->_size = _size;
+  this->_host = GPU;
+
+}
+
+template<typename T>
+void soil::buffer_t<T>::to_cpu() {
+
+  if(this->_host == CPU)
+    return;
+
+  if(this->_data == NULL)
+    return;
+
+  if(this->_size == 0)
+    return;
+
+  size_t _size = this->_size;
+  T* _data = new T[_size];
+  cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyDeviceToHost);
+
+  buffer_track::mem_cpu += this->size();
+//  buffer_track::mem_gpu -= this->size();
+
+  this->deallocate();
+  this->_data = _data;
+  this->_refs = new size_t(1);
+  this->_size = _size;
+  this->_host = CPU;
+
+}
 
 //! buffer is a poylymorphic buffer_t wrapper type.
 //!
@@ -228,7 +348,7 @@ struct buffer {
 
   void *data() {
     return select(this->type(), [self = this]<typename S>() {
-      return self->as<S>().data();
+      return (void*) self->as<S>().data();
     });
   }
 

@@ -11,6 +11,7 @@ namespace soil {
 // Type Descriptor Enumerator
 
 enum dtype {
+  NONE,
   INT,
   INT32,
   INT64,
@@ -106,7 +107,11 @@ using vec4 = vec<4>;
 //! or statically related types for specific purposes.
 //!
 template<typename T>
-struct typedesc;
+struct typedesc {
+  static constexpr std::string name = "none";
+  static constexpr dtype type = NONE;
+  typedef void value_t;
+};
 
 template<>
 struct typedesc<int> {
