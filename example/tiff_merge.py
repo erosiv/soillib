@@ -40,10 +40,10 @@ def merge(input, pscale = 0.1):
     wmin = np.min([wmin, gmin], axis=0)
     wmax = np.max([wmax, gmax], axis=0)
     wscale = gscale
-  
+
   # Determine Merged Image Size
   # Create Merged Filling Array
-  
+
   pixels = (pscale * ((wmax - wmin)/wscale)).astype(np.int64)
   mshape = soil.index([pixels[1], pixels[0]])
 
@@ -77,13 +77,13 @@ def merge(input, pscale = 0.1):
           index = y + pixels[0]*(pixels[1] - x - 1)
           px = int((pmax[1]-x-1))
           py = int((y-pmin[0]))
-          array[index] = data[px, py]
+          array[index] = pscale * data[px, py]
 
   return array, mshape, meta
 
 def main(input):
 
-  array, shape, meta = merge(input, pscale=0.1)
+  array, shape, meta = merge(input, pscale=0.05)
 
   '''
   Figure out how to export this is a valid GeoTIFF!
@@ -112,7 +112,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41709_DGM_tif_Frankenburg"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40706_DGM_tif_Gosau"
   data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern"
-  
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern/G-T4728-18.tif"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41234_DGM_tif_Waldzell"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41403_DGM_tif_Brunnenthal"
 

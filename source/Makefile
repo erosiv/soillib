@@ -42,7 +42,7 @@ LINKLIB = #-ltiff -lnanobind
 
 # Note: This means we compile a pure object file, no linking,
 # which has relocatable code.
-CF = -diag-suppress 20012 -diag-suppress 445 -Xcompiler -fPIC -c -O3 -Xcompiler #-fno-char8_t
+CF = -diag-suppress 20012 -diag-suppress 20013 -diag-suppress 20015 -diag-suppress 445 -Xcompiler -fPIC -c -O3 -Xcompiler #-fno-char8_t
 
 .PHONY: all
 all:

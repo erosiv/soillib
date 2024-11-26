@@ -5,6 +5,7 @@
 namespace nb = nanobind;
 
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/geotiff.hpp>
@@ -63,6 +64,8 @@ geotiff.def_prop_ro("scale", [](soil::io::geotiff& geotiff){
 });
 
 auto geotiff_meta = nb::class_<soil::io::geotiff::meta_t>(module, "geotiff_meta");
+
+geotiff_meta.def_rw("scale", &soil::io::geotiff::meta_t::scale);
 
 geotiff.def("get_meta", &soil::io::geotiff::get_meta);
 geotiff.def("set_meta", &soil::io::geotiff::set_meta);

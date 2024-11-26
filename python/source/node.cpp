@@ -143,6 +143,22 @@ module.def("cached", [](const soil::dtype type, const size_t size){
 });
 
 //
+// Generic Buffer Reductions
+//
+
+module.def("min", [](const soil::buffer& buf){
+  return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
+    return nb::cast(soil::min(buf.as<S>()));
+  });
+});
+
+module.def("max", [](const soil::buffer& buf){
+  return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
+    return nb::cast(soil::max(buf.as<S>()));
+  });
+});
+
+//
 // Generic Buffer Functions
 //
 

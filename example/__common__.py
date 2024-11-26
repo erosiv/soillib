@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
 
-def iter_tiff(path):
+def iter_tiff(path, max_files = None):
 
   '''
   Generator for all Files in 
@@ -20,7 +20,9 @@ def iter_tiff(path):
     yield file.decode('utf-8'), path.decode('utf-8')
 
   elif os.path.isdir(path):
-    for file in os.listdir(path):
+    for k, file in enumerate(os.listdir(path)):
+      if max_files != None and k > max_files:
+        break
       yield file.decode('utf-8'), os.path.join(path, file).decode('utf-8')
 
   else:

@@ -3,6 +3,7 @@
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
+#include <limits>
 
 namespace soil {
 
@@ -22,6 +23,42 @@ namespace soil {
 //
 //!\todo Inversion requires better handling of vector types,
 //! and a concrete decision about handling integer types (i.e. conversion)
+
+//
+// Reductions
+//
+
+template<typename T>
+T min(const soil::buffer_t<T>& buffer){
+  
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+  
+  T val = std::numeric_limits<T>::max();
+  for (auto [i, b] : buffer.const_iter()){
+    if(!std::isnan(b)){
+      val = std::min(val, b);
+    }
+  }
+  return val;
+
+}
+
+template<typename T>
+T max(const soil::buffer_t<T>& buffer){
+
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+
+  T val = std::numeric_limits<T>::min();
+  for (auto [i, b] : buffer.const_iter()){
+    if(!std::isnan(b)){
+      val = std::max(val, b);
+    }
+  }
+  return val;
+
+}
 
 //
 // Set Buffer from Value and Buffer
