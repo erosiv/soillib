@@ -146,6 +146,18 @@ module.def("cached", [](const soil::dtype type, const size_t size){
 // Generic Buffer Reductions
 //
 
+module.def("cast", [](const soil::buffer& buf, const soil::dtype type){
+  if(buf.type() == type){
+    return nb::cast(buf);
+  }
+  return soil::select(type, [&buf]<std::floating_point To>() -> nb::object {
+  return soil::select(buf.type(), [&buf]<std::floating_point From>() -> nb::object {
+    soil::buffer buffer = soil::cast<To, From>(buf.as<From>());
+    return nb::cast(buffer);
+  });
+  });
+});
+
 module.def("min", [](const soil::buffer& buf){
   return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
     return nb::cast(soil::min(buf.as<S>()));

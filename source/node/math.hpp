@@ -25,6 +25,27 @@ namespace soil {
 //! and a concrete decision about handling integer types (i.e. conversion)
 
 //
+// Casting
+//
+
+template<typename To, typename From>
+soil::buffer_t<To> cast(const soil::buffer_t<From>& buffer){
+  
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+  
+  buffer_t<To> buffer_to(buffer.elem());
+  for (auto [i, b] : buffer.const_iter()){
+    buffer_to[i] = (To)b;
+    //if(!std::isnan(b)){
+    //  val = std::min(val, b);
+    //}
+  }
+  return buffer_to;
+
+}
+
+//
 // Reductions
 //
 
