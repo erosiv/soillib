@@ -25,6 +25,33 @@ namespace soil {
 //! and a concrete decision about handling integer types (i.e. conversion)
 
 //
+// Copying...
+//
+
+template<typename T>
+void copy(soil::buffer_t<T>& out, const soil::buffer_t<T>& in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale){
+
+  const ivec2 pmin = ivec2(pscale * (gmin - wmin) / wscale);
+  const ivec2 pmax = ivec2(pscale * (gmax - wmin) / wscale);
+  const ivec2 pext = ivec2(pscale * (wmax - wmin) / wscale);
+  const ivec2 gext = ivec2((gmax - gmin) / gscale);
+
+  for(int x = pmin[1]; x < pmax[1]; ++x){
+    for(int y = pmin[0]; y < pmax[0]; ++y){
+
+      const int ind_out = y + pext[0]*(pext[1] - x - 1);
+
+      const size_t px = size_t((pmax[1]-x-1)/pscale);
+      const size_t py = size_t((y-pmin[0])/pscale);
+      const size_t ind_in = py + px * gext[0];
+
+      out[ind_out] = T(pscale) * in[ind_in];
+    }
+  }
+
+}
+
+//
 // Casting
 //
 
