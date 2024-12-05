@@ -75,16 +75,21 @@ struct geotiff: soil::io::tiff {
   }
 
   geotiff(const char *filename) {
-    meta(filename);
+    peek(filename);
     read(filename);
   };
 
-  bool meta(const char *filename);
+  bool peek(const char *filename);
   bool read(const char *filename);
   bool write(const char *filename);
 
   //! GeoTIFF Metadata Type
   struct meta_t {
+    std::string filename;
+    size_t width;
+    size_t height;
+    size_t bits;
+
     std::string gdal_nodata;
     std::string gdal_metadata;
     std::string geoasciiparams;
@@ -93,6 +98,10 @@ struct geotiff: soil::io::tiff {
     std::vector<double> coords = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     std::vector<double> params;
     std::vector<short> keydir;
+
+    inline glm::vec2 dim() const { return glm::vec2(width, height); }
+    inline glm::vec2 min() const { return glm::min(glm::vec2(coords[3], coords[4]), glm::vec2(coords[3], coords[4]) + glm::vec2(scale[0], scale[1]) * dim()); }
+    inline glm::vec2 max() const { return glm::max(glm::vec2(coords[3], coords[4]), glm::vec2(coords[3], coords[4]) + glm::vec2(scale[0], scale[1]) * dim()); }
   };
 
   // Projection
@@ -110,32 +119,26 @@ struct geotiff: soil::io::tiff {
   // The idea is for us to store a single one...
   // Then just copy the essential stuff!
 
-  inline meta_t get_meta() const { return this->_meta; }
-  inline void set_meta(const meta_t _meta) {
-    this->_meta.keydir = _meta.keydir;
-    this->_meta.geoasciiparams = _meta.geoasciiparams;
-    this->_meta.gdal_metadata = _meta.gdal_metadata;
-    this->_meta.gdal_nodata = _meta.gdal_nodata;
-    this->_meta.scale = _meta.scale;
-    this->_meta.coords = _meta.coords;
-    this->_meta.params = _meta.params;
-  }
+  void unsetNaN();  //!< Set Available NoData Values to NaN=
+  meta_t _meta;     //!< Local Meta-Data
 
-  void unsetNaN(); //!< Set Available NoData Values to NaN=
 private:
   void setNaN(); //!< Set Available NoData Values to NaN=
-  meta_t _meta;  //!< Local Meta-Data
 };
 
 // Implementations
 
-// template<typename T>
-bool geotiff::meta(const char *filename) {
+bool geotiff::peek(const char *filename) {
 
   _XTIFFInitialize();
 
-  if (!tiff::meta(filename))
+  if (!tiff::peek(filename))
     return false;
+
+  this->_meta.filename = this->filename;
+  this->_meta.width = this->width();
+  this->_meta.height = this->height();
+  this->_meta.bits = this->bits();
 
   TIFF *tif = TIFFOpen(filename, "r");
 
@@ -173,7 +176,7 @@ bool geotiff::meta(const char *filename) {
 
 bool geotiff::read(const char *filename) {
 
-  geotiff::meta(filename);
+  geotiff::peek(filename);
   if (!tiff::read(filename))
     return false;
 

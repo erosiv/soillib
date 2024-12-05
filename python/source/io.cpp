@@ -27,7 +27,7 @@ tiff.def("__init__", [](soil::io::tiff* tiff, const soil::buffer& buffer, const 
   new (tiff) soil::io::tiff(buffer, index);
 });
 
-tiff.def("meta", &soil::io::tiff::meta);
+tiff.def("peek", &soil::io::tiff::peek);
 tiff.def("read", &soil::io::tiff::read);
 tiff.def("write", &soil::io::tiff::write);
 
@@ -47,9 +47,13 @@ geotiff.def("__init__", [](soil::io::geotiff* geotiff, const soil::buffer& buffe
   new (geotiff) soil::io::geotiff(buffer, index);
 });
 
-geotiff.def("meta", &soil::io::geotiff::meta);
+geotiff.def("peek", &soil::io::geotiff::peek);
 geotiff.def("read", &soil::io::geotiff::read);
 geotiff.def("write", &soil::io::geotiff::write);
+
+geotiff.def_rw("meta", &soil::io::geotiff::_meta);
+
+geotiff.def("unsetnan", &soil::io::geotiff::unsetNaN);
 
 geotiff.def_prop_ro("min", [](soil::io::geotiff& geotiff){
   return geotiff.min();
@@ -63,21 +67,34 @@ geotiff.def_prop_ro("scale", [](soil::io::geotiff& geotiff){
   return geotiff.scale();
 });
 
+//
+// Geotiff Metadata
+//
+
 auto geotiff_meta = nb::class_<soil::io::geotiff::meta_t>(module, "geotiff_meta");
 
+geotiff_meta.def_ro("filename", &soil::io::geotiff::meta_t::filename);
+geotiff_meta.def_rw("width", &soil::io::geotiff::meta_t::width);
+geotiff_meta.def_rw("height", &soil::io::geotiff::meta_t::height);
+geotiff_meta.def_rw("bits", &soil::io::geotiff::meta_t::bits);
+
 geotiff_meta.def_rw("scale", &soil::io::geotiff::meta_t::scale);
+geotiff_meta.def_rw("coords", &soil::io::geotiff::meta_t::coords);
 
-geotiff.def("get_meta", &soil::io::geotiff::get_meta);
-geotiff.def("set_meta", &soil::io::geotiff::set_meta);
+geotiff_meta.def_rw("gdal_ascii", &soil::io::geotiff::meta_t::geoasciiparams);
+geotiff_meta.def_rw("gdal_metadata", &soil::io::geotiff::meta_t::gdal_metadata);
+geotiff_meta.def_rw("gdal_nodata", &soil::io::geotiff::meta_t::gdal_nodata);
 
-geotiff.def("unsetnan", &soil::io::geotiff::unsetNaN);
-
-geotiff_meta.def_prop_ro("metadata", [](soil::io::geotiff::meta_t& m){
-  return m.gdal_metadata;
+geotiff_meta.def_prop_ro("min", [](soil::io::geotiff::meta_t& geotiff_meta){
+  return geotiff_meta.min();
 });
 
-geotiff_meta.def_prop_ro("nodata", [](soil::io::geotiff::meta_t& m){
-  return m.gdal_nodata;
+geotiff_meta.def_prop_ro("max", [](soil::io::geotiff::meta_t& geotiff_meta){
+  return geotiff_meta.max();
+});
+
+geotiff_meta.def_prop_ro("scale", [](soil::io::geotiff::meta_t& geotiff_meta){
+  return glm::vec2(geotiff_meta.scale[0], geotiff_meta.scale[1]);
 });
 
 //

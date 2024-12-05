@@ -36,7 +36,7 @@ struct tiff {
     }
   }
 
-  bool meta(const char *filename);  //!< Load TIFF Metadata
+  bool peek(const char *filename);  //!< Load TIFF Metadata
   bool read(const char *filename);  //!< Read TIFF Raw Data
   bool write(const char *filename); //!< Write TIFF Raw Data
 
@@ -51,6 +51,8 @@ protected:
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
   bool tiled_image = false; //!< Flag: Is Image Tiled
 
+  std::string filename; //!< Original Filename
+
   uint32_t _width = 0;  //!< Image Width
   uint32_t _height = 0; //!< Image Height
   uint32_t _bits = 0;   //!< Pixel Bit-Depth
@@ -63,7 +65,7 @@ protected:
 };
 
 //! Load TIFF Metadata
-bool tiff::meta(const char *filename) {
+bool tiff::peek(const char *filename) {
 
   TIFF *tif = TIFFOpen(filename, "r");
 
@@ -84,6 +86,7 @@ bool tiff::meta(const char *filename) {
 
   TIFFClose(tif);
 
+  this->filename = filename;
   this->meta_loaded = true;
   return true;
 }
@@ -92,7 +95,7 @@ bool tiff::meta(const char *filename) {
 bool tiff::read(const char *filename) {
 
   if (!meta_loaded) {
-    this->meta(filename);
+    this->peek(filename);
   }
 
   // Note: TIFF is Column Major (See Reading Function Below)
