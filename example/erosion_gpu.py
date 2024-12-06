@@ -33,7 +33,7 @@ def main():
 
   index = soil.index([512, 512])
 
-  seed = 1
+  seed = 10
   buffer = soil.noise(index, seed)
   buffer = soil.bake(buffer, index)
   soil.multiply(buffer, 80.0)
@@ -41,11 +41,9 @@ def main():
 
   discharge = soil.buffer(soil.float32, index.elem())
   discharge.gpu()
-  soil.set(discharge, 0.0)
 
   momentum = soil.buffer(soil.vec2, index.elem())
   momentum.gpu()
-  soil.set(momentum, [0.0, 0.0])
 
   with soil.timer() as timer:
     soil.gpu_erode(buffer, discharge, momentum, index, 512, 512)
@@ -58,11 +56,10 @@ def main():
 
 #  normal = soil.normal(buffer, index)
   height = buffer.numpy(index)
-
+  print(np.max(height))
+  print(np.min(height))
 
 #
-#  print(np.max(height))
-#  print(np.min(height))
 #  plt.imshow(height)
 #  plt.show()
 #

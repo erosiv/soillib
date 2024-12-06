@@ -174,11 +174,11 @@ __global__ void descend(const soil::buffer_t<float> height, const soil::buffer_t
 
   // Momentum Transfer
 
-//  const vec2 fspeed = momentum_b[ind];
-//  const float discharge = erf(0.4f * discharge_b[ind]);
-//  const float momentumTransfer = 2.0f;
-//  if (glm::length(fspeed) > 0 && glm::length(s) > 0)
-//    s += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(s)) / (volume + discharge) * fspeed;
+  const vec2 fspeed = momentum_b[index.flatten(pos[ind])];
+  const float discharge = erf(0.4f * discharge_b[index.flatten(pos[ind])]);
+  const float momentumTransfer = 2.0f;
+  if (glm::length(fspeed) > 0 && glm::length(s) > 0)
+    s += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(s)) / (volume + discharge) * fspeed;
   
   // Normalize Time-Step, Increment
   
@@ -196,7 +196,7 @@ __global__ void track(soil::buffer_t<float> discharge, soil::buffer_t<vec2> mome
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= pos.elem()) return;
 
-  if(index.oob(pos[ind])) 
+  if(index.oob(pos[ind]))
     return;
 
   const int find = index.flatten(pos[ind]);
@@ -242,10 +242,8 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::buffer_t<floa
 
   // Equilibrium Concentration
   // Note: Can't be Negative!
-  const float entrainment = 10.0f;
-  float discharge = erf(0.4f * discharge_b[index.flatten(pos0)]);
-  // if(isnan(discharge))
-  discharge = 0.0f;
+  const float entrainment = 3.0f;
+  const float discharge = erf(0.4f * discharge_b[index.flatten(pos0)]);
   
   const float c_eq = glm::max(h0 - h1, 0.0f) * (1.0f + discharge * entrainment);
   const float effD = depositionRate;
@@ -275,15 +273,26 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::buffer_t<floa
   }
 }
 
-template<typename T>
-__global__ void filter(soil::buffer_t<T>& discharge, const soil::buffer_t<T>& discharge_track, float lrate){
+__global__ void filter(soil::buffer_t<float> buffer, const soil::buffer_t<float> buffer_track, const float lrate){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= discharge.elem()) return;
+  if(ind >= buffer.elem()) return;
+  if(ind >= buffer_track.elem()) return;
 
-  const T val = discharge[ind];
-  discharge[ind] = val * (1.0f - lrate) + discharge_track[ind] * lrate;
+  float val = buffer[ind];
+  float val_track = buffer_track[ind];
+  buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
+}
 
+__global__ void filter(soil::buffer_t<vec2> buffer, const soil::buffer_t<vec2> buffer_track, const float lrate){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= buffer.elem()) return;
+  if(ind >= buffer_track.elem()) return;
+
+  vec2 val = buffer[ind];
+  vec2 val_track = buffer_track[ind];
+  buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
 }
 
 __global__ void clamp(soil::buffer_t<float> height){
@@ -314,6 +323,9 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, soil::buffer& mome
   auto discharge_t = discharge.as<float>();
   auto momentum_t = momentum.as<vec2>();
 
+  fill<<<block(discharge_t.elem(), 1024), 1024>>>(discharge_t, 0.0f);
+  fill<<<block(momentum_t.elem(), 1024), 1024>>>(momentum_t, vec2(0.0f));
+
   //
   // Particle Buffers
   //
@@ -341,6 +353,8 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, soil::buffer& mome
   cudaMalloc((void**)&randStates, n_particles * sizeof(curandState));
   init_randstate<<<block(n_particles, 512), n_particles>>>(randStates, n_particles, 0);
 
+  cudaDeviceSynchronize();
+
   //
   // Execute Erosion Loop
   //
@@ -360,6 +374,7 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, soil::buffer& mome
 
     fill<<<block(discharge_track.elem(), 1024), 1024>>>(discharge_track, 0.0f);
     fill<<<block(momentum_track.elem(), 1024), 1024>>>(momentum_track, vec2(0.0f));
+    cudaDeviceSynchronize();
 
     //
     // Erosion Loop
@@ -369,20 +384,20 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, soil::buffer& mome
 
     for(size_t age = 0; age < maxage; ++age){
 
-      descend<<<block(n_particles, 512), 512>>>(buffer_t, discharge_track, momentum_track, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
+      descend<<<block(n_particles, 512), 512>>>(buffer_t, discharge_t, momentum_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
       cudaDeviceSynchronize();
-//
-//      track<<<block(n_particles, 512), 512>>>(discharge_track, momentum_track, index_t, pos_buf, spd_buf, vol_buf);
-//      cudaDeviceSynchronize();
 
-      transfer<<<block(n_particles, 512), 512>>>(buffer_t, discharge_track, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
+      track<<<block(n_particles, 512), 512>>>(discharge_track, momentum_track, index_t, pos_buf, spd_buf, vol_buf);
+      cudaDeviceSynchronize();
+
+      transfer<<<block(n_particles, 512), 512>>>(buffer_t, discharge_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
       cudaDeviceSynchronize();
 
     }
 
-//    filter<<<block(index.elem(), 1024), 1024>>>(discharge_t, discharge_track, 0.01f);
-//    filter<<<block(index.elem(), 1024), 1024>>>(momentum_t, momentum_track, 0.01f);
-//    cudaDeviceSynchronize();
+    filter<<<block(discharge_t.elem(), 1024), 1024>>>(discharge_t, discharge_track, 0.01f);
+    filter<<<block(index.elem(), 1024), 1024>>>(momentum_t, momentum_track, 0.01f);
+    cudaDeviceSynchronize();
   
   }
 
