@@ -14,7 +14,7 @@ namespace soil {
 // 4. Introduce the Mass-Exchange Kernel
 // 5. Introduce the Thermal Erosion Kernel
 
-void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index &index, const size_t steps, const size_t maxage);
+void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, soil::buffer& momentum, const soil::index &index, const size_t steps, const size_t maxage);
 
 } // end of namespace soil
 

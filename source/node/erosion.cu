@@ -139,7 +139,7 @@ __global__ void fill(soil::buffer_t<T> buf, const T val){
     buf[index] = val;
 }
 
-__global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2> index, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
+__global__ void descend(const soil::buffer_t<float> height, const soil::buffer_t<float> discharge_b, const soil::buffer_t<vec2> momentum_b, const soil::flat_t<2> index, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= pos.elem()) return;
@@ -155,11 +155,33 @@ __global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2
   sample_t<float> px[5], py[5];
   gather<float, soil::flat_t<2>>(height, index, ivec2(pos[ind]), px, py);
   const vec2 grad = gradient_detailed<float>(px, py);
+  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
 
   // Speed Update
 
+  // Gravity 
+
+  const float gravity = 2.0f;
+  const float volume = vol_b[ind];
+
+  const float minVol = 0.001;
+  if (volume < minVol) {
+    return;
+  }
+
   vec2 s = speed[ind];
-  s += sqrtf(2.0f) * glm::normalize(-vec2(grad.x, grad.y));
+  s += gravity * vec2(normal.x, normal.y) / volume;
+
+  // Momentum Transfer
+
+//  const vec2 fspeed = momentum_b[ind];
+//  const float discharge = erf(0.4f * discharge_b[ind]);
+//  const float momentumTransfer = 2.0f;
+//  if (glm::length(fspeed) > 0 && glm::length(s) > 0)
+//    s += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(s)) / (volume + discharge) * fspeed;
+  
+  // Normalize Time-Step, Increment
+  
   if(glm::length(s) > 0.0f){
     s = sqrtf(2.0f) * glm::normalize(s);
   }
@@ -169,21 +191,24 @@ __global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2
 
 }
 
-__global__ void _discharge(soil::buffer_t<float> discharge, const soil::flat_t<2> index, soil::buffer_t<vec2> pos, soil::buffer_t<float> vol_b){
+__global__ void track(soil::buffer_t<float> discharge, soil::buffer_t<vec2> momentum, const soil::flat_t<2> index, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed, soil::buffer_t<float> vol_b){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= pos.elem()) return;
 
-  if(!index.oob(pos[ind])) 
+  if(index.oob(pos[ind])) 
     return;
 
   const int find = index.flatten(pos[ind]);
   const float vol = vol_b[ind];
   atomicAdd(&discharge[find], vol);
 
+  const vec2 m = vol * speed[ind];
+  atomicAdd(&momentum[find].x, m.x);
+  atomicAdd(&momentum[find].y, m.y);
 }
 
-__global__ void transfer(soil::buffer_t<float> height, const soil::flat_t<2> index, soil::buffer_t<vec2> pos_b, soil::buffer_t<vec2> speed_b, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
+__global__ void transfer(soil::buffer_t<float> height, const soil::buffer_t<float> discharge_b, const soil::flat_t<2> index, soil::buffer_t<vec2> pos_b, soil::buffer_t<vec2> speed_b, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= pos_b.elem()) return;
@@ -196,6 +221,7 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::flat_t<2> ind
   const vec2 pos0 = pos1 - speed;   // Old Position
 
   if(index.oob(pos0)) return;
+  if(index.flatten(pos0) == 0) return;
 
   // Sample Height Values (Old Position, New Position)
   
@@ -216,7 +242,12 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::flat_t<2> ind
 
   // Equilibrium Concentration
   // Note: Can't be Negative!
-  const float c_eq = glm::max(h0 - h1, 0.0f);
+  const float entrainment = 10.0f;
+  float discharge = erf(0.4f * discharge_b[index.flatten(pos0)]);
+  // if(isnan(discharge))
+  discharge = 0.0f;
+  
+  const float c_eq = glm::max(h0 - h1, 0.0f) * (1.0f + discharge * entrainment);
   const float effD = depositionRate;
 
   float c_diff = (c_eq * vol - sed);
@@ -244,6 +275,17 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::flat_t<2> ind
   }
 }
 
+template<typename T>
+__global__ void filter(soil::buffer_t<T>& discharge, const soil::buffer_t<T>& discharge_track, float lrate){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= discharge.elem()) return;
+
+  const T val = discharge[ind];
+  discharge[ind] = val * (1.0f - lrate) + discharge_track[ind] * lrate;
+
+}
+
 __global__ void clamp(soil::buffer_t<float> height){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
@@ -254,7 +296,7 @@ __global__ void clamp(soil::buffer_t<float> height){
 
 }
 
-void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index &index, const size_t steps, const size_t maxage){
+void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, soil::buffer& momentum, const soil::index &index, const size_t steps, const size_t maxage){
 
   std::cout<<"Launched GPU Erode Kernel"<<std::endl;
 
@@ -270,6 +312,7 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index 
   auto index_t = index.as<flat_t<2>>();
 
   auto discharge_t = discharge.as<float>();
+  auto momentum_t = momentum.as<vec2>();
 
   //
   // Particle Buffers
@@ -284,6 +327,9 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index 
 
   soil::buffer_t<float> vol_buf(n_particles, soil::host_t::GPU);
   soil::buffer_t<float> sed_buf(n_particles, soil::host_t::GPU);
+
+  soil::buffer_t<float> discharge_track(discharge.elem(), soil::host_t::GPU);
+  soil::buffer_t<vec2> momentum_track(momentum.elem(), soil::host_t::GPU);
 
   //
   // Initialize Rand-State Buffer
@@ -311,7 +357,9 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index 
     fill<<<block(n_particles, 512), n_particles>>>(spd_buf, vec2(0.0f));
     fill<<<block(n_particles, 512), n_particles>>>(vol_buf, 1.0f);
     fill<<<block(n_particles, 512), n_particles>>>(sed_buf, 0.0f);
-    fill<<<block(n_particles, 512), n_particles>>>(discharge_t, 0.0f);
+
+    fill<<<block(discharge_track.elem(), 1024), 1024>>>(discharge_track, 0.0f);
+    fill<<<block(momentum_track.elem(), 1024), 1024>>>(momentum_track, vec2(0.0f));
 
     //
     // Erosion Loop
@@ -321,12 +369,21 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index 
 
     for(size_t age = 0; age < maxage; ++age){
 
-      descend<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
-//      _discharge<<<block(n_particles, 512), 512>>>(discharge_t, index_t, pos_buf, vol_buf);
-      transfer<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
+      descend<<<block(n_particles, 512), 512>>>(buffer_t, discharge_track, momentum_track, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
+      cudaDeviceSynchronize();
+//
+//      track<<<block(n_particles, 512), 512>>>(discharge_track, momentum_track, index_t, pos_buf, spd_buf, vol_buf);
+//      cudaDeviceSynchronize();
+
+      transfer<<<block(n_particles, 512), 512>>>(buffer_t, discharge_track, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
+      cudaDeviceSynchronize();
 
     }
 
+//    filter<<<block(index.elem(), 1024), 1024>>>(discharge_t, discharge_track, 0.01f);
+//    filter<<<block(index.elem(), 1024), 1024>>>(momentum_t, momentum_track, 0.01f);
+//    cudaDeviceSynchronize();
+  
   }
 
   // necessary solution to temporarily fix an indexing problem

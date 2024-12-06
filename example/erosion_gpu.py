@@ -41,9 +41,14 @@ def main():
 
   discharge = soil.buffer(soil.float32, index.elem())
   discharge.gpu()
+  soil.set(discharge, 0.0)
+
+  momentum = soil.buffer(soil.vec2, index.elem())
+  momentum.gpu()
+  soil.set(momentum, [0.0, 0.0])
 
   with soil.timer() as timer:
-    soil.gpu_erode(buffer, discharge, index, 1024, 256)
+    soil.gpu_erode(buffer, discharge, momentum, index, 512, 512)
 
   buffer.cpu()
   discharge.cpu()
@@ -56,10 +61,10 @@ def main():
 
 
 #
-  print(np.max(height))
-  print(np.min(height))
-  plt.imshow(height)
-  plt.show()
+#  print(np.max(height))
+#  print(np.min(height))
+#  plt.imshow(height)
+#  plt.show()
 #
 #  normal = normal.numpy(index)
 #
@@ -71,8 +76,9 @@ def main():
 
 
 
-#  plt.imshow(np.log(1.0 + discharge.numpy(index)))
-#  plt.show()
+  plt.imshow(np.log(1.0 + discharge.numpy(index)))
+  #plt.imshow(discharge.numpy(index)[4:-2, 4:-2])
+  plt.show()
 
 if __name__ == "__main__":
   main()
