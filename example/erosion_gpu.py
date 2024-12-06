@@ -44,7 +44,7 @@ def main():
   discharge.gpu()
 
   with soil.timer() as timer:
-    soil.gpu_erode(buffer, discharge, index, 2048, 256)
+    soil.gpu_erode(buffer, discharge, index, 4096, 512)
 
   buffer.cpu()
   discharge.cpu()
