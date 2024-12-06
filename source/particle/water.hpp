@@ -111,7 +111,7 @@ bool WaterParticle::move(soil::model &model, const WaterParticle_c &param) {
   // Dynamic Time-Step, Update
 
   if (length(speed) > 0)
-    speed = (sqrt(2.0f)) * normalize(speed);
+    speed = sqrtf(2.0f) * normalize(speed);
 
   opos = pos;
   pos += speed;

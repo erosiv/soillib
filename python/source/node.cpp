@@ -17,6 +17,7 @@ namespace nb = nanobind;
 #include <soillib/node/normal.hpp>
 #include <soillib/node/flow.hpp>
 #include <soillib/node/math.hpp>
+#include <soillib/node/erosion.hpp>
 
 #include <soillib/node/common.hpp>
 
@@ -256,6 +257,13 @@ module.def("normal", [](const soil::buffer& buffer, const soil::index& index){
 module.def("normal", [](const soil::node& node, const soil::index& index){
   return soil::normal::operator()(node, index);
 });
+
+
+//
+// Erosion Kernels
+//
+
+module.def("gpu_erode", soil::gpu_erode);
 
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
