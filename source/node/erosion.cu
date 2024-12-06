@@ -15,6 +15,96 @@ namespace soil {
 
 namespace {
 
+template<typename T>
+struct sample_t {
+  glm::ivec2 pos;
+  T value;
+  bool oob = true;
+};
+
+template<typename T, typename I>
+__device__ void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]) {
+  for (int i = 0; i < 5; ++i) {
+
+    const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
+    if (!index.oob(pos_x)) {
+      px[i].oob = false;
+      px[i].pos = pos_x;
+
+      const size_t ind = index.flatten(pos_x);
+      px[i].value = buffer_t[ind];
+    }
+
+    const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
+    if (!index.oob(pos_y)) {
+      py[i].oob = false;
+      py[i].pos = pos_y;
+
+      const size_t ind = index.flatten(pos_y);
+      py[i].value = buffer_t[ind];
+    }
+  }
+}
+
+template<std::floating_point T>
+__device__ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
+
+  glm::vec2 g = glm::vec2(0, 0);
+
+  // X-Element
+  if (!px[0].oob && !px[4].oob)
+    g.x = (1.0f * px[0].value - 8.0f * px[1].value + 8.0f * px[3].value - 1.0f * px[4].value) / 12.0f;
+
+  else if (!px[0].oob && !px[3].oob)
+    g.x = (1.0f * px[0].value - 6.0f * px[1].value + 3.0f * px[2].value + 2.0f * px[3].value) / 6.0f;
+
+  else if (!px[0].oob && !px[2].oob)
+    g.x = (1.0f * px[0].value - 4.0f * px[1].value + 3.0f * px[2].value) / 2.0f;
+
+  else if (!px[1].oob && !px[4].oob)
+    g.x = (-2.0f * px[1].value - 3.0f * px[2].value + 6.0f * px[3].value - 1.0f * px[4].value) / 6.0f;
+
+  else if (!px[2].oob && !px[4].oob)
+    g.x = (-3.0f * px[2].value + 4.0f * px[3].value - 1.0f * px[4].value) / 2.0f;
+
+  else if (!px[1].oob && !px[3].oob)
+    g.x = (-1.0f * px[1].value + 1.0f * px[3].value) / 2.0f;
+
+  else if (!px[2].oob && !px[3].oob)
+    g.x = (-1.0f * px[2].value + 1.0f * px[3].value) / 1.0f;
+
+  else if (!px[1].oob && !px[2].oob)
+    g.x = (-1.0f * px[1].value + 1.0f * px[2].value) / 1.0f;
+
+  // Y-Element
+
+  if (!py[0].oob && !py[4].oob)
+    g.y = (1.0f * py[0].value - 8.0f * py[1].value + 8.0f * py[3].value - 1.0f * py[4].value) / 12.0f;
+
+  else if (!py[0].oob && !py[3].oob)
+    g.y = (1.0f * py[0].value - 6.0f * py[1].value + 3.0f * py[2].value + 2.0f * py[3].value) / 6.0f;
+
+  else if (!py[0].oob && !py[2].oob)
+    g.y = (1.0f * py[0].value - 4.0f * py[1].value + 3.0f * py[2].value) / 2.0f;
+
+  else if (!py[1].oob && !py[4].oob)
+    g.y = (-2.0f * py[1].value - 3.0f * py[2].value + 6.0f * py[3].value - 1.0f * py[4].value) / 6.0f;
+
+  else if (!py[2].oob && !py[4].oob)
+    g.y = (-3.0f * py[2].value + 4.0f * py[3].value - 1.0f * py[4].value) / 2.0f;
+
+  else if (!py[1].oob && !py[3].oob)
+    g.y = (-1.0f * py[1].value + 1.0f * py[3].value) / 2.0f;
+
+  else if (!py[2].oob && !py[3].oob)
+    g.y = (-1.0f * py[2].value + 1.0f * py[3].value) / 1.0f;
+
+  else if (!py[1].oob && !py[2].oob)
+    g.y = (-1.0f * py[1].value + 1.0f * py[2].value) / 1.0f;
+
+  return g;
+}
+
 int block(const int elem, const int thread){
   return (elem + thread - 1)/thread;
 }
@@ -55,30 +145,25 @@ __global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2
   if(ind >= pos.elem()) return;
 
   if(index.oob(pos[ind])){
-//    speed[ind] = vec2(0);
-//    vol_b[ind] = 0.0f;
-//    sed_b[ind] = 0.0f;
     return;
   }
 
   if(oob(pos[ind], index)){
-//    speed[ind] = vec2(0);
-//    vol_b[ind] = 0.0f;
-//    sed_b[ind] = 0.0f;
     return;
   }
 
-  const lerp_t<float> lerp = gather(height, index, pos[ind]);
-  const vec2 grad = lerp.grad();
-  const vec3 n = glm::normalize(vec3(-grad.x, -grad.y, 1.0));
+  sample_t<float> px[5], py[5];
+  gather<float, soil::flat_t<2>>(height, index, ivec2(pos[ind]), px, py);
+  const vec2 grad = gradient_detailed<float>(px, py);
 
-//  vec2 s = speed[ind];
-//  s += 2.0f * vec2(n);
-//  if(glm::length(s) > 0.0f){
-//    s = sqrtf(2.0f) * glm::normalize(s);
-//  }
+  // Speed Update
 
-  vec2 s = sqrtf(2.0f) * glm::normalize(vec2(n.x, n.y));
+  vec2 s = speed[ind];
+  s += sqrtf(2.0f) * glm::normalize(-vec2(grad.x, grad.y));
+  if(glm::length(s) > 0.0f){
+    s = sqrtf(2.0f) * glm::normalize(s);
+  }
+
   speed[ind] = s;
   pos[ind] += s;
 
@@ -89,7 +174,7 @@ __global__ void _discharge(soil::buffer_t<float> discharge, const soil::flat_t<2
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= pos.elem()) return;
 
-  if(oob(pos[ind], index)) 
+  if(!index.oob(pos[ind])) 
     return;
 
   const int find = index.flatten(pos[ind]);
@@ -237,7 +322,7 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index 
     for(size_t age = 0; age < maxage; ++age){
 
       descend<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
-      // _discharge<<<block(n_particles, 512), 512>>>(discharge_t, index_t, pos_buf, sed_buf);
+//      _discharge<<<block(n_particles, 512), 512>>>(discharge_t, index_t, pos_buf, vol_buf);
       transfer<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
 
     }

@@ -29,7 +29,6 @@ def relief_shade(h, n):
   diffuse = (1.0 - weight) * diffuse + weight * flattone
   return diffuse
 
-
 def main():
 
   index = soil.index([512, 512])
@@ -44,7 +43,7 @@ def main():
   discharge.gpu()
 
   with soil.timer() as timer:
-    soil.gpu_erode(buffer, discharge, index, 4096, 512)
+    soil.gpu_erode(buffer, discharge, index, 1024, 256)
 
   buffer.cpu()
   discharge.cpu()
