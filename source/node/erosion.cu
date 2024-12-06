@@ -34,8 +34,8 @@ __global__ void spawn(buffer_t<vec2> pos_buf, curandState* randStates, flat_t<2>
 
   curandState* randState = &randStates[n];
   vec2 pos {
-    curand_uniform(randState)*float(index[0] - 1),
-    curand_uniform(randState)*float(index[1] - 1)
+    curand_uniform(randState)*float(index[0]),
+    curand_uniform(randState)*float(index[1])
   };
 
   pos_buf[n] = pos;
@@ -49,13 +49,24 @@ __global__ void fill(soil::buffer_t<T> buf, const T val){
     buf[index] = val;
 }
 
-__global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2> index, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed){
+__global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2> index, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= pos.elem()) return;
 
-  if(oob(pos[ind], index)) 
+  if(index.oob(pos[ind])){
+//    speed[ind] = vec2(0);
+//    vol_b[ind] = 0.0f;
+//    sed_b[ind] = 0.0f;
     return;
+  }
+
+  if(oob(pos[ind], index)){
+//    speed[ind] = vec2(0);
+//    vol_b[ind] = 0.0f;
+//    sed_b[ind] = 0.0f;
+    return;
+  }
 
   const lerp_t<float> lerp = gather(height, index, pos[ind]);
   const vec2 grad = lerp.grad();
@@ -66,8 +77,8 @@ __global__ void descend(const soil::buffer_t<float> height, const soil::flat_t<2
 //  if(glm::length(s) > 0.0f){
 //    s = sqrtf(2.0f) * glm::normalize(s);
 //  }
-  vec2 s = vec2(n);
-//  vec2 s = glm::normalize(vec2(n)); // pure normal descent...
+
+  vec2 s = sqrtf(2.0f) * glm::normalize(vec2(n.x, n.y));
   speed[ind] = s;
   pos[ind] += s;
 
@@ -99,48 +110,28 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::flat_t<2> ind
   const vec2 pos1 = pos_b[ind];     // Current Position
   const vec2 pos0 = pos1 - speed;   // Old Position
 
-//  if(glm::length(speed) < 1e-6){
-//    return;
-//  }
-
-  float h0, h1;
   if(index.oob(pos0)) return;
 
-  h0 = height[index.flatten(pos0)];
-
-  if(index.oob(pos1)){
-    h1 = 0.99f*h0;
-  } else {
+  // Sample Height Values (Old Position, New Position)
+  
+  float h0 = height[index.flatten(pos0)];
+  float h1 = 0.99f*h0;
+  if(!index.oob(pos1)){
     h1 = height[index.flatten(pos1)];
   }
 
-//  if(oob(pos0, index)) return;
-
-  // Compute Height Difference
-
-  /*
-  float h0, h1;
-  lerp_t<float> lerp0 = gather(height, index, pos0);
-  h0 = lerp0.val();
-  
-  if(!oob(pos1, index)){
-    lerp_t<float> lerp1 = gather(height, index, pos1);
-    h1 = lerp1.val();
-  } else {
-    h1 = 0.99f * h0;
-  }
-  */
-
-  // Compute Equilibrium Concentration
-
-  float c_eq = (h0 - h1);
-  if(c_eq < 0.0f){
-    c_eq = 0.0f;
+  if(isnan(h0) || isnan(h1)){
+    return;
   }
 
-  const float vol = vol_b[ind];
-  const float sed = sed_b[ind];
+  // Compute Equilibrium Mass-Transfer
 
+  const float vol = vol_b[ind]; // Water Volume
+  const float sed = sed_b[ind]; // Sediment Mass
+
+  // Equilibrium Concentration
+  // Note: Can't be Negative!
+  const float c_eq = glm::max(h0 - h1, 0.0f);
   const float effD = depositionRate;
 
   float c_diff = (c_eq * vol - sed);
@@ -148,25 +139,24 @@ __global__ void transfer(soil::buffer_t<float> height, const soil::flat_t<2> ind
     c_diff = 0.0f;
   }
 
-  if(effD * c_diff < 0.0f){
-    c_diff = 0.0f;
-//    // cap the sediment amount to the available sediment if particle loses
-//    if(effD * c_diff < -sed){
-//      c_diff = -sed / effD;
-//    }
+  // can only give as much mass as we have...
+  if(effD * c_diff < -sed){
+    c_diff = -sed / effD;
   }
 
-  sed_b[ind] += effD * c_diff;
-  vol_b[ind] *= (1.0f - evapRate);
+  // Execute Mass-Transfer
+  const int find = index.flatten(ivec2(pos0));
 
-  // add to the height-map the negative value of the sediment...
-  // note: this should be weighted - distributed
+  //!\todo figure out why find zero gives so many problems...
+  // why would this every be a problem? I don't get it...
+  if(find != 0){
 
-//  if(!oob(pos0, index) && !oob(pos1, index)){
-  const int find = index.flatten(pos0);
-  atomicAdd(&height[find], -effD * c_diff);
-//  }
+    sed_b[ind] += effD * c_diff;
+    vol_b[ind] *= (1.0f - evapRate);
 
+    atomicAdd(&height[find], -effD * c_diff);
+
+  }
 }
 
 __global__ void clamp(soil::buffer_t<float> height){
@@ -246,7 +236,7 @@ void gpu_erode(soil::buffer &buffer, soil::buffer& discharge, const soil::index 
 
     for(size_t age = 0; age < maxage; ++age){
 
-      descend<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf);
+      descend<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
       // _discharge<<<block(n_particles, 512), 512>>>(discharge_t, index_t, pos_buf, sed_buf);
       transfer<<<block(n_particles, 512), 512>>>(buffer_t, index_t, pos_buf, spd_buf, vol_buf, sed_buf);
 
