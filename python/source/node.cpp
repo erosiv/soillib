@@ -175,10 +175,15 @@ module.def("max", [](const soil::buffer& buf){
 //
 
 module.def("copy", [](soil::buffer& lhs, const soil::buffer& rhs, soil::vec2 gmin, soil::vec2 gmax, soil::vec2 gscale, soil::vec2 wmin, soil::vec2 wmax, soil::vec2 wscale, float pscale){
-  if(lhs.type() != rhs.type())
-    throw soil::error::mismatch_type(lhs.type(), rhs.type());
-  soil::select(lhs.type(), [&]<std::floating_point S>(){
-    soil::copy<S>(lhs.as<S>(), rhs.as<S>(), gmin, gmax, gscale, wmin, wmax, wscale, pscale);
+
+  // Note: This supports copy between different buffer types.
+  // The interior template selection just requires that the source
+  // buffer's type can be converted to the target buffer's type.
+
+  soil::select(lhs.type(), [&]<typename To>(){
+    soil::select(rhs.type(), [&]<std::convertible_to<To> From>(){
+      soil::copy<To, From>(lhs.as<To>(), rhs.as<From>(), gmin, gmax, gscale, wmin, wmax, wscale, pscale);
+    });
   });
 });
 

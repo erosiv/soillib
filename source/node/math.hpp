@@ -28,8 +28,8 @@ namespace soil {
 // Copying...
 //
 
-template<typename T>
-void copy(soil::buffer_t<T>& out, const soil::buffer_t<T>& in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale){
+template<typename To, typename From>
+void copy(soil::buffer_t<To>& out, const soil::buffer_t<From>& in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale){
 
   const ivec2 pmin = ivec2(pscale * (gmin - wmin) / wscale);
   const ivec2 pmax = ivec2(pscale * (gmax - wmin) / wscale);
@@ -45,7 +45,7 @@ void copy(soil::buffer_t<T>& out, const soil::buffer_t<T>& in, vec2 gmin, vec2 g
       const size_t py = size_t((y-pmin[0])/pscale);
       const size_t ind_in = py + px * gext[0];
 
-      out[ind_out] = T(pscale) * in[ind_in];
+      out[ind_out] = To(From(pscale) * in[ind_in]);
     }
   }
 
