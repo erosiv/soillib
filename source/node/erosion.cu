@@ -139,100 +139,88 @@ __global__ void fill(soil::buffer_t<T> buf, const T val){
     buf[index] = val;
 }
 
-__global__ void descend(const model_t model, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
+__global__ void descend(const model_t model, particle_t particles){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= pos.elem()) return;
+  if(ind >= particles.elem) return;
 
-  if(model.index.oob(pos[ind])){
+  // Retrieve Position, Check Bounds
+
+  const ivec2 pos = particles.pos[ind];
+  if(model.index.oob(pos))
     return;
-  }
 
-  if(oob(pos[ind], model.index)){
-    return;
-  }
+  const int find = model.index.flatten(pos);
 
-  sample_t<float> px[5], py[5];
-  gather<float, soil::flat_t<2>>(model.height, model.index, ivec2(pos[ind]), px, py);
-  const vec2 grad = gradient_detailed<float>(px, py);
-  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  // Skip Depleted Particles
 
-  // Speed Update
-
-  // Gravity 
-
-  const float gravity = 2.0f;
-  const float volume = vol_b[ind];
-
+  const float volume = particles.vol[ind];
   const float minVol = 0.001;
   if (volume < minVol) {
     return;
   }
 
-  vec2 s = speed[ind];
-  s += gravity * vec2(normal.x, normal.y) / volume;
+  // Compute Speed Update
+
+  vec2 speed = particles.spd[ind];
+
+  // Gravity Contribution
+  // Compute Normal Vector
+
+  sample_t<float> px[5], py[5];
+  gather<float, soil::flat_t<2>>(model.height, model.index, ivec2(pos), px, py);
+  const vec2 grad = gradient_detailed<float>(px, py);
+  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+
+  const float gravity = 2.0f;
+  speed += gravity * vec2(normal.x, normal.y) / volume;
 
   // Momentum Transfer
 
-  const vec2 fspeed = model.momentum[model.index.flatten(pos[ind])];
-  const float discharge = erf(0.4f * model.discharge[model.index.flatten(pos[ind])]);
+  const vec2 fspeed = model.momentum[find];
+  const float discharge = erf(0.4f * model.discharge[find]);
   const float momentumTransfer = 2.0f;
-  if (glm::length(fspeed) > 0 && glm::length(s) > 0)
-    s += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(s)) / (volume + discharge) * fspeed;
+  if (glm::length(fspeed) > 0 && glm::length(speed) > 0)
+    speed += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
   
   // Normalize Time-Step, Increment
   
-  if(glm::length(s) > 0.0f){
-    s = sqrtf(2.0f) * glm::normalize(s);
+  if(glm::length(speed) > 0.0f){
+    speed = sqrtf(2.0f) * glm::normalize(speed);
   }
 
-  /*
-  // Handle Slope!
-  float h0 = model.height[model.index.flatten(pos[ind])];
-  float h1 = 0.99f*h0;
-  if(!model.index.oob(pos[ind] + s)){
-    h1 = model.height[model.index.flatten(pos[ind] + s)];
-  }
-
-  //if(isnan(h0) || isnan(h1) || isinf(h0) || isinf(h1)){
-  //  hdiff_buf[ind] = 0.0f;
-  //} else {
-    hdiff_buf[ind] = (h0 - h1);
-  //}
-  */
-
-  speed[ind] = s;
-  pos[ind] += s;
-
+  particles.spd[ind] = speed;
+  particles.pos[ind] += speed;
 }
 
-__global__ void track(model_t model, soil::buffer_t<vec2> pos, soil::buffer_t<vec2> speed, soil::buffer_t<float> vol_b){
+__global__ void track(model_t model, particle_t particles){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= pos.elem()) return;
+  if(ind >= particles.elem) return;
 
-  if(model.index.oob(pos[ind]))
-    return;
+  const ivec2 pos = particles.pos[ind];
+  if(model.index.oob(pos)) return;
 
-  const int find = model.index.flatten(pos[ind]);
-  const float vol = vol_b[ind];
+  const int find = model.index.flatten(pos);
+  const float vol = particles.vol[ind];
   atomicAdd(&model.discharge[find], vol);
 
-  const vec2 m = vol * speed[ind];
+  const vec2 m = vol * particles.spd[ind];
   atomicAdd(&model.momentum[find].x, m.x);
   atomicAdd(&model.momentum[find].y, m.y);
+
 }
 
-__global__ void transfer(model_t model, soil::buffer_t<vec2> pos_b, soil::buffer_t<vec2> speed_b, soil::buffer_t<float> vol_b, soil::buffer_t<float> sed_b){
+__global__ void transfer(model_t model, particle_t particles){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= pos_b.elem()) return;
+  if(ind >= particles.elem) return;
 
   const float evapRate = 0.001f;
   const float depositionRate = 0.05f;
 
-  const vec2 speed = speed_b[ind];  // Current Speed
-  const vec2 pos1 = pos_b[ind];     // Current Position
+  const vec2 speed = particles.spd[ind];  // Current Speed
+  const vec2 pos1 = particles.pos[ind];   // Current Position
   const vec2 pos0 = pos1 - speed;   // Old Position
 
   if(model.index.oob(pos0)) return;
@@ -252,8 +240,17 @@ __global__ void transfer(model_t model, soil::buffer_t<vec2> pos_b, soil::buffer
     hdiff = 0.0f;
   }
 
-  const float vol = vol_b[ind]; // Water Volume
-  const float sed = sed_b[ind]; // Sediment Mass
+  // not sure why this is necessary...
+  if(model.index.flatten(pos0) == 0){
+    hdiff = 0.0f;
+  }
+
+  if(model.index.flatten(pos1) == 0){
+    hdiff = 0.0f;
+  }
+
+  const float vol = particles.vol[ind]; // Water Volume
+  const float sed = particles.sed[ind]; // Sediment Mass
 
   // Equilibrium Concentration
   // Note: Can't be Negative!
@@ -280,8 +277,8 @@ __global__ void transfer(model_t model, soil::buffer_t<vec2> pos_b, soil::buffer
   // why would this every be a problem? I don't get it...
   if(find != 0){
 
-    sed_b[ind] += effD * c_diff;
-    vol_b[ind] *= (1.0f - evapRate);
+    particles.sed[ind] += effD * c_diff;
+    particles.vol[ind] *= (1.0f - evapRate);
 
     atomicAdd(&model.height[find], -effD * c_diff);
 
@@ -342,18 +339,11 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
 
   std::cout<<"Setting Up Particle Buffers..."<<std::endl;
 
-  const size_t n_particles = 1024;
-
-  soil::buffer_t<vec2> pos_buf(n_particles, soil::host_t::GPU);
-  soil::buffer_t<vec2> spd_buf(n_particles, soil::host_t::GPU);
-
-//  soil::buffer_t<float> hdiff_buf(n_particles, soil::host_t::GPU);
-
-  soil::buffer_t<float> vol_buf(n_particles, soil::host_t::GPU);
-  soil::buffer_t<float> sed_buf(n_particles, soil::host_t::GPU);
-
   soil::buffer_t<float> discharge_track(model.discharge.elem(), soil::host_t::GPU);
   soil::buffer_t<vec2> momentum_track(model.momentum.elem(), soil::host_t::GPU);
+
+  const size_t n_particles = 1024;
+  particle_t particles{n_particles};
 
   //
   // Initialize Rand-State Buffer
@@ -379,11 +369,10 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
     // Spawn Particles
     //
 
-    spawn<<<block(n_particles, 512), n_particles>>>(pos_buf, randStates, model.index);
-    fill<<<block(n_particles, 512), n_particles>>>(spd_buf, vec2(0.0f));
-    fill<<<block(n_particles, 512), n_particles>>>(vol_buf, 1.0f);
-    fill<<<block(n_particles, 512), n_particles>>>(sed_buf, 0.0f);
-//    fill<<<block(n_particles, 512), n_particles>>>(hdiff_buf, 0.1f);
+    spawn<<<block(n_particles, 512), n_particles>>>(particles.pos, randStates, model.index);
+    fill<<<block(n_particles, 512), n_particles>>>(particles.spd, vec2(0.0f));
+    fill<<<block(n_particles, 512), n_particles>>>(particles.vol, 1.0f);
+    fill<<<block(n_particles, 512), n_particles>>>(particles.sed, 0.0f);
 
     fill<<<block(discharge_track.elem(), 1024), 1024>>>(discharge_track, 0.0f);
     fill<<<block(momentum_track.elem(), 1024), 1024>>>(momentum_track, vec2(0.0f));
@@ -397,13 +386,13 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
 
     for(size_t age = 0; age < maxage; ++age){
 
-      descend<<<block(n_particles, 512), 512>>>(model, pos_buf, spd_buf, vol_buf, sed_buf);
+      descend<<<block(n_particles, 512), 512>>>(model, particles);
       cudaDeviceSynchronize();
 
-      track<<<block(n_particles, 512), 512>>>(model, pos_buf, spd_buf, vol_buf);
+      track<<<block(n_particles, 512), 512>>>(model, particles);
       cudaDeviceSynchronize();
 
-      transfer<<<block(n_particles, 512), 512>>>(model, pos_buf, spd_buf, vol_buf, sed_buf);
+      transfer<<<block(n_particles, 512), 512>>>(model, particles);
       cudaDeviceSynchronize();
 
     }

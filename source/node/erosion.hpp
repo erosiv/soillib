@@ -18,18 +18,34 @@ namespace soil {
 // Model Summarization
 //
 
+struct particle_t {
+
+  particle_t(const size_t elem):elem(elem),
+    pos(elem, soil::host_t::GPU),
+    spd(elem, soil::host_t::GPU),
+    vol(elem, soil::host_t::GPU),
+    sed(elem, soil::host_t::GPU){}
+
+  const size_t elem;
+
+  soil::buffer_t<vec2> pos;
+  soil::buffer_t<vec2> spd;
+  soil::buffer_t<float> vol;
+  soil::buffer_t<float> sed;
+};
+
 struct model_t {
 
   model_t(soil::index index):
     index(index.as<soil::flat_t<2>>()),
     elem(index.elem()){}
   
+  const size_t elem;
+  const soil::flat_t<2> index;
+
   soil::buffer_t<float> height;
   soil::buffer_t<float> discharge;
   soil::buffer_t<vec2> momentum;
-
-  const soil::flat_t<2> index;
-  const size_t elem;
 };
 
 void gpu_erode(model_t& model, const size_t steps, const size_t maxage);
