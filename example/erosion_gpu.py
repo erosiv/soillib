@@ -53,7 +53,7 @@ def main():
   model.momentum = momentum
 
   with soil.timer() as timer:
-    soil.gpu_erode(model, 512, 512)
+    soil.gpu_erode(model, 1024, 512)
 
   buffer.cpu()
   discharge.cpu()
