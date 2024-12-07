@@ -33,20 +33,27 @@ def main():
 
   index = soil.index([512, 512])
 
-  seed = 10
+  seed = 1
   buffer = soil.noise(index, seed)
   buffer = soil.bake(buffer, index)
   soil.multiply(buffer, 80.0)
   buffer.gpu()
 
   discharge = soil.buffer(soil.float32, index.elem())
+  soil.set(discharge, 0.0)
   discharge.gpu()
 
   momentum = soil.buffer(soil.vec2, index.elem())
+  soil.set(momentum, [0.0, 0.0])
   momentum.gpu()
 
+  model = soil.model_t(index)
+  model.height = buffer
+  model.discharge = discharge
+  model.momentum = momentum
+
   with soil.timer() as timer:
-    soil.gpu_erode(buffer, discharge, momentum, index, 512, 512)
+    soil.gpu_erode(model, 512, 512)
 
   buffer.cpu()
   discharge.cpu()

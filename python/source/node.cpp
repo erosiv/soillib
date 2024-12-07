@@ -263,6 +263,30 @@ module.def("normal", [](const soil::node& node, const soil::index& index){
 // Erosion Kernels
 //
 
+auto model_t = nb::class_<soil::model_t>(module, "model_t");
+model_t.def(nb::init<soil::index>());
+
+model_t.def_prop_rw("height",
+  [](soil::model_t& model){
+    return soil::buffer(model.height);
+},[](soil::model_t& model, soil::buffer buffer){
+    model.height = buffer.as<float>();
+});
+
+model_t.def_prop_rw("discharge",
+  [](soil::model_t& model){
+    return soil::buffer(model.discharge);
+},[](soil::model_t& model, soil::buffer buffer){
+    model.discharge = buffer.as<float>();
+});
+
+model_t.def_prop_rw("momentum",
+  [](soil::model_t& model){
+    return soil::buffer(model.momentum);
+},[](soil::model_t& model, soil::buffer buffer){
+    model.momentum = buffer.as<soil::vec2>();
+});
+
 module.def("gpu_erode", soil::gpu_erode);
 
 // note: consider how to implement this deferred using the nodes
