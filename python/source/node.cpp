@@ -275,6 +275,7 @@ param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("momentumTransfer", &soil::param_t::momentumTransfer);
 param_t.def_rw("minVol", &soil::param_t::minVol);
 param_t.def_rw("lrate", &soil::param_t::lrate);
+param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 
 auto model_t = nb::class_<soil::model_t>(module, "model_t");
 model_t.def(nb::init<soil::index>());

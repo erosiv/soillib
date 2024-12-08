@@ -52,8 +52,10 @@ def main():
   model.discharge = discharge
   model.momentum = momentum
 
+  param = soil.param_t()
+
   with soil.timer() as timer:
-    soil.gpu_erode(model, 256, 512)
+    soil.gpu_erode(model, param, 2000)
 
   buffer.cpu()
   discharge.cpu()

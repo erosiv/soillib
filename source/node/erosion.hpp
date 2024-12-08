@@ -29,6 +29,7 @@ struct param_t {
   float momentumTransfer = 1.0f;
   float minVol = 0.001f;
   float lrate = 0.01f;
+  float exitSlope = 0.99f;
 };
 
 struct particle_t {
