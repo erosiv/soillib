@@ -169,7 +169,7 @@ soil::buffer soil::direction(const soil::buffer& buffer, const soil::index& inde
 template<typename T>
 __global__ void _fill(soil::buffer_t<T> buf, const T val){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.size())
+  if(index < buf.elem())
     buf[index] = val;
 }
 

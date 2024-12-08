@@ -111,33 +111,77 @@ int block(const int elem, const int thread){
 
 }
 
-__global__ void init_randstate(curandState* states, const size_t N, const size_t seed) {
-  const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index >= N) return;
-  curand_init(seed, index, 0, &states[index]);
-}
-
-__global__ void spawn(buffer_t<vec2> pos_buf, curandState* randStates, flat_t<2> index){
-
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= pos_buf.size()) return;
-
-  curandState* randState = &randStates[n];
-  vec2 pos {
-    curand_uniform(randState)*float(index[0]),
-    curand_uniform(randState)*float(index[1])
-  };
-
-  pos_buf[n] = pos;
-
-}
+//
+// Utility Kernels
+//
 
 template<typename T>
 __global__ void fill(soil::buffer_t<T> buf, const T val){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.size())
-    buf[index] = val;
+  if(index >= buf.elem()) return;
+  buf[index] = val;
 }
+
+__global__ void init_randstate(curandState* states, const size_t N, const size_t seed) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+  curand_init(seed, n, 0, &states[n]);
+}
+
+__global__ void spawn(buffer_t<vec2> pos, curandState* randStates, flat_t<2> index){
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= pos.elem()) return;
+
+  curandState* randState = &randStates[n];
+  pos[n] = vec2{
+    curand_uniform(randState)*float(index[0]),
+    curand_uniform(randState)*float(index[1])
+  };
+}
+
+__global__ void filter(soil::buffer_t<float> buffer, const soil::buffer_t<float> buffer_track, const float lrate){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= buffer.elem()) return;
+  if(ind >= buffer_track.elem()) return;
+
+  float val = buffer[ind];
+  float val_track = buffer_track[ind];
+  buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
+}
+
+__global__ void filter(soil::buffer_t<vec2> buffer, const soil::buffer_t<vec2> buffer_track, const float lrate){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= buffer.elem()) return;
+  if(ind >= buffer_track.elem()) return;
+
+  vec2 val = buffer[ind];
+  vec2 val_track = buffer_track[ind];
+  buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
+}
+
+__global__ void track(model_t model, particle_t particles){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= particles.elem) return;
+
+  const ivec2 pos = particles.pos[ind];
+  if(model.index.oob(pos)) return;
+
+  const int find = model.index.flatten(pos);
+  const float vol = particles.vol[ind];
+  atomicAdd(&model.discharge[find], vol);
+
+  const vec2 m = vol * particles.spd[ind];
+  atomicAdd(&model.momentum[find].x, m.x);
+  atomicAdd(&model.momentum[find].y, m.y);
+
+}
+
+//
+// Erosion Kernels
+//
 
 __global__ void descend(const model_t model, particle_t particles){
 
@@ -199,24 +243,6 @@ __global__ void descend(const model_t model, particle_t particles){
   
   particles.spd[ind] = speed;
   particles.pos[ind] += speed;
-}
-
-__global__ void track(model_t model, particle_t particles){
-
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= particles.elem) return;
-
-  const ivec2 pos = particles.pos[ind];
-  if(model.index.oob(pos)) return;
-
-  const int find = model.index.flatten(pos);
-  const float vol = particles.vol[ind];
-  atomicAdd(&model.discharge[find], vol);
-
-  const vec2 m = vol * particles.spd[ind];
-  atomicAdd(&model.momentum[find].x, m.x);
-  atomicAdd(&model.momentum[find].y, m.y);
-
 }
 
 __global__ void transfer(model_t model, particle_t particles){
@@ -282,38 +308,6 @@ __global__ void transfer(model_t model, particle_t particles){
     atomicAdd(&model.height[find], -effD * c_diff);
 
 // }
-}
-
-__global__ void filter(soil::buffer_t<float> buffer, const soil::buffer_t<float> buffer_track, const float lrate){
-
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= buffer.elem()) return;
-  if(ind >= buffer_track.elem()) return;
-
-  float val = buffer[ind];
-  float val_track = buffer_track[ind];
-  buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
-}
-
-__global__ void filter(soil::buffer_t<vec2> buffer, const soil::buffer_t<vec2> buffer_track, const float lrate){
-
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= buffer.elem()) return;
-  if(ind >= buffer_track.elem()) return;
-
-  vec2 val = buffer[ind];
-  vec2 val_track = buffer_track[ind];
-  buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
-}
-
-__global__ void clamp(soil::buffer_t<float> height){
-
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= height.elem()) return;
-
-  if(height[ind] > 256) height[ind] = 256;
-  if(height[ind] < -256) height[ind] = -256;
-
 }
 
 void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
@@ -402,12 +396,6 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
     cudaDeviceSynchronize();
   
   }
-
-  // necessary solution to temporarily fix an indexing problem
-  // which is introducing unrealistically large values into the
-  // height buffer - who knows why.
-
-  clamp<<<block(model.elem, 1024), 1024>>>(model.height);
 
 }
 
