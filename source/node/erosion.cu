@@ -180,6 +180,96 @@ __global__ void track(model_t model, particle_t particles){
 }
 
 //
+// Cascading Kernel
+//
+// Effectively we have to compute the height-difference between every cell
+// and its non-out-of-bounds neighbors, then we have to transfer the sediment.
+// How do we do this without race conditions?
+// I suppose that we need an additional buffer to determine the updated sediment amounts...
+// so that we can ping-pong back and forth...
+
+// for now, we will implement this as a device function locally and perhaps switch to
+// a singular kernel later.
+
+// __global__ void cascade(model_t model){
+// }
+
+__device__ void cascade(model_t& model, const glm::ivec2 ipos) {
+
+  if(model.index.oob(ipos))
+    return;
+
+  // Get Non-Out-of-Bounds Neighbors
+
+  static const glm::ivec2 n[] = {
+      glm::ivec2(-1, -1),
+      glm::ivec2(-1, 0),
+      glm::ivec2(-1, 1),
+      glm::ivec2(0, -1),
+      glm::ivec2(0, 1),
+      glm::ivec2(1, -1),
+      glm::ivec2(1, 0),
+      glm::ivec2(1, 1)
+  };
+
+  struct Point {
+    glm::ivec2 pos;
+    float h;
+    float d;
+  } sn[8];
+
+  int num = 0;
+
+  for(auto &nn : n){
+
+    glm::ivec2 npos = ipos + nn;
+
+    if (model.index.oob(npos))
+      continue;
+
+    const size_t index = model.index.flatten(npos);
+    const float height = model.height[index];
+    sn[num++] = {npos, height, length(glm::vec2(nn))};
+  }
+
+  const size_t index = model.index.flatten(ipos);
+  const float height = model.height[index];
+  float h_ave = height;
+  for (int i = 0; i < num; ++i)
+    h_ave += sn[i].h;
+  h_ave /= (float)(num + 1);
+
+  for (int i = 0; i < num; ++i) {
+
+    // Full Height-Different Between Positions!
+    float diff = h_ave - sn[i].h;
+    if (diff == 0) // No Height Difference
+      continue;
+
+    const glm::ivec2 &tpos = (diff > 0) ? ipos : sn[i].pos;
+    const glm::ivec2 &bpos = (diff > 0) ? sn[i].pos : ipos;
+
+    const size_t tindex = model.index.flatten(tpos);
+    const size_t bindex = model.index.flatten(bpos);
+
+    const float maxdiff = 0.8f;
+    const float settling = 1.0f;
+
+    // The Amount of Excess Difference!
+    float excess = 0.0f;
+    excess = abs(diff) - sn[i].d * maxdiff;
+    if (excess <= 0) // No Excess
+      continue;
+
+    // Actual Amount Transferred
+    float transfer = settling * excess / 2.0f;
+
+    atomicAdd(&model.height[tindex], -transfer);
+    atomicAdd(&model.height[bindex], transfer);
+  }
+}
+
+//
 // Erosion Kernels
 //
 
@@ -223,7 +313,7 @@ __global__ void descend(const model_t model, particle_t particles){
 
   const vec2 fspeed = model.momentum[find];
   const float discharge = erf(0.4f * model.discharge[find]);
-  const float momentumTransfer = 0.1f;
+  const float momentumTransfer = 1.0f;
   if (glm::length(fspeed) > 0 && glm::length(speed) > 0)
     speed += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
   
@@ -265,7 +355,7 @@ __global__ void transfer(model_t model, particle_t particles){
 
   const float evapRate = 0.001f;
   const float depositionRate = 0.05f;
-  const float entrainment = 0.0f;
+  const float entrainment = 4.0f;
 
   // Equilibrium Concentration
   // Note: Can't be Negative!
@@ -285,12 +375,12 @@ __global__ void transfer(model_t model, particle_t particles){
   particles.vol[ind] *= (1.0f - evapRate);
   atomicAdd(&model.height[find], -effD * c_diff);
 
+  cascade(model, pos); // let's see if this works...
+
   particles.pos[ind] += speed;
 }
 
 void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
-
-  std::cout<<"Launched GPU Erode Kernel"<<std::endl;
 
   if(model.height.host() != soil::host_t::GPU){
     throw soil::error::mismatch_host(soil::host_t::GPU, model.height.host());
@@ -308,19 +398,16 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
   // Particle Buffers
   //
 
-  std::cout<<"Setting Up Particle Buffers..."<<std::endl;
-
   soil::buffer_t<float> discharge_track(model.discharge.elem(), soil::host_t::GPU);
   soil::buffer_t<vec2> momentum_track(model.momentum.elem(), soil::host_t::GPU);
 
-  const size_t n_particles = 1024;
+  //! \todo remove this allocation, as well as the randstate allocation
+  const size_t n_particles = 512;
   particle_t particles{n_particles};
 
   //
   // Initialize Rand-State Buffer
   //
-
-  std::cout<<"Initializing Random State..."<<std::endl;
 
   curandState* randStates;
   cudaMalloc((void**)&randStates, n_particles * sizeof(curandState));
@@ -331,8 +418,6 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
   //
   // Execute Erosion Loop
   //
-
-  std::cout<<"Eroding..."<<std::endl;
 
   for(size_t step = 0; step < steps; ++step){
 
