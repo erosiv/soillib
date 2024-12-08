@@ -24,7 +24,8 @@ struct particle_t {
     pos(elem, soil::host_t::GPU),
     spd(elem, soil::host_t::GPU),
     vol(elem, soil::host_t::GPU),
-    sed(elem, soil::host_t::GPU){}
+    sed(elem, soil::host_t::GPU),
+    slope(elem, soil::host_t::GPU){}
 
   const size_t elem;
 
@@ -32,6 +33,7 @@ struct particle_t {
   soil::buffer_t<vec2> spd;
   soil::buffer_t<float> vol;
   soil::buffer_t<float> sed;
+  soil::buffer_t<float> slope;
 };
 
 struct model_t {

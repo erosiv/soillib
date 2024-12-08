@@ -190,7 +190,7 @@ __global__ void descend(const model_t model, particle_t particles){
 
   // Retrieve Position, Check Bounds
 
-  const ivec2 pos = particles.pos[ind];
+  const vec2 pos = particles.pos[ind];
   if(model.index.oob(pos))
     return;
 
@@ -233,13 +233,14 @@ __global__ void descend(const model_t model, particle_t particles){
     speed = sqrtf(2.0f) * glm::normalize(speed);
   }
 
-  //const float hdiff = hdiff_buf[ind];
-  //float h0 = model.height[find];
-  //float h1 = 0.99f*h0;
-  //if(!model.index.oob(pos + speed)){
-  //  h1 = model.height[model.index.flatten(pos + speed)];
-  //}
-  //particles.slope[ind] = (h0 - h1);
+  // Compute Slope
+
+  float h0 = model.height[find];
+  float h1 = 0.99f*h0;
+  if(!model.index.oob(pos + speed)){
+    h1 = model.height[model.index.flatten(pos + speed)];
+  }
+  particles.slope[ind] = (h0 - h1);
   
   particles.spd[ind] = speed;
   particles.pos[ind] += speed;
@@ -261,17 +262,9 @@ __global__ void transfer(model_t model, particle_t particles){
 
   // Compute Equilibrium Mass-Transfer
 
-  //const float hdiff = hdiff_buf[ind];
-  float h0 = model.height[model.index.flatten(pos0)];
-  float h1 = 0.99f*h0;
-  if(!model.index.oob(pos1)){
-    h1 = model.height[model.index.flatten(pos1)];
-  }
-
-  float hdiff = (h0 - h1);
-
-  const float vol = particles.vol[ind]; // Water Volume
-  float sed = particles.sed[ind];       // Sediment Mass
+  const float hdiff = particles.slope[ind]; // Local Slope
+  const float vol = particles.vol[ind];     // Water Volume
+  const float sed = particles.sed[ind];     // Sediment Mass
 
   // Equilibrium Concentration
   // Note: Can't be Negative!
@@ -282,15 +275,6 @@ __global__ void transfer(model_t model, particle_t particles){
   const float effD = depositionRate;
 
   float c_diff = (c_eq * vol - sed);
-  if(isnan(c_diff) || isinf(c_diff)){
-    c_diff = 0.0f;
-  }
-
-  if(isnan(sed) || sed < 0.0f || isinf(sed)){
-    sed = 0.0f; 
-  }
-
-  // can only give as much mass as we have...
   if(effD * c_diff < -sed){
     c_diff = -sed / effD;
   }
@@ -298,16 +282,10 @@ __global__ void transfer(model_t model, particle_t particles){
   // Execute Mass-Transfer
   const int find = model.index.flatten(ivec2(pos0));
 
-  //!\todo figure out why find zero gives so many problems...
-  // why would this every be a problem? I don't get it...
-//  if(find != 0){
+  particles.sed[ind] += effD * c_diff;
+  particles.vol[ind] *= (1.0f - evapRate);
+  atomicAdd(&model.height[find], -effD * c_diff);
 
-    particles.sed[ind] += effD * c_diff;
-    particles.vol[ind] *= (1.0f - evapRate);
-
-    atomicAdd(&model.height[find], -effD * c_diff);
-
-// }
 }
 
 void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
@@ -366,7 +344,7 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
     fill<<<block(n_particles, 512), n_particles>>>(particles.spd, vec2(0.0f));
     fill<<<block(n_particles, 512), n_particles>>>(particles.vol, 1.0f);
     fill<<<block(n_particles, 512), n_particles>>>(particles.sed, 0.0f);
-//    fill<<<block(n_particles, 512), n_particles>>>(particles.slope, 0.0f);
+    fill<<<block(n_particles, 512), n_particles>>>(particles.slope, 0.0f);
 
     fill<<<block(discharge_track.elem(), 1024), 1024>>>(discharge_track, 0.0f);
     fill<<<block(momentum_track.elem(), 1024), 1024>>>(momentum_track, vec2(0.0f));
