@@ -235,15 +235,14 @@ __global__ void descend(const model_t model, particle_t particles){
 
   // Compute Slope
 
+  particles.spd[ind] = speed;
+
   float h0 = model.height[find];
   float h1 = 0.99f*h0;
   if(!model.index.oob(pos + speed)){
     h1 = model.height[model.index.flatten(pos + speed)];
   }
   particles.slope[ind] = (h0 - h1);
-  
-  particles.spd[ind] = speed;
-  particles.pos[ind] += speed;
 }
 
 __global__ void transfer(model_t model, particle_t particles){
@@ -251,25 +250,26 @@ __global__ void transfer(model_t model, particle_t particles){
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= particles.elem) return;
 
-  const float evapRate = 0.001f;
-  const float depositionRate = 0.05f;
-
-  const vec2 speed = particles.spd[ind];  // Current Speed
-  const vec2 pos1 = particles.pos[ind];   // Current Position
-  const vec2 pos0 = pos1 - speed;         // Old Position
-
-  if(model.index.oob(ivec2(pos0))) return;
+  const vec2 pos = particles.pos[ind];    // Current Position
+  if(model.index.oob(pos))
+    return;
+  
+  const int find = model.index.flatten(pos);
 
   // Compute Equilibrium Mass-Transfer
 
+  const vec2 speed = particles.spd[ind];    // Current Speed
   const float hdiff = particles.slope[ind]; // Local Slope
   const float vol = particles.vol[ind];     // Water Volume
   const float sed = particles.sed[ind];     // Sediment Mass
 
+  const float evapRate = 0.001f;
+  const float depositionRate = 0.05f;
+  const float entrainment = 0.0f;
+
   // Equilibrium Concentration
   // Note: Can't be Negative!
-  const float entrainment = 0.0f;
-  const float discharge = erf(0.4f *model.discharge[model.index.flatten(pos0)]);
+  const float discharge = erf(0.4f *model.discharge[find]);
   
   const float c_eq = glm::max(hdiff, 0.0f) * (1.0f + discharge * entrainment);
   const float effD = depositionRate;
@@ -280,12 +280,12 @@ __global__ void transfer(model_t model, particle_t particles){
   }
 
   // Execute Mass-Transfer
-  const int find = model.index.flatten(ivec2(pos0));
 
   particles.sed[ind] += effD * c_diff;
   particles.vol[ind] *= (1.0f - evapRate);
   atomicAdd(&model.height[find], -effD * c_diff);
 
+  particles.pos[ind] += speed;
 }
 
 void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
@@ -359,13 +359,8 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
     for(size_t age = 0; age < maxage; ++age){
 
       descend<<<block(n_particles, 512), 512>>>(model, particles);
-      cudaDeviceSynchronize();
-
-      track<<<block(n_particles, 512), 512>>>(model, particles);
-      cudaDeviceSynchronize();
-
       transfer<<<block(n_particles, 512), 512>>>(model, particles);
-      cudaDeviceSynchronize();
+      track<<<block(n_particles, 512), 512>>>(model, particles);
 
     }
 
