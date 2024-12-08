@@ -328,12 +328,19 @@ __global__ void descend(const model_t model, particle_t particles, const param_t
   speed += param.gravity * vec2(normal.x, normal.y) / volume;
 
   // Momentum Transfer
+  // Volume-Weighted Average of Momentum
 
-  const vec2 fspeed = model.momentum[find];
-  const float discharge = erf(0.4f * model.discharge[find]);
-  if (glm::length(fspeed) > 0 && glm::length(speed) > 0)
-    speed += param.momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
+//  
+//  const float discharge = erf(0.4f * model.discharge[find]);
+//  if (glm::length(fspeed) > 0 && glm::length(speed) > 0)
+//    speed += param.momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
   
+  const vec2 fspeed = model.momentum[find];
+  const float discharge = model.discharge[find];
+  
+  // effectively a weighted average! discharge is the full 
+  speed += param.momentumTransfer / (volume + discharge) * (fspeed + speed * volume);
+
   // Normalize Time-Step, Increment
   
   if(glm::length(speed) > 0.0f){
