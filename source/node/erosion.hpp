@@ -18,6 +18,19 @@ namespace soil {
 // Model Summarization
 //
 
+struct param_t {
+  size_t maxage = 1024;
+  float settling = 1.0f;
+  float maxdiff = 0.8f;
+  float evapRate = 0.001f;
+  float depositionRate = 0.05f;
+  float entrainment = 4.0f;
+  float gravity = 2.0f;
+  float momentumTransfer = 1.0f;
+  float minVol = 0.001f;
+  float lrate = 0.01f;
+};
+
 struct particle_t {
 
   particle_t(const size_t elem):elem(elem),
@@ -50,7 +63,7 @@ struct model_t {
   soil::buffer_t<vec2> momentum;
 };
 
-void gpu_erode(model_t& model, const size_t steps, const size_t maxage);
+void gpu_erode(model_t& model, const param_t param, const size_t steps);
 
 } // end of namespace soil
 

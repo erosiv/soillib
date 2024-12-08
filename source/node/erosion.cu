@@ -194,7 +194,7 @@ __global__ void track(model_t model, particle_t particles){
 // __global__ void cascade(model_t model){
 // }
 
-__device__ void cascade(model_t& model, const glm::ivec2 ipos) {
+__device__ void cascade(model_t& model, const glm::ivec2 ipos, const param_t param) {
 
   if(model.index.oob(ipos))
     return;
@@ -252,17 +252,14 @@ __device__ void cascade(model_t& model, const glm::ivec2 ipos) {
     const size_t tindex = model.index.flatten(tpos);
     const size_t bindex = model.index.flatten(bpos);
 
-    const float maxdiff = 0.8f;
-    const float settling = 1.0f;
-
     // The Amount of Excess Difference!
     float excess = 0.0f;
-    excess = abs(diff) - sn[i].d * maxdiff;
+    excess = abs(diff) - sn[i].d * param.maxdiff;
     if (excess <= 0) // No Excess
       continue;
 
     // Actual Amount Transferred
-    float transfer = settling * excess / 2.0f;
+    float transfer = param.settling * excess / 2.0f;
 
     atomicAdd(&model.height[tindex], -transfer);
     atomicAdd(&model.height[bindex], transfer);
@@ -273,7 +270,7 @@ __device__ void cascade(model_t& model, const glm::ivec2 ipos) {
 // Erosion Kernels
 //
 
-__global__ void descend(const model_t model, particle_t particles){
+__global__ void descend(const model_t model, particle_t particles, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= particles.elem) return;
@@ -289,8 +286,7 @@ __global__ void descend(const model_t model, particle_t particles){
   // Skip Depleted Particles
 
   const float volume = particles.vol[ind];
-  const float minVol = 0.001;
-  if (volume < minVol) {
+  if (volume < param.minVol) {
     return;
   }
 
@@ -305,17 +301,14 @@ __global__ void descend(const model_t model, particle_t particles){
   gather<float, soil::flat_t<2>>(model.height, model.index, ivec2(pos), px, py);
   const vec2 grad = gradient_detailed<float>(px, py);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-
-  const float gravity = 2.0f;
-  speed += gravity * vec2(normal.x, normal.y) / volume;
+  speed += param.gravity * vec2(normal.x, normal.y) / volume;
 
   // Momentum Transfer
 
   const vec2 fspeed = model.momentum[find];
   const float discharge = erf(0.4f * model.discharge[find]);
-  const float momentumTransfer = 1.0f;
   if (glm::length(fspeed) > 0 && glm::length(speed) > 0)
-    speed += momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
+    speed += param.momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
   
   // Normalize Time-Step, Increment
   
@@ -335,7 +328,7 @@ __global__ void descend(const model_t model, particle_t particles){
   particles.slope[ind] = (h0 - h1);
 }
 
-__global__ void transfer(model_t model, particle_t particles){
+__global__ void transfer(model_t model, particle_t particles, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= particles.elem) return;
@@ -353,16 +346,12 @@ __global__ void transfer(model_t model, particle_t particles){
   const float vol = particles.vol[ind];     // Water Volume
   const float sed = particles.sed[ind];     // Sediment Mass
 
-  const float evapRate = 0.001f;
-  const float depositionRate = 0.05f;
-  const float entrainment = 4.0f;
-
   // Equilibrium Concentration
   // Note: Can't be Negative!
   const float discharge = erf(0.4f *model.discharge[find]);
   
-  const float c_eq = glm::max(hdiff, 0.0f) * (1.0f + discharge * entrainment);
-  const float effD = depositionRate;
+  const float c_eq = glm::max(hdiff, 0.0f) * (1.0f + discharge * param.entrainment);
+  const float effD = param.depositionRate;
 
   float c_diff = (c_eq * vol - sed);
   if(effD * c_diff < -sed){
@@ -372,15 +361,21 @@ __global__ void transfer(model_t model, particle_t particles){
   // Execute Mass-Transfer
 
   particles.sed[ind] += effD * c_diff;
-  particles.vol[ind] *= (1.0f - evapRate);
+  particles.vol[ind] *= (1.0f - param.evapRate);
   atomicAdd(&model.height[find], -effD * c_diff);
 
-  cascade(model, pos); // let's see if this works...
+  cascade(model, pos, param); // let's see if this works...
+//  cascade(model, pos, param); // let's see if this works...
+//  cascade(model, pos, param); // let's see if this works...
 
   particles.pos[ind] += speed;
 }
 
-void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
+//
+// Erosion Function
+//
+
+void gpu_erode(model_t& model, const param_t param, const size_t steps){
 
   if(model.height.host() != soil::host_t::GPU){
     throw soil::error::mismatch_host(soil::host_t::GPU, model.height.host());
@@ -441,16 +436,16 @@ void gpu_erode(model_t& model, const size_t steps, const size_t maxage){
     //  2. Mass-Transfer
     //  3. Track
 
-    for(size_t age = 0; age < maxage; ++age){
+    for(size_t age = 0; age < param.maxage; ++age){
 
-      descend<<<block(n_particles, 512), 512>>>(model, particles);
-      transfer<<<block(n_particles, 512), 512>>>(model, particles);
+      descend<<<block(n_particles, 512), 512>>>(model, particles, param);
+      transfer<<<block(n_particles, 512), 512>>>(model, particles, param);
       track<<<block(n_particles, 512), 512>>>(model, particles);
 
     }
 
-    filter<<<block(model.elem, 1024), 1024>>>(model.discharge, discharge_track, 0.01f);
-    filter<<<block(model.elem, 1024), 1024>>>(model.momentum, momentum_track, 0.01f);
+    filter<<<block(model.elem, 1024), 1024>>>(model.discharge, discharge_track, param.lrate);
+    filter<<<block(model.elem, 1024), 1024>>>(model.momentum, momentum_track, param.lrate);
     cudaDeviceSynchronize();
   
   }

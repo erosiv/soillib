@@ -263,6 +263,19 @@ module.def("normal", [](const soil::node& node, const soil::index& index){
 // Erosion Kernels
 //
 
+auto param_t = nb::class_<soil::param_t>(module, "param_t");
+param_t.def(nb::init<>());
+param_t.def_rw("maxage", &soil::param_t::maxage);
+param_t.def_rw("settling", &soil::param_t::settling);
+param_t.def_rw("maxdiff", &soil::param_t::maxdiff);
+param_t.def_rw("evapRate", &soil::param_t::evapRate);
+param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
+param_t.def_rw("entrainment", &soil::param_t::entrainment);
+param_t.def_rw("gravity", &soil::param_t::gravity);
+param_t.def_rw("momentumTransfer", &soil::param_t::momentumTransfer);
+param_t.def_rw("minVol", &soil::param_t::minVol);
+param_t.def_rw("lrate", &soil::param_t::lrate);
+
 auto model_t = nb::class_<soil::model_t>(module, "model_t");
 model_t.def(nb::init<soil::index>());
 
