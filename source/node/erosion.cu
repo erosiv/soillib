@@ -287,7 +287,8 @@ __global__ void apply_cascade(model_t model, buffer_t<float> transfer_b, const p
 
   const float transfer = transfer_b[ind];
   const float discharge = erf(0.4f * model.discharge[ind]);
-  model.height[ind] += discharge * transfer;
+  //model.height[ind] += discharge * transfer;
+  model.height[ind] += transfer;
 }
 
 //
@@ -343,7 +344,7 @@ __global__ void descend(const model_t model, particle_t particles, const param_t
 
   // Normalize Time-Step, Increment
   
-  if(glm::length(speed) > 0.0f){
+  if(glm::length(speed) > 0.0){
     speed = sqrtf(2.0f) * glm::normalize(speed);
   }
 
@@ -352,7 +353,10 @@ __global__ void descend(const model_t model, particle_t particles, const param_t
   particles.spd[ind] = speed;
 
   float h0 = model.height[find];
-  float h1 = param.exitSlope*h0;
+  // note: taking fraction doesn't work for negative numbers...
+  // also means that steeper becomes steeper, less-steep less steep.
+  // so in general has a not-nice divergent behavior.
+  float h1 = h0 - param.exitSlope; 
   if(!model.index.oob(pos + speed)){
     h1 = model.height[model.index.flatten(pos + speed)];
   }
@@ -397,6 +401,24 @@ __global__ void transfer(model_t model, particle_t particles, const param_t para
 
   particles.pos[ind] += speed;
 }
+
+/*
+__global__ void dump(model_t model, particle_t particles, const param_t param){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= particles.elem) return;
+
+  const vec2 pos = particles.pos[ind];    // Current Position
+  if(model.index.oob(pos))
+    return;
+
+  const int find = model.index.flatten(pos);
+  const float sed = particles.sed[ind];     // Sediment Mass
+
+  atomicAdd(&model.height[find], sed);
+  particles.sed[ind] = 0.0f;
+}
+*/
 
 //
 // Erosion Function
@@ -470,6 +492,9 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps){
       track<<<block(n_particles, 512), 512>>>(model, particles);
 
     }
+
+//    // We have to add the excess sediment...
+    // dump<<<block(n_particles, 512), 512>>>(model, particles, param);
 
     filter<<<block(model.elem, 1024), 1024>>>(model.discharge, discharge_track, param.lrate);
     filter<<<block(model.elem, 1024), 1024>>>(model.momentum, momentum_track, param.lrate);

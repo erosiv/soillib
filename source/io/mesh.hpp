@@ -70,7 +70,7 @@ struct mesh {
             continue;
 
           vertex_set.insert({ind, count}); // Map from Buffer to Mesh
-          vec3 p{pos[0], pos[1], val};
+          vec3 p(pos[0], pos[1], val);
           p /= scale; // Scale Position
           this->vertices.push_back(p);
           ++count;

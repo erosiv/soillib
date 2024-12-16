@@ -4,8 +4,8 @@
 //! A buffer represents a raw data extent
 //! \todo add more detail about this file
 
-#include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
+#include <soillib/core/types.hpp>
 #include <soillib/util/error.hpp>
 #include <soillib/util/yield.hpp>
 #include <cuda_runtime.h>

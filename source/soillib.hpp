@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <format>
-#include <glm/glm.hpp>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
