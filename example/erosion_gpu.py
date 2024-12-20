@@ -53,7 +53,7 @@ def main():
   model.momentum = momentum
 
   param = soil.param_t()
-  param.lrate = 0.25
+  param.lrate = 0.1
   param.momentumTransfer = 1.0
   param.gravity = 1.0
 

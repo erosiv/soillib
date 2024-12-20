@@ -24,7 +24,7 @@ struct param_t {
   float maxdiff = 0.8f;
   float evapRate = 0.001f;
   float depositionRate = 0.05f;
-  float entrainment = 4.0f;
+  float entrainment = 0.25f;
   float gravity = 2.0f;
   float momentumTransfer = 1.0f;
   float minVol = 0.001f;

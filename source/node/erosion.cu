@@ -161,7 +161,7 @@ __global__ void filter(soil::buffer_t<vec2> buffer, const soil::buffer_t<vec2> b
   buffer[ind] = val * (1.0f - lrate) +  val_track * lrate;
 }
 
-__global__ void track(model_t model, particle_t particles){
+__global__ void track(model_t model, soil::buffer_t<float> discharge_track, soil::buffer_t<vec2> momentum_track, particle_t particles){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= particles.elem) return;
@@ -169,13 +169,15 @@ __global__ void track(model_t model, particle_t particles){
   const ivec2 pos = particles.pos[ind];
   if(model.index.oob(pos)) return;
 
+  // why would I have to scale this by lrate?
+
   const int find = model.index.flatten(pos);
   const float vol = particles.vol[ind];
-  atomicAdd(&model.discharge[find], vol);
+  atomicAdd(&discharge_track[find], vol);
 
   const vec2 m = vol * particles.spd[ind];
-  atomicAdd(&model.momentum[find].x, m.x);
-  atomicAdd(&model.momentum[find].y, m.y);
+  atomicAdd(&momentum_track[find].x, m.x);
+  atomicAdd(&momentum_track[find].y, m.y);
 
 }
 
@@ -286,7 +288,7 @@ __global__ void apply_cascade(model_t model, buffer_t<float> transfer_b, const p
   // Only cascade where agitation exists?
 
   const float transfer = transfer_b[ind];
-  const float discharge = erf(0.4f * model.discharge[ind]);
+  //const float discharge = erf(0.4f * model.discharge[ind]);
   //model.height[ind] += discharge * transfer;
   model.height[ind] += transfer;
 }
@@ -331,15 +333,8 @@ __global__ void descend(const model_t model, particle_t particles, const param_t
   // Momentum Transfer
   // Volume-Weighted Average of Momentum
 
-//  
-//  const float discharge = erf(0.4f * model.discharge[find]);
-//  if (glm::length(fspeed) > 0 && glm::length(speed) > 0)
-//    speed += param.momentumTransfer * glm::dot(glm::normalize(fspeed), glm::normalize(speed)) / (volume + discharge) * fspeed;
-  
   const vec2 fspeed = model.momentum[find];
   const float discharge = model.discharge[find];
-  
-  // effectively a weighted average! discharge is the full 
   speed += param.momentumTransfer / (volume + discharge) * (fspeed + speed * volume);
 
   // Normalize Time-Step, Increment
@@ -383,8 +378,7 @@ __global__ void transfer(model_t model, particle_t particles, const param_t para
 
   // Equilibrium Concentration
   // Note: Can't be Negative!
-  const float discharge = erf(0.4f *model.discharge[find]);
-  
+  const float discharge = log(1.0f + model.discharge[find]);
   const float c_eq = glm::max(hdiff, 0.0f) * (1.0f + discharge * param.entrainment);
   const float effD = param.depositionRate;
 
@@ -489,7 +483,7 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps){
 
       descend<<<block(n_particles, 512), 512>>>(model, particles, param);
       transfer<<<block(n_particles, 512), 512>>>(model, particles, param);
-      track<<<block(n_particles, 512), 512>>>(model, particles);
+      track<<<block(n_particles, 512), 512>>>(model, discharge_track, momentum_track, particles);
 
     }
 
