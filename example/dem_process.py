@@ -22,9 +22,9 @@ def main(data):
   buffer.gpu()
 
 #  pour = (3733, 2640) # elevation_conditioned
-#  pour = (4670, 5951) # elevation_conditioned
+  pour = (4670, 5951) # elevation_conditioned
 #  pour = (1617, 973)  # gosau
-  pour = (1873, 692)  # bad goisern
+#  pour = (1873, 692)  # bad goisern
 
   print("Computing Flow Index")
   with soil.timer() as timer:
@@ -36,7 +36,7 @@ def main(data):
   
   print("Computing Area")
   with soil.timer() as timer:
-    area = soil.accumulation(flow, index, 16, 4*2048, 8192)
+    area = soil.accumulation(flow, index, 4*16, 2048, 8192)
 
   print("Computing Upstream Mask...")
   with soil.timer() as timer:
@@ -79,7 +79,7 @@ def main(data):
 
 if __name__ == "__main__":
 
-  #data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
-  data = "_dem_conditioned.tiff"
+  data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  #data = "_dem_conditioned.tiff"
 
   main(data)

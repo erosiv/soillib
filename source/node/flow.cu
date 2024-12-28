@@ -402,7 +402,7 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
 // Upstream Distance Kernel Implementation
 //
 
-__global__ void _distance(soil::buffer_t<int> _next, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+__global__ void _distance(soil::buffer_t<int> _next, soil::buffer_t<int> out, const size_t target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
@@ -411,12 +411,10 @@ __global__ void _distance(soil::buffer_t<int> _next, soil::buffer_t<int> out, gl
   size_t ind = index.flatten(pos);
   const size_t ind0 = ind;
 
-  size_t target_ind = index.flatten(target);
-
   // note: upper bound is absolute worst-case scenario
   for(int step = 0; step < N; ++step){
 
-    if(ind == target_ind){
+    if(ind == target){
       out[ind0] = step;
       break;
     }
@@ -441,14 +439,21 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
       buffer_t.to_gpu();
 
       const size_t elem = index.elem();
+      const size_t target_index = index_t.flatten(target);
+
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
-      auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
-      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+      auto graph_buf_a = soil::buffer_t<int>{elem, soil::GPU};
+      auto graph_buf_b = soil::buffer_t<int>{elem, soil::GPU};
+      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf_a, index_t);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
 
       _fill<<<block(elem, 256), 256>>>(out, -1); // unknown state...
       if(!index_t.oob(target)){
-        _distance<<<block(elem, 512), 512>>>(graph_buf, out, target, index_t, elem);
+        _distance<<<block(elem, 512), 512>>>(graph_buf_a, out, target_index, index_t, elem);
       }
       cudaDeviceSynchronize();
 
