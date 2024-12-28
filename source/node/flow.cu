@@ -1,6 +1,7 @@
 #define HAS_CUDA
 
 #include <soillib/node/flow.hpp>
+//#include <soillib/core/texture.hpp>
 
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
@@ -110,6 +111,7 @@ soil::buffer soil::flow(const soil::buffer& buffer, const soil::index& index) {
       auto out = soil::buffer_t<int>{index_t.elem(), soil::GPU};
 
       _flow<<<block(elem, 256), 256>>>(buffer_t, out, index_t);
+      cudaDeviceSynchronize();
 
       return std::move(soil::buffer(std::move(out)));
 
@@ -153,6 +155,7 @@ soil::buffer soil::direction(const soil::buffer& buffer, const soil::index& inde
       auto out = soil::buffer_t<soil::ivec2>{index_t.elem(), soil::GPU};
 
       _direction<<<block(elem, 256), 256>>>(buffer_t, out);
+      cudaDeviceSynchronize();
 
       return std::move(soil::buffer(std::move(out)));
 
@@ -238,6 +241,7 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
 
       const double P = double(elem)/double(iterations*samples);
       _normalize<<<block(elem, 256), 256>>>(out, out2, P);
+      cudaDeviceSynchronize();
 
       return std::move(soil::buffer(std::move(out2)));
 
@@ -304,7 +308,10 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
       _fill<<<block(elem, 256), 256>>>(out, -1);
-      _upstream<<<block(elem, 256), 256>>>(buffer_t, out, target, index_t, elem);
+      if(!index_t.oob(target)){
+        _upstream<<<block(elem, 256), 256>>>(buffer_t, out, target, index_t, elem);
+      }
+      cudaDeviceSynchronize();
 
       return std::move(soil::buffer(std::move(out)));
 
@@ -362,7 +369,10 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
       _fill<<<block(elem, 256), 256>>>(out, 2); // unknown state...
-      _distance<<<block(elem, 256), 256>>>(buffer_t, out, target, index_t, elem);
+      if(!index_t.oob(target)){
+        _distance<<<block(elem, 256), 256>>>(buffer_t, out, target, index_t, elem);
+      }
+      cudaDeviceSynchronize();
 
       return std::move(soil::buffer(std::move(out)));
 
