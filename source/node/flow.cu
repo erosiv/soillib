@@ -1,7 +1,7 @@
 #define HAS_CUDA
 
 #include <soillib/node/flow.hpp>
-//#include <soillib/core/texture.hpp>
+#include <soillib/core/texture.hpp>
 
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
@@ -125,21 +125,18 @@ soil::buffer soil::flow(const soil::buffer& buffer, const soil::index& index) {
 // Direction Kernel Implementation
 //
 
-__global__ void _direction(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> out){
+__device__ soil::ivec2 _get_dir(const int flow){
+  for(size_t k = 0; k < 8; ++k){
+    if(flow == dirmap[k])
+      return coords[k];
+  }
+  return {0, 0};
+}
 
+__global__ void _direction(soil::buffer_t<int> in, soil::buffer_t<glm::ivec2> out){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
   if(index >= in.elem()) return;
-
-  glm::ivec2 val(0, 0);
-  for(size_t k = 0; k < 8; ++k){
-    if(in[index] == dirmap[k]){
-      val = coords[k];
-      break;
-    }
-  }
-
-  out[index] = val;
-
+  out[index] = _get_dir(in[index]);
 }
 
 soil::buffer soil::direction(const soil::buffer& buffer, const soil::index& index){
@@ -182,7 +179,7 @@ __global__ void init_randstate(curandState* states, const size_t N, const size_t
   curand_init(seed, index, 0, &states[index]);
 }
 
-__global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int steps, const int N){
+__global__ void _accumulate(soil::texture<int> texture, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int steps, const int N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
@@ -196,7 +193,8 @@ __global__ void _accumulate(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> o
 
   for(int s = 0; s < steps; ++s){
 
-    const glm::ivec2 dir = in[ind];
+    const int flow = texture[soil::vec2(pos)];
+    const glm::ivec2 dir = _get_dir(flow);
     pos += dir;
     if(dir[0] == 0 && dir[1] == 0)
       break;
@@ -219,11 +217,13 @@ __global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, d
 soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
 
   return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
-    return soil::select(buffer.type(), [&]<std::same_as<soil::ivec2> T>(){
+    return soil::select(buffer.type(), [&]<std::same_as<int> T>(){
 
       auto index_t = index.as<I>();
-      auto buffer_t = buffer.as<soil::ivec2>();
+      auto buffer_t = buffer.as<T>();
       buffer_t.to_gpu();
+
+      texture<int> texture(buffer_t, index_t);
 
       const size_t elem = index.elem();
       auto out = soil::buffer_t<int>{elem, soil::GPU};
@@ -236,7 +236,7 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
       init_randstate<<<block(samples, 256), 256>>>(randStates, samples, 0);
 
       for(int n = 0; n < iterations; ++n)
-        _accumulate<<<block(samples, 1024), 1024>>>(buffer_t, out, index_t, randStates, steps, samples);
+        _accumulate<<<block(samples, 1024), 1024>>>(texture, out, index_t, randStates, steps, samples);
       cudaFree(randStates);
 
       const double P = double(elem)/double(iterations*samples);

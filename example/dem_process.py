@@ -31,7 +31,7 @@ def main(data):
   
   print("Computing Area")
   with soil.timer() as timer:
-    area = soil.accumulation(direction, index, 16, 4*4096, 8192)
+    area = soil.accumulation(flow, index, 16, 4*4096, 8192)
 
   print("Computing Upstream Mask...")
   with soil.timer() as timer:

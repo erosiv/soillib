@@ -25,11 +25,17 @@ struct texture {
       throw soil::error::mismatch_host(soil::host_t::GPU, buf.host());
     }
 
-    if constexpr(std::is_same<T, soil::ivec2>){
+    if constexpr(std::is_same_v<T, int>){
 
-      this->w = index[0];  // Index Domain Width
-      this->h = index[1];  // Index Domain Height
-      
+      this->w = index[1];  // Index Domain Width
+      this->h = index[0];  // Index Domain Height
+
+      this->channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned);
+      cudaMallocArray(&this->cuArray, &this->channelDesc, w, h, cudaArraySurfaceLoadStore);
+
+      const size_t spitch = this->w*sizeof(T);
+      cudaMemcpy2DToArray(this->cuArray, 0, 0, buf.data(), spitch, this->w*sizeof(T), this->h, cudaMemcpyDeviceToDevice);
+
       memset(&this->texDesc, 0, sizeof(this->texDesc));
       this->texDesc.normalizedCoords = 0;
       this->texDesc.readMode = cudaReadModeElementType;
@@ -39,18 +45,6 @@ struct texture {
       memset(&this->resDesc, 0, sizeof(this->resDesc));
       this->resDesc.resType = cudaResourceTypeArray;
       this->resDesc.res.array.array = this->cuArray;
-
-
-      this->channelDesc = cudaCreateChannelDesc(32, 32, 0, 0, cudaChannelFormatKindUnsigned);
-      cudaMallocArray(&this->cuArray, &this->channelDesc, w, h, cudaArraySurfaceLoadStore);
-
-      const size_t spitch = this->w*sizeof(T);
-      cudaMemcpy2DToArray(this->cuArray, 0, 0, buf.data(), spitch, this->w*sizeof(T), this->h, cudaMemcpyDeviceToDevice);
-
-      // Specify texture
-
-      // Specify texture object parameters
-
 
       // Create texture object
       cudaCreateTextureObject(&this->texObj, &this->resDesc, &this->texDesc, NULL);
@@ -65,7 +59,7 @@ struct texture {
   }
 
   __device__ const T operator[](const soil::vec2 pos) const {
-    return tex2D<T>(this->texObj, pos.x, pos.y);
+    return tex2D<T>(this->texObj, pos.y, pos.x);
   }
 
 private:
