@@ -84,7 +84,7 @@ def merge(input, pscale = 0.1):
 
 def main(input, file_out):
 
-  array, shape, meta = merge(input, pscale=0.2)
+  array, shape, meta = merge(input, pscale=0.1)
 
   '''
   Figure out how to export this is a valid GeoTIFF!
@@ -117,6 +117,5 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41234_DGM_tif_Waldzell"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41403_DGM_tif_Brunnenthal"
 
-  file_out = "merged.tiff"
-
+  file_out = "_dem_merged.tiff"
   main(data, file_out)

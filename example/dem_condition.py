@@ -79,7 +79,7 @@ if __name__ == "__main__":
   #input = "out_altmuenster.tiff"
   #input = "out_cond.tiff"
 
-  file_in = "merged.tiff"
-  file_out = "conditioned.tiff"
-
+  file_in = "_dem_merged.tiff"
+  file_out = "_dem_conditioned.tiff"
+  
   main(file_in, file_out)
