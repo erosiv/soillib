@@ -262,26 +262,23 @@ __global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
 
   bool found = false;
   size_t ind = n;
-  glm::ivec2 pos =  index.unflatten(n);
+  soil::ivec2 pos =  index.unflatten(n);
+  soil::ivec2 dir;
+
   size_t target_ind = index.flatten(target);
 
   // note: upper bound is absolute worst-case scenario
-  for(int step = 0; step < N; ++step){
+  while(ind != target_ind && !index.oob(pos)){
 
-    if(ind == target_ind){
-      found = true;
-      break;
-    }
-
-    const glm::ivec2 dir = in[ind];
-    pos += dir;
+    dir = in[ind];
     if(dir[0] == 0 && dir[1] == 0)
       break;
 
-    if(index.oob(pos))
-      break;
-
+    pos += dir;
     ind = index.flatten(pos);
+    if(ind == target_ind){
+      found = true;
+    }
 
   }
 
@@ -309,7 +306,7 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
 
       _fill<<<block(elem, 256), 256>>>(out, -1);
       if(!index_t.oob(target)){
-        _upstream<<<block(elem, 256), 256>>>(buffer_t, out, target, index_t, elem);
+        _upstream<<<block(elem, 512), 512>>>(buffer_t, out, target, index_t, elem);
       }
       cudaDeviceSynchronize();
 
@@ -370,7 +367,7 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
 
       _fill<<<block(elem, 256), 256>>>(out, 2); // unknown state...
       if(!index_t.oob(target)){
-        _distance<<<block(elem, 256), 256>>>(buffer_t, out, target, index_t, elem);
+        _distance<<<block(elem, 512), 512>>>(buffer_t, out, target, index_t, elem);
       }
       cudaDeviceSynchronize();
 
