@@ -31,10 +31,10 @@ def main(filename):
 
   dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
 #  pour = (3733, 2640) # elevation_conditioned
-  pour = (4670, 5951) # elevation_conditioned
+#  pour = (4670, 5951) # elevation_conditioned
 
 #  pour = (1617, 973)  # gosau
-#  pour = (1873, 692)  # bad goisern
+  pour = (1873, 692)  # bad goisern
 
   print("Computing Flow Index")
   with soil.timer() as timer:
@@ -81,7 +81,7 @@ def main(filename):
 
 if __name__ == "__main__":
 
-  file_in = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
-  #file_in = "_dem_conditioned.tiff"
+  #file_in = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  file_in = "_dem_conditioned.tiff"
 
   main(file_in)

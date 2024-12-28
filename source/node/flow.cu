@@ -293,7 +293,7 @@ __device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
 
 }
 
-__global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+__global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> out, const size_t target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
@@ -304,17 +304,14 @@ __global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> o
 
   int found = 0;
 
-  size_t target_ind = index.flatten(target);
-
-  // note: upper bound is absolute worst-case scenario
-  while(ind != target_ind){
+  while(ind != target){
 
     int next = _next[ind];
     if(next == ind)
       break;
 
     ind = next;
-    if(ind == target_ind){
+    if(ind == target){
       found = 1;
     }
 
@@ -339,6 +336,28 @@ __global__ void _graph(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> 
 
 }
 
+__global__ void _shift(const soil::buffer_t<int> graph_a, soil::buffer_t<int> graph_b, const size_t target){
+
+  const int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= graph_a.elem()) return;
+
+  // we don't shift the target index,
+  // because we want it 
+
+  // each element in the graph should point to the next guy...
+
+
+  // if the next cell, i.e. the one we are pointing to,
+  // is the target cell, we just leave the cell as our
+  // next cell, effectively keeping it static.
+  const int next = graph_a[ind];
+  if(next == target){
+    graph_b[ind] = next;
+  } else {
+    graph_b[ind] = graph_a[next];
+  }
+}
+
 // Note: This can potentially be made faster, by batching the upstream kernel execution
 // and testing against positions tested in the previous batch (using the output buffer)
 // This could be done using a shuffled index buffer (e.g. perfect hash), or using some
@@ -353,15 +372,21 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
       buffer_t.to_gpu();
 
       const size_t elem = index_t.elem();
+      const size_t target_index = index_t.flatten(target);
 
-      auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
-      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+      auto graph_buf_a = soil::buffer_t<int>{elem, soil::GPU};
+      auto graph_buf_b = soil::buffer_t<int>{elem, soil::GPU};
+      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf_a, index_t);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
 
       auto out = soil::buffer_t<int>{elem, soil::GPU};
-
       _fill<<<block(elem, 256), 256>>>(out, 0);
+
       if(!index_t.oob(target)){
-        _upstream<<<block(elem, 512), 512>>>(graph_buf, out, target, index_t, elem);
+        _upstream<<<block(elem, 512), 512>>>(graph_buf_a, out, target_index, index_t, elem);
       }
       cudaDeviceSynchronize();
 
