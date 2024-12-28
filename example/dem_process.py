@@ -31,17 +31,17 @@ def main(data):
   
   print("Computing Area")
   with soil.timer() as timer:
-    area = soil.accumulation(flow, index, 4*16, 4096, 8192)
+    area = soil.accumulation(flow, index, 16, 4*4096, 8192)
 
   print("Computing Upstream Mask...")
   with soil.timer() as timer:
-    #catch = soil.upstream(direction, index, [692, 1873])
-    catch = soil.upstream(direction, index, [2640, 3733])
+    catch = soil.upstream(direction, index, [692, 1873])
+#    catch = soil.upstream(direction, index, [2640, 3733])
 
   print("Computing Upstream Distance...")
   with soil.timer() as timer:
-#    distance = soil.distance(direction, index, [692, 1873])
-    distance = soil.distance(direction, index, [2640, 3733])
+    distance = soil.distance(direction, index, [692, 1873])
+#    distance = soil.distance(direction, index, [2640, 3733])
 
   # Extract to Numpy
   area = area.cpu().numpy(index)
@@ -81,8 +81,8 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #data = "out_altmuenster.tiff"
-  data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
-  #data = "conditioned.tiff"
+  #data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  data = "conditioned.tiff"
   #data = "erosion_basic.tiff"
 
   main(data)

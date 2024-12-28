@@ -185,11 +185,8 @@ __global__ void _accumulate(soil::texture<int> texture, soil::buffer_t<int> out,
   if(n >= N) return;
 
   curandState* state = &randStates[n];
-  glm::ivec2 pos {
-    curand_uniform(state)*index[0],
-    curand_uniform(state)*index[1]
-  };
-  size_t ind = index.flatten(pos);
+  size_t ind = curand_uniform(state)*index.elem();
+  glm::ivec2 pos = index.unflatten(ind);
 
   for(int s = 0; s < steps; ++s){
 
@@ -260,7 +257,7 @@ __global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
-  bool found = false;
+  int found = 0;
   size_t ind = n;
   soil::ivec2 pos =  index.unflatten(n);
   soil::ivec2 dir;
@@ -277,15 +274,12 @@ __global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
     pos += dir;
     ind = index.flatten(pos);
     if(ind == target_ind){
-      found = true;
+      found = 1;
     }
 
   }
 
-  if(found)
-    out[n] = 1;
-  else out[n] = 0;
-
+  out[n] |= found;
 }
 
 // Note: This can potentially be made faster, by batching the upstream kernel execution
@@ -304,7 +298,7 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
       const size_t elem = index_t.elem();
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
-      _fill<<<block(elem, 256), 256>>>(out, -1);
+      _fill<<<block(elem, 256), 256>>>(out, 0);
       if(!index_t.oob(target)){
         _upstream<<<block(elem, 512), 512>>>(buffer_t, out, target, index_t, elem);
       }
@@ -365,7 +359,7 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
       const size_t elem = index.elem();
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
-      _fill<<<block(elem, 256), 256>>>(out, 2); // unknown state...
+      _fill<<<block(elem, 256), 256>>>(out, -1); // unknown state...
       if(!index_t.oob(target)){
         _distance<<<block(elem, 512), 512>>>(buffer_t, out, target, index_t, elem);
       }
