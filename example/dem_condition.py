@@ -29,14 +29,16 @@ def main(filename, file_out):
 
   print("Conditioning DEM...")
 
-  dem.nodata = np.nan
-  dem = grid.fill_pits(dem)
-  dem = grid.fill_depressions(dem)
-  dem = grid.resolve_flats(dem)
+  with soil.timer() as timer:
 
-  dem = grid.fill_pits(dem)
-  dem = grid.fill_depressions(dem)
-  dem = grid.resolve_flats(dem)
+    dem.nodata = np.nan
+    dem = grid.fill_pits(dem)
+    dem = grid.fill_depressions(dem)
+    dem = grid.resolve_flats(dem)
+
+    dem = grid.fill_pits(dem)
+    dem = grid.fill_depressions(dem)
+    dem = grid.resolve_flats(dem)
 
   print("Saving DEM...")
 
@@ -48,24 +50,24 @@ def main(filename, file_out):
 
   shape = soil.index(dem.shape)
   array = soil.buffer(soil.float64, shape.elem())
-  array.fill(np.nan)
+  soil.set(array, np.nan)
 
   for x in range(shape[0]):
     for y in range(shape[1]):
       array[x*shape[1]+y] = dem[x,y]
 
   t = soil.geotiff()
-  t.meta(filename)
+  t.peek(filename)
 
   tiff_out = soil.geotiff(array, shape)
-  tiff_out.set_meta(t.get_meta())
+  tiff_out.meta = t.meta
   tiff_out.unsetnan()
   tiff_out.write(file_out)
 
 if __name__ == "__main__":
 
-  file_in = "/home/nickmcdonald/Datasets/elevation.tiff"
-  file_out = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  # file_in = "/home/nickmcdonald/Datasets/elevation.tiff"
+  # file_out = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
 
   #input = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
@@ -76,6 +78,8 @@ if __name__ == "__main__":
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee/G-T4830-22.tif"
   #input = "out_altmuenster.tiff"
   #input = "out_cond.tiff"
-  #input = "merge.tiff"
+
+  file_in = "merged.tiff"
+  file_out = "conditioned.tiff"
 
   main(file_in, file_out)

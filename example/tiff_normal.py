@@ -25,7 +25,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
-  data = "merge.tiff"
-  data = "erosion_basic.tiff"
+  data = "merged.tiff"
+  #data = "erosion_basic.tiff"
 
   main(data)

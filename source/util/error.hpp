@@ -94,6 +94,21 @@ private:
   std::string msg;
 };
 
+struct missing_file: std::exception {
+  missing_file(std::string file) {
+    std::stringstream ss;
+    ss << "File does not exist. ";
+    ss << file;
+    this->msg = ss.str();
+  }
+  const char *what() const noexcept override {
+    return this->msg.c_str();
+  }
+
+private:
+  std::string msg;
+};
+
 } // end of namespace error
 } // end of namespace soil
 

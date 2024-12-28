@@ -81,8 +81,9 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster/G-T4831-52.tif"
   #data = "out_altmuenster.tiff"
-  data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
-  #data = "conditioned.tiff"
+  #data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  
+  data = "conditioned.tiff"
   #data = "erosion_basic.tiff"
 
   main(data)

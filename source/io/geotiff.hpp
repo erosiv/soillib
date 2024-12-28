@@ -141,6 +141,10 @@ bool geotiff::peek(const char *filename) {
   this->_meta.bits = this->bits();
 
   TIFF *tif = TIFFOpen(filename, "r");
+  if(tif == NULL){
+    throw soil::error::missing_file(filename);
+    return false;
+  }
 
   // Load Meta-Data
 

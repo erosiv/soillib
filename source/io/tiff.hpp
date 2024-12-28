@@ -68,6 +68,10 @@ protected:
 bool tiff::peek(const char *filename) {
 
   TIFF *tif = TIFFOpen(filename, "r");
+  if(tif == NULL){
+    throw soil::error::missing_file(filename);
+    return false;
+  }
 
   if (!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &this->_width))
     return false;
@@ -114,6 +118,10 @@ bool tiff::read(const char *filename) {
   }
 
   TIFF *tif = TIFFOpen(filename, "r");
+  if(tif == NULL){
+    throw soil::error::missing_file(filename);
+    return false;
+  }
 
   // Load Tiled / Non-Tiled Images
   if (!this->tiled_image) {

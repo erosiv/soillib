@@ -25,11 +25,10 @@ def merge(input, pscale = 0.1):
     # Get Geotiff / Metadata
 
     geotiff = soil.geotiff()
-    geotiff.meta(path)
-    _meta = geotiff.get_meta()
-    if meta == None and _meta.metadata != "":
+    geotiff.peek(path)
+    _meta = geotiff.meta
+    if meta == None and _meta.gdal_metadata != "":
       meta = _meta
-      #print(meta.metadata)
 
     gmin = np.array(geotiff.min)
     gmax = np.array(geotiff.max)
@@ -46,6 +45,8 @@ def merge(input, pscale = 0.1):
 
   pixels = (pscale * ((wmax - wmin)/wscale)).astype(np.int64)
   mshape = soil.index([pixels[1], pixels[0]])
+
+  print(f"Output Format: ({pixels[0]}, {pixels[1]})")
 
   array = soil.buffer(soil.float32, mshape.elem())
   soil.set(array, np.nan)
@@ -81,18 +82,18 @@ def merge(input, pscale = 0.1):
 
   return array, mshape, meta
 
-def main(input):
+def main(input, file_out):
 
-  array, shape, meta = merge(input, pscale=0.05)
+  array, shape, meta = merge(input, pscale=0.2)
 
   '''
   Figure out how to export this is a valid GeoTIFF!
   '''
 
   tiff_out = soil.geotiff(array, shape)
-  tiff_out.set_meta(meta)
+  tiff_out.meta = meta
   tiff_out.unsetnan()
-  tiff_out.write("merge.tiff")
+  tiff_out.write(file_out)
 
   #show_relief(array, shape)
   #show_normal(array, shape)
@@ -116,4 +117,6 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41234_DGM_tif_Waldzell"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41403_DGM_tif_Brunnenthal"
 
-  main(data)
+  file_out = "merged.tiff"
+
+  main(data, file_out)
