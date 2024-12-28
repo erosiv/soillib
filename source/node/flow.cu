@@ -11,14 +11,16 @@
 #include <glm/glm.hpp>
 
 /*
-Potential Concept for Improving Performance:
-Instead of letting each possible path run in a batch
-until completion, we should run then for a fixed number
-of steps and then check which paths have not yet terminated.
+Alternative Idea for Acceleration:
 
-Those that have not yet terminated are re-entered into a queue
-and we re-execute for only those guys... That should basically
-give an overall performance boost.
+Instead of a direction buffer, we should just
+create the graph directly.
+Then we should "reduce" the graph iteratively,
+moving the node which we point to further downstream each time...
+at the end, we just have to count the number of nodes
+pointing to the one we are interested in.
+
+That should reduce divergence greatly.
 */
 
 namespace {
@@ -271,8 +273,8 @@ namespace {
 //! \todo make this robust for non-regular tile shapes (test)
 __device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
 
-  constexpr int tile_w = 8;
-  constexpr int tile_h = 8;
+  constexpr int tile_w = 4;
+  constexpr int tile_h = 4;
   constexpr int tile_s = tile_w * tile_h;
 
   // Binned Tile Index, Tile Position
@@ -291,29 +293,27 @@ __device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
 
 }
 
-__global__ void _upstream(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+__global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
-  soil::ivec2 pos = tile_unflatten(n, index[0]);
+  soil::ivec2 pos = tile_unflatten(n, index[1]);
   size_t ind = index.flatten(pos);
   const size_t ind0 = ind;
-  soil::ivec2 dir;
 
   int found = 0;
 
   size_t target_ind = index.flatten(target);
 
   // note: upper bound is absolute worst-case scenario
-  while(ind != target_ind && !index.oob(pos)){
+  while(ind != target_ind){
 
-    dir = in[ind];
-    if(dir[0] == 0 && dir[1] == 0)
+    int next = _next[ind];
+    if(next == ind)
       break;
 
-    pos += dir;
-    ind = index.flatten(pos);
+    ind = next;
     if(ind == target_ind){
       found = 1;
     }
@@ -321,6 +321,22 @@ __global__ void _upstream(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<in
   }
 
   out[ind0] |= found;
+}
+
+__global__ void _graph(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> graph, soil::flat_t<2> index){
+
+  const int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= graph.elem()) return;
+
+  const soil::ivec2 pos = index.unflatten(ind);
+  const soil::ivec2 dir = in[ind];
+  
+  if(index.oob(pos + dir)){
+    graph[ind] = ind;
+  } else {
+    graph[ind] = index.flatten(pos + dir);
+  }
+
 }
 
 // Note: This can potentially be made faster, by batching the upstream kernel execution
@@ -337,11 +353,15 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
       buffer_t.to_gpu();
 
       const size_t elem = index_t.elem();
+
+      auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
+      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
       _fill<<<block(elem, 256), 256>>>(out, 0);
       if(!index_t.oob(target)){
-        _upstream<<<block(elem, 512), 512>>>(buffer_t, out, target, index_t, elem);
+        _upstream<<<block(elem, 512), 512>>>(graph_buf, out, target, index_t, elem);
       }
       cudaDeviceSynchronize();
 
@@ -357,15 +377,14 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
 // Upstream Distance Kernel Implementation
 //
 
-__global__ void _distance(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+__global__ void _distance(soil::buffer_t<int> _next, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
-  soil::ivec2 pos = tile_unflatten(n, index[0]);
+  soil::ivec2 pos = tile_unflatten(n, index[1]);
   size_t ind = index.flatten(pos);
   const size_t ind0 = ind;
-  soil::ivec2 dir;
 
   size_t target_ind = index.flatten(target);
 
@@ -377,15 +396,11 @@ __global__ void _distance(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
       break;
     }
 
-    const glm::ivec2 dir = in[ind];
-    pos += dir;
-    if(dir[0] == 0 && dir[1] == 0)
+    int next = _next[ind];
+    if(next == ind)
       break;
-
-    if(index.oob(pos))
-      break;
-
-    ind = index.flatten(pos);
+ 
+    ind = next;
 
   }
 
@@ -403,9 +418,12 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
       const size_t elem = index.elem();
       auto out = soil::buffer_t<int>{elem, soil::GPU};
 
+      auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
+      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+
       _fill<<<block(elem, 256), 256>>>(out, -1); // unknown state...
       if(!index_t.oob(target)){
-        _distance<<<block(elem, 512), 512>>>(buffer_t, out, target, index_t, elem);
+        _distance<<<block(elem, 512), 512>>>(graph_buf, out, target, index_t, elem);
       }
       cudaDeviceSynchronize();
 

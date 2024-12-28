@@ -30,7 +30,7 @@ def main(filename):
   print("Processing DEM...")
 
   dirmap = (7, 8, 1, 2, 3, 4, 5, 6)
-  pour = (3733, 2640) # elevation_conditioned
+#  pour = (3733, 2640) # elevation_conditioned
   pour = (4670, 5951) # elevation_conditioned
 
 #  pour = (1617, 973)  # gosau
