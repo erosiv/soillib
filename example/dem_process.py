@@ -35,13 +35,13 @@ def main(data):
 
   print("Computing Upstream Mask...")
   with soil.timer() as timer:
-#    catch = soil.upstream(direction, index, [692, 1873])
-    catch = soil.upstream(direction, index, [2640, 3733])
+    catch = soil.upstream(direction, index, [692, 1873])
+#    catch = soil.upstream(direction, index, [2640, 3733])
 
   print("Computing Upstream Distance...")
   with soil.timer() as timer:
-#    distance = soil.distance(direction, index, [692, 1873])
-    distance = soil.distance(direction, index, [2640, 3733])
+    distance = soil.distance(direction, index, [692, 1873])
+#    distance = soil.distance(direction, index, [2640, 3733])
 
   # Extract to Numpy
   area = area.cpu().numpy(index)

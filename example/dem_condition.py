@@ -20,7 +20,7 @@ import math
 Main Control Flow
 '''
 
-def main(filename):
+def main(filename, file_out):
 
   print(f"Loading DEM ({filename})...")
 
@@ -60,11 +60,13 @@ def main(filename):
   tiff_out = soil.geotiff(array, shape)
   tiff_out.set_meta(t.get_meta())
   tiff_out.unsetnan()
-  tiff_out.write("conditioned.tiff")
+  tiff_out.write(file_out)
 
 if __name__ == "__main__":
 
-  #input = "/home/nickmcdonald/Datasets/elevation.tiff"
+  file_in = "/home/nickmcdonald/Datasets/elevation.tiff"
+  file_out = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+
   #input = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-72.tif"
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen/G-T4831-79.tif"
@@ -74,5 +76,6 @@ if __name__ == "__main__":
   #input = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee/G-T4830-22.tif"
   #input = "out_altmuenster.tiff"
   #input = "out_cond.tiff"
-  input = "merge.tiff"
-  main(input)
+  #input = "merge.tiff"
+
+  main(file_in, file_out)
