@@ -55,6 +55,27 @@ int block(const int elem, const int thread){
   return (elem + thread - 1)/thread;
 }
 
+//! \todo make this robust for non-regular tile shapes (test)
+__device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
+
+  constexpr int tile_w = 4;
+  constexpr int tile_h = 4;
+  constexpr int tile_s = tile_w * tile_h;
+
+  // Binned Tile Index, Tile Position
+
+  unsigned int tile_ind = ind / tile_s;
+  unsigned int tile_x = tile_w * (tile_ind / (h / tile_h));
+  unsigned int tile_y = tile_h * (tile_ind % (h / tile_h));
+
+  unsigned int tile_pos = ind % tile_s;
+  unsigned int x = tile_x + tile_pos / tile_h;
+  unsigned int y = tile_y + tile_pos % tile_h;
+
+  return soil::ivec2(x, y);
+
+}
+
 }
 
 //
@@ -68,9 +89,12 @@ __global__ void _flow(soil::buffer_t<T> in, soil::buffer_t<int> out, soil::flat_
   if(i >= in.elem()) return;
 
   const glm::ivec2 pos = index.unflatten(i);
-    
+  size_t ind = i;
+//  soil::ivec2 pos = tile_unflatten(i, index[1]);
+//  size_t ind = index.flatten(pos);
+
   T diffmax = 0.0f;
-  T hvalue = in[i];
+  T hvalue = in[ind];
   int value = -2;   // default also for nan
   bool pit = true;
   bool has_flow = false;
@@ -106,8 +130,8 @@ __global__ void _flow(soil::buffer_t<T> in, soil::buffer_t<int> out, soil::flat_
   if(!has_flow && !pit) value = -1;
 
   if(value >= 0)
-    out[i] = dirmap[value];
-  else out[i] = value;
+    out[ind] = dirmap[value];
+  else out[ind] = value;
 
 }
 
@@ -266,33 +290,6 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
 // Upstream Mask Kernel Implementation
 //
 
-
-
-namespace {
-
-//! \todo make this robust for non-regular tile shapes (test)
-__device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
-
-  constexpr int tile_w = 4;
-  constexpr int tile_h = 4;
-  constexpr int tile_s = tile_w * tile_h;
-
-  // Binned Tile Index, Tile Position
-
-  unsigned int tile_ind = ind / tile_s;
-  unsigned int tile_x = tile_w * (tile_ind / (h / tile_h));
-  unsigned int tile_y = tile_h * (tile_ind % (h / tile_h));
-
-  unsigned int tile_pos = ind % tile_s;
-  unsigned int x = tile_x + tile_pos / tile_h;
-  unsigned int y = tile_y + tile_pos % tile_h;
-
-  return soil::ivec2(x, y);
-
-}
-
-}
-
 __global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> out, const size_t target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -381,6 +378,8 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
       _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
       _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
       _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
 
       auto out = soil::buffer_t<int>{elem, soil::GPU};
       _fill<<<block(elem, 256), 256>>>(out, 0);
@@ -446,6 +445,12 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
       auto graph_buf_a = soil::buffer_t<int>{elem, soil::GPU};
       auto graph_buf_b = soil::buffer_t<int>{elem, soil::GPU};
       _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf_a, index_t);
+
+      //!\todo figure out how many iterations of this are necessary?
+      //!\todo fix the scale of the steps output, which is currently incorrect
+      //! because multiple steps have been merged together
+      _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
+      _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
       _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
       _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
       _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
