@@ -264,15 +264,44 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
 // Upstream Mask Kernel Implementation
 //
 
+
+
+namespace {
+
+//! \todo make this robust for non-regular tile shapes (test)
+__device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
+
+  constexpr int tile_w = 8;
+  constexpr int tile_h = 8;
+  constexpr int tile_s = tile_w * tile_h;
+
+  // Binned Tile Index, Tile Position
+
+  unsigned int tile_ind = ind / tile_s;
+  unsigned int tile_x = tile_w * (tile_ind / (h / tile_h));
+  unsigned int tile_y = tile_h * (tile_ind % (h / tile_h));
+
+  unsigned int tile_pos = ind % tile_s;
+  unsigned int x = tile_x + tile_pos / tile_h;
+  unsigned int y = tile_y + tile_pos % tile_h;
+
+  return soil::ivec2(x, y);
+
+}
+
+}
+
 __global__ void _upstream(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
-  int found = 0;
-  size_t ind = n;
-  soil::ivec2 pos =  index.unflatten(n);
+  soil::ivec2 pos = tile_unflatten(n, index[0]);
+  size_t ind = index.flatten(pos);
+  const size_t ind0 = ind;
   soil::ivec2 dir;
+
+  int found = 0;
 
   size_t target_ind = index.flatten(target);
 
@@ -291,7 +320,7 @@ __global__ void _upstream(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<in
 
   }
 
-  out[n] |= found;
+  out[ind0] |= found;
 }
 
 // Note: This can potentially be made faster, by batching the upstream kernel execution
@@ -333,15 +362,18 @@ __global__ void _distance(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
-  size_t ind = n;
-  glm::ivec2 pos =  index.unflatten(n);
+  soil::ivec2 pos = tile_unflatten(n, index[0]);
+  size_t ind = index.flatten(pos);
+  const size_t ind0 = ind;
+  soil::ivec2 dir;
+
   size_t target_ind = index.flatten(target);
 
   // note: upper bound is absolute worst-case scenario
   for(int step = 0; step < N; ++step){
 
     if(ind == target_ind){
-      out[n] = step;
+      out[ind0] = step;
       break;
     }
 
