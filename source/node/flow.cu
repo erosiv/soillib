@@ -10,6 +10,17 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
+/*
+Potential Concept for Improving Performance:
+Instead of letting each possible path run in a batch
+until completion, we should run then for a fixed number
+of steps and then check which paths have not yet terminated.
+
+Those that have not yet terminated are re-entered into a queue
+and we re-execute for only those guys... That should basically
+give an overall performance boost.
+*/
+
 namespace {
 
 __device__ const glm::ivec2 coords[8] = {
@@ -233,11 +244,12 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
       init_randstate<<<block(samples, 256), 256>>>(randStates, samples, 0);
 
       for(int n = 0; n < iterations; ++n)
-        _accumulate<<<block(samples, 1024), 1024>>>(texture, out, index_t, randStates, steps, samples);
-      cudaFree(randStates);
+        _accumulate<<<block(samples, 512), 512>>>(texture, out, index_t, randStates, steps, samples);
 
       const double P = double(elem)/double(iterations*samples);
       _normalize<<<block(elem, 256), 256>>>(out, out2, P);
+
+      cudaFree(randStates);
       cudaDeviceSynchronize();
 
       return std::move(soil::buffer(std::move(out2)));
@@ -252,7 +264,7 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
 // Upstream Mask Kernel Implementation
 //
 
-__global__ void _upstream(soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
+__global__ void _upstream(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> out, glm::ivec2 target, soil::flat_t<2> index, const size_t N){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
