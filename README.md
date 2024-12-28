@@ -1,6 +1,6 @@
 # soillib
 
-soillib is a library and toolbox for procedural geomorphology simulation.
+soillib is a library and toolbox for numerical geomorphology simulation.
 
 Written in in C++23 and exposed to Python3 through bindings.
 
@@ -100,18 +100,3 @@ sudo dnf clean all
 sudo dnf module disable nvidia-driver
 sudo dnf -y install cuda
 ```
-
-## ToDo
-
-This is a list of changes I would like to integrate into `soillib`. If you are reading this and motivated to implement any of these, I would be happy to accept any pull requests.
-
-- Make the enum switch based polymorphism more generic / nicely structured in the code
-- Lazy Node Evaluation w. Deep Inlining
-	- Similar to `pytorch`, figure out the most elegant way to make the node evaluation lazy and efficient.
-- Node caching / baking
-	- Introduce the ability to "cache" node data, for instance when it is known that the values in a map will be sampled randomly multiple times to reduce compute effort.
-- Re-Interpretable Buffer Types
-	- Make buffers more generic and re-interpretable as strict-typed views. Use this to eliminate the concept of a vector-value buffer, just having the value and viewing it as a vector type.
-- Implement all remaining matrix types from the C++ library.
-- Re-introduce the wind particle.
-- Re-introduce layer maps / stratigraphy.

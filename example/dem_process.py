@@ -31,7 +31,7 @@ def main(data):
   
   print("Computing Area")
   with soil.timer() as timer:
-    area = soil.accumulation(direction, index, 64, 4096, 8192)
+    area = soil.accumulation(direction, index, 16, 4*4096, 8192)
 
   print("Computing Upstream Mask...")
   with soil.timer() as timer:
@@ -81,6 +81,6 @@ if __name__ == "__main__":
   #data = "out_altmuenster.tiff"
   #data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
   data = "conditioned.tiff"
-  data = "erosion_basic.tiff"
+  #data = "erosion_basic.tiff"
 
   main(data)
