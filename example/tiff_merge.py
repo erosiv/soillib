@@ -59,26 +59,14 @@ def merge(input, pscale = 0.1):
       # Load the Geotiff, Get the Buffer in Numpy, Downscale
       geotiff = soil.geotiff(path)
 
-      data = geotiff.buffer.numpy(geotiff.index)
-      data = skt.rescale(data, pscale, anti_aliasing=True)
+#      data = geotiff.buffer.numpy(geotiff.index)
+#      data = skt.rescale(data, pscale, anti_aliasing=True)
   
       # Get the World-Space Position of the Image
       gmin = np.array(geotiff.min)
       gmax = np.array(geotiff.max)
       gscale = np.array(geotiff.scale)
-      
-      # Get the Pixel-Space Extent of the Image
-      pmin = np.round(pscale * (gmin - wmin) / wscale).astype(np.int64)
-      pmax = np.round(pscale * (gmax - wmin) / wscale).astype(np.int64)
-      shape = data.shape
-
-      # Re-Sample the Image
-      for x in range(pmin[1], pmax[1]):
-        for y in range(pmin[0], pmax[0]):
-          index = y + pixels[0]*(pixels[1] - x - 1)
-          px = int((pmax[1]-x-1))
-          py = int((y-pmin[0]))
-          array[index] = pscale * data[px, py]
+      soil.copy(array, geotiff.buffer, gmin, gmax, gscale, wmin, wmax, wscale, pscale)
 
   return array, mshape, meta
 

@@ -10,19 +10,6 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
-/*
-Alternative Idea for Acceleration:
-
-Instead of a direction buffer, we should just
-create the graph directly.
-Then we should "reduce" the graph iteratively,
-moving the node which we point to further downstream each time...
-at the end, we just have to count the number of nodes
-pointing to the one we are interested in.
-
-That should reduce divergence greatly.
-*/
-
 namespace {
 
 __device__ const glm::ivec2 coords[8] = {
@@ -56,10 +43,10 @@ int block(const int elem, const int thread){
 }
 
 //! \todo make this robust for non-regular tile shapes (test)
-__device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int h){
+__device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int w, const int h){
 
-  constexpr int tile_w = 4;
-  constexpr int tile_h = 4;
+  constexpr int tile_w = 8;
+  constexpr int tile_h = 8;
   constexpr int tile_s = tile_w * tile_h;
 
   // Binned Tile Index, Tile Position
@@ -200,7 +187,7 @@ soil::buffer soil::direction(const soil::buffer& buffer, const soil::index& inde
 }
 
 //
-// Accumulation Kernel Implementation
+// Utility Kernels
 //
 
 template<typename T>
@@ -214,107 +201,6 @@ __global__ void init_randstate(curandState* states, const size_t N, const size_t
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
   if(index >= N) return;
   curand_init(seed, index, 0, &states[index]);
-}
-
-__global__ void _accumulate(soil::texture<int> texture, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int steps, const int N){
-
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
-
-  curandState* state = &randStates[n];
-  size_t ind = curand_uniform(state)*index.elem();
-  glm::ivec2 pos = index.unflatten(ind);
-
-  for(int s = 0; s < steps; ++s){
-
-    const int flow = texture[soil::vec2(pos)];
-    const glm::ivec2 dir = _get_dir(flow);
-    pos += dir;
-    if(dir[0] == 0 && dir[1] == 0)
-      break;
-
-    if(index.oob(pos))
-      break;
-
-    ind = index.flatten(pos);
-    atomicAdd(&(out[ind]), 1);
-  }
-
-}
-
-__global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, double P){
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= in.elem()) return;
-  out[n] = 1.0 + P * (double)in[n];
-}
-
-soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
-
-  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
-    return soil::select(buffer.type(), [&]<std::same_as<int> T>(){
-
-      auto index_t = index.as<I>();
-      auto buffer_t = buffer.as<T>();
-      buffer_t.to_gpu();
-
-      texture<int> texture(buffer_t, index_t);
-
-      const size_t elem = index.elem();
-      auto out = soil::buffer_t<int>{elem, soil::GPU};
-      auto out2 = soil::buffer_t<double>{elem, soil::GPU};
-
-      _fill<<<block(elem, 256), 256>>>(out, 0);
-
-      curandState* randStates;
-      cudaMalloc((void**)&randStates, samples * sizeof(curandState));
-      init_randstate<<<block(samples, 256), 256>>>(randStates, samples, 0);
-
-      for(int n = 0; n < iterations; ++n)
-        _accumulate<<<block(samples, 512), 512>>>(texture, out, index_t, randStates, steps, samples);
-
-      const double P = double(elem)/double(iterations*samples);
-      _normalize<<<block(elem, 256), 256>>>(out, out2, P);
-
-      cudaFree(randStates);
-      cudaDeviceSynchronize();
-
-      return std::move(soil::buffer(std::move(out2)));
-
-    });
-
-  });
-
-}
-
-//
-// Upstream Mask Kernel Implementation
-//
-
-__global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> out, const size_t target, soil::flat_t<2> index, const size_t N){
-
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
-
-  soil::ivec2 pos = tile_unflatten(n, index[1]);
-  size_t ind = index.flatten(pos);
-  const size_t ind0 = ind;
-
-  int found = 0;
-
-  while(ind != target){
-
-    int next = _next[ind];
-    if(next == ind)
-      break;
-
-    ind = next;
-    if(ind == target){
-      found = 1;
-    }
-
-  }
-
-  out[ind0] |= found;
 }
 
 __global__ void _graph(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> graph, soil::flat_t<2> index){
@@ -353,6 +239,106 @@ __global__ void _shift(const soil::buffer_t<int> graph_a, soil::buffer_t<int> gr
   } else {
     graph_b[ind] = graph_a[next];
   }
+}
+
+//
+// Accumulation Kernel Implementation
+//
+
+__global__ void _accumulate(const soil::buffer_t<int> in, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int N){
+
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  curandState* state = &randStates[n];
+  int ind = curand_uniform(state)*index.elem();
+  int next = in[ind];
+
+  while(ind != next){
+    ind = next;
+    atomicAdd(&(out[ind]), 1);
+    next = in[ind];
+  }
+
+}
+
+__global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, double P){
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= in.elem()) return;
+  out[n] = 1.0 + P * (double)in[n];
+}
+
+soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
+
+  return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
+    return soil::select(buffer.type(), [&]<std::same_as<soil::ivec2> T>(){
+
+      auto index_t = index.as<I>();
+      const size_t elem = index.elem();
+
+      auto buffer_t = buffer.as<T>();
+      buffer_t.to_gpu();
+
+      auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
+      _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+
+//      texture<int> texture(graph_buf, index_t);
+
+      auto out = soil::buffer_t<int>{elem, soil::GPU};
+      auto out2 = soil::buffer_t<double>{elem, soil::GPU};
+
+      _fill<<<block(elem, 256), 256>>>(out, 0);
+
+      curandState* randStates;
+      cudaMalloc((void**)&randStates, samples * sizeof(curandState));
+      init_randstate<<<block(samples, 256), 256>>>(randStates, samples, 0);
+
+      for(int n = 0; n < iterations; ++n)
+        _accumulate<<<block(samples, 512), 512>>>(graph_buf, out, index_t, randStates, samples);
+
+      const double P = double(elem)/double(iterations*samples);
+      _normalize<<<block(elem, 256), 256>>>(out, out2, P);
+
+      cudaFree(randStates);
+      cudaDeviceSynchronize();
+
+      return std::move(soil::buffer(std::move(out2)));
+
+    });
+
+  });
+
+}
+
+//
+// Upstream Mask Kernel Implementation
+//
+
+__global__ void _upstream(const soil::buffer_t<int> _next, soil::buffer_t<int> out, const size_t target, soil::flat_t<2> index, const size_t N){
+
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  soil::ivec2 pos = tile_unflatten(n, index[0], index[1]);
+  size_t ind = index.flatten(pos);
+  const size_t ind0 = ind;
+
+  int found = 0;
+
+  while(ind != target){
+
+    int next = _next[ind];
+    if(next == ind)
+      break;
+
+    ind = next;
+    if(ind == target){
+      found = 1;
+    }
+
+  }
+
+  out[ind0] |= found;
 }
 
 // Note: This can potentially be made faster, by batching the upstream kernel execution
@@ -406,7 +392,7 @@ __global__ void _distance(soil::buffer_t<int> _next, soil::buffer_t<int> out, co
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
-  soil::ivec2 pos = tile_unflatten(n, index[1]);
+  soil::ivec2 pos = tile_unflatten(n, index[0], index[1]);
   size_t ind = index.flatten(pos);
   const size_t ind0 = ind;
 

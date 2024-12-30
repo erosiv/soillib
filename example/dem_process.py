@@ -3,6 +3,7 @@
 import soillib as soil
 import matplotlib.pyplot as plt
 from matplotlib import colors
+import numpy as np
 
 '''
 Example Code Showcasing Various
@@ -36,7 +37,7 @@ def main(data):
   
   print("Computing Area")
   with soil.timer() as timer:
-    area = soil.accumulation(flow, index, 16, 8*2048, 8192)
+    area = soil.accumulation(direction, index, 16, 8*2048, 8192)
 
   print("Computing Upstream Mask...")
   with soil.timer() as timer:
@@ -51,6 +52,20 @@ def main(data):
   catch = catch.cpu().numpy(index)
   distance = distance.cpu().numpy(index)
   flow = flow.cpu().numpy(index)
+
+  '''
+  area[catch == 0] = 1
+  plt.imshow(area, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, area.max()),
+    interpolation='bilinear')
+  plt.show()
+
+  height = buffer.cpu().numpy(index)
+  height[catch == 0] = np.nan
+  tiff = soil.tiff(soil.buffer.from_numpy(height), index)
+  tiff.write("height_masked.tiff")
+  '''
 
   print("Plotting Data...")
 

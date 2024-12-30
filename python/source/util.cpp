@@ -219,32 +219,41 @@ buffer.def("torch", [](soil::buffer& buffer, soil::index& index){
 // Construct Buffer from Numpy
 //
 
-/*
-buffer.def("from_numpy", [](soil::buffer& buffer, const nb::object& object){
+//! \note this always performs a copy, it doesn't keep the object alive.
+buffer.def_static("from_numpy", [](const nb::object& object){
 
-  
-  // I suppose that this does not necessarily matter.
-  // we could in principle have either torch or numpy.
+  auto array = nb::cast<nb::ndarray<nb::numpy>>(object);
 
-  // We also need a way to select the underlying type of the
-  // numpy buffer... of course.
+  if(array.dtype() == nb::dtype<float>()){
 
-  // and tie the lifetimes!
+    const size_t size = array.size();
+    const float* data = (float*)array.data();
+    auto buffer_t = soil::buffer_t<float>(size, soil::host_t::CPU);
 
-  if(buffer.host() == soil::host_t::CPU){
-    soil::select(buffer.type(), [&buffer, &object]<typename T>() {
-      const auto array = nb::cast<nb::ndarray<nb::numpy, T>>(object);
-      // const soil::buffer_t<T> source {
-      //   array.
-      // };
-      // note: tie the object lifetimes somehow!
-      buffer = std::move(soil::buffer(std::move(source)));
-    });
+    for(size_t i = 0; i < size; ++i)
+      buffer_t[i] = data[i];
+
+    return std::move(soil::buffer(std::move(buffer_t)));
+
   }
-  throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
+  
+  else if(array.dtype() == nb::dtype<double>()){
+
+    const size_t size = array.size();
+    const double* data = (double*)array.data();
+    auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
+
+    for(size_t i = 0; i < size; ++i)
+      buffer_t[i] = data[i];
+
+    return std::move(soil::buffer(std::move(buffer_t)));
+
+  }
+  else {
+    throw std::runtime_error("type not supported");
+  }
 
 });
-*/
 
 }
 
