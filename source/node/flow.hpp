@@ -58,7 +58,7 @@ soil::buffer flow(const soil::buffer &buffer, const soil::index &index);
 soil::buffer direction(const soil::buffer &buffer, const soil::index &index);
 
 //! Compute the Stochastic Accumulation from a 2D Flow Direction Buffer
-soil::buffer accumulation(const soil::buffer &buffer, const soil::index &index, int iterations, int samples, int steps);
+soil::buffer accumulation(const soil::buffer &buffer, const soil::index &index, int iterations, size_t samples);
 
 //! Compute an Upstream Catchment Mask from a Flow Direction Buffer for a given Position
 soil::buffer upstream(const soil::buffer &buffer, const soil::index &index, const glm::ivec2 target);

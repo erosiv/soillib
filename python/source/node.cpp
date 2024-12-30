@@ -314,8 +314,8 @@ module.def("direction", [](const soil::buffer& buffer, const soil::index& index)
   return soil::direction(buffer, index);
 });
 
-module.def("accumulation", [](const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
-  return soil::accumulation(buffer, index, iterations, samples, steps);
+module.def("accumulation", [](const soil::buffer& buffer, const soil::index& index, int iterations, int samples){
+  return soil::accumulation(buffer, index, iterations, samples);
 });
 
 module.def("upstream", [](const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){

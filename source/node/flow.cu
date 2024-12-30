@@ -245,19 +245,28 @@ __global__ void _shift(const soil::buffer_t<int> graph_a, soil::buffer_t<int> gr
 // Accumulation Kernel Implementation
 //
 
-__global__ void _accumulate(const soil::buffer_t<int> in, soil::buffer_t<int> out, soil::flat_t<2> index, curandState* randStates, const int N){
+__global__ void _init_pos(soil::buffer_t<int> pos, soil::flat_t<2> index, curandState* randStates){
+
+  const int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= pos.elem()) return;
+
+  curandState* state = &randStates[ind];
+  pos[ind] = curand_uniform(state)*index.elem();
+
+}
+
+__global__ void _accumulate(soil::buffer_t<int> pos, const soil::buffer_t<int> graph, soil::buffer_t<int> out){
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
+  if(n >= pos.elem()) return;
 
-  curandState* state = &randStates[n];
-  int ind = curand_uniform(state)*index.elem();
-  int next = in[ind];
+  int ind = pos[n];
+  int next = graph[ind];
 
   while(ind != next){
     ind = next;
     atomicAdd(&(out[ind]), 1);
-    next = in[ind];
+    next = graph[ind];
   }
 
 }
@@ -268,7 +277,7 @@ __global__ void _normalize(soil::buffer_t<int> in, soil::buffer_t<double> out, d
   out[n] = 1.0 + P * (double)in[n];
 }
 
-soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, int samples, int steps){
+soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& index, int iterations, size_t samples){
 
   return soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>() {
     return soil::select(buffer.type(), [&]<std::same_as<soil::ivec2> T>(){
@@ -282,21 +291,22 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
       auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
       _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
-//      texture<int> texture(graph_buf, index_t);
-
       auto out = soil::buffer_t<int>{elem, soil::GPU};
-      auto out2 = soil::buffer_t<double>{elem, soil::GPU};
-
       _fill<<<block(elem, 256), 256>>>(out, 0);
 
       curandState* randStates;
       cudaMalloc((void**)&randStates, samples * sizeof(curandState));
       init_randstate<<<block(samples, 256), 256>>>(randStates, samples, 0);
 
-      for(int n = 0; n < iterations; ++n)
-        _accumulate<<<block(samples, 512), 512>>>(graph_buf, out, index_t, randStates, samples);
+      auto pos = soil::buffer_t<int>{samples, soil::GPU};
+      
+      for(int n = 0; n < iterations; ++n){
+        _init_pos<<<block(samples, 512), 512>>>(pos, index_t, randStates);
+        _accumulate<<<block(samples, 512), 512>>>(pos, graph_buf, out);
+      }
 
       const double P = double(elem)/double(iterations*samples);
+      auto out2 = soil::buffer_t<double>{elem, soil::GPU};
       _normalize<<<block(elem, 256), 256>>>(out, out2, P);
 
       cudaFree(randStates);
