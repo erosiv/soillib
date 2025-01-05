@@ -321,6 +321,84 @@ soil::buffer soil::accumulation(const soil::buffer& buffer, const soil::index& i
 }
 
 //
+// Weighted Accumulation Implementation
+//
+
+__global__ void _accumulate(soil::buffer_t<int> pos, const soil::buffer_t<int> graph, const soil::buffer_t<float> weights, soil::buffer_t<float> out){
+
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= pos.elem()) return;
+
+  int ind = pos[n];
+  const double val = weights[ind];
+  int next = graph[ind];
+
+  while(ind != next){
+    ind = next;
+    atomicAdd(&(out[ind]), val);
+    next = graph[ind];
+  }
+
+}
+
+__global__ void _normalize(soil::buffer_t<float> out, float P){
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= out.elem()) return;
+  out[n] = 1.0 + P * out[n];
+}
+
+soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffer& weights, const soil::index& index, int iterations, size_t samples){
+
+  // Note: These will throw if not matched
+  soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>(){});
+  soil::select(direction.type(), [&]<std::same_as<soil::ivec2> T>(){});
+  soil::select(weights.type(), [&]<std::same_as<float> W>(){});
+
+  using I = soil::flat_t<2>;
+  using T = soil::ivec2;
+  using W = float;
+
+  // Strict-Type Casting
+
+  auto index_t = index.as<I>();
+  const size_t elem = index.elem();
+
+  auto buffer_t = direction.as<T>();
+  buffer_t.to_gpu();
+
+  auto weight_t = weights.as<W>();
+  weight_t.to_gpu();
+
+  // 
+
+  auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
+  _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+
+  auto out = soil::buffer_t<float>{elem, soil::GPU};
+  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+
+  curandState* randStates;
+  cudaMalloc((void**)&randStates, samples * sizeof(curandState));
+  init_randstate<<<block(samples, 256), 256>>>(randStates, samples, 0);
+
+  auto pos = soil::buffer_t<int>{samples, soil::GPU};
+  
+  for(int n = 0; n < iterations; ++n){
+    _init_pos<<<block(samples, 512), 512>>>(pos, index_t, randStates);
+    _accumulate<<<block(samples, 512), 512>>>(pos, graph_buf, weight_t, out);
+  }
+
+  const double P = double(elem)/double(iterations*samples);
+  _normalize<<<block(elem, 256), 256>>>(out, P);
+
+  cudaFree(randStates);
+  cudaDeviceSynchronize();
+
+  return std::move(soil::buffer(std::move(out)));
+
+}
+
+//
 // Upstream Mask Kernel Implementation
 //
 

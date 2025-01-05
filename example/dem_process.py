@@ -27,25 +27,32 @@ def main(data):
 #  pour = (1617, 973)  # gosau
   pour = (1873, 692)  # bad goisern
 
+  timer = soil.timer()
+
   print("Computing Flow Index")
-  with soil.timer() as timer:
+  with timer:
     flow = soil.flow(buffer, index)
+  print(f"Execution Time: {timer.count}ms")
 
   print("Computing Direction")
-  with soil.timer() as timer:
+  with timer:
     direction = soil.direction(flow, index)
-  
+  print(f"Execution Time: {timer.count}ms")
+
   print("Computing Area")
-  with soil.timer() as timer:
-    area = soil.accumulation(direction, index, 16, 8*2048)
+  with timer:
+    area = soil.accumulation(direction, index, 64, 8192)
+  print(f"Execution Time: {timer.count}ms")
 
   print("Computing Upstream Mask...")
-  with soil.timer() as timer:
+  with timer:
     catch = soil.upstream(direction, index, [pour[1], pour[0]])
+  print(f"Execution Time: {timer.count}ms")
 
   print("Computing Upstream Distance...")
-  with soil.timer() as timer:
+  with timer:
     distance = soil.distance(direction, index, [pour[1], pour[0]])
+  print(f"Execution Time: {timer.count}ms")
 
   # Extract to Numpy
   area = area.cpu().numpy(index)
