@@ -318,6 +318,10 @@ module.def("accumulation", [](const soil::buffer& buffer, const soil::index& ind
   return soil::accumulation(buffer, index, iterations, samples);
 });
 
+module.def("accumulation_weighted", [](const soil::buffer& buffer, const soil::buffer& weights, const soil::index& index, int iterations, int samples){
+  return soil::accumulation(buffer, weights, index, iterations, samples);
+});
+
 module.def("upstream", [](const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
   return soil::upstream(buffer, index, target);
 });

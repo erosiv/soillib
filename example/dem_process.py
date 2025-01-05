@@ -39,9 +39,14 @@ def main(data):
     direction = soil.direction(flow, index)
   print(f"Execution Time: {timer.count}ms")
 
+  # Add a Weight Buffer
+  shape = (index[0], index[1])
+  weights = soil.buffer.from_numpy(np.random.ranf(shape).astype(np.float32))
+
   print("Computing Area")
   with timer:
-    area = soil.accumulation(direction, index, 64, 8192)
+    #area = soil.accumulation(direction, index, 64, 8192)
+    area = soil.accumulation_weighted(direction, weights, index, 64, 8192)
   print(f"Execution Time: {timer.count}ms")
 
   print("Computing Upstream Mask...")
