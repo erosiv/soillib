@@ -85,8 +85,12 @@ timer.def("__exit__", [](soil::timer& timer,
    std::optional<nb::object>
 ){
   timer.stop();
-  std::cout<<"Execution Time: "<<timer.count()<<std::endl;
+//  std::cout<<"Execution Time: "<<timer.count()<<std::endl;
 }, nb::arg().none(), nb::arg().none(), nb::arg().none());
+
+timer.def_prop_ro("count", [](const soil::timer& timer){
+  return timer.count();
+});
 
 //
 // Yield Type Binding
