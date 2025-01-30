@@ -45,7 +45,9 @@ struct particle_t {
 
   soil::buffer_t<vec2> pos;
   soil::buffer_t<vec2> spd;
-  soil::buffer_t<float> vol;
+
+  soil::buffer_t<float> vol;    // Particle Water Volume
+  
   soil::buffer_t<float> sed;
   soil::buffer_t<float> slope;
 };

@@ -173,12 +173,18 @@ __global__ void track(model_t model, soil::buffer_t<float> discharge_track, soil
 
   const int find = model.index.flatten(pos);
   const float vol = particles.vol[ind];
-  atomicAdd(&discharge_track[find], vol);
+  atomicAdd(&discharge_track[find], vol);   // Accumulate Current Volume into Tracking Buffer
 
   const vec2 m = vol * particles.spd[ind];
   atomicAdd(&momentum_track[find].x, m.x);
   atomicAdd(&momentum_track[find].y, m.y);
 
+}
+
+__global__ void _normalize(soil::buffer_t<float> out, const float P){
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= out.elem()) return;
+  out[n] = 1.0f + P * out[n];
 }
 
 //
@@ -488,6 +494,16 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
 
 //    // We have to add the excess sediment...
     // dump<<<block(n_particles, 512), 512>>>(model, particles, param);
+
+    //
+    // Normalization and Filtering
+    //
+
+    // Normalize the Discharge by Sample Probability
+    const float P = float(model.elem)/float(n_samples);
+    _normalize<<<block(model.elem, 1024), 1024>>>(discharge_track, P);
+
+    // Filter the Result
 
     filter<<<block(model.elem, 1024), 1024>>>(model.discharge, discharge_track, param.lrate);
     filter<<<block(model.elem, 1024), 1024>>>(model.momentum, momentum_track, param.lrate);
