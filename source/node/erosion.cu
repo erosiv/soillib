@@ -418,7 +418,7 @@ __global__ void dump(model_t model, particle_t particles, const param_t param){
 // Erosion Function
 //
 
-void gpu_erode(model_t& model, const param_t param, const size_t steps){
+void gpu_erode(model_t& model, const param_t param, const size_t steps, const size_t n_samples){
 
   if(model.height.host() != soil::host_t::GPU){
     throw soil::error::mismatch_host(soil::host_t::GPU, model.height.host());
@@ -440,16 +440,15 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps){
   soil::buffer_t<vec2> momentum_track(model.momentum.elem(), soil::host_t::GPU);
 
   //! \todo remove this allocation, as well as the randstate allocation
-  const size_t n_particles = 512;
-  particle_t particles{n_particles};
+  particle_t particles{n_samples};
 
   //
   // Initialize Rand-State Buffer
   //
 
   curandState* randStates;
-  cudaMalloc((void**)&randStates, n_particles * sizeof(curandState));
-  init_randstate<<<block(n_particles, 512), n_particles>>>(randStates, n_particles, 0);
+  cudaMalloc((void**)&randStates, n_samples * sizeof(curandState));
+  init_randstate<<<block(n_samples, 512), 512>>>(randStates, n_samples, 0);
 
   cudaDeviceSynchronize();
 
@@ -463,11 +462,11 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps){
     // Spawn Particles
     //
 
-    spawn<<<block(n_particles, 512), n_particles>>>(particles.pos, randStates, model.index);
-    fill<<<block(n_particles, 512), n_particles>>>(particles.spd, vec2(0.0f));
-    fill<<<block(n_particles, 512), n_particles>>>(particles.vol, 1.0f);
-    fill<<<block(n_particles, 512), n_particles>>>(particles.sed, 0.0f);
-    fill<<<block(n_particles, 512), n_particles>>>(particles.slope, 0.0f);
+    spawn<<<block(n_samples, 512), 512>>>(particles.pos, randStates, model.index);
+    fill<<<block(n_samples, 512), 512>>>(particles.spd, vec2(0.0f));
+    fill<<<block(n_samples, 512), 512>>>(particles.vol, 1.0f);
+    fill<<<block(n_samples, 512), 512>>>(particles.sed, 0.0f);
+    fill<<<block(n_samples, 512), 512>>>(particles.slope, 0.0f);
 
     fill<<<block(discharge_track.elem(), 1024), 1024>>>(discharge_track, 0.0f);
     fill<<<block(momentum_track.elem(), 1024), 1024>>>(momentum_track, vec2(0.0f));
@@ -481,9 +480,9 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps){
 
     for(size_t age = 0; age < param.maxage; ++age){
 
-      descend<<<block(n_particles, 512), 512>>>(model, particles, param);
-      transfer<<<block(n_particles, 512), 512>>>(model, particles, param);
-      track<<<block(n_particles, 512), 512>>>(model, discharge_track, momentum_track, particles);
+      descend<<<block(n_samples, 512), 512>>>(model, particles, param);
+      transfer<<<block(n_samples, 512), 512>>>(model, particles, param);
+      track<<<block(n_samples, 512), 512>>>(model, discharge_track, momentum_track, particles);
 
     }
 

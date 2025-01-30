@@ -30,7 +30,7 @@ struct param_t {
   float minVol = 0.001f;
   float lrate = 0.01f;
   float exitSlope = 0.99f;
-};
+}; 
 
 struct particle_t {
 
@@ -64,7 +64,7 @@ struct model_t {
   soil::buffer_t<vec2> momentum;
 };
 
-void gpu_erode(model_t& model, const param_t param, const size_t steps);
+void gpu_erode(model_t& model, const param_t param, const size_t steps, const size_t n_samples);
 
 } // end of namespace soil
 
