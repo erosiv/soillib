@@ -124,10 +124,10 @@ __global__ void fill(soil::buffer_t<T> buf, const T val){
   buf[index] = val;
 }
 
-__global__ void init_randstate(curandState* states, const size_t N, const size_t seed) {
+__global__ void init_randstate(curandState* states, const size_t N, const size_t seed, const size_t offset) {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
-  curand_init(seed, n, 0, &states[n]);
+  curand_init(seed, n, offset, &states[n]);
 }
 
 __global__ void spawn(buffer_t<vec2> pos, curandState* randStates, flat_t<2> index){
@@ -238,40 +238,36 @@ __global__ void descend(model_t model, particle_t particles, const param_t param
     speed = sqrt(2.0f)*glm::normalize(speed);
   }
 
-  // Compute Slope
+  // Update Trajectory
+
+  particles.spd[ind] = speed;
+  particles.pos[ind] += speed;
+
+  // Update Volume
+
+  particles.vol[ind] *= (1.0f - param.evapRate);
+
+  // Mass-Transfer
 
   float h0 = model.height[find];
   float h1 = h0 - param.exitSlope; 
   if(!model.index.oob(pos + speed)){
     h1 = model.height[model.index.flatten(pos + speed)];
   }
-  
-  const float hdiff = (h0 - h1);
 
-  // Tracking Part
+  const float discharge = model.discharge[find];  // Discharge Volume
+  const float vol = particles.vol[ind]; // Water Volume
+  const float sed = particles.sed[ind]; // Sediment Mass
+  const float slope = (h0 - h1);        // Local Slope
 
-  const float vol = particles.vol[ind];     // Water Volume
-  const float sed = particles.sed[ind];     // Sediment Mass
-
-  // Equilibrium Concentration
-  // Note: Can't be Negative!
-  const float discharge = log(1.0f + model.discharge[find]);
-  const float c_eq = glm::max(hdiff, 0.0f) * (1.0f + discharge * param.entrainment);
-  const float effD = param.depositionRate;
-
-  float c_diff = (c_eq * vol - sed);
-  if(effD * c_diff < -sed){
-    c_diff = -sed / effD;
-  }
+  const float equilibrium = vol * glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
+  const float mass_diff = (equilibrium - sed);
 
   // Execute Mass-Transfer
 
-  particles.sed[ind] += effD * c_diff;
-  particles.vol[ind] *= (1.0f - param.evapRate);
-  atomicAdd(&model.height[find], -effD * c_diff);
-
-  particles.spd[ind] = speed;
-  particles.pos[ind] += speed;
+  const float k = glm::clamp(param.depositionRate, 0.0f, 1.0f);
+  particles.sed[ind] += k * mass_diff;
+  atomicAdd(&model.height[find], -k * mass_diff);
 
 }
 
@@ -308,9 +304,12 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
   // Initialize Rand-State Buffer
   //
 
+  // note: the offset in the sequence should be number of times rand is sampled
+  // that way the sampling procedure becomes deterministic
+  model.age++;  
   curandState* randStates;
   cudaMalloc((void**)&randStates, n_samples * sizeof(curandState));
-  init_randstate<<<block(n_samples, 512), 512>>>(randStates, n_samples, 0);
+  init_randstate<<<block(n_samples, 512), 512>>>(randStates, n_samples, 0, model.age);
 
   cudaDeviceSynchronize();
 
@@ -373,6 +372,7 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
 
   }
 
+  cudaFree(randStates);
 }
 
 } // end of namespace soil

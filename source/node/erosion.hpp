@@ -61,6 +61,8 @@ struct model_t {
   const size_t elem;
   const soil::flat_t<2> index;
 
+  int age = 0;
+
   soil::buffer_t<float> height;
   soil::buffer_t<float> discharge;
   soil::buffer_t<vec2> momentum;
