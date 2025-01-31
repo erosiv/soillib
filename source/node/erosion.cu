@@ -509,8 +509,6 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
     filter<<<block(model.elem, 1024), 1024>>>(model.momentum, momentum_track, param.lrate);
     cudaDeviceSynchronize();
 
-//    std::cout<<model.index[0]<<" "<<model.index[1]<<std::endl;
-
     // atomic add operations might still be coming in -
     // we have to be done before cascading or this fails...
     // we can't be computing the differences before they are determined...
