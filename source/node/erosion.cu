@@ -229,19 +229,23 @@ __global__ void descend(model_t model, particle_t particles, const param_t param
   speed += param.gravity * vec2(normal.x, normal.y);
 
   // Viscosity Contribution
+  const float mu = glm::clamp(param.momentumTransfer, 0.0f, 1.0f);
   const vec2 average_speed = (model.momentum[find] + volume * speed) / (model.discharge[find] + volume);
-  speed += param.momentumTransfer * average_speed; // note: assumes previous speed zero. needs fixing with dynamic time-step
+  speed = speed + mu * (average_speed - speed); // Forward Euler
 
   // Normalize Time-Step, Increment
+
+  // Update Trajectory
 
   if(glm::length(speed) > 0.0){
     speed = sqrt(2.0f)*glm::normalize(speed);
   }
 
-  // Update Trajectory
-
-  particles.spd[ind] = speed;
+  particles.spd[ind] = speed; // actual speed
   particles.pos[ind] += speed;
+  // normalized speed
+  // note: normally we would have to extract the distance from this,
+  // because need to normalize the time-step correctly.
 
   // Update Volume
 
