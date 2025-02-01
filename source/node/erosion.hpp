@@ -30,6 +30,7 @@ struct param_t {
   float minVol = 0.001f;
   float lrate = 0.01f;
   float exitSlope = 0.99f;
+  float hscale = 0.1f;
 }; 
 
 struct particle_t {
@@ -39,6 +40,7 @@ struct particle_t {
     spd(elem, soil::host_t::GPU),
     vol(elem, soil::host_t::GPU),
     sed(elem, soil::host_t::GPU),
+    susp(elem, soil::host_t::GPU),
     slope(elem, soil::host_t::GPU){}
 
   const size_t elem;
@@ -50,6 +52,7 @@ struct particle_t {
   
   soil::buffer_t<float> sed;
   soil::buffer_t<float> slope;
+  soil::buffer_t<float> susp;
 };
 
 struct model_t {
@@ -64,8 +67,16 @@ struct model_t {
   int age = 0;
 
   soil::buffer_t<float> height;
+
   soil::buffer_t<float> discharge;
+  soil::buffer_t<float> suspended;
   soil::buffer_t<vec2> momentum;
+
+  bool initialized = false;
+  soil::buffer_t<float> discharge_track;
+  soil::buffer_t<float> suspended_track;
+  soil::buffer_t<vec2> momentum_track;
+
 };
 
 void gpu_erode(model_t& model, const param_t param, const size_t steps, const size_t n_samples);

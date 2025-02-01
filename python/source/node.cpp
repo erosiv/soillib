@@ -276,6 +276,7 @@ param_t.def_rw("momentumTransfer", &soil::param_t::momentumTransfer);
 param_t.def_rw("minVol", &soil::param_t::minVol);
 param_t.def_rw("lrate", &soil::param_t::lrate);
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
+param_t.def_rw("hscale", &soil::param_t::hscale);
 
 auto model_t = nb::class_<soil::model_t>(module, "model_t");
 model_t.def(nb::init<soil::index>());
@@ -285,6 +286,13 @@ model_t.def_prop_rw("height",
     return soil::buffer(model.height);
 },[](soil::model_t& model, soil::buffer buffer){
     model.height = buffer.as<float>();
+});
+
+model_t.def_prop_rw("suspended",
+  [](soil::model_t& model){
+    return soil::buffer(model.suspended);
+},[](soil::model_t& model, soil::buffer buffer){
+    model.suspended = buffer.as<float>();
 });
 
 model_t.def_prop_rw("discharge",
