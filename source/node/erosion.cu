@@ -229,9 +229,11 @@ __global__ void descend(model_t model, particle_t particles, const param_t param
   speed += param.gravity * vec2(normal.x, normal.y);
 
   // Viscosity Contribution
-  const float mu = glm::clamp(param.momentumTransfer, 0.0f, 1.0f);
-  const vec2 average_speed = (model.momentum[find] + volume * speed) / (model.discharge[find] + volume);
-  speed = speed + mu * (average_speed - speed); // Forward Euler
+  const float mu = param.momentumTransfer;//::clamp(param.momentumTransfer, 0.0f, 1.0f);
+  // const vec2 average_speed = (model.momentum[find] + volume * speed) / (model.discharge[find] + volume);
+  const vec2 average_speed = (model.momentum[find]) / (model.discharge[find] + volume);
+  speed = speed + mu * (average_speed - speed); // Explicit Euler
+  //speed = (speed + mu * average_speed)/(1.0f + mu); // Implicit Euler
 
   // Normalize Time-Step, Increment
 
@@ -243,9 +245,16 @@ __global__ void descend(model_t model, particle_t particles, const param_t param
 
   particles.spd[ind] = speed; // actual speed
   particles.pos[ind] += speed;
-  // normalized speed
-  // note: normally we would have to extract the distance from this,
-  // because need to normalize the time-step correctly.
+  const vec2 npos = particles.pos[ind];
+
+  /*
+  // speed has to be limited by something...
+  particles.spd[ind] = speed;
+  if(glm::length(speed) > 0.0){
+    particles.pos[ind] += sqrt(2.0f)*glm::normalize(speed);
+  }
+  const vec2 npos = particles.pos[ind];
+  */
 
   // Update Volume
 
@@ -255,14 +264,14 @@ __global__ void descend(model_t model, particle_t particles, const param_t param
 
   float h0 = model.height[find];
   float h1 = h0 - param.exitSlope; 
-  if(!model.index.oob(pos + speed)){
-    h1 = model.height[model.index.flatten(pos + speed)];
+  if(!model.index.oob(npos)){
+    h1 = model.height[model.index.flatten(npos)];
   }
 
   const float discharge = model.discharge[find];  // Discharge Volume
-  const float vol = particles.vol[ind]; // Water Volume
-  const float sed = particles.sed[ind]; // Sediment Mass
-  const float slope = (h0 - h1);        // Local Slope
+  const float vol = particles.vol[ind];           // Water Volume
+  const float sed = particles.sed[ind];           // Sediment Mass
+  const float slope = (h0 - h1);                  // Local Slope
 
   const float equilibrium = vol * glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
   const float mass_diff = (equilibrium - sed);
@@ -274,7 +283,6 @@ __global__ void descend(model_t model, particle_t particles, const param_t param
   atomicAdd(&model.height[find], -k * mass_diff);
 
 }
-
 
 //
 // Erosion Function
