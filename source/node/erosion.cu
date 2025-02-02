@@ -167,8 +167,8 @@ __global__ void filter(model_t model, const param_t param){
   model.discharge[n] = mix<float>(model.discharge[n], model.discharge_track[n], param.lrate);
   model.momentum[n] = mix<vec2>(model.momentum[n], model.momentum_track[n], param.lrate);
 
-  model.suspended[n] = mix<float>(model.suspended[n], model.suspended_track[n], 0.9f);
-  model.equilibrium[n] = mix<float>(model.equilibrium[n], model.equilibrium_track[n], 0.9f);
+  model.suspended[n] = mix<float>(model.suspended[n], model.suspended_track[n], 1.0f);
+  model.equilibrium[n] = mix<float>(model.equilibrium[n], model.equilibrium_track[n], 1.0f);
 
 }
 
@@ -285,13 +285,11 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     // Mass-Transfer
     //
 
-    // Note: We should limit it so that this doesn't cause a runaway deposition.
-    // That occurs when the amount removed is larger than making the flow flat.
-    // The particles coming from behind will then hit that wall and deposity everything.
-    // Or we make sure we can't deposit more than equal the amount.
-    // Finally, we should add a term which is based on the viscosity, meaning that
-    // if the difference between the velocity and the target velocity is larger,
-    // we scale the equilibrium value because we have a higher shear-stress.
+    // Note: This expression for the equilibrium concentration depends solely on
+    // the discharge volume. That means that the small gradient along curved flows
+    // leads a meander to progress. To increase this effect, and get the meanders
+    // to "buckle", the equilibrium concentration needs to be increased further
+    // on the outer edge of the curve.
 
     const float equilibrium = vol * (equ_frac(model, pos, npos, param));
 
@@ -305,11 +303,20 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     atomicAdd(&model.momentum_track[find].x, P*mass*dspeed.x);
     atomicAdd(&model.momentum_track[find].y, P*mass*dspeed.y);
 
+    // Note: We should limit it so that this doesn't cause a runaway deposition.
+    // That occurs when the amount removed is larger than making the flow flat.
+    // The particles coming from behind will then hit that wall and deposity everything.
+    // Or we make sure we can't deposit more than equal the amount.
+    // Finally, we should add a term which is based on the viscosity, meaning that
+    // if the difference between the velocity and the target velocity is larger,
+    // we scale the equilibrium value because we have a higher shear-stress.
+
+    atomicAdd(&model.height[find], -k*(equilibrium - sed));
+
     // Note: Both of these work but are slightly different. Find out why!
     
     //atomicAdd(&model.equilibrium_track[find], equilibrium);
     //atomicAdd(&model.suspended_track[find], sed);
-    atomicAdd(&model.height[find], -k*(equilibrium - sed));
 
     //
     // Integrate Sub-Solution Quantities
@@ -350,11 +357,11 @@ __global__ void apply_height(model_t model, const param_t param){
 
   const float k = glm::clamp(param.depositionRate, 0.0f, 1.0f);
   const float equilibrium = model.equilibrium[n];
-  const float discharge = model.discharge[n];
+//  const float discharge = model.discharge[n];
   const float sediment = model.suspended[n];
-  if(discharge > 0.0f){
-    model.height[n] += -param.hscale*k*(equilibrium - sediment)/(discharge);
-  }
+  //if(discharge > 0.0f){
+    model.height[n] += -param.hscale*k*(equilibrium - sediment);///(discharge);
+ // }
 
 }
 
