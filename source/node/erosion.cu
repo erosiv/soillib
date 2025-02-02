@@ -199,7 +199,20 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= N) return;
 
+  //
+  // Parameters
+  // Note: Scale-Normalize Values
+  //
+
+  const float mu = param.momentumTransfer;
+  const float g = param.gravity;
+  const float k = param.depositionRate;
+
+  //
   // Initial Condition
+  //
+  
+  // Trajectory and Integration State
 
   const float P = float(model.elem)/float(N); // Sample Probability
   curandState* randState = &randStates[ind];
@@ -208,17 +221,17 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     curand_uniform(randState)*float(model.index[1])
   };
 
+  int find = model.index.flatten(pos);
+
   float vol = 1.0f;
   float sed = 0.0f;
 
-  vec2 speed = vec2(0.0f);
+  const vec2 grad = gradient(model, pos);
+  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  const vec2 average_speed = (model.momentum[find]) / (1.0f + model.discharge[find]);
+  vec2 speed = g * vec2(normal.x, normal.y) + (mu / vol) * average_speed;
 
-
-
-
-
-
-  
+  vec2 dspeed = speed;
 
   // Solution Loop:
   //  Solve Conservation Law along Characteristic
@@ -228,38 +241,29 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
 
     // Termination Conditions
 
-    if(model.index.oob(pos))  return;
-    if(vol < param.minVol)    return;
+    if(model.index.oob(pos))      return;
+    if(vol < param.minVol)        return;
+    if(glm::length(speed) < 1E-4) return;
 
     //
     // Execute Integration
     //
-
-    const int find = model.index.flatten(pos);
 
     // Flow Integration / Trajectory
 
     vec2 nspeed = speed;
     vec2 npos = pos;
 
-    // Note: Scale-Normalize Values
-    const float mu = param.momentumTransfer;
-    const float g = param.gravity;
-
     // Viscosity Contribution
 
     const vec2 average_speed = (model.momentum[find] + vol * speed) / (1.0f + model.discharge[find] + vol);
-    nspeed = 1.0f/(1.0f + mu)*nspeed + mu/(1.0f + mu)*average_speed;
+    nspeed += mu * (average_speed - speed);
 
     // Gravity Contribution
 
     const vec2 grad = gradient(model, pos);
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
     nspeed += g * vec2(normal.x, normal.y);
-
-    // Drag Coefficient
-
-    nspeed += (0.025f)*(-nspeed);
 
     //
     // Time-Step Normalization
@@ -294,30 +298,35 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     // Note: Accumulation Occurds at Current Position
 
     atomicAdd(&model.discharge_track[find], P*vol);
+    atomicAdd(&model.momentum_track[find].x, P*vol*dspeed.x);
+    atomicAdd(&model.momentum_track[find].y, P*vol*dspeed.y);
 
     // Note: Both of these work but are slightly different. Find out why!
     
     //atomicAdd(&model.equilibrium_track[find], equilibrium);
     //atomicAdd(&model.suspended_track[find], sed);
-    atomicAdd(&model.height[find], -param.depositionRate*(equilibrium - sed));
-
-    atomicAdd(&model.momentum_track[find].x, P*vol*speed.x);
-    atomicAdd(&model.momentum_track[find].y, P*vol*speed.y);
+    atomicAdd(&model.height[find], -k*(equilibrium - sed));
 
     //
-    // Integrate Quantities
+    // Integrate Sub-Solution Quantities
     //
 
     vol *= (1.0f - param.evapRate);
-    sed += param.depositionRate * (equilibrium - sed);
+    dspeed += - (mu / vol)*dspeed;
+    sed += k * (equilibrium - sed);
 
     // Update Position at next Position?
     // We do this because technically,
     // we have moved forward to where
     // the velocity has changed as specified.
 
+    //
+    // Update Trajectory
+    //
+
     pos = npos;
     speed = nspeed;
+    find = model.index.flatten(pos);
 
   }
 
@@ -414,7 +423,7 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
     //
 
     // apply the suspension difference...
-    apply_height<<<block(model.elem, 1024), 1024>>>(model, param);
+    // apply_height<<<block(model.elem, 1024), 1024>>>(model, param);
 
     // atomic add operations might still be coming in -
     // we have to be done before cascading or this fails...
