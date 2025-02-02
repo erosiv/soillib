@@ -148,7 +148,13 @@ __global__ void reset(model_t model){
   model.discharge_track[n] = 0.0f;
   model.suspended_track[n] = 0.0f;
   model.momentum_track[n] = vec2(0.0f);
+  model.equilibrium_track[n] = 0.0f;
 
+}
+
+template<typename T>
+__device__ T mix(T a, T b, float w){
+  return (1.0f-w)*a + w*b;
 }
 
 __global__ void filter(model_t model, const param_t param){
@@ -158,16 +164,35 @@ __global__ void filter(model_t model, const param_t param){
 
   // Apply Simple Exponential Filter to Noisy Estimates
 
-  const float w = param.lrate;
-  model.discharge[n] = (1.0f-w)*model.discharge[n] + w*model.discharge_track[n];
-  model.suspended[n] = (1.0f-w)*model.suspended[n] + w*model.suspended_track[n];
-  model.momentum[n] = (1.0f-w)*model.momentum[n] + w*model.momentum_track[n];
+  model.discharge[n] = mix<float>(model.discharge[n], model.discharge_track[n], param.lrate);
+  model.momentum[n] = mix<vec2>(model.momentum[n], model.momentum_track[n], param.lrate);
+
+  model.suspended[n] = mix<float>(model.suspended[n], model.suspended_track[n], 0.9f);
+  model.equilibrium[n] = mix<float>(model.equilibrium[n], model.equilibrium_track[n], 0.9f);
 
 }
 
 //
 // Erosion Kernels
 //
+
+__device__ float equ_frac(const model_t& model, vec2 pos, vec2 npos, const param_t param){
+
+  const int find = model.index.flatten(pos);
+  const int nind = model.index.flatten(npos);
+
+  float h0 = model.height[find];
+  float h1 = h0 - param.exitSlope; 
+  if(!model.index.oob(npos)){
+    h1 = model.height[nind];
+  }
+
+  const float discharge = glm::max(0.0f, model.discharge[find]);  // Discharge Volume
+  const float slope = (h0 - h1);                  // Local Slope
+
+  return glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
+
+}
 
 __global__ void solve(model_t model, curandState* randStates, const size_t N, const param_t param){
 
@@ -183,9 +208,17 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     curand_uniform(randState)*float(model.index[1])
   };
 
-  vec2 speed = vec2(0.0f);
   float vol = 1.0f;
   float sed = 0.0f;
+
+  vec2 speed = vec2(0.0f);
+
+
+
+
+
+
+  
 
   // Solution Loop:
   //  Solve Conservation Law along Characteristic
@@ -198,108 +231,118 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     if(model.index.oob(pos))  return;
     if(vol < param.minVol)    return;
 
-    // Compute Speed Update
+    //
+    // Execute Integration
+    //
 
     const int find = model.index.flatten(pos);
-    
-    // Gravity Contribution
-    const vec2 grad = gradient(model, pos);
-    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-    speed += param.gravity * vec2(normal.x, normal.y);
+
+    // Flow Integration / Trajectory
+
+    vec2 nspeed = speed;
+    vec2 npos = pos;
+
+    // Note: Scale-Normalize Values
+    const float mu = param.momentumTransfer;
+    const float g = param.gravity;
 
     // Viscosity Contribution
-    const float mu = param.momentumTransfer;//::clamp(param.momentumTransfer, 0.0f, 1.0f);
-    // const vec2 average_speed = (model.momentum[find] + volume * speed) / (model.discharge[find] + volume);
-    const vec2 average_speed = (model.momentum[find]) / (model.discharge[find] + vol);
-    speed = speed + mu * (average_speed - speed); // Explicit Euler
-    //speed = (speed + mu * average_speed)/(1.0f + mu); // Implicit Euler
 
-    // Normalize Time-Step, Increment
+    const vec2 average_speed = (model.momentum[find] + vol * speed) / (1.0f + model.discharge[find] + vol);
+    nspeed = 1.0f/(1.0f + mu)*nspeed + mu/(1.0f + mu)*average_speed;
 
-    // Update Trajectory
+    // Gravity Contribution
 
-    if(glm::length(speed) > 0.0){
-      speed = sqrt(2.0f)*glm::normalize(speed);
+    const vec2 grad = gradient(model, pos);
+    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+    nspeed += g * vec2(normal.x, normal.y);
+
+    // Drag Coefficient
+
+    nspeed += (0.025f)*(-nspeed);
+
+    //
+    // Time-Step Normalization
+    //
+
+    // Note: Here we should see if we can use the length of the speed
+    //  vector as the inverse of the time-step. That would help scale
+    //  things correctly.
+    //  Additionally, we should limit the magnitude of the velocity,
+    //  because it does have the change to run-away despite the viscosity.
+
+    if(glm::length(nspeed) > 0.0){
+      npos += sqrt(2.0f)*glm::normalize(nspeed);
+    } else {
+      // note: if the position becomes the same,
+      // slope will also be zero
+      // meaning equilibrium drops to zero
+      // which could cause a chain reaction of deposition
+      break;
     }
 
-    // next position
-    const vec2 npos = pos + speed;
+    //
+    // Mass-Transfer
+    //
 
-    /*
-    // speed has to be limited by something...
-    particles.spd[ind] = speed;
-    if(glm::length(speed) > 0.0){
-      particles.pos[ind] += sqrt(2.0f)*glm::normalize(speed);
-    }
-    const vec2 npos = particles.pos[ind];
-    */
+    const float equilibrium = vol * equ_frac(model, pos, npos, param);
 
-    // Update Volume
+    //
+    // Accumulate Estimated Values
+    //
+
+    // Note: Accumulation Occurds at Current Position
+
+    atomicAdd(&model.discharge_track[find], P*vol);
+
+    // Note: Both of these work but are slightly different. Find out why!
+    
+    //atomicAdd(&model.equilibrium_track[find], equilibrium);
+    //atomicAdd(&model.suspended_track[find], sed);
+    atomicAdd(&model.height[find], -param.depositionRate*(equilibrium - sed));
+
+    atomicAdd(&model.momentum_track[find].x, P*vol*speed.x);
+    atomicAdd(&model.momentum_track[find].y, P*vol*speed.y);
+
+    //
+    // Integrate Quantities
+    //
 
     vol *= (1.0f - param.evapRate);
+    sed += param.depositionRate * (equilibrium - sed);
 
-    // Mass-Transfer
+    // Update Position at next Position?
+    // We do this because technically,
+    // we have moved forward to where
+    // the velocity has changed as specified.
 
-    float h0 = model.height[find];
-    float h1 = h0 - param.exitSlope; 
-    if(!model.index.oob(npos)){
-      h1 = model.height[model.index.flatten(npos)];
-    }
-
-    const float discharge = model.discharge[find];  // Discharge Volume
-    const float slope = (h0 - h1);                  // Local Slope
-
-    const float equilibrium = vol * glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
-    const float mass_diff = (equilibrium - sed);
-
-    // Execute Mass-Transfer
-
-    const float k = glm::clamp(param.depositionRate, 0.0f, 1.0f);
-//    particles.susp[ind] = k * mass_diff;
-    sed += k * mass_diff;
-
-    // Execute the Differential Tracking
-
-    // At the next position though?
-    
-    if(!model.index.oob(npos)){
-      
-      const int nind = model.index.flatten(npos);
-
-      atomicAdd(&model.height[find], -k * mass_diff); // note: important that it happens here?
-
-      atomicAdd(&model.discharge_track[nind], P*vol); // note: normalized by scaling by P
-
-      const vec2 m = vol * speed;
-      atomicAdd(&model.momentum_track[nind].x, m.x);
-      atomicAdd(&model.momentum_track[nind].y, m.y);
-
-//      const float susp = k * mass_diff;
-//      atomicAdd(&model.suspended_track[nind], susp);
-
-    }
-
-    // update position
     pos = npos;
+    speed = nspeed;
 
   }
 
 }
 
-/*
-__global__ void apply_height(soil::buffer_t<float> height, const soil::buffer_t<float> susp, const param_t param){
+__global__ void apply_height(model_t model, const param_t param){
 
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= height.elem()) return;
-  if(ind >= susp.elem()) return;
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= model.elem) return;
 
-  // now why the hell would I do this.. it's not scaled correctly...
-  // do we have to divide it by the discharge perhaps?
-  // that would scale it down...
-  // height[ind] += -1.0f * sigmoid(susp[ind] / param.hscale);
+  // what is the correct way to scale this difference value?
+  // since equilibrium is effectively weighted by vol,
+  // and sediment is scaled by volume as well in theory...
+  // so one is an average concentration, the other is an
+  // an average equilibrium concentration.
+
+  const float k = glm::clamp(param.depositionRate, 0.0f, 1.0f);
+  const float equilibrium = model.equilibrium[n];
+  const float discharge = model.discharge[n];
+  const float sediment = model.suspended[n];
+  if(discharge > 0.0f){
+    model.height[n] += -param.hscale*k*(equilibrium - sediment)/(discharge);
+  }
 
 }
-*/
 
 //
 // Erosion Function
@@ -342,6 +385,11 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
   model.suspended_track = buf_suspended;
   model.momentum_track = buf_momentum;
 
+  auto buf_equilibrium = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
+  auto buf_equilibrium_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
+  model.equilibrium = buf_equilibrium;
+  model.equilibrium_track = buf_equilibrium_track;
+
   //
   // Execute Solution
   //
@@ -353,7 +401,11 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
     //
 
     reset<<<block(model.elem, 1024), 1024>>>(model);
+    cudaDeviceSynchronize();
+
     solve<<<block(n_samples, 512), 512>>>(model, randStates, n_samples, param);
+    cudaDeviceSynchronize();
+ 
     filter<<<block(model.elem, 1024), 1024>>>(model, param);
     cudaDeviceSynchronize();
 
@@ -362,7 +414,7 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
     //
 
     // apply the suspension difference...
-    //apply_height<<<block(model.elem, 1024), 1024>>>(model.height, model.suspended, param);
+    apply_height<<<block(model.elem, 1024), 1024>>>(model, param);
 
     // atomic add operations might still be coming in -
     // we have to be done before cascading or this fails...
