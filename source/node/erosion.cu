@@ -166,9 +166,7 @@ __global__ void filter(model_t model, const param_t param){
 
   model.discharge[n] = mix<float>(model.discharge[n], model.discharge_track[n], param.lrate);
   model.momentum[n] = mix<vec2>(model.momentum[n], model.momentum_track[n], param.lrate);
-
-  model.suspended[n] = mix<float>(model.suspended[n], model.suspended_track[n], 1.0f);
-  model.equilibrium[n] = mix<float>(model.equilibrium[n], model.equilibrium_track[n], 1.0f);
+  model.suspended[n] = mix<float>(model.suspended[n], model.suspended_track[n], param.lrate);
 
 }
 
@@ -227,14 +225,23 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
 
   const float rho_vol = 1.0f;
   float vol = 1.0f;
-  float sed = 0.0f;
-  float mass = rho_vol*vol + sed;
+  float mass = rho_vol*vol;
 
   const vec2 grad = gradient(model, pos);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
   const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
   vec2 speed = g * vec2(normal.x, normal.y) + (mu / mass) * average_speed;
   vec2 dspeed = speed;
+
+  // Sediment Transport:
+  // Doing this differentially is unstable for some reason.
+  // For now, we just integrate the solution directly.
+
+//  vec2 npos = pos + sqrt(2.0f)*glm::normalize(speed);
+//  const float equilibrium = vol * (equ_frac(model, pos, npos, param));
+//  float dsed = k*equilibrium;
+//  atomicAdd(&model.height[find], -dsed);
+  float sed = 0.0f;
 
   // Solution Loop:
   //  Solve Conservation Law along Characteristic
@@ -282,18 +289,6 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     }
 
     //
-    // Mass-Transfer
-    //
-
-    // Note: This expression for the equilibrium concentration depends solely on
-    // the discharge volume. That means that the small gradient along curved flows
-    // leads a meander to progress. To increase this effect, and get the meanders
-    // to "buckle", the equilibrium concentration needs to be increased further
-    // on the outer edge of the curve.
-
-    const float equilibrium = vol * (equ_frac(model, pos, npos, param));
-
-    //
     // Accumulate Estimated Values
     //
 
@@ -303,6 +298,29 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     atomicAdd(&model.momentum_track[find].x, P*mass*dspeed.x);
     atomicAdd(&model.momentum_track[find].y, P*mass*dspeed.y);
 
+    //
+    // Mass-Transfer
+    //
+
+    // Note: Differential Integration is Unstable due to Height-Map
+    // So we do direct integration instead, assuming segmented
+    // fluid packets.
+
+    // atomicAdd(&model.suspended_track[find], P*dsed);
+    // const float equilibrium = vol * (equ_frac(model, pos, npos, param));
+    // atomicAdd(&model.height[find], -k*(equilibrium - model.suspended[find]));
+    // dsed *= (1.0f - k);
+
+    // Note: This expression for the equilibrium concentration depends solely on
+    // the discharge volume. That means that the small gradient along curved flows
+    // leads a meander to progress. To increase this effect, and get the meanders
+    // to "buckle", the equilibrium concentration needs to be increased further
+    // on the outer edge of the curve.
+
+    const float equilibrium = vol * (equ_frac(model, pos, npos, param));
+    atomicAdd(&model.height[find], -k*(equilibrium - sed));
+    sed += k * (equilibrium - sed);
+    
     // Note: We should limit it so that this doesn't cause a runaway deposition.
     // That occurs when the amount removed is larger than making the flow flat.
     // The particles coming from behind will then hit that wall and deposity everything.
@@ -311,21 +329,13 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     // if the difference between the velocity and the target velocity is larger,
     // we scale the equilibrium value because we have a higher shear-stress.
 
-    atomicAdd(&model.height[find], -k*(equilibrium - sed));
-
-    // Note: Both of these work but are slightly different. Find out why!
-    
-    //atomicAdd(&model.equilibrium_track[find], equilibrium);
-    //atomicAdd(&model.suspended_track[find], sed);
-
     //
     // Integrate Sub-Solution Quantities
     //
 
     vol *= (1.0f - param.evapRate);
     dspeed += - (mu / mass)*dspeed;
-    sed += k * (equilibrium - sed);
-    mass = rho_vol*vol + sed;
+    mass = rho_vol*vol;
 
     // Update Position at next Position?
     // We do this because technically,
@@ -341,27 +351,6 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     find = model.index.flatten(pos);
 
   }
-
-}
-
-__global__ void apply_height(model_t model, const param_t param){
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= model.elem) return;
-
-  // what is the correct way to scale this difference value?
-  // since equilibrium is effectively weighted by vol,
-  // and sediment is scaled by volume as well in theory...
-  // so one is an average concentration, the other is an
-  // an average equilibrium concentration.
-
-  const float k = glm::clamp(param.depositionRate, 0.0f, 1.0f);
-  const float equilibrium = model.equilibrium[n];
-//  const float discharge = model.discharge[n];
-  const float sediment = model.suspended[n];
-  //if(discharge > 0.0f){
-    model.height[n] += -param.hscale*k*(equilibrium - sediment);///(discharge);
- // }
 
 }
 
@@ -431,22 +420,15 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
     cudaDeviceSynchronize();
 
     //
-    // Apply Height-Map Updates
+    // Thermal Erosion Kernel
     //
-
-    // apply the suspension difference...
-    // apply_height<<<block(model.elem, 1024), 1024>>>(model, param);
-
-    // atomic add operations might still be coming in -
-    // we have to be done before cascading or this fails...
-    // we can't be computing the differences before they are determined...
 
     compute_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
     apply_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
     cudaDeviceSynchronize();
 
-    // Increment Model Age for Rand-State Initialization
-    model.age++;
+   
+    model.age++; // Increment Model Age for Rand-State Initialization
 
   }
 
