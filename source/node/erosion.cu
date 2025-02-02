@@ -223,14 +223,17 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
 
   int find = model.index.flatten(pos);
 
+  // Water and Sediment Masses
+
+  const float rho_vol = 1.0f;
   float vol = 1.0f;
   float sed = 0.0f;
+  float mass = rho_vol*vol + sed;
 
   const vec2 grad = gradient(model, pos);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-  const vec2 average_speed = (model.momentum[find]) / (1.0f + model.discharge[find]);
-  vec2 speed = g * vec2(normal.x, normal.y) + (mu / vol) * average_speed;
-
+  const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
+  vec2 speed = g * vec2(normal.x, normal.y) + (mu / mass) * average_speed;
   vec2 dspeed = speed;
 
   // Solution Loop:
@@ -251,19 +254,11 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
 
     // Flow Integration / Trajectory
 
-    vec2 nspeed = speed;
-    vec2 npos = pos;
-
-    // Viscosity Contribution
-
-    const vec2 average_speed = (model.momentum[find] + vol * speed) / (1.0f + model.discharge[find] + vol);
-    nspeed += mu * (average_speed - speed);
-
-    // Gravity Contribution
-
     const vec2 grad = gradient(model, pos);
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-    nspeed += g * vec2(normal.x, normal.y);
+    const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
+
+    vec2 nspeed = speed + g * vec2(normal.x, normal.y) + (mu / mass)*(average_speed - speed);
 
     //
     // Time-Step Normalization
@@ -275,6 +270,7 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     //  Additionally, we should limit the magnitude of the velocity,
     //  because it does have the change to run-away despite the viscosity.
 
+    vec2 npos = pos;
     if(glm::length(nspeed) > 0.0){
       npos += sqrt(2.0f)*glm::normalize(nspeed);
     } else {
@@ -289,7 +285,15 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     // Mass-Transfer
     //
 
-    const float equilibrium = vol * equ_frac(model, pos, npos, param);
+    // Note: We should limit it so that this doesn't cause a runaway deposition.
+    // That occurs when the amount removed is larger than making the flow flat.
+    // The particles coming from behind will then hit that wall and deposity everything.
+    // Or we make sure we can't deposit more than equal the amount.
+    // Finally, we should add a term which is based on the viscosity, meaning that
+    // if the difference between the velocity and the target velocity is larger,
+    // we scale the equilibrium value because we have a higher shear-stress.
+
+    const float equilibrium = vol * (equ_frac(model, pos, npos, param));
 
     //
     // Accumulate Estimated Values
@@ -298,8 +302,8 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     // Note: Accumulation Occurds at Current Position
 
     atomicAdd(&model.discharge_track[find], P*vol);
-    atomicAdd(&model.momentum_track[find].x, P*vol*dspeed.x);
-    atomicAdd(&model.momentum_track[find].y, P*vol*dspeed.y);
+    atomicAdd(&model.momentum_track[find].x, P*mass*dspeed.x);
+    atomicAdd(&model.momentum_track[find].y, P*mass*dspeed.y);
 
     // Note: Both of these work but are slightly different. Find out why!
     
@@ -312,8 +316,9 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
     //
 
     vol *= (1.0f - param.evapRate);
-    dspeed += - (mu / vol)*dspeed;
+    dspeed += - (mu / mass)*dspeed;
     sed += k * (equilibrium - sed);
+    mass = rho_vol*vol + sed;
 
     // Update Position at next Position?
     // We do this because technically,
