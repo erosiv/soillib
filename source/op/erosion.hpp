@@ -7,18 +7,12 @@
 
 namespace soil {
 
-// What do we have to do to get GPU Erosion Working?
-// 1. Compute the Discharge Map from a Height-Map by Descending Particles based on Position
-// 2. Introduce the Particle Volume, Make sure Discharge Works Based on Mass
-// 3. Add Momentum to the Particles, Momentum Conservation
-// 4. Introduce the Mass-Exchange Kernel
-// 5. Introduce the Thermal Erosion Kernel
-
 //
 // Model Summarization
 //
 
 struct param_t {
+
   size_t maxage = 1024;
   float settling = 1.0f;
   float maxdiff = 0.8f;
@@ -31,28 +25,7 @@ struct param_t {
   float lrate = 0.01f;
   float exitSlope = 0.99f;
   float hscale = 0.1f;
-}; 
 
-struct particle_t {
-
-  particle_t(const size_t elem):elem(elem),
-    pos(elem, soil::host_t::GPU),
-    spd(elem, soil::host_t::GPU),
-    vol(elem, soil::host_t::GPU),
-    sed(elem, soil::host_t::GPU),
-    susp(elem, soil::host_t::GPU),
-    slope(elem, soil::host_t::GPU){}
-
-  const size_t elem;
-
-  soil::buffer_t<vec2> pos;
-  soil::buffer_t<vec2> spd;
-
-  soil::buffer_t<float> vol;    // Particle Water Volume
-  
-  soil::buffer_t<float> sed;
-  soil::buffer_t<float> slope;
-  soil::buffer_t<float> susp;
 };
 
 struct model_t {
@@ -69,14 +42,15 @@ struct model_t {
   soil::buffer_t<float> height;
 
   soil::buffer_t<float> discharge;
-  soil::buffer_t<float> suspended;
-  soil::buffer_t<float> equilibrium;
-  soil::buffer_t<vec2> momentum;
-
-  bool initialized = false;
   soil::buffer_t<float> discharge_track;
+
+  soil::buffer_t<float> suspended;
   soil::buffer_t<float> suspended_track;
+
+  soil::buffer_t<float> equilibrium;
   soil::buffer_t<float> equilibrium_track;
+
+  soil::buffer_t<vec2> momentum;
   soil::buffer_t<vec2> momentum_track;
 
 };
