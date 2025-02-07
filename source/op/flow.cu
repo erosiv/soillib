@@ -1,5 +1,8 @@
+#ifndef SOILLIB_OP_FLOW
+#define SOILLIB_OP_FLOW
 #define HAS_CUDA
 
+#include <soillib/op/common.hpp>
 #include <soillib/op/flow.hpp>
 
 #include <cuda_runtime.h>
@@ -36,10 +39,6 @@ __device__ const double dist[8] = {
 __device__ const int dirmap[8] = {
   7, 8, 1, 2, 3, 4, 5, 6,
 };
-
-int block(const int elem, const int thread){
-  return (elem + thread - 1)/thread;
-}
 
 //! \todo make this robust for non-regular tile shapes (test)
 __device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int w, const int h){
@@ -533,3 +532,4 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
 }
 
 // note: move this to a different file
+#endif

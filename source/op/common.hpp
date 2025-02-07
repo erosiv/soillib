@@ -7,6 +7,10 @@
 
 namespace soil {
 
+inline int block(const int elem, const int thread) {
+  return (elem + thread - 1)/thread;
+}
+
 //
 // Casting
 //
@@ -27,7 +31,6 @@ soil::buffer_t<To> cast(const soil::buffer_t<From>& buffer){
   return buffer_to;
 
 }
-
 
 //
 // Set Buffer from Value and Buffer
