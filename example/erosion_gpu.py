@@ -13,22 +13,20 @@ def main():
   index = soil.index([512, 512])
 
   seed = 0
-  buffer = soil.noise(index, seed)
-  buffer = soil.bake(buffer, index)
-  soil.multiply(buffer, 80.0)
-  buffer.gpu()
+  height = soil.noise(index, seed)
+  height = soil.bake(height, index)
+  soil.multiply(height, 80.0)
 
   discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  discharge[:] = 0.0
-
+  suspended = soil.buffer(soil.float32, index.elem(), soil.gpu)
   momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
+  
+  discharge[:] = 0.0
+  suspended[:] = 0.0
   momentum[:] = [0.0, 0.0]
 
-  suspended = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  suspended[:] = 0.0
-
   model = soil.model_t(index)
-  model.height = buffer
+  model.height = height.gpu()
   model.discharge = discharge
   model.momentum = momentum
   model.suspended = suspended
@@ -47,23 +45,18 @@ def main():
   param.evapRate = 0.001
 
   timer = soil.timer()
-  for i in range(512):
+  for i in range(1024):
     with timer:
       soil.gpu_erode(model, param, 1, 8192)
     print(f"Execution Time: {timer.count}ms")
 
-  buffer.cpu()
-  discharge.cpu()
+#  tiff_out = soil.tiff(height.cpu(), index)
+#  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-  tiff_out = soil.tiff(buffer, index)
-  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
+#  normal = soil.normal(height, index)
+#  height = model.height.cpu().numpy(index)
 
-  normal = soil.normal(buffer, index)
-  height = model.height
-  height.cpu()
-  height = height.numpy(index)
-
-  plt.imshow(np.log(1.0 + discharge.numpy(index)))
+  plt.imshow(np.log(1.0 + model.discharge.cpu().numpy(index)))
   plt.show()
 
 if __name__ == "__main__":
