@@ -113,19 +113,25 @@ T max(const soil::buffer_t<T>& buffer){
 //
 
 template<typename T>
-void set_impl(soil::buffer_t<T> buffer, const T val);
+void set_impl(soil::buffer_t<T> buffer, const T val, size_t start, size_t stop, size_t step);
+
+template<typename T>
+void set(soil::buffer_t<T> buffer, const T val, size_t start, size_t stop, size_t step){
+
+  if (buffer.host() == soil::host_t::CPU) {
+    for(int index = start; index < stop; index += step)
+      buffer[index] = val;
+  }
+
+  else if (buffer.host() == soil::host_t::GPU) {
+    set_impl(buffer, val, start, stop, step);
+  }
+
+}
 
 template<typename T>
 void set(soil::buffer_t<T> &buffer, const T val) {
-  // CPU Implementation
-  if (buffer.host() == soil::host_t::CPU) {
-    for (auto [i, b] : buffer.iter())
-      *b = val;
-  }
-  // GPU Implementation
-  else if (buffer.host() == soil::host_t::GPU) {
-    set_impl(buffer, val);
-  }
+  set(buffer, val, 0, buffer.elem(), 1);
 }
 
 template<typename T>

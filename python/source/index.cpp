@@ -24,23 +24,6 @@ namespace nb = nanobind;
 //
 //
 
-template<typename T>
-void bind_yield_t(nb::module_& module, const char* name){
-
-using yield_t = soil::yield<T>;
-auto yield = nb::class_<yield_t>(module, name);
-
-yield.def("__iter__", [](soil::yield<T>& iter){
-  return nb::make_iterator(nb::type<soil::yield<T>>(), "iterator",
-    iter.begin(), iter.end());
-}, nb::keep_alive<0, 1>());
-
-}
-
-//
-//
-//
-
 //! General Util Binding Function
 void bind_index(nb::module_& module){
 

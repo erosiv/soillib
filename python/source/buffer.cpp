@@ -80,6 +80,7 @@ buffer.def("gpu", [](soil::buffer& buffer){
 
 // 
 
+/*
 buffer.def("__getitem__", [](const soil::buffer& buffer, const size_t index) -> nb::object {
   return soil::select(buffer.type(), [&buffer, index]<typename S>() -> nb::object {
     S value = buffer.as<S>().operator[](index);
@@ -92,25 +93,22 @@ buffer.def("__setitem__", [](soil::buffer& buffer, const size_t index, const nb:
       buffer.as<S>()[index] = nb::cast<S>(value);
   });
 });
+*/
 
 buffer.def("__setitem__", [](soil::buffer& buffer, const nb::slice& slice, const nb::object value){
 
-  soil::select(buffer.type(), [&buffer, &slice, &value]<typename S>(){
+  const size_t elem = buffer.elem();
+  Py_ssize_t start, stop, step;
+  if(PySlice_GetIndices(slice.ptr(), elem, &start, &stop, &step) != 0)
+    throw std::runtime_error("slice is invalid!");
 
+  soil::select(buffer.type(), [&]<typename S>(){
     auto buffer_t = buffer.as<S>();           // Assignable Strict-Type Buffer
     const auto value_t = nb::cast<S>(value);  // Assignable Value
-
-    // Read Slice:
-    Py_ssize_t start, stop, step;
-    if(PySlice_GetIndices(slice.ptr(), buffer_t.elem(), &start, &stop, &step) != 0)
-      throw std::runtime_error("slice is invalid!");
-    
-    // Assign Values!
-    for(int index = start; index < stop; index += step)
-      buffer_t[index] = value_t;
-  
+    soil::set(buffer_t, value_t, start, stop, step);
   });
-}); 
+
+});
 
 //
 // External Library Interop Interface
@@ -409,6 +407,6 @@ struct make_torch {
 
   }
 
-}; 
+};
 
 #endif

@@ -13,25 +13,34 @@ namespace soil {
 //
 
 template<typename T>
-__global__ void _set(soil::buffer_t<T> buf, const T val){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.size())
-    buf[index] = val;
+__global__ void _set(soil::buffer_t<T> buf, const T val, size_t start, size_t stop, size_t step){
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned int i = start + n*step;
+  if(i >= stop) return;
+  buf[i] = val;
 }
+
+template<typename T>
+void set_impl(soil::buffer_t<T> buf, const T val, size_t start, size_t stop, size_t step){
+  int thread = 1024;
+  int elem = (stop - start + step - 1)/step;
+  int block = (elem + thread - 1)/thread;
+  _set<<<block, thread>>>(buf, val, start, stop, step);
+}
+
+template void set_impl<int>   (soil::buffer_t<int> buffer,    const int val, size_t start, size_t stop, size_t step);
+template void set_impl<float> (soil::buffer_t<float> buffer,  const float val, size_t start, size_t stop, size_t step);
+template void set_impl<double>(soil::buffer_t<double> buffer, const double val, size_t start, size_t stop, size_t step);
+template void set_impl<vec2>  (soil::buffer_t<vec2> buffer,   const vec2 val, size_t start, size_t stop, size_t step);
+template void set_impl<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 val, size_t start, size_t stop, size_t step);
+template void set_impl<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 val, size_t start, size_t stop, size_t step);
+template void set_impl<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 val, size_t start, size_t stop, size_t step);
 
 template<typename T>
 __global__ void _set(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.size())
+  if(index < lhs.elem())
     lhs[index] = rhs[index];
-}
-
-template<typename T>
-void set_impl(soil::buffer_t<T> buf, const T val){
-  int thread = 1024;
-  int elem = buf.elem();
-  int block = (elem + thread - 1)/thread;
-  _set<<<block, thread>>>(buf, val);
 }
 
 template<typename T>
@@ -41,14 +50,6 @@ void set_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
   int block = (elem + thread - 1)/thread;
   _set<<<block, thread>>>(lhs, rhs);
 }
-
-template void set_impl<int>   (soil::buffer_t<int> buffer,    const int val);
-template void set_impl<float> (soil::buffer_t<float> buffer,  const float val);
-template void set_impl<double>(soil::buffer_t<double> buffer, const double val);
-template void set_impl<vec2>  (soil::buffer_t<vec2> buffer,   const vec2 val);
-template void set_impl<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 val);
-template void set_impl<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 val);
-template void set_impl<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 val);
 
 template void set_impl<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs);
 template void set_impl<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs);
@@ -84,7 +85,7 @@ soil::buffer_t<T> resample_impl(const soil::buffer_t<T>& input, const soil::inde
     soil::buffer_t<T> output(flat.elem(), soil::GPU);
     using V = soil::typedesc<T>::value_t;
     T value = T{std::numeric_limits<V>::quiet_NaN()};
-    set_impl<T>(output, value);
+    set_impl<T>(output, value, 0, flat.elem(), 1);
 
     int thread = 1024;
     int elem = flat.elem();
@@ -112,14 +113,14 @@ template soil::buffer_t<ivec3>  resample_impl<ivec3> (const soil::buffer_t<ivec3
 template<typename T>
 __global__ void _add(soil::buffer_t<T> buf, const T val){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.size())
+  if(index < buf.elem())
     buf[index] += val;
 }
 
 template<typename T>
 __global__ void _add(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.size())
+  if(index < lhs.elem())
     lhs[index] += rhs[index];
 }
 
@@ -162,14 +163,14 @@ template void add_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t
 template<typename T>
 __global__ void _multiply(soil::buffer_t<T> buf, const T val){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.size())
+  if(index < buf.elem())
     buf[index] *= val;
 }
 
 template<typename T>
 __global__ void _multiply(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.size())
+  if(index < lhs.elem())
     lhs[index] *= rhs[index];
 }
 

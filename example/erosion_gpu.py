@@ -19,13 +19,13 @@ def main():
   buffer.gpu()
 
   discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  soil.set(discharge, 0.0)
+  discharge[:] = 0.0
 
   momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
-  soil.set(momentum, [0.0, 0.0])
+  momentum[:] = [0.0, 0.0]
 
   suspended = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  soil.set(suspended, 0.0)
+  suspended[:] = 0.0
 
   model = soil.model_t(index)
   model.height = buffer
