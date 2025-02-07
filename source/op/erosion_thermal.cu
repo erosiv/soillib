@@ -108,9 +108,9 @@ __global__ void apply_cascade(model_t model, buffer_t<float> transfer_b, const p
   // Only cascade where agitation exists?
 
   const float transfer = transfer_b[ind];
-  //const float discharge = erf(0.4f * model.discharge[ind]);
-  //model.height[ind] += discharge * transfer;
-  model.height[ind] += transfer;
+  const float discharge = log(1.0f + model.discharge[ind])/6.0f;
+  model.height[ind] += discharge * transfer;
+  //model.height[ind] += transfer;
 }
 
 }
