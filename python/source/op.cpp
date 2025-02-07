@@ -21,8 +21,7 @@ namespace nb = nanobind;
 
 #include "glm.hpp"
 
-//! General Node Binding Function
-void bind_node(nb::module_& module){
+void bind_op(nb::module_& module){
 
 //
 // Generic Buffer Reductions
