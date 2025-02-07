@@ -20,13 +20,10 @@ namespace soil {
 // Randstate and Estimate Initialization / Filtering
 //
 
-__global__ void init_randstate(curandState* states, const size_t N, const size_t seed, const size_t offset) {
-
+__global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
-  
-  curand_init(seed, n, 2*offset, &states[n]); // scale by 2 because we take two random samples per iteration
-
+  if(n >= buffer.elem()) return;
+  curand_init(seed, n, offset, &buffer[n]);
 }
 
 __global__ void reset(model_t model){
@@ -78,7 +75,7 @@ __device__ float equ_frac(const model_t& model, vec2 pos, vec2 npos, const param
 
 }
 
-__global__ void solve(model_t model, curandState* randStates, const size_t N, const param_t param){
+__global__ void solve(model_t model, const size_t N, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= N) return;
@@ -99,7 +96,7 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
   // Trajectory and Integration State
 
   const float P = float(model.elem)/float(N); // Sample Probability
-  curandState* randState = &randStates[ind];
+  curandState* randState = &model.rand[ind];
   vec2 pos = vec2{
     curand_uniform(randState)*float(model.index[0]),
     curand_uniform(randState)*float(model.index[1])
@@ -273,8 +270,9 @@ void erode(model_t& model, const param_t param, const size_t steps){
   // note: the offset in the sequence should be number of times rand is sampled
   // that way the sampling procedure becomes deterministic
 
-  if(model.allocate(n_samples)){
-    init_randstate<<<block(n_samples, 512), 512>>>(model.randStates, n_samples, 0, model.age);
+  if(model.rand.elem() != n_samples){
+    model.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
+    seed<<<block(n_samples, 512), 512>>>(model.rand, 0, 2 * model.age);
     cudaDeviceSynchronize();
   }
 
@@ -301,7 +299,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
     reset<<<block(model.elem, 1024), 1024>>>(model);
     cudaDeviceSynchronize();
 
-    solve<<<block(n_samples, 512), 512>>>(model, model.randStates, n_samples, param);
+    solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
  
     filter<<<block(model.elem, 1024), 1024>>>(model, param);
@@ -315,7 +313,6 @@ void erode(model_t& model, const param_t param, const size_t steps){
     apply_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
     cudaDeviceSynchronize();
 
-   
     model.age++; // Increment Model Age for Rand-State Initialization
 
   }

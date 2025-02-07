@@ -57,40 +57,7 @@ struct model_t {
   soil::buffer_t<vec2> momentum;
   soil::buffer_t<vec2> momentum_track;
 
-  //
-  // Randstate Buffer
-  // Note: This should be a buffer type.
-  //
-
-  int allocated = 0;
-  curandState* randStates = NULL;
-
-  bool allocate(const size_t N){
-    
-    if(this->allocated == N) 
-      return false;
-    
-    if(this->allocated > 0){
-      this->deallocate();
-    }
-
-    cudaMalloc((void**)&randStates, N * sizeof(curandState));
-    this->allocated = N;
-    return true;
-
-  }
-
-  void deallocate(){
-    if(this->randStates != NULL){
-      cudaFree(randStates);
-      this->allocated = 0;
-    }
-  }
-
-//  ~model_t(){
-//    if(this->allocated > 0)
-//      this->deallocate();
-//  }
+  soil::buffer_t<curandState> rand;
 
 };
 
