@@ -10,6 +10,8 @@
 #include <soillib/util/yield.hpp>
 #include <cuda_runtime.h>
 
+#include <iostream>
+
 namespace soil {
 
 namespace buffer_track {
@@ -177,8 +179,11 @@ void soil::buffer_t<T>::allocate(const size_t size, const host_t host) {
 template<typename T>
 void soil::buffer_t<T>::deallocate() {
 
+  if(this->_refs == NULL)
+    return;
+
   if(*this->_refs == 0)
-  return;
+    return;
 		
   (*this->_refs)--;
   if(*this->_refs > 0)

@@ -387,18 +387,11 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
   // Estimate Buffers
   //
 
-  // Note: Extract this Allocation
-  auto buf_discharge = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  auto buf_suspended = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  auto buf_momentum = soil::buffer_t<vec2>(model.discharge.elem(), soil::host_t::GPU);
-  model.discharge_track = buf_discharge;
-  model.suspended_track = buf_suspended;
-  model.momentum_track = buf_momentum;
-
-  auto buf_equilibrium = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  auto buf_equilibrium_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  model.equilibrium = buf_equilibrium;
-  model.equilibrium_track = buf_equilibrium_track;
+  model.discharge_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
+  model.suspended_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
+  model.momentum_track = soil::buffer_t<vec2>(model.discharge.elem(), soil::host_t::GPU);
+  model.equilibrium = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
+  model.equilibrium_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
 
   //
   // Execute Solution
