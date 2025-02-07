@@ -9,18 +9,41 @@
 
 namespace soil {
 
+__constant__ static const float _weight[8][5] = {
+  { 1.0f/12.0f, -8.0f/12.0f, 0.0f/12.0f, 8.0f/12.0f, -1.0f/12.0f},
+  { 1.0f/6.0f,  -6.0f/6.0f,  3.0f/6.0f,  2.0f/6.0f,   0.0f/6.0f},
+  {      0.0f,  -2.0f/6.0f, -3.0f/6.0f,  6.0f/6.0f,  -1.0f/6.0f},
+  {      0.0f,  -1.0f/2.0f,       0.0f,  1.0f/2.0f,        0.0f},
+  { 1.0f/2.0f,  -4.0f/2.0f,  3.0f/2.0f,       0.0f,        0.0f},
+  {      0.0f,        0.0f, -3.0f/2.0f,  4.0f/2.0f,  -1.0f/2.0f},
+  {      0.0f,        0.0f,      -1.0f,       1.0f,        0.0f},
+  {      0.0f,       -1.0f,       1.0f,       0.0f,        0.0f}
+};
+
 template<std::floating_point T>
 struct lerp5_t {
 
   struct sample_t {
-    T value;
+    T value = 0.0f;
     bool oob = true;
   };
 
-  template<typename I>
-  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p) {
-    for (int i = 0; i < 5; ++i) {
+  GPU_ENABLE static constexpr int getSet(const int _min, const int _max) {
+    if(_min == 0 && _max == 4) return 0;
+    if(_min == 0 && _max == 3) return 1;
+    if(_min == 0 && _max == 2) return 2;
+    if(_min == 1 && _max == 4) return 3;
+    if(_min == 2 && _max == 4) return 4;
+    if(_min == 1 && _max == 3) return 5;
+    if(_min == 2 && _max == 3) return 6;
+    if(_min == 1 && _max == 2) return 7;
+    return 0;
+  }
 
+  template<typename I>
+  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p){
+
+    for (int i = 0; i < 5; ++i) {
       const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
       if (!index.oob(pos_x)) {
         this->x[i].oob = false;
@@ -35,12 +58,29 @@ struct lerp5_t {
         this->y[i].value = buffer_t[ind];
       }
     }
+
   }
 
   GPU_ENABLE glm::vec2 grad() const {
 
     glm::vec2 g = glm::vec2(0, 0);
 
+    /*
+    int _min = 0;
+    int _max = 4;
+    if(this->x[0].oob) ++_min;
+    if(this->x[1].oob) ++_min;
+    if(this->x[3].oob) --_max;
+    if(this->x[4].oob) --_max;
+    const auto set = getSet(_min, _max);
+
+    g.x += this->x[0].value*_weight[set][0];
+    g.x += this->x[1].value*_weight[set][1];
+    g.x += this->x[2].value*_weight[set][2];
+    g.x += this->x[3].value*_weight[set][3];
+    g.x += this->x[4].value*_weight[set][4];
+    */
+  
     // X-Element
     if (!this->x[0].oob && !this->x[4].oob)
       g.x = (1.0f * this->x[0].value - 8.0f * this->x[1].value + 8.0f * this->x[3].value - 1.0f * this->x[4].value) / 12.0f;
