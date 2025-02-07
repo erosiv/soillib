@@ -17,11 +17,6 @@
 
 namespace soil {
 
-template<typename T>
-concept matrix_t = requires(T t) {
-  { float() * t };
-};
-
 }; // namespace soil
 
 #endif

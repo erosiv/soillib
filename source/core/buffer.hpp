@@ -104,11 +104,10 @@ struct buffer_t: typedbase {
     return soil::typedesc<T>::type;
   }
 
-  GPU_ENABLE inline size_t elem() const { return this->_size; }              //!< Number of Elements
-  GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
-  //GPU_ENABLE inline void *data() { return (void *)this->_data; }           //!< Raw Data Pointer
-  GPU_ENABLE inline T *data() { return this->_data; }             //!< Raw Data Pointer
-  GPU_ENABLE inline const T *data() const { return this->_data; } //!< Raw Data Pointer
+  GPU_ENABLE inline size_t elem() const   { return this->_size; }               //!< Number of Elements
+  GPU_ENABLE inline size_t size() const   { return this->elem() * sizeof(T); }  //!< Total Size in Bytes
+  GPU_ENABLE inline T *data()             { return this->_data; }               //!< Raw Data Pointer
+  GPU_ENABLE inline const T *data() const { return this->_data; }               //!< Raw Data Pointer
 
   GPU_ENABLE inline size_t refs() const { return *this->_refs; } //!< Internal Reference Count
   GPU_ENABLE inline host_t host() const { return this->_host; }  //!< Current Device (CPU / GPU)
@@ -139,6 +138,8 @@ struct buffer_t: typedbase {
   }
 
 private:
+
+  //! Device-Aware Allocation and De-Allocation
   void allocate(const size_t size, const host_t host = CPU);
   void deallocate();
 

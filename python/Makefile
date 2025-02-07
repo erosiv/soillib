@@ -50,10 +50,7 @@ build:
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/index.cpp 	 	-o $(BUILDDIR)/index.o
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/io.cpp 				-o $(BUILDDIR)/io.o
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/util.cpp 			-o $(BUILDDIR)/util.o
-	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/matrix.cpp 		-o $(BUILDDIR)/matrix.o
-	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/model.cpp 	  -o $(BUILDDIR)/model.o
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/node.cpp 	 		-o $(BUILDDIR)/node.o
-	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/particle.cpp 	-o $(BUILDDIR)/particle.o
 	@echo "  Linking Object Files..."
 	@$(CC) -shared -o $(BUILDDIR)/${MODULE} \
 		$(LIBPATH) \
@@ -61,10 +58,7 @@ build:
 		$(BUILDDIR)/index.o \
 		$(BUILDDIR)/io.o \
 		$(BUILDDIR)/util.o \
-		$(BUILDDIR)/matrix.o \
-		$(BUILDDIR)/model.o \
 		$(BUILDDIR)/node.o \
-		$(BUILDDIR)/particle.o \
 		$(HOME)/.local/lib/libnanobind.o \
 		-lnanobind \
 		-lsoil \
