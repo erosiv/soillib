@@ -273,7 +273,11 @@ struct buffer {
   buffer() = default;
   // buffer(const buffer& buffer):impl{buffer.impl}{}
 
-  buffer(const soil::dtype type, const size_t size): impl{make(type, size)} {}
+  buffer(const soil::dtype type, const size_t size):
+    impl{make(type, size)} {} 
+ 
+  buffer(const soil::dtype type, const size_t size, const host_t host):
+    impl{make(type, size, host)} {}
 
   //! Note that since it holds a shared pointer to a buffer_t,
   //! holding a shared pointer, if the copied or moved object
@@ -364,9 +368,9 @@ private:
   using ptr_t = std::shared_ptr<typedbase>;
   ptr_t impl; //!< Strict-Typed Implementation Base Pointer
 
-  static ptr_t make(const soil::dtype type, const size_t size) {
-    return select(type, [size]<typename S>() -> ptr_t {
-      return std::make_shared<soil::buffer_t<S>>(size);
+  static ptr_t make(const soil::dtype type, const size_t size, const host_t host = CPU) {
+    return select(type, [size, host]<typename S>() -> ptr_t {
+      return std::make_shared<soil::buffer_t<S>>(size, host);
     });
   }
 };

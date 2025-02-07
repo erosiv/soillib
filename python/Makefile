@@ -47,6 +47,7 @@ build:
 	@echo "  Compiling Binding Object Files..."
 	@if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi;
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/soillib.cpp 	-o $(BUILDDIR)/soillib.o
+	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/buffer.cpp 	-o $(BUILDDIR)/buffer.o
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/index.cpp 	 	-o $(BUILDDIR)/index.o
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/io.cpp 				-o $(BUILDDIR)/io.o
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/util.cpp 			-o $(BUILDDIR)/util.o
@@ -55,6 +56,7 @@ build:
 	@$(CC) -shared -o $(BUILDDIR)/${MODULE} \
 		$(LIBPATH) \
 		$(BUILDDIR)/soillib.o \
+		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/index.o \
 		$(BUILDDIR)/io.o \
 		$(BUILDDIR)/util.o \

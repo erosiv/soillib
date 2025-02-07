@@ -18,17 +18,14 @@ def main():
   soil.multiply(buffer, 80.0)
   buffer.gpu()
 
-  discharge = soil.buffer(soil.float32, index.elem())
+  discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)
   soil.set(discharge, 0.0)
-  discharge.gpu()
 
-  momentum = soil.buffer(soil.vec2, index.elem())
+  momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
   soil.set(momentum, [0.0, 0.0])
-  momentum.gpu()
 
-  suspended = soil.buffer(soil.float32, index.elem())
+  suspended = soil.buffer(soil.float32, index.elem(), soil.gpu)
   soil.set(suspended, 0.0)
-  suspended.gpu()
 
   model = soil.model_t(index)
   model.height = buffer
@@ -41,7 +38,7 @@ def main():
   param.momentumTransfer = 0.25
   param.maxdiff = 0.75
   param.settling = 0.75
-  param.depositionRate = 0.25
+  param.depositionRate = 0.1
   param.entrainment = 0.125
   param.lrate = 0.125
   param.exitSlope = 0.0
@@ -50,9 +47,9 @@ def main():
   param.evapRate = 0.001
 
   timer = soil.timer()
-  for i in range(16):
+  for i in range(512):
     with timer:
-      soil.gpu_erode(model, param, 4, 8192)
+      soil.gpu_erode(model, param, 1, 8192)
     print(f"Execution Time: {timer.count}ms")
 
   buffer.cpu()
@@ -65,22 +62,8 @@ def main():
   height = model.height
   height.cpu()
   height = height.numpy(index)
-  print(np.max(height))
-  print(np.min(height))
 
-#  plt.imshow(height)
-#  plt.show()
-#
-#  return
-#
-  normal = normal.numpy(index)
-  relief = relief_shade(height, normal)
-  plt.imshow(relief, cmap='gray')
-
-
-
-#  plt.imshow(np.log(1.0 + discharge.numpy(index)))
-  #plt.imshow(discharge.numpy(index)[4:-2, 4:-2])
+  plt.imshow(np.log(1.0 + discharge.numpy(index)))
   plt.show()
 
 if __name__ == "__main__":
