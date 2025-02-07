@@ -61,15 +61,18 @@ all:
 	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) op/flow.cu 		-o $(BUILDDIR)/flow.o
 	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) op/erosion.cu -o $(BUILDDIR)/erosion.o
 	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) op/math.cu 		-o $(BUILDDIR)/math.o
+	@$(CC) $(CF) -I$(INCPATH) -L$(LIBPATH) $(INCCUDA) op/common.cu 		-o $(BUILDDIR)/common.o
 	@nvcc -dlink -Xcompiler -fPIC -o $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/flow.o \
 		$(BUILDDIR)/erosion.o \
+		$(BUILDDIR)/common.o \
 		$(BUILDDIR)/math.o
 	@nvcc -lib -o $(BUILDDIR)/$(LIBDIST).a $(BUILDDIR)/$(LIBDIST).o \
 		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/flow.o \
 		$(BUILDDIR)/erosion.o \
+		$(BUILDDIR)/common.o \
 		$(BUILDDIR)/math.o
 
 	@echo "Installing Library ($(LIBDIST))..."

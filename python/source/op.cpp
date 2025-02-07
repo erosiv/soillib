@@ -11,6 +11,7 @@ namespace nb = nanobind;
 
 #include <soillib/core/types.hpp>
 
+#include <soillib/op/common.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
 #include <soillib/op/flow.hpp>
