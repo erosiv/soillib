@@ -14,7 +14,6 @@ def main():
 
   seed = 0
   height = soil.noise(index, seed)
-  height = soil.bake(height, index)
   soil.multiply(height, 80.0)
 
   discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)

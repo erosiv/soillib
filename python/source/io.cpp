@@ -11,8 +11,6 @@ namespace nb = nanobind;
 #include <soillib/io/geotiff.hpp>
 #include <soillib/io/mesh.hpp>
 
-#include <soillib/core/node.hpp>
-
 #include "glm.hpp"
 
 void bind_io(nb::module_& module){

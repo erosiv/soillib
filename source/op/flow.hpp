@@ -4,7 +4,6 @@
 #include <random>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
-#include <soillib/core/node.hpp>
 #include <soillib/soillib.hpp>
 #include <soillib/util/error.hpp>
 

@@ -5,8 +5,6 @@
 #include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>
 
-#include <soillib/core/node.hpp>
-
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 #include <soillib/external/FastNoiseLite.h>
 
@@ -70,23 +68,25 @@ struct noise {
     return val;
   }
 
-  static soil::node make_node(const soil::index index, const float seed) {
+  static soil::buffer make_buffer(const soil::index index, const float seed) {
 
-    return select(index.type(), [index, seed]<typename T>() -> soil::node {
+    return select(index.type(), [index, seed]<typename T>() -> soil::buffer {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
 
-        soil::node_t<float> node_t([index, seed](const size_t i) -> float {
-          soil::noise noise(seed);
-          auto index_t = index.as<T>();
-          soil::ivec2 position = index_t.unflatten(i);
-          return noise.operator()(position);
-        });
+        soil::noise noise(seed);
+        auto index_t = index.as<T>();
+        auto buffer_t = soil::buffer_t<float>(index_t.elem(), soil::CPU);
 
-        return soil::node(std::move(node_t));
+        for(size_t i = 0; i < index_t.elem(); ++i){
+          soil::ivec2 position = index_t.unflatten(i);
+          buffer_t[i] = noise(position);
+        }
+        return soil::buffer(std::move(buffer_t));
 
       } else
         throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
     });
+
   }
 
 private:

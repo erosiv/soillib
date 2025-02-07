@@ -3,7 +3,6 @@
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
-#include <soillib/core/node.hpp>
 #include <soillib/soillib.hpp>
 #include <soillib/util/error.hpp>
 
@@ -17,30 +16,6 @@ struct sample_t {
   T value;
   bool oob = true;
 };
-
-template<typename T, typename I>
-void gather(const soil::node_t<T> &node_t, const I index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]) {
-  for (size_t i = 0; i < 5; ++i) {
-
-    const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
-    if (!index.oob(pos_x)) {
-      px[i].oob = false;
-      px[i].pos = pos_x;
-
-      const size_t ind = index.flatten(pos_x);
-      px[i].value = node_t.val(ind);
-    }
-
-    const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
-    if (!index.oob(pos_y)) {
-      py[i].oob = false;
-      py[i].pos = pos_y;
-
-      const size_t ind = index.flatten(pos_y);
-      py[i].value = node_t.val(ind);
-    }
-  }
-}
 
 template<typename T, typename I>
 void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]) {
@@ -136,19 +111,6 @@ glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
 struct normal {
 
   template<std::floating_point T, typename I>
-  static glm::vec3 operator()(soil::node_t<T> node_t, I index, const glm::ivec2 pos) {
-
-    sample_t<T> px[5], py[5];
-    gather<T, I>(node_t, index, pos, px, py);
-    const glm::vec2 g = gradient_detailed<T>(px, py);
-    glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
-    if (length(n) > 0) {
-      n = normalize(n);
-    }
-    return n;
-  }
-
-  template<std::floating_point T, typename I>
   static glm::vec3 operator()(soil::buffer_t<T> buffer_t, I index, const glm::ivec2 pos) {
 
     sample_t<T> px[5], py[5];
@@ -192,44 +154,12 @@ struct normal {
     });
   }
 
-  // Deferred Execution
-  static soil::node operator()(const soil::node &node, soil::index index) {
-
-    if (index.dims() != 2)
-      throw std::invalid_argument("normal map can not be computed for non 2D-indexed buffers");
-
-    // Early Type Deduction:
-    //  We do this once and return a node which is internally
-    //  already aware of its strict-typed inputs, and doesn't
-    //  need to deduce them at runtime for every call.
-
-    return soil::select(index.type(), [&]<index_2D I>() {
-      return soil::select(node.type(), [&]<std::floating_point T>() {
-        auto index_t = index.as<I>();
-        auto node_t = node.as<T>();
-
-        soil::node_t<glm::vec3> output([index_t, node_t](const size_t i) -> glm::vec3 {
-          soil::ivec2 position = index_t.unflatten(i);
-          return soil::normal::operator()(node_t, index_t, position);
-        });
-
-        return soil::node(std::move(output));
-      });
-    });
-  }
-
-  //! Single Sample Value
-  static glm::vec3 operator()(soil::node node, soil::flat_t<2> index, const glm::ivec2 pos) {
-    return soil::select(node.type(), [node, index, pos]<std::floating_point T>() -> glm::vec3 {
-      return soil::normal::operator()(node.as<T>(), index, pos);
-    });
-  }
-
   static glm::vec3 operator()(soil::buffer buffer, soil::flat_t<2> index, const glm::ivec2 pos) {
     return soil::select(buffer.type(), [buffer, index, pos]<std::floating_point T>() -> glm::vec3 {
       return soil::normal::operator()(buffer.as<T>(), index, pos);
     });
   }
+
 };
 
 } // end of namespace soil
