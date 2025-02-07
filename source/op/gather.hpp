@@ -9,95 +9,97 @@
 
 namespace soil {
 
-template<typename T>
-struct sample_t {
-  glm::ivec2 pos;
-  T value;
-  bool oob = true;
-};
+template<std::floating_point T>
+struct lerp5_t {
 
-template<typename T, typename I>
-GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p, sample_t<T> px[5], sample_t<T> py[5]) {
-  for (int i = 0; i < 5; ++i) {
+  struct sample_t {
+    T value;
+    bool oob = true;
+  };
 
-    const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
-    if (!index.oob(pos_x)) {
-      px[i].oob = false;
-      px[i].pos = pos_x;
+  template<typename I>
+  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p) {
+    for (int i = 0; i < 5; ++i) {
 
-      const size_t ind = index.flatten(pos_x);
-      px[i].value = buffer_t[ind];
-    }
+      const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
+      if (!index.oob(pos_x)) {
+        this->x[i].oob = false;
+        const size_t ind = index.flatten(pos_x);
+        this->x[i].value = buffer_t[ind];
+      }
 
-    const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
-    if (!index.oob(pos_y)) {
-      py[i].oob = false;
-      py[i].pos = pos_y;
-
-      const size_t ind = index.flatten(pos_y);
-      py[i].value = buffer_t[ind];
+      const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
+      if (!index.oob(pos_y)) {
+        this->y[i].oob = false;
+        const size_t ind = index.flatten(pos_y);
+        this->y[i].value = buffer_t[ind];
+      }
     }
   }
-}
 
-template<std::floating_point T>
-GPU_ENABLE glm::vec2 gradient_detailed(sample_t<T> px[5], sample_t<T> py[5]) {
+  GPU_ENABLE glm::vec2 grad() const {
 
-  glm::vec2 g = glm::vec2(0, 0);
+    glm::vec2 g = glm::vec2(0, 0);
 
-  // X-Element
-  if (!px[0].oob && !px[4].oob)
-    g.x = (1.0f * px[0].value - 8.0f * px[1].value + 8.0f * px[3].value - 1.0f * px[4].value) / 12.0f;
+    // X-Element
+    if (!this->x[0].oob && !this->x[4].oob)
+      g.x = (1.0f * this->x[0].value - 8.0f * this->x[1].value + 8.0f * this->x[3].value - 1.0f * this->x[4].value) / 12.0f;
 
-  else if (!px[0].oob && !px[3].oob)
-    g.x = (1.0f * px[0].value - 6.0f * px[1].value + 3.0f * px[2].value + 2.0f * px[3].value) / 6.0f;
+    else if (!this->x[0].oob && !this->x[3].oob)
+      g.x = (1.0f * this->x[0].value - 6.0f * this->x[1].value + 3.0f * this->x[2].value + 2.0f * this->x[3].value) / 6.0f;
 
-  else if (!px[0].oob && !px[2].oob)
-    g.x = (1.0f * px[0].value - 4.0f * px[1].value + 3.0f * px[2].value) / 2.0f;
+    else if (!this->x[0].oob && !this->x[2].oob)
+      g.x = (1.0f * this->x[0].value - 4.0f * this->x[1].value + 3.0f * this->x[2].value) / 2.0f;
 
-  else if (!px[1].oob && !px[4].oob)
-    g.x = (-2.0f * px[1].value - 3.0f * px[2].value + 6.0f * px[3].value - 1.0f * px[4].value) / 6.0f;
+    else if (!this->x[1].oob && !this->x[4].oob)
+      g.x = (-2.0f * this->x[1].value - 3.0f * this->x[2].value + 6.0f * this->x[3].value - 1.0f * this->x[4].value) / 6.0f;
 
-  else if (!px[2].oob && !px[4].oob)
-    g.x = (-3.0f * px[2].value + 4.0f * px[3].value - 1.0f * px[4].value) / 2.0f;
+    else if (!this->x[2].oob && !this->x[4].oob)
+      g.x = (-3.0f * this->x[2].value + 4.0f * this->x[3].value - 1.0f * this->x[4].value) / 2.0f;
 
-  else if (!px[1].oob && !px[3].oob)
-    g.x = (-1.0f * px[1].value + 1.0f * px[3].value) / 2.0f;
+    else if (!this->x[1].oob && !this->x[3].oob)
+      g.x = (-1.0f * this->x[1].value + 1.0f * this->x[3].value) / 2.0f;
 
-  else if (!px[2].oob && !px[3].oob)
-    g.x = (-1.0f * px[2].value + 1.0f * px[3].value) / 1.0f;
+    else if (!this->x[2].oob && !this->x[3].oob)
+      g.x = (-1.0f * this->x[2].value + 1.0f * this->x[3].value) / 1.0f;
 
-  else if (!px[1].oob && !px[2].oob)
-    g.x = (-1.0f * px[1].value + 1.0f * px[2].value) / 1.0f;
+    else if (!this->x[1].oob && !this->x[2].oob)
+      g.x = (-1.0f * this->x[1].value + 1.0f * this->x[2].value) / 1.0f;
 
-  // Y-Element
+    // Y-Element
 
-  if (!py[0].oob && !py[4].oob)
-    g.y = (1.0f * py[0].value - 8.0f * py[1].value + 8.0f * py[3].value - 1.0f * py[4].value) / 12.0f;
+    if (!this->y[0].oob && !this->y[4].oob)
+      g.y = (1.0f * this->y[0].value - 8.0f * this->y[1].value + 8.0f * this->y[3].value - 1.0f * this->y[4].value) / 12.0f;
 
-  else if (!py[0].oob && !py[3].oob)
-    g.y = (1.0f * py[0].value - 6.0f * py[1].value + 3.0f * py[2].value + 2.0f * py[3].value) / 6.0f;
+    else if (!this->y[0].oob && !this->y[3].oob)
+      g.y = (1.0f * this->y[0].value - 6.0f * this->y[1].value + 3.0f * this->y[2].value + 2.0f * this->y[3].value) / 6.0f;
 
-  else if (!py[0].oob && !py[2].oob)
-    g.y = (1.0f * py[0].value - 4.0f * py[1].value + 3.0f * py[2].value) / 2.0f;
+    else if (!this->y[0].oob && !this->y[2].oob)
+      g.y = (1.0f * this->y[0].value - 4.0f * this->y[1].value + 3.0f * this->y[2].value) / 2.0f;
 
-  else if (!py[1].oob && !py[4].oob)
-    g.y = (-2.0f * py[1].value - 3.0f * py[2].value + 6.0f * py[3].value - 1.0f * py[4].value) / 6.0f;
+    else if (!this->y[1].oob && !this->y[4].oob)
+      g.y = (-2.0f * this->y[1].value - 3.0f * this->y[2].value + 6.0f * this->y[3].value - 1.0f * this->y[4].value) / 6.0f;
 
-  else if (!py[2].oob && !py[4].oob)
-    g.y = (-3.0f * py[2].value + 4.0f * py[3].value - 1.0f * py[4].value) / 2.0f;
+    else if (!this->y[2].oob && !this->y[4].oob)
+      g.y = (-3.0f * this->y[2].value + 4.0f * this->y[3].value - 1.0f * this->y[4].value) / 2.0f;
 
-  else if (!py[1].oob && !py[3].oob)
-    g.y = (-1.0f * py[1].value + 1.0f * py[3].value) / 2.0f;
+    else if (!this->y[1].oob && !this->y[3].oob)
+      g.y = (-1.0f * this->y[1].value + 1.0f * this->y[3].value) / 2.0f;
 
-  else if (!py[2].oob && !py[3].oob)
-    g.y = (-1.0f * py[2].value + 1.0f * py[3].value) / 1.0f;
+    else if (!this->y[2].oob && !this->y[3].oob)
+      g.y = (-1.0f * this->y[2].value + 1.0f * this->y[3].value) / 1.0f;
 
-  else if (!py[1].oob && !py[2].oob)
-    g.y = (-1.0f * py[1].value + 1.0f * py[2].value) / 1.0f;
+    else if (!this->y[1].oob && !this->y[2].oob)
+      g.y = (-1.0f * this->y[1].value + 1.0f * this->y[2].value) / 1.0f;
 
-  return g;
-}
+    return g;
+
+  }
+
+private:
+  sample_t x[5];
+  sample_t y[5];
+};
 
 namespace {
 

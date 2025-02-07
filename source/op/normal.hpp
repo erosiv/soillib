@@ -21,9 +21,9 @@ struct normal {
   template<std::floating_point T, typename I>
   static glm::vec3 operator()(soil::buffer_t<T> buffer_t, I index, const glm::ivec2 pos) {
 
-    sample_t<T> px[5], py[5];
-    gather<T, I>(buffer_t, index, pos, px, py);
-    const glm::vec2 g = gradient_detailed<T>(px, py);
+    lerp5_t<T> lerp;
+    lerp.gather(buffer_t, index, pos);
+    const glm::vec2 g = lerp.grad();
     glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
     if (length(n) > 0) {
       n = normalize(n);

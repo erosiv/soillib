@@ -32,9 +32,9 @@ __global__ void init_randstate(curandState* states, const size_t N, const size_t
 
 __device__ vec2 gradient(const model_t& model, const vec2 pos){
 
-  sample_t<float> px[5], py[5];
-  gather<float, soil::flat_t<2>>(model.height, model.index, ivec2(pos), px, py);
-  return gradient_detailed<float>(px, py);
+  lerp5_t<float> lerp;
+  lerp.gather(model.height, model.index, ivec2(pos));
+  return lerp.grad();
 
 }
 
