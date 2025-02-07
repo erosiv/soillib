@@ -13,7 +13,9 @@ namespace soil {
 
 struct param_t {
 
+  size_t samples = 2048;
   size_t maxage = 1024;
+
   float settling = 1.0f;
   float maxdiff = 0.8f;
   float evapRate = 0.001f;
@@ -55,7 +57,7 @@ struct model_t {
 
 };
 
-void gpu_erode(model_t& model, const param_t param, const size_t steps, const size_t n_samples);
+void erode(model_t& model, const param_t param, const size_t steps);
 
 } // end of namespace soil
 

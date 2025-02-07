@@ -31,6 +31,7 @@ def main():
   model.suspended = suspended
 
   param = soil.param_t()
+  param.samples = 8192
   param.gravity = 1
   param.momentumTransfer = 0.25
   param.maxdiff = 0.75
@@ -46,7 +47,7 @@ def main():
   timer = soil.timer()
   for i in range(1024):
     with timer:
-      soil.gpu_erode(model, param, 1, 8192)
+      soil.erode(model, param, 1)
     print(f"Execution Time: {timer.count}ms")
 
 #  tiff_out = soil.tiff(height.cpu(), index)

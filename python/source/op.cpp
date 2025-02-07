@@ -141,6 +141,7 @@ module.def("normal", [](const soil::buffer& buffer, const soil::index& index){
 
 auto param_t = nb::class_<soil::param_t>(module, "param_t");
 param_t.def(nb::init<>());
+param_t.def_rw("samples", &soil::param_t::samples);
 param_t.def_rw("maxage", &soil::param_t::maxage);
 param_t.def_rw("settling", &soil::param_t::settling);
 param_t.def_rw("maxdiff", &soil::param_t::maxdiff);
@@ -185,7 +186,7 @@ model_t.def_prop_rw("momentum",
     model.momentum = buffer.as<soil::vec2>();
 });
 
-module.def("gpu_erode", soil::gpu_erode);
+module.def("erode", soil::erode);
 
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...

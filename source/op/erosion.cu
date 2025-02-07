@@ -358,7 +358,7 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
 // Erosion Function
 //
 
-void gpu_erode(model_t& model, const param_t param, const size_t steps, const size_t n_samples){
+void erode(model_t& model, const param_t param, const size_t steps){
 
   if(model.height.host() != soil::host_t::GPU){
     throw soil::error::mismatch_host(soil::host_t::GPU, model.height.host());
@@ -375,6 +375,8 @@ void gpu_erode(model_t& model, const param_t param, const size_t steps, const si
   //
   // Initialize Rand-State Buffer (One Per Sample)
   //
+
+  const size_t n_samples = param.samples;
 
   // note: the offset in the sequence should be number of times rand is sampled
   // that way the sampling procedure becomes deterministic
