@@ -5,7 +5,6 @@
 #include <soillib/util/error.hpp>
 
 #include <cuda_runtime.h>
-#include <curand_kernel.h>
 #include <math_constants.h>
 #include <iostream>
 
@@ -30,14 +29,6 @@ __global__ void init_randstate(curandState* states, const size_t N, const size_t
 
 }
 
-__device__ vec2 gradient(const model_t& model, const vec2 pos){
-
-  lerp5_t<float> lerp;
-  lerp.gather(model.height, model.index, ivec2(pos));
-  return lerp.grad();
-
-}
-
 __global__ void reset(model_t model){
   
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -52,11 +43,6 @@ __global__ void reset(model_t model){
 
 }
 
-template<typename T>
-__device__ T mix(T a, T b, float w){
-  return (1.0f-w)*a + w*b;
-}
-
 __global__ void filter(model_t model, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -64,9 +50,9 @@ __global__ void filter(model_t model, const param_t param){
 
   // Apply Simple Exponential Filter to Noisy Estimates
 
-  model.discharge[n] = mix<float>(model.discharge[n], model.discharge_track[n], param.lrate);
-  model.momentum[n] = mix<vec2>(model.momentum[n], model.momentum_track[n], param.lrate);
-  model.suspended[n] = mix<float>(model.suspended[n], model.suspended_track[n], param.lrate);
+  model.discharge[n] = glm::mix(model.discharge[n], model.discharge_track[n], param.lrate);
+  model.momentum[n] = glm::mix(model.momentum[n], model.momentum_track[n], param.lrate);
+  model.suspended[n] = glm::mix(model.suspended[n], model.suspended_track[n], param.lrate);
 
 }
 
@@ -127,7 +113,10 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
   float vol = 1.0f;
   float mass = rho_vol*vol;
 
-  const vec2 grad = gradient(model, pos);
+  lerp5_t<float> lerp;
+  lerp.gather(model.height, model.index, ivec2(pos));
+  const vec2 grad = lerp.grad();
+
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
   const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
   vec2 speed = g * vec2(normal.x, normal.y) + (mu / mass) * average_speed;
@@ -161,7 +150,10 @@ __global__ void solve(model_t model, curandState* randStates, const size_t N, co
 
     // Flow Integration / Trajectory
 
-    const vec2 grad = gradient(model, pos);
+    lerp5_t<float> lerp;
+    lerp.gather(model.height, model.index, ivec2(pos));
+    const vec2 grad = lerp.grad();
+
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
     const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
 
@@ -280,10 +272,11 @@ void erode(model_t& model, const param_t param, const size_t steps){
 
   // note: the offset in the sequence should be number of times rand is sampled
   // that way the sampling procedure becomes deterministic
-  curandState* randStates;
-  cudaMalloc((void**)&randStates, n_samples * sizeof(curandState));
-  init_randstate<<<block(n_samples, 512), 512>>>(randStates, n_samples, 0, model.age);
-  cudaDeviceSynchronize();
+
+  if(model.allocate(n_samples)){
+    init_randstate<<<block(n_samples, 512), 512>>>(model.randStates, n_samples, 0, model.age);
+    cudaDeviceSynchronize();
+  }
 
   //
   // Estimate Buffers
@@ -308,7 +301,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
     reset<<<block(model.elem, 1024), 1024>>>(model);
     cudaDeviceSynchronize();
 
-    solve<<<block(n_samples, 512), 512>>>(model, randStates, n_samples, param);
+    solve<<<block(n_samples, 512), 512>>>(model, model.randStates, n_samples, param);
     cudaDeviceSynchronize();
  
     filter<<<block(model.elem, 1024), 1024>>>(model, param);
@@ -326,8 +319,6 @@ void erode(model_t& model, const param_t param, const size_t steps){
     model.age++; // Increment Model Age for Rand-State Initialization
 
   }
-
-  cudaFree(randStates);
 
 }
 
