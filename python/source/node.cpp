@@ -13,13 +13,13 @@ namespace nb = nanobind;
 
 #include <soillib/core/node.hpp>
 
-#include <soillib/node/noise.hpp>
-#include <soillib/node/normal.hpp>
-#include <soillib/node/flow.hpp>
-#include <soillib/node/math.hpp>
-#include <soillib/node/erosion.hpp>
+#include <soillib/op/noise.hpp>
+#include <soillib/op/normal.hpp>
+#include <soillib/op/flow.hpp>
+#include <soillib/op/math.hpp>
+#include <soillib/op/erosion.hpp>
 
-#include <soillib/node/common.hpp>
+#include <soillib/op/common.hpp>
 
 #include <iostream>
 

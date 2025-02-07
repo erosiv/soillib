@@ -2,9 +2,9 @@
 #define SOILLIB_NODE_EROSION_CU
 #define HAS_CUDA
 
-#include <soillib/node/erosion.hpp>
+#include <soillib/op/erosion.hpp>
 #include <soillib/util/error.hpp>
-#include <soillib/node/lerp.cu>
+#include <soillib/op/lerp.cu>
 
 #include <cuda_runtime.h>
 #include <curand_kernel.h>

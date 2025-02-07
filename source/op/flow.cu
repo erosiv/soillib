@@ -1,6 +1,6 @@
 #define HAS_CUDA
 
-#include <soillib/node/flow.hpp>
+#include <soillib/op/flow.hpp>
 #include <soillib/core/texture.hpp>
 
 #include <cuda_runtime.h>

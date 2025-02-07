@@ -22,6 +22,7 @@ struct constant {
 
     return soil::node(std::move(node_t));
   }
+
 };
 
 struct computed {
