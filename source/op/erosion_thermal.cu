@@ -127,7 +127,9 @@ __device__ void thermal_laplacian(const buffer_t<float>& height, buffer_t<float>
 
   float lx = px + nx - 2.0f * ct;
   float ly = py + ny - 2.0f * ct;
-  height_diff[i] = param.settling * (lx + ly);
+  float L = lx + ly;
+  if(glm::abs(L) < param.maxdiff) L = 0.0f;
+  height_diff[i] = param.settling * L;
 
 }
 
