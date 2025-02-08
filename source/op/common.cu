@@ -3,6 +3,8 @@
 #define HAS_CUDA
 
 #include <soillib/op/common.hpp>
+#include <soillib/op/gather.hpp>
+#include <soillib/util/error.hpp>
 
 namespace soil {
 
@@ -56,6 +58,37 @@ template void set_impl<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t
 template void set_impl<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
 template void set_impl<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
 template void set_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
+
+//
+// Resizing Kernels
+//
+
+template<typename T>
+__global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2 out, soil::ivec2 in){
+  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if(index < lhs.elem())
+    lhs[index] = rhs[index];
+}
+
+template<typename T>
+void resize_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2 out, soil::ivec2 in){
+  int thread = 1024;
+  int elem = lhs.elem();
+  int block = (elem + thread - 1)/thread;
+
+//  const flat_t<2> out_t({out.x, out.y});
+//  const flat_t<2> in_t({in.x, in.y});
+
+  _resize<<<block, thread>>>(lhs, rhs, out, in);
+}
+
+template void resize_impl<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs,     soil::ivec2 out, soil::ivec2 in);
+template void resize_impl<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs,   soil::ivec2 out, soil::ivec2 in);
+template void resize_impl<double>(soil::buffer_t<double> lhs,  const soil::buffer_t<double> rhs,  soil::ivec2 out, soil::ivec2 in);
+template void resize_impl<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t<vec2> rhs,    soil::ivec2 out, soil::ivec2 in);
+template void resize_impl<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs,    soil::ivec2 out, soil::ivec2 in);
+template void resize_impl<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs,   soil::ivec2 out, soil::ivec2 in);
+template void resize_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs,   soil::ivec2 out, soil::ivec2 in);
 
 } // end of namespace soil
 

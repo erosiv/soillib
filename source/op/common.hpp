@@ -3,6 +3,7 @@
 
 #include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/index.hpp>
 #include <limits>
 
 namespace soil {
@@ -78,6 +79,30 @@ void set(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
   else if (lhs.host() == soil::host_t::GPU) {
     set_impl(lhs, rhs);
   }
+}
+
+//
+// Resize Operation
+//  Note: Currently only Bilinear Interpolation
+
+template<typename T>
+void resize_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2 out, soil::ivec2 in);
+
+template<typename T>
+void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 out, soil::ivec2 in) {
+
+  if (lhs.elem() != rhs.elem())
+    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
+
+  if (lhs.host() != rhs.host())
+    throw soil::error::mismatch_host(lhs.host(), rhs.host());
+
+  if (lhs.host() == soil::host_t::GPU) {
+    resize_impl(lhs, rhs, out, in);
+  } else {
+    throw soil::error::mismatch_host(soil::host_t::GPU, rhs.host());
+  }
+
 }
 
 //

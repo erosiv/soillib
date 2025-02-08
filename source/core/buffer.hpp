@@ -179,6 +179,8 @@ void soil::buffer_t<T>::allocate(const size_t size, const host_t host) {
 template<typename T>
 void soil::buffer_t<T>::deallocate() {
 
+  std::cout<<"DESTRUCTOR CALLED"<<std::endl;
+
   if(this->_refs == NULL)
     return;
 
@@ -201,11 +203,15 @@ void soil::buffer_t<T>::deallocate() {
     }
 
     if(this->_host == GPU){
+
+      std::cout<<"DEALLOCATING MEMORY"<<std::endl;
+
       cudaFree(this->_data);
       buffer_track::mem_gpu -= this->size();
       this->_data = NULL;
       this->_size = 0;
       this->_host = CPU;
+
     }
   }
 
