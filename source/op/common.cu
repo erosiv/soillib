@@ -64,10 +64,25 @@ template void set_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t
 //
 
 template<typename T>
-__global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2 out, soil::ivec2 in){
+__global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, const flat_t<2> out, const flat_t<2> in){
+
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.elem())
-    lhs[index] = rhs[index];
+  if(index >= lhs.elem()){
+    return;
+  } 
+
+  const ivec2 ipos = out.unflatten(index);
+  const vec2 fpos = vec2(ipos)/vec2(out[0]-1, out[1]-1);
+  const ivec2 npos = fpos * vec2(in[0]-1, in[1]-1);
+
+  const unsigned int index_in = in.flatten(npos);
+  if(index_in >= rhs.elem()){
+    lhs[index] = T(0);
+    return;
+  } 
+
+  lhs[index] = T(2) * rhs[index_in];
+
 }
 
 template<typename T>
@@ -76,10 +91,10 @@ void resize_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2
   int elem = lhs.elem();
   int block = (elem + thread - 1)/thread;
 
-//  const flat_t<2> out_t({out.x, out.y});
-//  const flat_t<2> in_t({in.x, in.y});
+  const flat_t<2> out_t({out.x, out.y});
+  const flat_t<2> in_t({in.x, in.y});
 
-  _resize<<<block, thread>>>(lhs, rhs, out, in);
+  _resize<<<block, thread>>>(lhs, rhs, out_t, in_t);
 }
 
 template void resize_impl<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs,     soil::ivec2 out, soil::ivec2 in);

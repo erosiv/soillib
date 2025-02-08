@@ -91,8 +91,8 @@ void resize_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2
 template<typename T>
 void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 out, soil::ivec2 in) {
 
-  if (lhs.elem() != rhs.elem())
-    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
+//  if (lhs.elem() != rhs.elem())
+//    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
 
   if (lhs.host() != rhs.host())
     throw soil::error::mismatch_host(lhs.host(), rhs.host());
