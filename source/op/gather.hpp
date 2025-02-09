@@ -138,23 +138,23 @@ struct lerp_t {
   
   GPU_ENABLE val_t val() const {
     T v{0};
-    v += w0.x*w0.y*v00;
-    v += w0.x*w1.y*v01;
-    v += w1.x*w0.y*v10;
-    v += w1.x*w1.y*v11;
+    v += T(w0.x)*T(w0.y)*v00;
+    v += T(w0.x)*T(w1.y)*v01;
+    v += T(w1.x)*T(w0.y)*v10;
+    v += T(w1.x)*T(w1.y)*v11;
     return v;
   }
 
   GPU_ENABLE grad_t grad() const {
     glm::vec<2, T> v{0};
-    v.x -= w0.y*v00;
-    v.x -= w1.y*v01;
-    v.x += w0.y*v10;
-    v.x += w1.y*v11;
-    v.y -= w0.x*v00;
-    v.y += w0.x*v01;
-    v.y -= w1.x*v10;
-    v.y += w1.x*v11;
+    v.x -= T(w0.y)*v00;
+    v.x -= T(w1.y)*v01;
+    v.x += T(w0.y)*v10;
+    v.x += T(w1.y)*v11;
+    v.y -= T(w0.x)*v00;
+    v.y += T(w0.x)*v01;
+    v.y -= T(w1.x)*v10;
+    v.y += T(w1.x)*v11;
     return v;
   }
 

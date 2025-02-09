@@ -69,11 +69,11 @@ __global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, cons
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
   if(index >= lhs.elem()){
     return;
-  } 
+  }
 
   const ivec2 ipos = out.unflatten(index);
   const vec2 fpos = vec2(ipos)/vec2(out[0]-1, out[1]-1);
-  const ivec2 npos = fpos * vec2(in[0]-1, in[1]-1);
+  const vec2 npos = fpos * vec2(in[0]-1, in[1]-1);
 
   const unsigned int index_in = in.flatten(npos);
   if(index_in >= rhs.elem()){
@@ -81,10 +81,22 @@ __global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, cons
     return;
   }
 
-  // This should implement a lerp instead ...
-  // would not be that difficult to do...
+  const int i00 = in.flatten(npos + vec2(0, 0));
+  const int i01 = in.flatten(npos + vec2(0, 1));
+  const int i10 = in.flatten(npos + vec2(1, 0));
+  const int i11 = in.flatten(npos + vec2(1, 1));
 
-  lhs[index] = rhs[index_in];
+  // Note: This should be part of the lerp type to control for
+  if(!in.oob(npos + vec2(1, 1))){
+    T v00 = rhs[i00];
+    T v01 = rhs[i01];
+    T v10 = rhs[i10];
+    T v11 = rhs[i11];
+    lerp_t lerp(v00, v01, v10, v11, npos - glm::floor(npos));
+    lhs[index] = lerp.val();
+  } else {
+    lhs[index] = rhs[index_in];
+  }
 
 }
 
