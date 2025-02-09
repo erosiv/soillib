@@ -164,7 +164,8 @@ param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 param_t.def_rw("hscale", &soil::param_t::hscale);
 
 auto model_t = nb::class_<soil::model_t>(module, "model_t");
-model_t.def(nb::init<soil::index>());
+model_t.def(nb::init<soil::index, soil::vec3>());
+model_t.def_ro("scale", &soil::model_t::scale);
 
 model_t.def_prop_rw("height",
   [](soil::model_t& model){

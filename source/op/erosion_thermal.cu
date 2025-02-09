@@ -18,7 +18,7 @@
 namespace soil {
 
 //! Slope Limiting Mass Wasting
-__device__ void slope_limit(const buffer_t<float>& height, buffer_t<float>& height_diff, const flat_t<2>& index, const ivec2 ipos, const param_t param) {
+__device__ void slope_limit(const buffer_t<float>& height, buffer_t<float>& height_diff, const flat_t<2>& index, const ivec2 ipos, const param_t param, const vec3 scale) {
 
   if(index.oob(ipos))
     return;
@@ -75,13 +75,13 @@ __device__ void slope_limit(const buffer_t<float>& height, buffer_t<float>& heig
       continue;
 
     const size_t i = index.flatten(npos);
-    sn[num] = {height[i], length(vec2(nn))};
+    sn[num] = {height[i]*scale.y, length(vec2(scale.x, scale.z)*vec2(nn))};
     ++num;
   }
 
   const size_t i = index.flatten(ipos);
-  const float h = height[i];
-  float transfer_tot = 0.0f;
+  const float h = height[i]*scale.y;
+  float transfer_tot = 0.0f; 
   
   for(int i = 0; i < num; ++i){
 
@@ -91,6 +91,10 @@ __device__ void slope_limit(const buffer_t<float>& height, buffer_t<float>& heig
       continue;
 
     // The Amount of Excess Difference!
+    // Note: Maxslope is a slope value.
+    //  By scaling it by the correct distance value in world-space,
+    //  we get a height value in world-space. This is the value which
+    //  we subtract to get the excess.
     float excess = 0.0f;
     excess = abs(diff) - sn[i].d * w[i]* param.maxdiff;
     if (excess <= 0) // No Excess
@@ -143,7 +147,7 @@ __global__ void compute_cascade(model_t model, buffer_t<float> transfer, const p
   if(ind >= model.elem) return;
   const ivec2 ipos = model.index.unflatten(ind);
 
-  slope_limit(model.height, transfer, model.index, ipos, param);
+  slope_limit(model.height, transfer, model.index, ipos, param, model.scale);
   //thermal_laplacian(model.height, transfer, model.index, ipos, param);
 
 }
@@ -154,7 +158,7 @@ __global__ void apply_cascade(model_t model, buffer_t<float> transfer_b, const p
 
   // Only cascade where agitation exists?
 
-  const float transfer = transfer_b[ind];
+  const float transfer = transfer_b[ind] / model.scale.y;
   const float discharge = log(1.0f + model.discharge[ind])/6.0f;
   model.height[ind] += discharge * transfer;
   //model.height[ind] += transfer;

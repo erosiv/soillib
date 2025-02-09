@@ -34,12 +34,14 @@ struct param_t {
 
 struct model_t {
 
-  model_t(soil::index index):
+  model_t(soil::index index, soil::vec3 scale):
     index(index.as<soil::flat_t<2>>()),
+    scale(scale),
     elem(index.elem()){}
   
-  const size_t elem;
-  const soil::flat_t<2> index;
+  const size_t elem;            // Total Buffer Elements
+  const soil::flat_t<2> index;  // Buffer Indexing Structure
+  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
 
   int age = 0;
 

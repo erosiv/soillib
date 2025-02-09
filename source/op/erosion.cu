@@ -62,14 +62,14 @@ __device__ float equ_frac(const model_t& model, vec2 pos, vec2 npos, const param
   const int find = model.index.flatten(pos);
   const int nind = model.index.flatten(npos);
 
-  float h0 = model.height[find];
-  float h1 = h0 - param.exitSlope; 
+  float h0 = model.height[find];//*model.scale.y;
+  float h1 = h0 - param.exitSlope; // Exitslope is in real values!
   if(!model.index.oob(npos)){
-    h1 = model.height[nind];
+    h1 = model.height[nind];//*model.scale.y;
   }
 
   const float discharge = glm::max(0.0f, model.discharge[find]);  // Discharge Volume
-  const float slope = (h0 - h1);                  // Local Slope
+  const float slope = (h0 - h1);//model.scale.x;                    // Local Slope (Divide by Scale)
 
   return glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
 
@@ -112,7 +112,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   lerp5_t<float> lerp;
   lerp.gather(model.height, model.index, ivec2(pos));
-  const vec2 grad = lerp.grad();
+  const vec2 grad = lerp.grad(model.scale);
 
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
   const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
@@ -149,7 +149,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     lerp5_t<float> lerp;
     lerp.gather(model.height, model.index, ivec2(pos));
-    const vec2 grad = lerp.grad();
+    const vec2 grad = lerp.grad(model.scale);
 
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
     const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);

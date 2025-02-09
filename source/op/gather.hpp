@@ -38,9 +38,10 @@ struct lerp5_t {
 
   }
 
-  GPU_ENABLE glm::vec2 grad() const {
+  GPU_ENABLE vec2 grad(const vec3 scale = vec3(1.0f)) const {
 
-    glm::vec2 g = glm::vec2(0, 0);
+    vec2 g = vec2(0, 0);
+    const vec2 s = vec2(scale.y/scale.x, scale.y/scale.z);
 
     // X-Element
     if (!this->x[0].oob && !this->x[4].oob)
@@ -93,7 +94,7 @@ struct lerp5_t {
     else if (!this->y[1].oob && !this->y[2].oob)
       g.y = (-1.0f * this->y[1].value + 1.0f * this->y[2].value) / 1.0f;
 
-    return g;
+    return g * s; // Pixel Scale to World-Scale
 
   }
 
