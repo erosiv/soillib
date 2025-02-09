@@ -79,9 +79,12 @@ __global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, cons
   if(index_in >= rhs.elem()){
     lhs[index] = T(0);
     return;
-  } 
+  }
 
-  lhs[index] = T(2) * rhs[index_in];
+  // This should implement a lerp instead ...
+  // would not be that difficult to do...
+
+  lhs[index] = rhs[index_in];
 
 }
 
