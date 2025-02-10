@@ -76,6 +76,12 @@ geotiff_meta.def_rw("width", &soil::io::geotiff::meta_t::width);
 geotiff_meta.def_rw("height", &soil::io::geotiff::meta_t::height);
 geotiff_meta.def_rw("bits", &soil::io::geotiff::meta_t::bits);
 
+geotiff_meta.def_prop_rw("scale", [](const soil::io::geotiff::meta_t& geotiff_meta){
+  return glm::vec3(geotiff_meta.scale[0], geotiff_meta.scale[1], geotiff_meta.scale[2]);
+}, [](soil::io::geotiff::meta_t& geotiff_meta, const std::vector<double> scale){
+  geotiff_meta.scale = scale;
+});
+
 geotiff_meta.def_rw("scale", &soil::io::geotiff::meta_t::scale);
 geotiff_meta.def_rw("coords", &soil::io::geotiff::meta_t::coords);
 
@@ -89,10 +95,6 @@ geotiff_meta.def_prop_ro("min", [](soil::io::geotiff::meta_t& geotiff_meta){
 
 geotiff_meta.def_prop_ro("max", [](soil::io::geotiff::meta_t& geotiff_meta){
   return geotiff_meta.max();
-});
-
-geotiff_meta.def_prop_ro("scale", [](soil::io::geotiff::meta_t& geotiff_meta){
-  return glm::vec2(geotiff_meta.scale[0], geotiff_meta.scale[1]);
 });
 
 //
