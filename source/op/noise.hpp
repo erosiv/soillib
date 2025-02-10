@@ -1,5 +1,5 @@
-#ifndef SOILLIB_LAYER_COMPUTED_NOISE
-#define SOILLIB_LAYER_COMPUTED_NOISE
+#ifndef SOILLIB_OP_NOISE
+#define SOILLIB_OP_NOISE
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
@@ -10,76 +10,50 @@
 
 namespace soil {
 
-namespace {
-
 //! \todo make this configurable and exposed
-struct sampler_t {
+struct noise_param_t {
+
+  void update() {
+    source.SetNoiseType(ntype);
+    source.SetFractalType(ftype);
+    source.SetFrequency(frequency);
+    source.SetFractalOctaves(octaves);
+    source.SetFractalGain(gain);
+    source.SetFractalLacunarity(lacunarity);
+  }
 
   FastNoiseLite::NoiseType ntype = FastNoiseLite::NoiseType_OpenSimplex2;
   FastNoiseLite::FractalType ftype = FastNoiseLite::FractalType_FBm;
 
+  FastNoiseLite source;
   float frequency = 1.0f;  // Frequency
   int octaves = 8;         // Set of Scales
   float gain = 0.6f;       // Scale Multiplier
   float lacunarity = 2.0f; // Frequency Multiplier
+  float seed = 0.0f;
+  soil::vec2 ext = {512, 512}; // Grid-Space Frequency
 
-  float min = -2.0f;  // Minimum Value
-  float max = 2.0f;   // Maximum Value
-  float bias = 0.0f;  // Add-To-Value
-  float scale = 1.0f; // Multiply-By-Value
+  //! Single Sample Value
+  float operator()(const soil::ivec2 pos){
+    return this->source.GetNoise(pos[0]/ext[0], pos[1]/ext[1], this->seed);
+  }
+
 };
-
-} // namespace
 
 struct noise {
 
-  noise() {
-    source.SetNoiseType(cfg.ntype);
-    source.SetFractalType(cfg.ftype);
-    source.SetFrequency(cfg.frequency);
-    source.SetFractalOctaves(cfg.octaves);
-    source.SetFractalGain(cfg.gain);
-    source.SetFractalLacunarity(cfg.lacunarity);
-  }
+  static soil::buffer make_buffer(const soil::index index, noise_param_t param) {
 
-  noise(const float seed): seed{seed} {
-    source.SetNoiseType(cfg.ntype);
-    source.SetFractalType(cfg.ftype);
-    source.SetFrequency(cfg.frequency);
-    source.SetFractalOctaves(cfg.octaves);
-    source.SetFractalGain(cfg.gain);
-    source.SetFractalLacunarity(cfg.lacunarity);
-  }
-
-  //! Single Sample Value
-  float operator()(const soil::ivec2 pos) {
-
-    const auto ext = soil::vec2{512, 512};
-    const auto &cfg = this->cfg;
-
-    float val = this->source.GetNoise(pos[0] / (float)ext[0], pos[1] / (float)ext[1], this->seed);
-
-    // Clamp Value
-    val = cfg.bias + cfg.scale * val;
-    if (val < cfg.min)
-      val = cfg.min;
-    if (val > cfg.max)
-      val = cfg.max;
-    return val;
-  }
-
-  static soil::buffer make_buffer(const soil::index index, const float seed) {
-
-    return select(index.type(), [index, seed]<typename T>() -> soil::buffer {
+    return select(index.type(), [index, &param]<typename T>() -> soil::buffer {
       if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
 
-        soil::noise noise(seed);
         auto index_t = index.as<T>();
         auto buffer_t = soil::buffer_t<float>(index_t.elem(), soil::CPU);
 
+        param.update();
         for(size_t i = 0; i < index_t.elem(); ++i){
           soil::ivec2 position = index_t.unflatten(i);
-          buffer_t[i] = noise(position);
+          buffer_t[i] = param(position);
         }
         return soil::buffer(std::move(buffer_t));
 
@@ -87,12 +61,8 @@ struct noise {
         throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
     });
 
-  }
+  }  
 
-private:
-  float seed;
-  FastNoiseLite source;
-  sampler_t cfg;
 };
 
 }; // end of namespace soil

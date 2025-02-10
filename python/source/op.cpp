@@ -129,9 +129,18 @@ module.def("resize", [](soil::buffer& lhs, const soil::buffer& rhs, soil::ivec2 
 // Noise Sampler Type
 //
 
-module.def("noise", [](const soil::index index, const float seed){
+auto noise_t = nb::class_<soil::noise_param_t>(module, "noise_t");
+noise_t.def(nb::init<>());
+noise_t.def_rw("frequency", &soil::noise_param_t::frequency);
+noise_t.def_rw("octaves", &soil::noise_param_t::octaves);
+noise_t.def_rw("gain", &soil::noise_param_t::gain);
+noise_t.def_rw("lacunarity", &soil::noise_param_t::lacunarity);
+noise_t.def_rw("seed", &soil::noise_param_t::seed);
+noise_t.def_rw("ext", &soil::noise_param_t::ext);
+
+module.def("noise", [](const soil::index index, const soil::noise_param_t param){
   // note: seed is considered state. how can this be reflected here?
-  return soil::noise::make_buffer(index, seed);
+  return soil::noise::make_buffer(index, param);
 });
 
 //
