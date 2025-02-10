@@ -309,9 +309,15 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Thermal Erosion Kernel
     //
 
+    // Experiment: Thermal Erosion Particle!
+    thermal_particle<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    cudaDeviceSynchronize();
+
+    /*
     compute_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
     apply_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
     cudaDeviceSynchronize();
+    */
 
     model.age++; // Increment Model Age for Rand-State Initialization
 
