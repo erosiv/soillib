@@ -9,191 +9,127 @@
 #include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>
 
-//! Thermal Erosion Algorithms
-//!
-//! These device functions implement various methods to compute
-//! the time-differential of a height-map from thermal erosion.
-//! 
-//! \todo Research alternative thermal erosion implementations
-
 namespace soil {
 
-//! Slope Limiting Mass Wasting
-__device__ void slope_limit(const buffer_t<float>& height, buffer_t<float>& height_diff, const flat_t<2>& index, const ivec2 ipos, const param_t param, const vec3 scale) {
-
-  if(index.oob(ipos))
-    return;
-
-  // Get Non-Out-of-Bounds Neighbors
-
-  const ivec2 n[] = {
-    ivec2(-1, -1),
-    ivec2(-1, 0),
-    ivec2(-1, 1),
-    ivec2(0, -1),
-    ivec2(0, 1),
-    ivec2(1, -1),
-    ivec2(1, 0),
-    ivec2(1, 1)
-  };
-
-  const float w[] = {
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0
-  };
-
-  struct Point {
-    float h;
-    float d;
-  } sn[8];
-
-  int num = 0;
-
-  for(auto &nn : n){
-
-    ivec2 npos = ipos + nn;
-
-    if(index.oob(npos))
-      continue;
-
-    const size_t i = index.flatten(npos);
-    sn[num] = {height[i]*scale.y, length(vec2(scale.x, scale.z)*vec2(nn))};
-    ++num;
-  }
-
-  const size_t i = index.flatten(ipos);
-  const float h = height[i]*scale.y;
-  float transfer_tot = 0.0f; 
-  
-  for(int i = 0; i < num; ++i){
-
-    // Full Height-Different Between Positions!
-    float diff = h - sn[i].h;
-    if (diff == 0) // No Height Difference
-      continue;
-
-    // The Amount of Excess Difference!
-    // Note: Maxslope is a slope value.
-    //  By scaling it by the correct distance value in world-space,
-    //  we get a height value in world-space. This is the value which
-    //  we subtract to get the excess.
-    float excess = 0.0f;
-    excess = abs(diff) - sn[i].d * w[i]* param.maxdiff;
-    if (excess <= 0) // No Excess
-      continue;
-
-    excess = (diff > 0) ? -excess : excess;
-
-    // Actual Amount Transferred
-    float transfer = param.settling * excess / 2.0f;
-    transfer_tot += transfer;
-  }
-
-  height_diff[i] = transfer_tot / (float) num;
-
-}
-
-//! Laplacian Based Mass Wasting Function
+//! Thermal Erosion / Debris Flow Algorithm
 //!
-__device__ void thermal_laplacian(const buffer_t<float>& height, buffer_t<float>& height_diff, const flat_t<2>& index, const ivec2 ipos, const param_t param) {
+//! Bank-Stability Function Based Debris Flow Method:
+//!
+//!   The total debris flow is computed along characteristics,
+//!   where the mass contribution is given by the excess mass.
+//!   The bank-stability function determines what the theoretical stable
+//!   bank height is, and the excess is the difference to this value.
+//!   Note that this is effectively an equilibrium model.
+//!
+//!   The bank stability function is computed along the direction
+//!   of gravity acting on the surface normal. The mass is then moved
+//!   along this direction.
+//!
+//!   Solved using the path-integral method, the scale of the equilibrium
+//!   constant also corresponds to the rate of thermal cracking events.
 
-  if(index.oob(ipos))
+//! Steepest Direction Computed by Surface Normal
+//!
+//! Note: Normally the normal vector would be computed instead of just the
+//!   gradient, and scaled by the gravitational constant to yield the correct
+//!   acceleration. Since we are using a dynamic time-step, this is normalized
+//!   away. If we compute the acceleration and limiting slope based on inter-
+//!   particle frictions though (e.g. for multi-material interfaces), then the
+//!   term does NOT becomes normalized away and becomes relevant again.
+//! 
+__device__ vec2 steepest(model_t& model, const ivec2 pos) {
+
+  lerp5_t<float> lerp;
+  lerp.gather(model.height, model.index, pos);
+  vec2 dir = -1.0f * lerp.grad(model.scale);
+
+  if(glm::length(dir) < 0.00001f)
+    return vec2(0.0f);
+  else return sqrt(2.0f) * glm::normalize(dir);
+
+}
+
+__device__ float stable_height(model_t& model, const ivec2 pos, const param_t param, const float height, const vec2 speed) {
+
+  // Boundary Condition:
+  const vec2 npos = vec2(pos) + speed;
+  if(model.index.oob(npos) || glm::length(speed) == 0.0f){
+    return height;
+  }
+
+  float dist = glm::length(speed * vec2(model.scale.x, model.scale.z));
+  float h_next = model.height[model.index.flatten(npos)]*model.scale.y;
+  float stable = h_next + param.maxdiff*dist;
+  return stable;
+
+}
+
+/*
+//! Debris Flow Kernel Implementation
+//!
+__global__ void debris_flow(model_t model, const size_t N, const param_t param){
+
+  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
+  if(ind >= model.elem) return;
+
+  // Parameters
+
+  const vec3 scale = model.scale; // Local Physical Scale
+  const float g = param.gravity;  // Gravitational Constant
+
+  // Spawn Particle at Random Position
+
+  curandState* randState = &model.rand[ind];  // Local Randstate
+  const float P = float(model.elem)/float(N); // Sampling Probability
+  vec2 pos = vec2 {
+    curand_uniform(randState)*float(model.index[0]),
+    curand_uniform(randState)*float(model.index[1])
+  };
+
+  // Iterate over a Number of Steps
+
+  size_t find = model.index.flatten(pos);
+  float height = model.height[find]*scale.y;
+  vec2 speed = steepest(model, pos);
+  float stable = stable_height(model, pos, param, height, speed);
+  float excess = height - stable;
+  
+  if(excess < 0.0f)
     return;
 
-  const size_t i = index.flatten(ipos + ivec2( 0, 0));
-  float ct = height[i];
-  float nx = ct;
-  float ny = ct;
-  float px = ct;
-  float py = ct;
-  if(!index.oob(ipos + ivec2( 1, 0))) px = height[index.flatten(ipos + ivec2( 1, 0))];
-  if(!index.oob(ipos + ivec2(-1, 0))) nx = height[index.flatten(ipos + ivec2(-1, 0))];
-  if(!index.oob(ipos + ivec2( 0, 1))) py = height[index.flatten(ipos + ivec2( 0, 1))];
-  if(!index.oob(ipos + ivec2( 0,-1))) ny = height[index.flatten(ipos + ivec2( 0,-1))];
+  // Compute Mass Initial Condition
+  
+  float mass = param.settling * excess;
+  atomicAdd(&model.height[find], - P * param.settling * excess / scale.y);
 
-  float lx = px + nx - 2.0f * ct;
-  float ly = py + ny - 2.0f * ct;
-  float L = lx + ly;
-  if(glm::abs(L) < param.maxdiff) L = 0.0f;
-  height_diff[i] = param.settling * L;
+  for(size_t age = 0; age < 128; ++age){
 
-}
+    pos += speed;
+    if(model.index.oob(pos)){
+      return;
+    }
 
-//
-// Thermal Erosion Kernels
-//
+    size_t find = model.index.flatten(pos);
+    float height = model.height[find]*scale.y;
+    vec2 speed = steepest(model, pos);
+    float stable = stable_height(model, pos, param, height, speed);
+    float excess = height - stable;
+    if(excess < 0.0f){
+      excess = -glm::min(-excess, mass);
+    }
 
-__global__ void compute_cascade(model_t model, buffer_t<float> transfer, const param_t param) {
+    atomicAdd(&model.height[find], - P * param.settling * excess / scale.y);
+    mass += param.settling * excess;
 
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= model.elem) return;
-  const ivec2 ipos = model.index.unflatten(ind);
+    if(mass == 0.0f)
+      break;
 
-  slope_limit(model.height, transfer, model.index, ipos, param, model.scale);
-  //thermal_laplacian(model.height, transfer, model.index, ipos, param);
+  }
 
 }
+*/
 
-__global__ void apply_cascade(model_t model, buffer_t<float> transfer_b, const param_t param){
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= model.elem) return;
-
-  // Only cascade where agitation exists?
-
-  const float transfer = transfer_b[ind] / model.scale.y;
-  const float discharge = log(1.0f + model.discharge[ind])/6.0f;
-  model.height[ind] += discharge * transfer;
-  //model.height[ind] += transfer;
-}
-
-//
-// Thermal Erosion Particle
-//
-
-__device__ float local_laplacian(const ivec2 pos, const buffer_t<float>& height, const flat_t<2>& index){
-
-  const size_t i = index.flatten(pos + ivec2( 0, 0));
-  float ct = height[i];
-  float nx = ct;
-  float ny = ct;
-  float px = ct;
-  float py = ct;
-  if(!index.oob(pos + ivec2( 1, 0))) px = height[index.flatten(pos + ivec2( 1, 0))];
-  if(!index.oob(pos + ivec2(-1, 0))) nx = height[index.flatten(pos + ivec2(-1, 0))];
-  if(!index.oob(pos + ivec2( 0, 1))) py = height[index.flatten(pos + ivec2( 0, 1))];
-  if(!index.oob(pos + ivec2( 0,-1))) ny = height[index.flatten(pos + ivec2( 0,-1))];
-
-  float lx = px + nx - 2.0f * ct;
-  float ly = py + ny - 2.0f * ct;
-  return lx + ly;
-
-}
-
-// Note: I should try to implement this using a stability function instead
-// Stability Function Based Erosion:
-//  A particle is spawnd at a specific location and computes the local
-//  stable mass height, based on the surrounding mass. Then, it has a
-//  probability to knock that mass loose. The mass descends by gravity
-//  and momentum. As it descends, it computes the next mass stability
-//  function and so on, accumulating and depositing a stable mass.
-
-// Compute Stable Slope Height at Position
-// Question: Can this be implemented as a
-//  non-random sampling but rather a kernel,
-//  which instead uses a thermal erosion probability?
-
-// Note: Using a simple 8x8 Lowest leads to weird looking
-//  results. The reason is that if only one is low, but
-//  all others are high, the interpolated structure looks
-//  like a pit has been created.
-
-__global__ void thermal_particle(model_t model, const size_t N, const param_t param){
+__global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= model.elem) return;
@@ -202,14 +138,14 @@ __global__ void thermal_particle(model_t model, const size_t N, const param_t pa
 
   const vec3 scale = model.scale;
   const float g = param.gravity;
-  const float P = float(model.elem)/float(N); // Sample Probability
 
   // Spawn Particle at Random Position
 
   curandState* randState = &model.rand[ind];
+  const float P = float(model.elem)/float(N); // Sample Probability
   vec2 pos = vec2{
-    1.0f + curand_uniform(randState)*float(model.index[0]-1),
-    1.0f + curand_uniform(randState)*float(model.index[1]-1)
+    curand_uniform(randState)*float(model.index[0]),
+    curand_uniform(randState)*float(model.index[1])
   };
 
   if(model.index.oob(pos))
@@ -226,9 +162,10 @@ __global__ void thermal_particle(model_t model, const size_t N, const param_t pa
     lerp5_t<float> lerp;
     lerp.gather(model.height, model.index, ivec2(pos));
     const vec2 grad = lerp.grad(model.scale);
-
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
     vec2 speed = g * vec2(normal.x, normal.y);
+
+
     vec2 npos = pos;
     if(glm::length(speed) < 0.00001f)
       return;

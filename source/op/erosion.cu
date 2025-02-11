@@ -306,11 +306,10 @@ void erode(model_t& model, const param_t param, const size_t steps){
     cudaDeviceSynchronize();
 
     //
-    // Thermal Erosion Kernel
+    // Debris Flow Kernel
     //
 
-    // Experiment: Thermal Erosion Particle!
-    thermal_particle<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
 
     /*
