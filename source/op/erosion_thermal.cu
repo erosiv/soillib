@@ -78,6 +78,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
   float mass = 0.0f;  // Currently Transported Mass
 
+  // Note: Parameterize
   for(size_t age = 0; age < 1024; ++age){
 
     // Motion Along Characteristic
@@ -105,23 +106,14 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     float h_next = model.height[nind]*scale.y;
     float dist = sqrt(2.0f) * glm::length(vec2(scale.x, scale.z));
     float stable = h_next + param.maxdiff*dist;
+    
     float excess = h - stable;
-
-    // if excess is less than zero,
-    //  that means that we can add mass if we have any!
     if(excess < 0.0f){
-      float transfer = glm::min(-excess, mass);
-      atomicAdd(&model.height[find], param.settling * transfer / scale.y);
-      mass -= param.settling * transfer;
+      excess = -glm::min(-excess, mass);
     }
 
-    // if it is equal zero, we are exactly stable
-
-    else if(excess > 0.0f){
-      atomicAdd(&model.height[find], - param.settling * excess / scale.y);
-      mass += param.settling * excess;
-    }
-
+    atomicAdd(&model.height[find], - param.settling * excess / scale.y);
+    mass += param.settling * excess;
     if(mass == 0.0f)
       break;
 
