@@ -37,19 +37,6 @@ __device__ void slope_limit(const buffer_t<float>& height, buffer_t<float>& heig
     ivec2(1, 1)
   };
 
-  /*
-  const float w[] = {
-    0.4f,
-    0.4f,
-    0.4f,
-    2.0f,
-    2.0f,
-    4.0f,
-    4.0f,
-    4.0f
-  };
-  */
-
   const float w[] = {
     1.0,
     1.0,
@@ -201,106 +188,133 @@ __global__ void thermal_particle(model_t model, const size_t N, const param_t pa
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind >= model.elem) return;
 
+  // Parameters
+
+  const vec3 scale = model.scale;
+  const float g = param.gravity;
   const float P = float(model.elem)/float(N); // Sample Probability
+
+  // Spawn Particle at Random Position
+
   curandState* randState = &model.rand[ind];
   vec2 pos = vec2{
     curand_uniform(randState)*float(model.index[0]),
     curand_uniform(randState)*float(model.index[1])
   };
 
-  /*
-  auto index = model.index;
-  auto height = model.height;
+  // Compute Stable Slope Height at Position
+  // Question: Can this be implemented as a
+  //  non-random sampling but rather a kernel,
+  //  which instead uses a thermal erosion probability?
 
-  const size_t i = index.flatten(pos);
-  float ct = height[i];
-  float nx = ct;
-  float ny = ct;
-  float px = ct;
-  float py = ct;
-  if(!index.oob(pos + vec2( 1, 0))) px = height[index.flatten(pos + vec2( 1, 0))];
-  if(!index.oob(pos + vec2(-1, 0))) nx = height[index.flatten(pos + vec2(-1, 0))];
-  if(!index.oob(pos + vec2( 0, 1))) py = height[index.flatten(pos + vec2( 0, 1))];
-  if(!index.oob(pos + vec2( 0,-1))) ny = height[index.flatten(pos + vec2( 0,-1))];
+  // Note: Using a simple 8x8 Lowest leads to weird looking
+  //  results. The reason is that if only one is low, but
+  //  all others are high, the interpolated structure looks
+  //  like a pit has been created.
 
-  float lx = px + nx - 2.0f * ct;
-  float ly = py + ny - 2.0f * ct;
-  float L = lx + ly;
-  */
+  const ivec2 n[] = {
+//    ivec2(-1, -1),
+    ivec2(-1,  0),
+//    ivec2(-1,  1),
+    ivec2( 0, -1),
+    ivec2( 0,  1),
+//    ivec2( 1, -1),
+    ivec2( 1,  0),
+//    ivec2( 1,  1)
+  };
 
-  // 
-  float L = local_laplacian(pos, model.height, model.index);
-  // Note: If Laplacian (Curvature) is larger than zero, this means that on average,
-  //  the central value is lower than the surrounding values.
-  // we don't change the mass of locations in pits
-  if(L > 0.0f) return;
-  // Threshold Laplacian
-  // i.e. value has to be "negative enough"
-  if(glm::abs(L) < param.maxdiff) 
-    return;
+  struct Point {
+    float h;
+    float d;
+  } sn[4];
+  
+  const size_t i = model.index.flatten(pos);
+  
+  float h = model.height[i]*scale.y;
+  float mass = 0.0f;  // Currently Transported Mass
 
-  const float g = param.gravity;
-
-  int find = model.index.flatten(pos);
-
-  // Remove the Mass from the Height-Map
-
-
-  // Descend the Mass, set it down somewhere else
-  lerp5_t<float> lerp;
-  lerp.gather(model.height, model.index, ivec2(pos));
-  const vec2 grad = lerp.grad(model.scale);
-
-  // We need slope ...
-  // we need stable mass and we need unstable mass
-  // unstable mass is what is knocked loose
-  // and we always deposit the excess stable mass
-
-  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-  vec2 speed = g * vec2(normal.x, normal.y);
-  if(glm::length(speed) < 0.01f){
-    return;
-  }
-
-  // we don't do this where it isn't steep!
-//  if(normal.z > 0.75f){
-//    return;
-//  }
-
-  float mass = -param.settling * L;
-  atomicAdd(&model.height[find], -mass);
+  // Iterate over a Number of Steps
 
   for(size_t age = 0; age < 32; ++age){
 
-    if(model.index.oob(pos)) return;
-//    if(glm::length(speed) < 1E-2) return;
+    // Note: This slope stability function can be replaced
+    //  with something more complex in general!
+    // The stable height becomes the lowst stable height
 
+    float stable = h; // Stable Height at Position
+    int lowest = 0;
+
+    int num = 0;
+    for(auto &nn : n){
+      ivec2 npos = ivec2(pos) + nn;
+      if(model.index.oob(npos))
+        continue;
+
+      const size_t i = model.index.flatten(npos);
+      sn[num] = {model.height[i]*scale.y, length(vec2(scale.x, scale.z)*vec2(nn))};
+      ++num;
+
+    }
+
+    for(int i = 0; i < num; ++i){
+      float next_stable = sn[i].h + sn[i].d * param.maxdiff;
+      if(next_stable < stable){
+        stable = next_stable;
+        lowest = i;
+      }
+    }
+
+    // We compute the difference to the stable amount
+    float excess = h - stable;
+
+    // if excess is less than zero,
+    //  that means that we can add mass if we have any!
+    if(excess < 0.0f){
+      float transfer = glm::min(-excess, mass);
+      int find = model.index.flatten(pos);
+      atomicAdd(&model.height[find], param.settling * transfer);
+      mass -= param.settling * transfer;
+    }
+
+    // if it is equal zero, we are exactly stable
+
+    else if(excess > 0.0f){
+
+      float transfer = excess;
+      int find = model.index.flatten(pos);
+      atomicAdd(&model.height[find], -param.settling * transfer);
+      mass += param.settling * transfer;
+    }
+
+    if(mass == 0.0f)
+      break;
+
+    // finally, we must move to the next position
+    // how do we determine the next position?
+
+    // Next Position:
     lerp5_t<float> lerp;
     lerp.gather(model.height, model.index, ivec2(pos));
     const vec2 grad = lerp.grad(model.scale);
 
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-    vec2 nspeed = g * vec2(normal.x, normal.y);
+    vec2 speed = g * vec2(normal.x, normal.y);
+    if(glm::length(speed) < 0.001f)
+      return;
+    else pos += glm::normalize(speed);
 
-    vec2 npos = pos;
-    if(glm::length(nspeed) > 0.0){
-      npos += sqrt(2.0f)*glm::normalize(nspeed);
-    } else {
-      // note: if the position becomes the same,
-      // slope will also be zero
-      // meaning equilibrium drops to zero
-      // which could cause a chain reaction of deposition
-      break;
+    if(model.index.oob(pos)){
+      return;
     }
 
-    if(!model.index.oob(npos)){
-      find = model.index.flatten(npos);
-      atomicAdd(&model.height[find], mass / 32.0f);
-    }
+    const size_t i = model.index.flatten(pos);
+    h = model.height[i]*scale.y;
 
-    pos = npos;
-    speed = nspeed;
+  }
 
+  if(!model.index.oob(pos)){
+    const size_t i = model.index.flatten(pos);
+    atomicAdd(&model.height[i], mass);
   }
 
 }
