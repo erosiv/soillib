@@ -183,6 +183,16 @@ __device__ float local_laplacian(const ivec2 pos, const buffer_t<float>& height,
 //  and momentum. As it descends, it computes the next mass stability
 //  function and so on, accumulating and depositing a stable mass.
 
+// Compute Stable Slope Height at Position
+// Question: Can this be implemented as a
+//  non-random sampling but rather a kernel,
+//  which instead uses a thermal erosion probability?
+
+// Note: Using a simple 8x8 Lowest leads to weird looking
+//  results. The reason is that if only one is low, but
+//  all others are high, the interpolated structure looks
+//  like a pit has been created.
+
 __global__ void thermal_particle(model_t model, const size_t N, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
@@ -198,73 +208,51 @@ __global__ void thermal_particle(model_t model, const size_t N, const param_t pa
 
   curandState* randState = &model.rand[ind];
   vec2 pos = vec2{
-    curand_uniform(randState)*float(model.index[0]),
-    curand_uniform(randState)*float(model.index[1])
+    1.0f + curand_uniform(randState)*float(model.index[0]-1),
+    1.0f + curand_uniform(randState)*float(model.index[1]-1)
   };
 
-  // Compute Stable Slope Height at Position
-  // Question: Can this be implemented as a
-  //  non-random sampling but rather a kernel,
-  //  which instead uses a thermal erosion probability?
-
-  // Note: Using a simple 8x8 Lowest leads to weird looking
-  //  results. The reason is that if only one is low, but
-  //  all others are high, the interpolated structure looks
-  //  like a pit has been created.
-
-  const ivec2 n[] = {
-//    ivec2(-1, -1),
-    ivec2(-1,  0),
-//    ivec2(-1,  1),
-    ivec2( 0, -1),
-    ivec2( 0,  1),
-//    ivec2( 1, -1),
-    ivec2( 1,  0),
-//    ivec2( 1,  1)
-  };
-
-  struct Point {
-    float h;
-    float d;
-  } sn[4];
-  
-  const size_t i = model.index.flatten(pos);
-  
-  float h = model.height[i]*scale.y;
-  float mass = 0.0f;  // Currently Transported Mass
+  if(model.index.oob(pos))
+    return;
 
   // Iterate over a Number of Steps
 
-  for(size_t age = 0; age < 32; ++age){
+  float mass = 0.0f;  // Currently Transported Mass
+
+  for(size_t age = 0; age < 128; ++age){
+
+    // Compute Height
+
+    lerp5_t<float> lerp;
+    lerp.gather(model.height, model.index, ivec2(pos));
+    const vec2 grad = lerp.grad(model.scale);
+
+    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+    vec2 speed = g * vec2(normal.x, normal.y);
+    vec2 npos = pos;
+    if(glm::length(speed) < 0.00001f)
+      return;
+    else npos += sqrt(2.0f) * glm::normalize(speed);
+
+    if(model.index.oob(npos)){
+      return;
+    }
+
+    // Note: Effective Horizontal Distance Traveled!
+    //  We scale this by the actual physical length.
+    float dist = sqrt(2.0f) * glm::length(vec2(scale.x, scale.z));
+
+    // Compute Height-Difference
+    const size_t i = model.index.flatten(pos);
+    float h = model.height[i]*scale.y;
+    float h_next = model.height[model.index.flatten(npos)]*scale.y;
 
     // Note: This slope stability function can be replaced
     //  with something more complex in general!
     // The stable height becomes the lowst stable height
 
-    float stable = h; // Stable Height at Position
-    int lowest = 0;
-
-    int num = 0;
-    for(auto &nn : n){
-      ivec2 npos = ivec2(pos) + nn;
-      if(model.index.oob(npos))
-        continue;
-
-      const size_t i = model.index.flatten(npos);
-      sn[num] = {model.height[i]*scale.y, length(vec2(scale.x, scale.z)*vec2(nn))};
-      ++num;
-
-    }
-
-    for(int i = 0; i < num; ++i){
-      float next_stable = sn[i].h + sn[i].d * param.maxdiff;
-      if(next_stable < stable){
-        stable = next_stable;
-        lowest = i;
-      }
-    }
-
     // We compute the difference to the stable amount
+    float stable = h_next + param.maxdiff*dist;
     float excess = h - stable;
 
     // if excess is less than zero,
@@ -272,7 +260,7 @@ __global__ void thermal_particle(model_t model, const size_t N, const param_t pa
     if(excess < 0.0f){
       float transfer = glm::min(-excess, mass);
       int find = model.index.flatten(pos);
-      atomicAdd(&model.height[find], param.settling * transfer);
+      atomicAdd(&model.height[find], param.settling * transfer / scale.y);
       mass -= param.settling * transfer;
     }
 
@@ -282,40 +270,21 @@ __global__ void thermal_particle(model_t model, const size_t N, const param_t pa
 
       float transfer = excess;
       int find = model.index.flatten(pos);
-      atomicAdd(&model.height[find], -param.settling * transfer);
+      atomicAdd(&model.height[find], -param.settling * transfer / scale.y);
       mass += param.settling * transfer;
     }
 
     if(mass == 0.0f)
       break;
 
-    // finally, we must move to the next position
-    // how do we determine the next position?
-
-    // Next Position:
-    lerp5_t<float> lerp;
-    lerp.gather(model.height, model.index, ivec2(pos));
-    const vec2 grad = lerp.grad(model.scale);
-
-    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-    vec2 speed = g * vec2(normal.x, normal.y);
-    if(glm::length(speed) < 0.001f)
-      return;
-    else pos += glm::normalize(speed);
-
-    if(model.index.oob(pos)){
-      return;
-    }
-
-    const size_t i = model.index.flatten(pos);
-    h = model.height[i]*scale.y;
+    pos = npos;
 
   }
 
-  if(!model.index.oob(pos)){
-    const size_t i = model.index.flatten(pos);
-    atomicAdd(&model.height[i], mass);
-  }
+//  if(!model.index.oob(pos)){
+//    const size_t i = model.index.flatten(pos);
+//    atomicAdd(&model.height[i], mass);
+//  }
 
 }
 
