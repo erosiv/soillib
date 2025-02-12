@@ -183,11 +183,11 @@ model_t.def_prop_rw("height",
     model.height = buffer.as<float>();
 });
 
-model_t.def_prop_rw("suspended",
+model_t.def_prop_rw("sediment",
   [](soil::model_t& model){
-    return soil::buffer(model.suspended);
+    return soil::buffer(model.sediment);
 },[](soil::model_t& model, soil::buffer buffer){
-    model.suspended = buffer.as<float>();
+    model.sediment = buffer.as<float>();
 });
 
 model_t.def_prop_rw("discharge",

@@ -46,15 +46,10 @@ struct model_t {
   int age = 0;
 
   soil::buffer_t<float> height;
+  soil::buffer_t<float> sediment;
 
   soil::buffer_t<float> discharge;
   soil::buffer_t<float> discharge_track;
-
-  soil::buffer_t<float> suspended;
-  soil::buffer_t<float> suspended_track;
-
-  soil::buffer_t<float> equilibrium;
-  soil::buffer_t<float> equilibrium_track;
 
   soil::buffer_t<vec2> momentum;
   soil::buffer_t<vec2> momentum_track;

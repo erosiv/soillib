@@ -34,9 +34,7 @@ __global__ void reset(model_t model){
   // Reset Estimation Buffers
 
   model.discharge_track[n] = 0.0f;
-  model.suspended_track[n] = 0.0f;
   model.momentum_track[n] = vec2(0.0f);
-  model.equilibrium_track[n] = 0.0f;
 
 }
 
@@ -49,7 +47,6 @@ __global__ void filter(model_t model, const param_t param){
 
   model.discharge[n] = glm::mix(model.discharge[n], model.discharge_track[n], param.lrate);
   model.momentum[n] = glm::mix(model.momentum[n], model.momentum_track[n], param.lrate);
-  model.suspended[n] = glm::mix(model.suspended[n], model.suspended_track[n], param.lrate);
 
 }
 
@@ -281,10 +278,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
   //
 
   model.discharge_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  model.suspended_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
   model.momentum_track = soil::buffer_t<vec2>(model.discharge.elem(), soil::host_t::GPU);
-  model.equilibrium = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  model.equilibrium_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
 
   //
   // Execute Solution
@@ -309,14 +303,8 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Debris Flow Kernel
     //
 
-    debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-    cudaDeviceSynchronize();
-
-    /*
-    compute_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
-    apply_cascade<<<block(model.elem, 1024), 1024>>>(model, model.discharge_track, param);
-    cudaDeviceSynchronize();
-    */
+    // debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    // cudaDeviceSynchronize();
 
     model.age++; // Increment Model Age for Rand-State Initialization
 
