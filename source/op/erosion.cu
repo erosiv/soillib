@@ -59,10 +59,10 @@ __device__ float equ_frac(const model_t& model, vec2 pos, vec2 npos, const param
   const int find = model.index.flatten(pos);
   const int nind = model.index.flatten(npos);
 
-  float h0 = model.height[find];//*model.scale.y;
+  float h0 = model.height[find] + model.sediment[find];//*model.scale.y;
   float h1 = h0 - param.exitSlope; // Exitslope is in real values!
   if(!model.index.oob(npos)){
-    h1 = model.height[nind];//*model.scale.y;
+    h1 = model.height[nind] + model.sediment[nind];//*model.scale.y;
   }
 
   const float discharge = glm::max(0.0f, model.discharge[find]);  // Discharge Volume
@@ -108,7 +108,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   float mass = rho_vol*vol;
 
   lerp5_t<float> lerp;
-  lerp.gather(model.height, model.index, ivec2(pos));
+  lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
+  //lerp.gather(model.height, model.index, ivec2(pos));
   const vec2 grad = lerp.grad(model.scale);
 
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
@@ -145,7 +146,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     // Flow Integration / Trajectory
 
     lerp5_t<float> lerp;
-    lerp.gather(model.height, model.index, ivec2(pos));
+    lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
+    //lerp.gather(model.height, model.index, ivec2(pos));
     const vec2 grad = lerp.grad(model.scale);
 
     const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
@@ -203,10 +205,50 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     // to "buckle", the equilibrium concentration needs to be increased further
     // on the outer edge of the curve.
 
-    const float equilibrium = vol * (equ_frac(model, pos, npos, param));
-    atomicAdd(&model.height[find], -k*(equilibrium - sed));
-    sed += k * (equilibrium - sed);
+    // Old Version:
+    // const float equilibrium = vol * (equ_frac(model, pos, npos, param));
+    // atomicAdd(&model.height[find], -k*(equilibrium - sed));
+    // sed += k * (equilibrium - sed);
     
+    // Equilibrium Suspension Amount:
+    
+    const float equilibrium = vol * (equ_frac(model, pos, npos, param));
+
+    // Layered Equilibrium Suspension:
+
+    const float height_0 = model.height[find];
+    const float height_1 = model.sediment[find];
+
+    // Stream can Suspend more Sediment
+    //  Note: We can use different equilibriation
+    //  coefficients for these two processes
+    if(equilibrium > sed){
+
+      // We move down the layers and suspend what we can:
+      float suspdiff = (equilibrium - sed);
+      const float transfer_1 = glm::min(height_1, k*suspdiff);
+      atomicAdd(&model.sediment[find], -transfer_1);
+      sed += transfer_1;
+
+      // Repeat
+      //  Note that for the bedrock layer, the value can go below zero
+      suspdiff = (equilibrium - sed);
+      const float transfer_0 = k*suspdiff; // glm::min(height_0, );
+      atomicAdd(&model.height[find], -transfer_0);
+      sed += transfer_0;
+
+    }
+
+    if(equilibrium < sed){
+
+      // We add sediment to the top layer
+      float suspdiff = (equilibrium - sed);
+      const float transfer_1 = glm::min(sed, -k*suspdiff);
+      atomicAdd(&model.sediment[find], transfer_1);
+      sed -= transfer_1;
+
+    }
+  
     // Note: We should limit it so that this doesn't cause a runaway deposition.
     // That occurs when the amount removed is larger than making the flow flat.
     // The particles coming from behind will then hit that wall and deposity everything.

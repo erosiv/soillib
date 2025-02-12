@@ -43,7 +43,8 @@ __device__ vec2 steepest_speed(model_t& model, const param_t param, const ivec2 
   const float g = param.gravity;
 
   lerp5_t<float> lerp;
-  lerp.gather(model.height, model.index, pos);
+  lerp.gather(model.height, model.sediment, model.index, pos);
+  //lerp.gather(model.height, model.index, pos);
   const vec2 grad = lerp.grad(model.scale);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
   return g * vec2(normal.x, normal.y);

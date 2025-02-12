@@ -17,6 +17,10 @@ struct lerp5_t {
     bool oob = true;
   };
 
+  // Single-Value Gather Operation:
+  //  Note that we can replace this generally with some structure
+  //  that performs a sum over multiple values somewhere. For now,
+  //  we will just implement two separate functions.
   template<typename I>
   GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p){
 
@@ -33,6 +37,27 @@ struct lerp5_t {
         this->y[i].oob = false;
         const size_t ind = index.flatten(pos_y);
         this->y[i].value = buffer_t[ind];
+      }
+    }
+
+  }
+
+  template<typename I>
+  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_0, const soil::buffer_t<T> &buffer_1, const I index, glm::ivec2 p){
+
+    for (int i = 0; i < 5; ++i) {
+      const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
+      if (!index.oob(pos_x)) {
+        const size_t ind = index.flatten(pos_x);
+        this->x[i].value = buffer_0[ind] + buffer_1[ind];
+        this->x[i].oob = false;
+      }
+
+      const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
+      if (!index.oob(pos_y)) {
+        const size_t ind = index.flatten(pos_y);
+        this->y[i].value = buffer_0[ind] + buffer_1[ind];
+        this->y[i].oob = false;
       }
     }
 
