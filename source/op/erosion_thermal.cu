@@ -102,21 +102,62 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     // Stable Bank-Height Computation:
     // This can be replaced with a more complex expression if desired.
     //  For instance, it can include the discharge function.
+    //  Note: This is all computed in real dimensions.
 
-    float h = model.height[find]*scale.y;
-    float h_next = model.height[nind]*scale.y;
+    // Old Version
+    //float h = model.height[find]*scale.y;
+    //float h_next = model.height[nind]*scale.y;
+    //float dist = sqrt(2.0f) * glm::length(vec2(scale.x, scale.z));
+    //float stable = h_next + param.maxdiff*dist;
+    //
+    //float excess = h - stable;
+    //if(excess < 0.0f){
+    //  excess = -glm::min(-excess, mass);
+    //}
+    //
+    //atomicAdd(&model.height[find], - param.settling * excess / scale.y);
+    //mass += param.settling * excess;
+    //if(mass == 0.0f)
+    //  break;
+
+    // Note: For a multi-layer material model, the bank stability would
+    //  have to be adjusted to something more realistic. Here, we just
+    //  assume that bedrock exists and is stable.
+    // Stable Height is Larger than Height:
+    //  Sediment is Added to Map!
+
+    float height_0 = model.height[find]*scale.y;
+    float height_1 = model.sediment[find]*scale.y;
+
+    float h = (height_0 + height_1);
+    float h_next = (model.height[nind] + model.sediment[nind])*scale.y;
     float dist = sqrt(2.0f) * glm::length(vec2(scale.x, scale.z));
+
+    // Stable Bank Height
     float stable = h_next + param.maxdiff*dist;
     
-    float excess = h - stable;
-    if(excess < 0.0f){
-      excess = -glm::min(-excess, mass);
+    // Stable Bank Height below Height: Remove Sediment (Add to Transport)
+    if(stable < h){
+
+      float transfer_1 = glm::min(param.settling * (h - stable), height_1);
+      atomicAdd(&model.sediment[find], - transfer_1 / scale.y);
+      mass += transfer_1;
+
+      h = (height_0 + height_1 - transfer_1);
+      float transfer_0 = param.settling * (h - stable);
+      atomicAdd(&model.height[find], - transfer_0 / scale.y);
+      mass += transfer_0;
+
     }
 
-    atomicAdd(&model.height[find], - param.settling * excess / scale.y);
-    mass += param.settling * excess;
-    if(mass == 0.0f)
-      break;
+    // Stable Bank Height Above Height: Add Sediment (Remove from Transport)
+    else if(stable > h){
+
+      float transfer_1 = glm::min(param.settling * (stable - h), mass);
+      atomicAdd(&model.sediment[find], transfer_1 / scale.y);
+      mass -= transfer_1;
+
+    }
 
     pos = npos;
 

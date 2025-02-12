@@ -239,7 +239,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     }
 
-    if(equilibrium < sed){
+    else if(equilibrium < sed){
 
       // We add sediment to the top layer
       float suspdiff = (equilibrium - sed);
@@ -345,8 +345,8 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Debris Flow Kernel
     //
 
-    // debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-    // cudaDeviceSynchronize();
+    debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    cudaDeviceSynchronize();
 
     model.age++; // Increment Model Age for Rand-State Initialization
 
