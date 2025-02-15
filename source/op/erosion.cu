@@ -59,17 +59,17 @@ __device__ float equ_frac(const model_t& model, vec2 pos, vec2 npos, const param
   const int find = model.index.flatten(pos);
   const int nind = model.index.flatten(npos);
 
-  float h0 = model.height[find] + model.sediment[find];//*model.scale.y;
-  float h1 = h0 - param.exitSlope; // Exitslope is in real values!
+  // Compute the Slope
+
+  float slope = param.exitSlope;
   if(!model.index.oob(npos)){
-    h1 = model.height[nind] + model.sediment[nind];//*model.scale.y;
+    float h0 = (model.height[find] + model.sediment[find]);//*model.scale.y;
+    float h1 = (model.height[nind] + model.sediment[nind]);//*model.scale.y;
+    slope = (h0 - h1);///glm::length(vec2(model.scale.x, model.scale.z));
   }
 
-  const float discharge = glm::max(0.0f, model.discharge[find]);  // Discharge Volume
-  const float slope = (h0 - h1);//model.scale.x;                    // Local Slope (Divide by Scale)
-
+  const float discharge = glm::max(0.0f, model.discharge[find]);
   return glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
-
 }
 
 __global__ void solve(model_t model, const size_t N, const param_t param){
@@ -104,6 +104,14 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   // Water and Sediment Masses
 
   const float rho_vol = 1.0f;
+
+  // Question: Do we have to scale by the precipitation area?
+  // Answer: No, because the probability already takes are into account.
+  //  This value is merely the per-area precipitation rate. As the
+  //  estimate is an integration over the area, the normalization factor
+  //  includes the area scaling. If we want to incporporate the area
+  //  explicitly, we have to do this with the probability factor.
+
   float vol = 1.0f;
   float mass = rho_vol*vol;
 
@@ -136,7 +144,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     // Termination Conditions
 
     if(model.index.oob(pos))      return;
-    if(vol < param.minVol)        return;
+//    if(vol < param.minVol)        return;
     if(glm::length(speed) < 1E-4) return;
 
     //
@@ -225,15 +233,12 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     if(equilibrium > sed){
 
       // We move down the layers and suspend what we can:
-      float suspdiff = (equilibrium - sed);
-      const float transfer_1 = glm::min(height_1, k*suspdiff);
+      float suspdiff = k*(equilibrium - sed);
+      const float transfer_1 = glm::min(height_1, suspdiff);
       atomicAdd(&model.sediment[find], -transfer_1);
       sed += transfer_1;
-
-      // Repeat
-      //  Note that for the bedrock layer, the value can go below zero
-      suspdiff = (equilibrium - sed);
-      const float transfer_0 = k*suspdiff; // glm::min(height_0, );
+      suspdiff -= transfer_1;
+      const float transfer_0 = suspdiff;
       atomicAdd(&model.height[find], -transfer_0);
       sed += transfer_0;
 
