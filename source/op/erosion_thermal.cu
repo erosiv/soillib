@@ -53,6 +53,18 @@ __device__ vec2 steepest_speed(model_t& model, const param_t param, const ivec2 
 
 //! Debris Flow Kernel Implementation
 //!
+//! Utilizes a stable bank height to compute the eroded material.
+//! This can use a more complex expression if desired, for instance
+//! incorporating the discharge function / agitation / lift vs gravity
+//! vs friction coefficient per material, etc.
+//!
+//! The computation occurs in scale-free dimensions.
+//!
+//! Currently, this uses a simple explicit integration which requires
+//! limiting the parameters to a maximum value. At high resolutions,
+//! this causes some stability issues due to the sampling scaling.
+//! Using an implicit method would solve this problem directly.
+//!
 __global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
@@ -66,30 +78,28 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
   // Spawn Particle at Random Position
 
   curandState* randState = &model.rand[ind];
-  const float P = float(model.elem)/float(N); // Sample Probability
   vec2 pos = vec2{
     curand_uniform(randState)*float(model.index[0]),
     curand_uniform(randState)*float(model.index[1])
   };
-
-  if(model.index.oob(pos))
-    return;
+  const float P = 1.0f / float(model.index.elem());
 
   // Iterate over a Number of Steps
 
   float mass = 0.0f;  // Currently Transported Mass
 
   // Note: Parameterize
-  for(size_t age = 0; age < 1024; ++age){
+  for(size_t age = 0; age < 256; ++age){
 
     // Motion Along Characteristic
 
+    vec2 npos = pos;
+
     vec2 speed = steepest_speed(model, param, pos);
-    if(glm::length(speed) < 0.00001f){
-      return;
+    if(glm::length(speed) > 0.0f){
+      npos = pos + glm::normalize(speed);
     }
 
-    vec2 npos = pos + sqrt(2.0f) * glm::normalize(speed);
     if(model.index.oob(npos)){
       return;
     }
@@ -100,62 +110,43 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     int nind = model.index.flatten(npos);
 
     // Stable Bank-Height Computation:
-    // This can be replaced with a more complex expression if desired.
-    //  For instance, it can include the discharge function.
-    //  Note: This is all computed in real dimensions.
 
-    // Old Version
-    //float h = model.height[find]*scale.y;
-    //float h_next = model.height[nind]*scale.y;
-    //float dist = sqrt(2.0f) * glm::length(vec2(scale.x, scale.z));
-    //float stable = h_next + param.maxdiff*dist;
-    //
-    //float excess = h - stable;
-    //if(excess < 0.0f){
-    //  excess = -glm::min(-excess, mass);
-    //}
-    //
-    //atomicAdd(&model.height[find], - param.settling * excess / scale.y);
-    //mass += param.settling * excess;
-    //if(mass == 0.0f)
-    //  break;
+    float hf_0 = model.height[find];
+    float hf_1 = model.sediment[find];
+    float hn_0 = model.height[nind];
+    float hn_1 = model.sediment[nind];
+    float hf = (hf_0 + hf_1);
+    float hn = (hn_0 + hn_1);
 
-    // Note: For a multi-layer material model, the bank stability would
-    //  have to be adjusted to something more realistic. Here, we just
-    //  assume that bedrock exists and is stable.
-    // Stable Height is Larger than Height:
-    //  Sediment is Added to Map!
-
-    float height_0 = model.height[find]*scale.y;
-    float height_1 = model.sediment[find]*scale.y;
-
-    float h = (height_0 + height_1);
-    float h_next = (model.height[nind] + model.sediment[nind])*scale.y;
-    float dist = sqrt(2.0f) * glm::length(vec2(scale.x, scale.z));
-
-    // Stable Bank Height
-    float stable = h_next + param.maxdiff*dist;
+    float dist = glm::length(vec2(scale.x, scale.z)*(npos - pos));
+    float stable = (hn + param.maxdiff*dist/scale.y);
     
-    // Stable Bank Height below Height: Remove Sediment (Add to Transport)
-    if(stable < h){
+    // Arbitrary Rate Limiting due to Explicit Method:
+    float kth = glm::min(0.8f, param.settling  / P / float(N));
 
-      float transfer_1 = glm::min(param.settling * (h - stable), height_1);
-      atomicAdd(&model.sediment[find], - transfer_1 / scale.y);
-      mass += transfer_1;
+    float suspend = glm::max(0.0f, hf - stable);
+    float deposit = mass;
+    float transfer = kth * (deposit - suspend);
 
-      h = (height_0 + height_1 - transfer_1);
-      float transfer_0 = param.settling * (h - stable);
-      atomicAdd(&model.height[find], - transfer_0 / scale.y);
-      mass += transfer_0;
+    if(transfer > 0.0f){  // Add Sediment to Map
+
+      transfer = glm::min(transfer, mass);
+      atomicAdd(&model.sediment[find], transfer);
+      mass -= transfer;
 
     }
 
-    // Stable Bank Height Above Height: Add Sediment (Remove from Transport)
-    else if(stable > h){
+    else if(transfer < 0.0f){ // Remove Sediment from Map
 
-      float transfer_1 = glm::min(param.settling * (stable - h), mass);
-      atomicAdd(&model.sediment[find], transfer_1 / scale.y);
-      mass -= transfer_1;
+      const float maxtransfer = hf_1;
+      float t1 = -glm::min(maxtransfer, -transfer);
+
+      atomicAdd(&model.sediment[find], t1);
+      mass -= t1;
+
+      transfer -= t1;
+      atomicAdd(&model.height[find], transfer);
+      mass -= transfer;
 
     }
 

@@ -20,13 +20,19 @@ struct param_t {
 
   float settling = 1.0f;
   float maxdiff = 0.8f;
+
+  float rainfall = 1.5f;    // [m/y]
   float evapRate = 0.001f;
+  
   float depositionRate = 0.05f;
   float entrainment = 0.25f;
+  
   float gravity = 2.0f;
-  float momentumTransfer = 1.0f;
+  float viscosity = 0.075f; // [m^2/s]
+  
   float minVol = 0.001f;
   float lrate = 0.01f;
+  
   float exitSlope = 0.99f;
   float hscale = 0.1f;
 

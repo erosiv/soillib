@@ -33,7 +33,7 @@ def main():
   param = soil.param_t()
   param.samples = 8192
   param.gravity = 1
-  param.momentumTransfer = 0.25
+  param.viscosity = 0.25
   param.maxdiff = 0.75
   param.settling = 0.75
   param.depositionRate = 0.1

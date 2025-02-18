@@ -54,24 +54,6 @@ __global__ void filter(model_t model, const param_t param){
 // Erosion Kernels
 //
 
-__device__ float equ_frac(const model_t& model, vec2 pos, vec2 npos, const param_t param){
-
-  const int find = model.index.flatten(pos);
-  const int nind = model.index.flatten(npos);
-
-  // Compute the Slope
-
-  float slope = param.exitSlope;
-  if(!model.index.oob(npos)){
-    float h0 = (model.height[find] + model.sediment[find]);//*model.scale.y;
-    float h1 = (model.height[nind] + model.sediment[nind]);//*model.scale.y;
-    slope = (h0 - h1);///glm::length(vec2(model.scale.x, model.scale.z));
-  }
-
-  const float discharge = glm::max(0.0f, model.discharge[find]);
-  return glm::max(slope, 0.0f) * param.entrainment * log(1.0f + discharge);
-}
-
 __global__ void solve(model_t model, const size_t N, const param_t param){
 
   const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
@@ -79,61 +61,71 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   //
   // Parameters
-  // Note: Scale-Normalize Values
   //
 
-  const float mu = param.momentumTransfer;
-  const float g = param.gravity;
-  const float k = param.depositionRate;
+  // Scaled Domain Parameters
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m]
+  const vec2 cl = vec2(scale.x, scale.z); // Cell Length [m, m]
+  const float Ac = scale.x*scale.z;       // Cell Area [m^2]
+
+  const float R = param.rainfall;         // Rainfall Amount  [m/y]
+  const float g = param.gravity;          // Specific Gravity [m/s^2]
+  const float kd = param.depositionRate;  // Fluvial Deposition Rate
+
+  // Two Problem Parameters:
+  const float nu = param.viscosity;// * 24000.0f;      // Kinematic Viscosity [m^2/s]
+  const float ks = kd * param.entrainment * 7E-7f;  // Fluvial Suspension Rate
 
   //
-  // Initial Condition
+  // Position Sampling Procedure:
+  //  Note: If we isolate this, we also wish to return the probability
+  //  that any individual sample was chosen. For now, it is uniform.
+  //  Additionally, this can be area based, but ultimately depends
+  //  on the actual implementation of the sampling procedure.
   //
-  
-  // Trajectory and Integration State
 
-  const float P = float(model.elem)/float(N); // Sample Probability
   curandState* randState = &model.rand[ind];
   vec2 pos = vec2{
     curand_uniform(randState)*float(model.index[0]),
     curand_uniform(randState)*float(model.index[1])
   };
-
+  const float P = 1.0f / float(model.index.elem());
   int find = model.index.flatten(pos);
 
-  // Water and Sediment Masses
+  //
+  // Transport Initial Condition
+  //
 
-  const float rho_vol = 1.0f;
+  float dt = 1.0f;    // [y]
+  float vol = Ac * R; // [m^3/y]
+  float sed = 0.0f;
 
-  // Question: Do we have to scale by the precipitation area?
-  // Answer: No, because the probability already takes are into account.
-  //  This value is merely the per-area precipitation rate. As the
-  //  estimate is an integration over the area, the normalization factor
-  //  includes the area scaling. If we want to incporporate the area
-  //  explicitly, we have to do this with the probability factor.
+  //
+  // Trajectory Initial Condition
+  //
 
-  float vol = 1.0f;
-  float mass = rho_vol*vol;
-
+  // Surface Normal Vector
   lerp5_t<float> lerp;
   lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
-  //lerp.gather(model.height, model.index, ivec2(pos));
-  const vec2 grad = lerp.grad(model.scale);
-
+  const vec2 grad = lerp.grad(scale);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-  const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
-  vec2 speed = g * vec2(normal.x, normal.y) + (mu / mass) * average_speed;
+
+  // Average Local Velocity
+  const vec2 momentum = model.momentum[find];
+  const float discharge = model.discharge[find];
+  vec2 average_speed = vec2(0.0f);
+  if(discharge > 0.0f) {
+    average_speed = momentum / discharge;
+  }
+
+  // Initial Velocity Estimate
+  vec2 speed = g * vec2(normal.x, normal.y) + nu * average_speed;
+  if(glm::length(speed) == 0.0f)
+    return;
+
+  float ds = glm::length(cl) / glm::length(speed);
+  vec2 npos = pos + ds*(speed / cl);
   vec2 dspeed = speed;
-
-  // Sediment Transport:
-  // Doing this differentially is unstable for some reason.
-  // For now, we just integrate the solution directly.
-
-//  vec2 npos = pos + sqrt(2.0f)*glm::normalize(speed);
-//  const float equilibrium = vol * (equ_frac(model, pos, npos, param));
-//  float dsed = k*equilibrium;
-//  atomicAdd(&model.height[find], -dsed);
-  float sed = 0.0f;
 
   // Solution Loop:
   //  Solve Conservation Law along Characteristic
@@ -141,147 +133,125 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   for(size_t age = 0; age < param.maxage; ++age){
 
-    // Termination Conditions
-
-    if(model.index.oob(pos))      return;
-//    if(vol < param.minVol)        return;
-    if(glm::length(speed) < 1E-4) return;
-
-    //
-    // Execute Integration
-    //
-
-    // Flow Integration / Trajectory
-
-    lerp5_t<float> lerp;
-    lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
-    //lerp.gather(model.height, model.index, ivec2(pos));
-    const vec2 grad = lerp.grad(model.scale);
-
-    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-    const vec2 average_speed = (model.momentum[find]) / (1.0f + rho_vol*model.discharge[find]);
-
-    vec2 nspeed = speed + g * vec2(normal.x, normal.y) + (mu / mass)*(average_speed - speed);
-
-    //
-    // Time-Step Normalization
-    //
-
-    // Note: Here we should see if we can use the length of the speed
-    //  vector as the inverse of the time-step. That would help scale
-    //  things correctly.
-    //  Additionally, we should limit the magnitude of the velocity,
-    //  because it does have the change to run-away despite the viscosity.
-
-    vec2 npos = pos;
-    if(glm::length(nspeed) > 0.0){
-      npos += sqrt(2.0f)*glm::normalize(nspeed);
-    } else {
-      // note: if the position becomes the same,
-      // slope will also be zero
-      // meaning equilibrium drops to zero
-      // which could cause a chain reaction of deposition
-      break;
-    }
-
     //
     // Accumulate Estimated Values
     //
 
     // Note: Accumulation Occurds at Current Position
 
-    atomicAdd(&model.discharge_track[find], P*vol);
-    atomicAdd(&model.momentum_track[find].x, P*mass*dspeed.x);
-    atomicAdd(&model.momentum_track[find].y, P*mass*dspeed.y);
+    atomicAdd(&model.discharge_track[find], (1.0f/P/N)*vol);
+    atomicAdd(&model.momentum_track[find].x, (1.0f/P/N)*vol*dspeed.x);
+    atomicAdd(&model.momentum_track[find].y, (1.0f/P/N)*vol*dspeed.y);
 
     //
     // Mass-Transfer
-    //
-
-    // Note: Differential Integration is Unstable due to Height-Map
-    // So we do direct integration instead, assuming segmented
-    // fluid packets.
-
-    // atomicAdd(&model.suspended_track[find], P*dsed);
-    // const float equilibrium = vol * (equ_frac(model, pos, npos, param));
-    // atomicAdd(&model.height[find], -k*(equilibrium - model.suspended[find]));
-    // dsed *= (1.0f - k);
-
-    // Note: This expression for the equilibrium concentration depends solely on
-    // the discharge volume. That means that the small gradient along curved flows
-    // leads a meander to progress. To increase this effect, and get the meanders
-    // to "buckle", the equilibrium concentration needs to be increased further
-    // on the outer edge of the curve.
-
-    // Old Version:
-    // const float equilibrium = vol * (equ_frac(model, pos, npos, param));
-    // atomicAdd(&model.height[find], -k*(equilibrium - sed));
-    // sed += k * (equilibrium - sed);
+    //  Compute Equilibrium Mass from Slope and Discharge
+    //  Transfer Mass and Scale by Sampling Probability
     
-    // Equilibrium Suspension Amount:
+    float discharge = model.discharge[find];
+    float slope = -param.exitSlope;
+    if(!model.index.oob(npos)){
+      const int nind = model.index.flatten(npos);
+      float h0 = (model.height[find] + model.sediment[find])*scale.y;
+      float h1 = (model.height[nind] + model.sediment[nind])*scale.y;
+      slope = (h1 - h0)/glm::length(cl);
+    }
+
+    float deposit = kd * sed;
+    float suspend = ks * vol  * glm::max(0.0f, -slope) * pow(discharge, 0.4f);
+    float transfer = (deposit - suspend);
+
+    // Erosion Stability: Limit Transfer by Slope
+    //  Note: This is a hard-max function applied to an explicit euler scheme.
+    //  This combination can be replaced by an implicit scheme on its own.
+
+    if(transfer > 0.0f){ // Add Material to Map
+      if(slope > 0.0f){
+        const float maxtransfer = slope * glm::length(cl)/scale.y;
+        transfer = glm::min(maxtransfer, transfer / P / float(N)) * P * float(N);
+      }
+    } 
     
-    const float equilibrium = vol * (equ_frac(model, pos, npos, param));
+    else if(transfer < 0.0f) { // Remove Material from Map
+      if(slope < 0.0f){
+        const float maxtransfer = -slope * glm::length(cl)/scale.y;
+        transfer = -glm::min(maxtransfer, -transfer / P / float(N)) * P * float(N);
+      }
+    }
 
-    // Layered Equilibrium Suspension:
+    // Simple Equilibrium, Single-Material Mass-Transfer
+    
+//    if(transfer > 0.0f){
+//      transfer = glm::min(sed, transfer);
+//    }
+//
+//    atomicAdd(&model.height[find], transfer / P / float(N));
+//    sed -= transfer;
 
-    const float height_0 = model.height[find];
-    const float height_1 = model.sediment[find];
+    // Simple Equilibrium, Multi-Material Mass Transfer
 
-    // Stream can Suspend more Sediment
-    //  Note: We can use different equilibriation
-    //  coefficients for these two processes
-    if(equilibrium > sed){
+    if(transfer > 0.0f){      // Add Material to Map
 
-      // We move down the layers and suspend what we can:
-      float suspdiff = k*(equilibrium - sed);
-      const float transfer_1 = glm::min(height_1, suspdiff);
-      atomicAdd(&model.sediment[find], -transfer_1);
-      sed += transfer_1;
-      suspdiff -= transfer_1;
-      const float transfer_0 = suspdiff;
-      atomicAdd(&model.height[find], -transfer_0);
-      sed += transfer_0;
+      transfer = glm::min(sed, transfer);
+      atomicAdd(&model.sediment[find], transfer / P / float(N));
+      sed -= transfer;
 
     }
 
-    else if(equilibrium < sed){
+    else if(transfer < 0.0f){ // Remove Sediment from Map
 
-      // We add sediment to the top layer
-      float suspdiff = (equilibrium - sed);
-      const float transfer_1 = glm::min(sed, -k*suspdiff);
-      atomicAdd(&model.sediment[find], transfer_1);
-      sed -= transfer_1;
+      const float maxtransfer = model.sediment[find];
+      float t1 = -glm::min(maxtransfer, -transfer / P / float(N)) * P * float(N);
+
+      atomicAdd(&model.sediment[find], t1/ P / float(N));
+      sed -= t1;
+
+      transfer -= t1;
+      atomicAdd(&model.height[find], transfer / P / float(N));
+      sed -= transfer;
 
     }
-  
-    // Note: We should limit it so that this doesn't cause a runaway deposition.
-    // That occurs when the amount removed is larger than making the flow flat.
-    // The particles coming from behind will then hit that wall and deposity everything.
-    // Or we make sure we can't deposit more than equal the amount.
-    // Finally, we should add a term which is based on the viscosity, meaning that
-    // if the difference between the velocity and the target velocity is larger,
-    // we scale the equilibrium value because we have a higher shear-stress.
 
     //
     // Integrate Sub-Solution Quantities
-    //
+    //  Note: Integrated in Quasi-Static Time
+    //    using an Implicit Forward Scheme
 
-    vol *= (1.0f - param.evapRate);
-    dspeed += - (mu / mass)*dspeed;
-    mass = rho_vol*vol;
-
-    // Update Position at next Position?
-    // We do this because technically,
-    // we have moved forward to where
-    // the velocity has changed as specified.
+    vol = 1.0f/(1.0f + ds*param.evapRate)*vol;
+    dspeed = 1.0f/(1.0f + ds*nu)*dspeed;
 
     //
-    // Update Trajectory
+    // Flow Integration / Trajectory
     //
 
     pos = npos;
-    speed = nspeed;
+    if(model.index.oob(pos))
+      break;
+
     find = model.index.flatten(pos);
+
+    lerp5_t<float> lerp;
+    lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
+    const vec2 grad = lerp.grad(scale);
+    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+
+    discharge = model.discharge[find];
+    const vec2 momentum = model.momentum[find];
+    vec2 average_speed = vec2(0.0f);
+    if(discharge > 0.0f){
+      average_speed = momentum / discharge;
+    }
+
+    // Implicit Euler Forward Integration:
+
+    speed = speed + ds * g * vec2(normal.x, normal.y);
+    speed = 1.0f/(1.0f + ds*nu)*speed + ds*nu/(1.0f + ds*nu)*average_speed;
+
+    if(glm::length(speed) == 0.0f)
+      break;
+
+    ds = glm::length(cl)/glm::length(speed);
+    npos = pos + ds * (speed / cl);
 
   }
 
