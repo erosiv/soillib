@@ -51,6 +51,12 @@ __device__ vec2 steepest_speed(model_t& model, const param_t param, const ivec2 
 
 }
 
+__device__ float _transfer(float* buf, float val, const float max){
+  val = val * glm::min(1.0f, max/abs(val)); // Cap Val at Max
+  atomicAdd(buf, val);                      // Transfer Val
+  return val;                               // Return Value
+}
+
 //! Debris Flow Kernel Implementation
 //!
 //! Utilizes a stable bank height to compute the eroded material.
@@ -130,23 +136,18 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
     if(transfer > 0.0f){  // Add Sediment to Map
 
-      transfer = glm::min(transfer, mass);
-      atomicAdd(&model.sediment[find], transfer);
-      mass -= transfer;
+      const float t1 = _transfer(&model.sediment[find], transfer, mass);
+      mass -= t1;
 
     }
 
     else if(transfer < 0.0f){ // Remove Sediment from Map
 
-      const float maxtransfer = hf_1;
-      float t1 = -glm::min(maxtransfer, -transfer);
-
-      atomicAdd(&model.sediment[find], t1);
+      const float t1 = _transfer(&model.sediment[find], transfer, hf_1);
       mass -= t1;
 
-      transfer -= t1;
-      atomicAdd(&model.height[find], transfer);
-      mass -= transfer;
+      const float t2 = _transfer(&model.height[find], transfer-t1, INFINITY);
+      mass -= t2;
 
     }
 
