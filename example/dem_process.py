@@ -45,8 +45,8 @@ def main(data):
 
   print("Computing Area")
   with timer:
-    #area = soil.accumulation(direction, index, 64, 8192)
-    area = soil.accumulation_weighted(direction, weights, index, 64, 8192)
+    area = soil.accumulation(direction, index, 64, 8192)
+    #area = soil.accumulation_weighted(direction, weights, index, 64, 8192)
   print(f"Execution Time: {timer.count}ms")
 
   print("Computing Upstream Mask...")
@@ -106,7 +106,7 @@ def main(data):
 
 if __name__ == "__main__":
 
-  #data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
-  data = "_dem_conditioned.tiff"
+  data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  #data = "_dem_conditioned.tiff"
 
   main(data)
