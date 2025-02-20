@@ -240,55 +240,64 @@ __global__ void _shift(const soil::buffer_t<int> graph_a, soil::buffer_t<int> gr
 }
 
 //
-// Accumulation Kernel Implementation
+// Sample Generation Procedures
 //
 
-__device__ int sample_uniform(const size_t ind, soil::flat_t<2>& index, soil::buffer_t<curandState>& randStates){
+struct sample_t {
+  int index;
+  float P;
+};
+
+//! Spatially Uniform Sampling:
+//!   Generates a floating point value in the uniform
+//!   interval [0, 1] and computes the flat buffer index. 
+__device__ sample_t sample_uniform(const size_t ind, soil::flat_t<2>& index, soil::buffer_t<curandState>& randStates){
 
   curandState* state = &randStates[ind];
-  return curand_uniform(state)*index.elem();
+  return {
+    curand_uniform(state)*index.elem(),
+    1.0f / float(index.elem())
+  };
 
 }
 
+//
+// Accumulation Kernel Implementation
+//
+
 //! Accumulation Kernel w. Uniform Weight of 1.0
-__global__ void _accumulate(const soil::buffer_t<int> graph, soil::buffer_t<float> out, soil::flat_t<2> index, soil::buffer_t<curandState> randStates, const size_t N){
+__global__ void _accumulate(const soil::buffer_t<int> graph, soil::buffer_t<float> out, soil::flat_t<2> index, soil::buffer_t<curandState> randStates, const size_t K, const size_t N){
 
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
+  const int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= K) return;
 
-  int ind = sample_uniform(n, index, randStates);
+  auto [ind, P] = sample_uniform(k, index, randStates);
   int next = graph[ind];
 
   while(ind != next){
     ind = next;
-    atomicAdd(&(out[ind]), 1.0f);
+    atomicAdd(&(out[ind]), 1.0f/P/float(N));
     next = graph[ind];
   }
 
 }
 
 //! Accumulation Kernel w. Non-Uniform Weight Buffer
-__global__ void _accumulate(const soil::buffer_t<int> graph, const soil::buffer_t<float> weights, soil::buffer_t<float> out, soil::flat_t<2> index, soil::buffer_t<curandState> randStates, const size_t N){
+__global__ void _accumulate(const soil::buffer_t<int> graph, const soil::buffer_t<float> weights, soil::buffer_t<float> out, soil::flat_t<2> index, soil::buffer_t<curandState> randStates, const size_t K, const size_t N){
 
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
+  const int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= K) return;
 
-  int ind = sample_uniform(n, index, randStates);
+  auto [ind, P] = sample_uniform(k, index, randStates);
   int next = graph[ind];
   const float val = weights[ind];
 
   while(ind != next){
     ind = next;
-    atomicAdd(&(out[ind]), val);
+    atomicAdd(&(out[ind]), val/P/float(N));
     next = graph[ind];
   }
 
-}
-
-__global__ void _normalize(soil::buffer_t<float> out, float P){
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= out.elem()) return;
-  out[n] = 1.0f + P * out[n];
 }
 
 soil::buffer soil::accumulation(const soil::buffer& direction, const soil::index& index, int iterations, size_t samples){
@@ -309,17 +318,16 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::index
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+  _fill<<<block(elem, 256), 256>>>(out, 1.0f);
 
   soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
   seed<<<block(samples, 512), 512>>>(randStates, 0, 0);
+
+  const size_t N = iterations*samples;
   
   for(int n = 0; n < iterations; ++n){
-    _accumulate<<<block(samples, 512), 512>>>(graph_buf, out, index_t, randStates, samples);
+    _accumulate<<<block(samples, 512), 512>>>(graph_buf, out, index_t, randStates, samples, N);
   }
-
-  const float P = float(elem)/float(iterations*samples);
-  _normalize<<<block(elem, 256), 256>>>(out, P);
 
   cudaDeviceSynchronize();
 
@@ -355,17 +363,16 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffe
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+  _fill<<<block(elem, 256), 256>>>(out, 1.0f);
 
   soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
   seed<<<block(samples, 512), 512>>>(randStates, 0, 0);
+
+  const size_t N = iterations*samples;
   
   for(int n = 0; n < iterations; ++n){
-    _accumulate<<<block(samples, 512), 512>>>(graph_buf, weight_t, out, index_t, randStates, samples);
+    _accumulate<<<block(samples, 512), 512>>>(graph_buf, weight_t, out, index_t, randStates, samples, N);
   }
-
-  const double P = double(elem)/double(iterations*samples);
-  _normalize<<<block(elem, 256), 256>>>(out, P);
 
   cudaDeviceSynchronize();
 
