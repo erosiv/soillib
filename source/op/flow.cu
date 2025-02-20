@@ -245,7 +245,7 @@ __global__ void _shift(const soil::buffer_t<int> graph_a, soil::buffer_t<int> gr
 
 struct sample_t {
   int index;
-  float P;
+  float w;
 };
 
 //! Spatially Uniform Sampling:
@@ -256,8 +256,49 @@ __device__ sample_t sample_uniform(const size_t ind, soil::flat_t<2>& index, soi
   curandState* state = &randStates[ind];
   return {
     curand_uniform(state)*index.elem(),
-    1.0f / float(index.elem())
+    float(index.elem())
   };
+
+}
+
+//! Streaming Resampled Importance Sampling with Reservoir Sampling:
+//!
+//!   Resampled reimportance sampling is implemented in a streaming manner
+//!   using reservoir sampling. The suboptimal approximate distribution is
+//!   the uniform distribution, which we use to generate M samples. We
+//!   simultaneously utilize reservoir sampling to choose a sample with a
+//!   probability that is proportional to the target distribution.
+//!
+//!   Note that normalization of the target distribution is not necessary,
+//!   as a scaling factor can be factored out of the ration between the
+//!   selected sample's weight and the sum of all weights.
+//!
+__device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, soil::buffer_t<curandState>& randStates, const soil::buffer_t<float>& out){
+
+  curandState* state = &randStates[ind];
+
+  int sample = 0;
+  float p_sample = 1.0f;
+  float w_sum = 0.0f;
+  const size_t M = 128;
+
+  // Iterate over RIS Sample Count
+  for(int m = 0; m < M; ++m){
+   
+    auto [next, w_next] = sample_uniform(ind, index, randStates);  
+    
+    float p_target = 1.0f / out[next];  // Target Distribution
+    float w = w_next * p_target;        // Sample Weight
+    w_sum += w;
+
+    if(curand_uniform(state) <  w / w_sum){
+      sample = next;
+      p_sample = p_target;
+    }
+  
+  }
+
+  return {sample, w_sum / float(M) / p_sample};
 
 }
 
@@ -271,12 +312,13 @@ __global__ void _accumulate(const soil::buffer_t<int> graph, soil::buffer_t<floa
   const int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= K) return;
 
-  auto [ind, P] = sample_uniform(k, index, randStates);
+  // auto [ind, w] = sample_uniform(k, index, randStates);
+  auto [ind, w] = sample_reservoir(k, index, randStates, out);
   int next = graph[ind];
 
   while(ind != next){
     ind = next;
-    atomicAdd(&(out[ind]), 1.0f/P/float(N));
+    atomicAdd(&(out[ind]), w/float(N));
     next = graph[ind];
   }
 
@@ -288,13 +330,13 @@ __global__ void _accumulate(const soil::buffer_t<int> graph, const soil::buffer_
   const int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= K) return;
 
-  auto [ind, P] = sample_uniform(k, index, randStates);
+  auto [ind, w] = sample_uniform(k, index, randStates);
   int next = graph[ind];
   const float val = weights[ind];
 
   while(ind != next){
     ind = next;
-    atomicAdd(&(out[ind]), val/P/float(N));
+    atomicAdd(&(out[ind]), w*val/float(N));
     next = graph[ind];
   }
 
