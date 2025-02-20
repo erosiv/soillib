@@ -280,17 +280,18 @@ __device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, s
   int sample = 0;
   float p_sample = 1.0f;
   float w_sum = 0.0f;
-  const size_t M = 128;
+  const size_t M = 32;
 
   // Iterate over RIS Sample Count
   for(int m = 0; m < M; ++m){
    
     auto [next, w_next] = sample_uniform(ind, index, randStates);  
-    
-    float p_target = 1.0f / out[next];  // Target Distribution
-    float w = w_next * p_target;        // Sample Weight
-    w_sum += w;
 
+    // Validation: This should be equivalent to uniform sampling!
+    float p_target = 2.0f;        // Target Distribution
+    float w = w_next * p_target;  // Sample Weight
+
+    w_sum += w;
     if(curand_uniform(state) <  w / w_sum){
       sample = next;
       p_sample = p_target;
@@ -312,7 +313,7 @@ __global__ void _accumulate(const soil::buffer_t<int> graph, soil::buffer_t<floa
   const int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= K) return;
 
-  // auto [ind, w] = sample_uniform(k, index, randStates);
+  //auto [ind, w] = sample_uniform(k, index, randStates);
   auto [ind, w] = sample_reservoir(k, index, randStates, out);
   int next = graph[ind];
 
