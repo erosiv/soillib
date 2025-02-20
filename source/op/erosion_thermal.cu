@@ -134,6 +134,15 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     float deposit = mass;
     float transfer = kth * (deposit - suspend);
 
+//    const float t1 = _transfer(&model.sediment[find], kth*deposit, mass);
+//    mass -= t1;
+//
+//    const float t2 = _transfer(&model.sediment[find], -kth*suspend, hf_1);
+//    mass -= t2;
+//
+//    const float t3 = _transfer(&model.height[find], -kth*suspend + t2, INFINITY);
+//    mass -= t3;
+
     if(transfer > 0.0f){  // Add Sediment to Map
 
       const float t1 = _transfer(&model.sediment[find], transfer, mass);
