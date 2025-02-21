@@ -280,7 +280,7 @@ __device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, s
   int sample = 0;
   float p_sample = 1.0f;
   float w_sum = 0.0f;
-  const size_t M = 128;
+  const size_t M = 24;
 
   // Iterate over RIS Sample Count
   for(int m = 0; m < M; ++m){
