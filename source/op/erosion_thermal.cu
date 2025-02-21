@@ -52,8 +52,10 @@ __device__ vec2 steepest_speed(model_t& model, const param_t param, const ivec2 
 }
 
 __device__ float _transfer(float* buf, float val, const float max){
-  val = val * glm::min(1.0f, max/abs(val)); // Cap Val at Max
-  atomicAdd(buf, val);                      // Transfer Val
+  if(abs(val) > 1E-8){
+    val = val * glm::min(1.0f, max/abs(val)); // Cap Val at Max
+    atomicAdd(buf, val);                      // Transfer Val
+  }
   return val;                               // Return Value
 }
 
@@ -130,35 +132,17 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     // Arbitrary Rate Limiting due to Explicit Method:
     float kth = glm::min(0.8f, param.settling  / P / float(N));
 
-    float suspend = glm::max(0.0f, hf - stable);
-    float deposit = mass;
-    float transfer = kth * (deposit - suspend);
+    float suspend = -kth * glm::max(0.0f, hf - stable);
+    float deposit =  kth * mass;
 
-//    const float t1 = _transfer(&model.sediment[find], kth*deposit, mass);
-//    mass -= t1;
-//
-//    const float t2 = _transfer(&model.sediment[find], -kth*suspend, hf_1);
-//    mass -= t2;
-//
-//    const float t3 = _transfer(&model.height[find], -kth*suspend + t2, INFINITY);
-//    mass -= t3;
+    const float t1 = _transfer(&model.sediment[find], deposit, mass);
+    mass -= t1;
 
-    if(transfer > 0.0f){  // Add Sediment to Map
+    const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
+    mass -= t2;
 
-      const float t1 = _transfer(&model.sediment[find], transfer, mass);
-      mass -= t1;
-
-    }
-
-    else if(transfer < 0.0f){ // Remove Sediment from Map
-
-      const float t1 = _transfer(&model.sediment[find], transfer, hf_1);
-      mass -= t1;
-
-      const float t2 = _transfer(&model.height[find], transfer-t1, INFINITY);
-      mass -= t2;
-
-    }
+    const float t3 = _transfer(&model.height[find], deposit + suspend - t1 - t2, INFINITY);
+    mass -= t3;
 
     pos = npos;
 
