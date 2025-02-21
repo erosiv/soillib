@@ -280,7 +280,7 @@ __device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, s
   int sample = 0;
   float p_sample = 1.0f;
   float w_sum = 0.0f;
-  const size_t M = 32;
+  const size_t M = 128;
 
   // Iterate over RIS Sample Count
   for(int m = 0; m < M; ++m){
@@ -335,24 +335,28 @@ __global__ void _accumulate(const soil::buffer_t<int> graph, const soil::buffer_
   if(k >= K) return;
 
   if(reservoir){
+
     auto [ind, w] = sample_reservoir(k, index, randStates, weights);
     int next = graph[ind];
     const float val = weights[ind];
+    atomicAdd(&(out[ind]), w*val/float(N));
 
     while(ind != next){
       ind = next;
-      atomicAdd(&(out[ind]), w*val/float(N));
       next = graph[ind];
+      atomicAdd(&(out[ind]), w*val/float(N));
     }
   } else {
+
     auto [ind, w] = sample_uniform(k, index, randStates);
     int next = graph[ind];
     const float val = weights[ind];
+    atomicAdd(&(out[ind]), w*val/float(N));
 
     while(ind != next){
       ind = next;
-      atomicAdd(&(out[ind]), w*val/float(N));
       next = graph[ind];
+      atomicAdd(&(out[ind]), w*val/float(N));
     }
   }
 
@@ -449,11 +453,12 @@ __global__ void _accumulate_exhaustive(const soil::buffer_t<int> graph, soil::bu
 
   int ind = k;
   int next = graph[ind];
+  atomicAdd(&(out[ind]), 1.0f);
 
   while(ind != next){
     ind = next;
-    atomicAdd(&(out[ind]), 1.0f);
     next = graph[ind];
+    atomicAdd(&(out[ind]), 1.0f);
   }
 
 }
@@ -463,14 +468,15 @@ __global__ void _accumulate_exhaustive(const soil::buffer_t<int> graph, const so
   const int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= index.elem()) return;
 
-  int ind = k;
   const float w = weight[k];
+  int ind = k;
   int next = graph[ind];
+  atomicAdd(&(out[ind]), w);
 
   while(ind != next){
     ind = next;
-    atomicAdd(&(out[ind]), w);
     next = graph[ind];
+    atomicAdd(&(out[ind]), w);
   }
 
 }
