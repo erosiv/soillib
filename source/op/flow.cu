@@ -273,7 +273,7 @@ __device__ sample_t sample_uniform(const size_t ind, soil::flat_t<2>& index, soi
 //!   as a scaling factor can be factored out of the ration between the
 //!   selected sample's weight and the sum of all weights.
 //!
-__device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, soil::buffer_t<curandState>& randStates, const soil::buffer_t<float>& out){
+__device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, soil::buffer_t<curandState>& randStates, const soil::buffer_t<float>& weights){
 
   curandState* state = &randStates[ind];
 
@@ -285,13 +285,16 @@ __device__ sample_t sample_reservoir(const size_t ind, soil::flat_t<2>& index, s
   // Iterate over RIS Sample Count
   for(int m = 0; m < M; ++m){
    
+    // Sampling Distribution: Uniform
     auto [next, w_next] = sample_uniform(ind, index, randStates);  
 
-    // Validation: This should be equivalent to uniform sampling!
-    float p_target = 2.0f;        // Target Distribution
-    float w = w_next * p_target;  // Sample Weight
+    // Target Distributin (Unnormalized)
+    float p_target = weights[next]; // Target Distribution
 
-    w_sum += w;
+    // Weighting Factor
+    float w = w_next * p_target;  // Sample Weight
+    w_sum += w;                   // Total Weight
+
     if(curand_uniform(state) <  w / w_sum){
       sample = next;
       p_sample = p_target;
@@ -313,8 +316,8 @@ __global__ void _accumulate(const soil::buffer_t<int> graph, soil::buffer_t<floa
   const int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= K) return;
 
-  //auto [ind, w] = sample_uniform(k, index, randStates);
-  auto [ind, w] = sample_reservoir(k, index, randStates, out);
+  auto [ind, w] = sample_uniform(k, index, randStates);
+  //
   int next = graph[ind];
 
   while(ind != next){
@@ -326,19 +329,31 @@ __global__ void _accumulate(const soil::buffer_t<int> graph, soil::buffer_t<floa
 }
 
 //! Accumulation Kernel w. Non-Uniform Weight Buffer
-__global__ void _accumulate(const soil::buffer_t<int> graph, const soil::buffer_t<float> weights, soil::buffer_t<float> out, soil::flat_t<2> index, soil::buffer_t<curandState> randStates, const size_t K, const size_t N){
+__global__ void _accumulate(const soil::buffer_t<int> graph, const soil::buffer_t<float> weights, soil::buffer_t<float> out, soil::flat_t<2> index, soil::buffer_t<curandState> randStates, const size_t K, const size_t N, const bool reservoir){
 
   const int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= K) return;
 
-  auto [ind, w] = sample_uniform(k, index, randStates);
-  int next = graph[ind];
-  const float val = weights[ind];
+  if(reservoir){
+    auto [ind, w] = sample_reservoir(k, index, randStates, weights);
+    int next = graph[ind];
+    const float val = weights[ind];
 
-  while(ind != next){
-    ind = next;
-    atomicAdd(&(out[ind]), w*val/float(N));
-    next = graph[ind];
+    while(ind != next){
+      ind = next;
+      atomicAdd(&(out[ind]), w*val/float(N));
+      next = graph[ind];
+    }
+  } else {
+    auto [ind, w] = sample_uniform(k, index, randStates);
+    int next = graph[ind];
+    const float val = weights[ind];
+
+    while(ind != next){
+      ind = next;
+      atomicAdd(&(out[ind]), w*val/float(N));
+      next = graph[ind];
+    }
   }
 
 }
@@ -361,7 +376,7 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::index
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 1.0f);
+  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
 
   soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
   seed<<<block(samples, 512), 512>>>(randStates, 0, 0);
@@ -378,7 +393,7 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::index
 
 }
 
-soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffer& weights, const soil::index& index, int iterations, size_t samples){
+soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffer& weights, const soil::index& index, int iterations, size_t samples, bool reservoir){
 
   // Note: These will throw if not matched
   soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>(){});
@@ -406,7 +421,7 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffe
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 1.0f);
+  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
 
   soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
   seed<<<block(samples, 512), 512>>>(randStates, 0, 0);
@@ -414,9 +429,112 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffe
   const size_t N = iterations*samples;
   
   for(int n = 0; n < iterations; ++n){
-    _accumulate<<<block(samples, 512), 512>>>(graph_buf, weight_t, out, index_t, randStates, samples, N);
+    _accumulate<<<block(samples, 512), 512>>>(graph_buf, weight_t, out, index_t, randStates, samples, N, reservoir);
   }
 
+  cudaDeviceSynchronize();
+
+  return std::move(soil::buffer(std::move(out)));
+
+}
+
+//
+// Exhaustive Accumulation Kernels
+//
+
+__global__ void _accumulate_exhaustive(const soil::buffer_t<int> graph, soil::buffer_t<float> out, soil::flat_t<2> index) {
+
+  const int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= index.elem()) return;
+
+  int ind = k;
+  int next = graph[ind];
+
+  while(ind != next){
+    ind = next;
+    atomicAdd(&(out[ind]), 1.0f);
+    next = graph[ind];
+  }
+
+}
+
+__global__ void _accumulate_exhaustive(const soil::buffer_t<int> graph, const soil::buffer_t<float> weight, soil::buffer_t<float> out, soil::flat_t<2> index) {
+
+  const int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= index.elem()) return;
+
+  int ind = k;
+  const float w = weight[k];
+  int next = graph[ind];
+
+  while(ind != next){
+    ind = next;
+    atomicAdd(&(out[ind]), w);
+    next = graph[ind];
+  }
+
+}
+
+soil::buffer soil::accumulation_exhaustive(const soil::buffer& direction, const soil::index& index){
+
+  soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>(){});
+  soil::select(direction.type(), [&]<std::same_as<soil::ivec2> T>(){});
+
+  using I = soil::flat_t<2>;
+  using T = soil::ivec2;
+
+  auto index_t = index.as<I>();
+  const size_t elem = index.elem();
+
+  auto buffer_t = direction.as<T>();
+  buffer_t.to_gpu();
+
+  auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
+  _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+
+  auto out = soil::buffer_t<float>{elem, soil::GPU};
+  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+
+  _accumulate_exhaustive<<<block(index.elem(), 512), 512>>>(graph_buf, out, index_t);
+
+  cudaDeviceSynchronize();
+
+  return std::move(soil::buffer(std::move(out)));
+
+}
+
+soil::buffer soil::accumulation_exhaustive(const soil::buffer& direction, const soil::index& index, const soil::buffer& weights){
+
+  // Note: These will throw if not matched
+  soil::select(index.type(), [&]<std::same_as<soil::flat_t<2>> I>(){});
+  soil::select(direction.type(), [&]<std::same_as<soil::ivec2> T>(){});
+  soil::select(weights.type(), [&]<std::same_as<float> W>(){});
+
+  using I = soil::flat_t<2>;
+  using T = soil::ivec2;
+  using W = float;
+
+  // Strict-Type Casting
+
+  auto index_t = index.as<I>();
+  const size_t elem = index.elem();
+
+  auto buffer_t = direction.as<T>();
+  buffer_t.to_gpu();
+
+  auto weight_t = weights.as<W>();
+  weight_t.to_gpu();
+
+  // 
+
+  auto graph_buf = soil::buffer_t<int>{elem, soil::GPU};
+  _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
+
+  auto out = soil::buffer_t<float>{elem, soil::GPU};
+  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+
+  _accumulate_exhaustive<<<block(index.elem(), 512), 512>>>(graph_buf, weight_t, out, index_t);
+  
   cudaDeviceSynchronize();
 
   return std::move(soil::buffer(std::move(out)));

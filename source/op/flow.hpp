@@ -60,7 +60,13 @@ soil::buffer direction(const soil::buffer &buffer, const soil::index &index);
 soil::buffer accumulation(const soil::buffer &buffer, const soil::index &index, int iterations, size_t samples);
 
 //! Compute the Weighted Stochastic Accumulation from a 2D Flow Direction Buffer
-soil::buffer accumulation(const soil::buffer &direction, const soil::buffer &weights, const soil::index &index, int iterations, size_t samples);
+soil::buffer accumulation(const soil::buffer &direction, const soil::buffer &weights, const soil::index &index, int iterations, size_t samplesm, bool reservoir = true);
+
+//! Compute the Exhaustive Accumulation from a 2D Flow Direction Buffer
+soil::buffer accumulation_exhaustive(const soil::buffer &direction, const soil::index &index);
+
+//! Compute the Exhaustive Accumulation from a 2D Flow Direction Buffer
+soil::buffer accumulation_exhaustive(const soil::buffer &direction,  const soil::index &index, const soil::buffer &weights);
 
 //! Compute an Upstream Catchment Mask from a Flow Direction Buffer for a given Position
 soil::buffer upstream(const soil::buffer &buffer, const soil::index &index, const glm::ivec2 target);
