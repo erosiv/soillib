@@ -135,13 +135,16 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     float suspend = -kth * glm::max(0.0f, hf - stable);
     float deposit =  kth * mass;
 
+    // Deposit Mass onto Sediment Field, Limited by Suspended Mass
     const float t1 = _transfer(&model.sediment[find], deposit, mass);
     mass -= t1;
 
+    // Suspend Mass from Sediment Field, Limited by Total Height of Field
     const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
     mass -= t2;
 
-    const float t3 = _transfer(&model.height[find], deposit + suspend - t1 - t2, INFINITY);
+    // Suspend Mass from Bedrock Field, Unlimited Amount
+    const float t3 = _transfer(&model.height[find], suspend - t2, INFINITY);
     mass -= t3;
 
     pos = npos;
