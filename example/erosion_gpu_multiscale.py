@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
 
-from __common__ import show_height, show_relief, show_discharge
+from __common__ import show_height, show_relief, show_discharge, show_layers
 
 def main():
 
@@ -134,8 +134,9 @@ def main():
   tiff_out.meta.scale = pscale  # Pixel Scale Important!
   tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu_multi.tiff")
 
+#  show_layers([model.height, model.sediment], index, pscale)
   show_relief(height, index, pscale)
-  show_discharge(model.discharge, index)
+#  show_discharge(model.discharge, index)
 
 if __name__ == "__main__":
   main()

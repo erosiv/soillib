@@ -129,3 +129,23 @@ def show_discharge(array, index):
   array = array.cpu().numpy(index)
   plt.imshow(np.log(1.0 + array))
   plt.show()
+
+def show_layers(layers, index, scale):
+
+  height = layers[0].cpu()
+  sediment = layers[1].cpu().numpy(index)
+
+  normal = soil.normal(height, index, scale).numpy(index)
+  height = height.numpy(index)
+  relief = relief_shade(height, normal)
+  relief = 0.5 + 0.5 * relief
+
+  shaded = np.empty((*relief.shape, 3), dtype=relief.dtype)
+  shaded[:, :, 2] = shaded[:, :, 1] = shaded[:, :, 0] = relief
+
+  shaded[:, :][sediment >= 0.0001] *= [0.0, 1.0, 1.0]
+  shaded[:, :][sediment < 0.0001] *= [1.0, 0.0, 0.0]
+
+  plt.imshow(shaded,
+    interpolation='bilinear')
+  plt.show()
