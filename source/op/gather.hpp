@@ -66,7 +66,7 @@ struct lerp5_t {
   GPU_ENABLE vec2 grad(const vec3 scale = vec3(1.0f)) const {
 
     vec2 g = vec2(0, 0);
-    const vec2 s = vec2(scale.y/scale.x, scale.y/scale.z);
+    const vec2 s = vec2(scale.z/scale.x, scale.z/scale.y);
 
     // X-Element
     if (!this->x[0].oob && !this->x[4].oob)

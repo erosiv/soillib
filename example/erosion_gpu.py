@@ -10,12 +10,12 @@ from __common__ import relief_shade
 
 def main():
 
-  simres = np.array([512, 512])         # Simulation Resolution
+  simres = np.array([512, 512])         # Resolution [px]
   wscale = np.array([40.0, 40.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
-  pscale = [ wscale[0]/simres[0],       # Pixel Scale [km]
-            wscale[2], 
-            wscale[1]/simres[1]]
+  pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
+            wscale[1]/simres[1],
+            wscale[2]]                  # Value Scale [km/unit]
 
   noise_param = soil.noise_t()
   noise_param.ext = simres * nscale / wscale[0:2]
@@ -32,7 +32,7 @@ def main():
   sediment[:] = 0.0
   discharge[:] = 0.0
   momentum[:] = [0.0, 0.0]
-  
+
   model = soil.model_t(index, pscale)
   model.height = height.gpu()
   model.sediment = sediment

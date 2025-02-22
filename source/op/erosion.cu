@@ -65,8 +65,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   // Scaled Domain Parameters
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m]
-  const vec2 cl = vec2(scale.x, scale.z); // Cell Length [m, m]
-  const float Ac = scale.x*scale.z;       // Cell Area [m^2]
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
   const float R = param.rainfall;         // Rainfall Amount  [m/y]
   const float g = param.gravity;          // Specific Gravity [m/s^2]
@@ -152,8 +152,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     float slope = -param.exitSlope;
     if(!model.index.oob(npos)){
       const int nind = model.index.flatten(npos);
-      float h0 = (model.height[find] + model.sediment[find])*scale.y;
-      float h1 = (model.height[nind] + model.sediment[nind])*scale.y;
+      float h0 = (model.height[find] + model.sediment[find])*scale.z;
+      float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
       slope = (h1 - h0)/glm::length(cl);
     }
 
@@ -167,14 +167,14 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     if(transfer > 0.0f){ // Add Material to Map
       if(slope > 0.0f){
-        const float maxtransfer = slope * glm::length(cl)/scale.y;
+        const float maxtransfer = slope * glm::length(cl)/scale.z;
         transfer = glm::min(maxtransfer, transfer / P / float(N)) * P * float(N);
       }
     } 
     
     else if(transfer < 0.0f) { // Remove Material from Map
       if(slope < 0.0f){
-        const float maxtransfer = -slope * glm::length(cl)/scale.y;
+        const float maxtransfer = -slope * glm::length(cl)/scale.z;
         transfer = -glm::min(maxtransfer, -transfer / P / float(N)) * P * float(N);
       }
     }

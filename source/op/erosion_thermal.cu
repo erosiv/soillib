@@ -126,8 +126,8 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     float hf = (hf_0 + hf_1);
     float hn = (hn_0 + hn_1);
 
-    float dist = glm::length(vec2(scale.x, scale.z)*(npos - pos));
-    float stable = (hn + param.maxdiff*dist/scale.y);
+    float dist = glm::length(vec2(scale.x, scale.y)*(npos - pos));
+    float stable = (hn + param.maxdiff*dist/scale.z);
     
     // Arbitrary Rate Limiting due to Explicit Method:
     float kth = glm::min(0.8f, param.settling  / P / float(N));
