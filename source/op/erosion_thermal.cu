@@ -127,27 +127,39 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     float hn = (hn_0 + hn_1);
 
     float dist = glm::length(vec2(scale.x, scale.y)*(npos - pos));
-    float stable = (hn + param.maxdiff*dist/scale.z);
+
+    pos = npos;
     
     // Arbitrary Rate Limiting due to Explicit Method:
     float kth = glm::min(0.8f, param.settling  / P / float(N));
 
-    float suspend = -kth * glm::max(0.0f, hf - stable);
-    float deposit =  kth * mass;
-
     // Deposit Mass onto Sediment Field, Limited by Suspended Mass
+    const float deposit =  kth * mass;
     const float t1 = _transfer(&model.sediment[find], deposit, mass);
     mass -= t1;
 
     // Suspend Mass from Sediment Field, Limited by Total Height of Field
-    const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
-    mass -= t2;
+
+    if(hf_1 + t1 > 0.0f){ // is there anything to potentially suspend?
+      const float stable = (hn + param.maxdiff*dist/scale.z);
+      const float suspend = -kth * glm::max(0.0f, hf - stable);
+      const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
+      mass -= t2;
+
+      // couldn't remove everything
+      if(t2 < suspend)
+        continue;
+
+      if(hf_1 + t1 + t2 > 0.0f)
+        continue;
+    
+    }
 
     // Suspend Mass from Bedrock Field, Unlimited Amount
-    const float t3 = _transfer(&model.height[find], suspend - t2, INFINITY);
+    const float stable = (hn + 2.0f * param.maxdiff*dist/scale.z);
+    const float suspend = -kth * glm::max(0.0f, hf - stable);
+    const float t3 = _transfer(&model.height[find], suspend, INFINITY);
     mass -= t3;
-
-    pos = npos;
 
   }
 
