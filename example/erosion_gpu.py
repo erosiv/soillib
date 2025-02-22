@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
 
-from __common__ import relief_shade
+from __common__ import show_discharge
 
 def main():
 
@@ -74,11 +74,7 @@ def main():
 #  tiff_out = soil.tiff(height.cpu(), index)
 #  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-#  normal = soil.normal(height, index)
-#  height = model.height.cpu().numpy(index)
-
-  plt.imshow(np.log(1.0 + model.discharge.cpu().numpy(index)))
-  plt.show()
+  show_discharge(model.discharge, index)
 
 if __name__ == "__main__":
   main()

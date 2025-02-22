@@ -109,16 +109,16 @@ def show_height(array, index):
   plt.imshow(data)
   plt.show()
 
-def show_normal(array, index):
+def show_normal(array, index, scale):
 
-  normal = soil.normal(array, index).numpy(index)
+  normal = soil.normal(array, index, scale).numpy(index)
   plt.imshow(normal)
   plt.show()
 
-def show_relief(array, index):
+def show_relief(array, index, scale):
 
   height = array.numpy(index)
-  normal = soil.normal(array, index).numpy(index)
+  normal = soil.normal(array, index, scale).numpy(index)
   relief = relief_shade(height, normal) 
   plt.imshow(relief, cmap='gray',
     interpolation='bilinear')

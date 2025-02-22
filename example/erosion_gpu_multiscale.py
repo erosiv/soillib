@@ -133,8 +133,7 @@ def main():
   tiff_out.meta.scale = pscale  # Pixel Scale Important!
   tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu_multi.tiff")
 
-  soil.multiply(height, pscale[2]/pscale[0])
-  show_relief(height, index)
+  show_relief(height, index, pscale)
   show_discharge(model.discharge, index)
 
 if __name__ == "__main__":

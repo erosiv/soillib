@@ -147,10 +147,9 @@ module.def("noise", [](const soil::index index, const soil::noise_param_t param)
 // Normal Map ?
 //
 
-module.def("normal", [](const soil::buffer& buffer, const soil::index& index){
-  return soil::normal::operator()(buffer, index);
+module.def("normal", [](const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
+  return soil::normal::operator()(buffer, index, scale);
 });
-
 
 //
 // Erosion Kernels
