@@ -58,8 +58,9 @@ def main():
   param.gravity = 9.81      # Specific Gravity [m/s^2]
   param.viscosity = 0.03    # Kinematic Viscosity [m^2/s]
 
-  param.maxdiff = 0.57      # Critical Slope [m/m]
-  param.settling = 0.005    # Thermal Erosion Rate
+  param.critSlope = 0.57      # Critical Slope [m/m]
+  param.settleRate = 0.005    # Debris Settling Rate
+  param.thermalRate = 0.005   # Thermal Erosion Rate
 
   param.depositionRate = 0.05 # Fluvial Deposition Rate
   param.entrainment = 0.00025 # Fluvial Suspension Rate

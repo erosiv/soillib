@@ -126,38 +126,41 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     float hf = (hf_0 + hf_1);
     float hn = (hn_0 + hn_1);
 
-    float dist = glm::length(vec2(scale.x, scale.y)*(npos - pos));
-
+    const float dist = glm::length(vec2(scale.x, scale.y)*(npos - pos));
     pos = npos;
     
+    // Rate Constants:
     // Arbitrary Rate Limiting due to Explicit Method:
-    float kth = glm::min(0.8f, param.settling  / P / float(N));
+    //  Note: The parametesr per material can be varied here.
+
+    const float kds = glm::min(0.8f, param.settleRate / P / float(N));
+    const float kth1 = glm::min(0.8f, param.thermalRate / P / float(N));
+    const float kth0 = glm::min(0.8f, param.thermalRate / P / float(N));
+
+    const float stable1 = (hn + param.critSlope*dist/scale.z);
+    const float stable0 = (hn + param.critSlope*dist/scale.z);
 
     // Deposit Mass onto Sediment Field, Limited by Suspended Mass
-    const float deposit =  kth * mass;
+    const float deposit = kds * mass;
     const float t1 = _transfer(&model.sediment[find], deposit, mass);
     mass -= t1;
 
     // Suspend Mass from Sediment Field, Limited by Total Height of Field
 
     if(hf_1 + t1 > 0.0f){ // is there anything to potentially suspend?
-      const float stable = (hn + param.maxdiff*dist/scale.z);
-      const float suspend = -kth * glm::max(0.0f, hf - stable);
+
+      const float suspend = -kth1 * glm::max(0.0f, hf - stable1);
       const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
       mass -= t2;
 
-      // couldn't remove everything
-      if(t2 < suspend)
-        continue;
-
+      // Remaining Top Sediment
       if(hf_1 + t1 + t2 > 0.0f)
         continue;
     
     }
 
     // Suspend Mass from Bedrock Field, Unlimited Amount
-    const float stable = (hn + 2.0f * param.maxdiff*dist/scale.z);
-    const float suspend = -kth * glm::max(0.0f, hf - stable);
+    const float suspend = -kth0 * glm::max(0.0f, hf - stable0);
     const float t3 = _transfer(&model.height[find], suspend, INFINITY);
     mass -= t3;
 
