@@ -40,11 +40,11 @@ def relief_shade(h, n):
   light = light / np.linalg.norm(light)
 
   diffuse = np.sum(light * n, axis=-1)
-  diffuse = 0.05 + 0.9*diffuse
+#  diffuse = 0.0 + 0.9*diffuse
 
   # Flat-Toning
   flattone = np.full(h.shape, 0.75)
-  weight = np.maximum(0, 1.0 - n[:,:,2])
+  weight = 1.0#np.maximum(0, 1.0 - n[:,:,2])
   #weight = weight * (1.0 - h * h)
 
   # Full Diffuse Shading Value
@@ -120,5 +120,12 @@ def show_relief(array, index):
   height = array.numpy(index)
   normal = soil.normal(array, index).numpy(index)
   relief = relief_shade(height, normal) 
-  plt.imshow(relief, cmap='gray')
+  plt.imshow(relief, cmap='gray',
+    interpolation='bilinear')
+  plt.show()
+
+def show_discharge(array, index):
+
+  array = array.cpu().numpy(index)
+  plt.imshow(np.log(1.0 + array))
   plt.show()
