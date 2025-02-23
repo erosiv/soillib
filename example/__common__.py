@@ -40,11 +40,11 @@ def relief_shade(h, n):
   light = light / np.linalg.norm(light)
 
   diffuse = np.sum(light * n, axis=-1)
-  diffuse = 0.05 + 0.9*diffuse
+#  diffuse = 0.0 + 0.9*diffuse
 
   # Flat-Toning
   flattone = np.full(h.shape, 0.75)
-  weight = np.maximum(0, 1.0 - n[:,:,2])
+  weight = 1.0#np.maximum(0, 1.0 - n[:,:,2])
   #weight = weight * (1.0 - h * h)
 
   # Full Diffuse Shading Value
@@ -109,16 +109,43 @@ def show_height(array, index):
   plt.imshow(data)
   plt.show()
 
-def show_normal(array, index):
+def show_normal(array, index, scale):
 
-  normal = soil.normal(array, index).numpy(index)
+  normal = soil.normal(array, index, scale).numpy(index)
   plt.imshow(normal)
   plt.show()
 
-def show_relief(array, index):
+def show_relief(array, index, scale):
 
   height = array.numpy(index)
-  normal = soil.normal(array, index).numpy(index)
+  normal = soil.normal(array, index, scale).numpy(index)
   relief = relief_shade(height, normal) 
-  plt.imshow(relief, cmap='gray')
+  plt.imshow(relief, cmap='gray',
+    interpolation='bilinear')
+  plt.show()
+
+def show_discharge(array, index):
+
+  array = array.cpu().numpy(index)
+  plt.imshow(np.log(1.0 + array))
+  plt.show()
+
+def show_layers(layers, index, scale):
+
+  height = layers[0].cpu()
+  sediment = layers[1].cpu().numpy(index)
+
+  normal = soil.normal(height, index, scale).numpy(index)
+  height = height.numpy(index)
+  relief = relief_shade(height, normal)
+  relief = 0.5 + 0.5 * relief
+
+  shaded = np.empty((*relief.shape, 3), dtype=relief.dtype)
+  shaded[:, :, 2] = shaded[:, :, 1] = shaded[:, :, 0] = relief
+
+  shaded[:, :][sediment >= 0.0001] *= [0.0, 1.0, 1.0]
+  shaded[:, :][sediment < 0.0001] *= [1.0, 0.0, 0.0]
+
+  plt.imshow(shaded,
+    interpolation='bilinear')
   plt.show()

@@ -18,8 +18,9 @@ struct param_t {
   size_t samples = 2048;
   size_t maxage = 1024;
 
-  float settling = 1.0f;
-  float maxdiff = 0.8f;
+  float settleRate = 0.005f;
+  float thermalRate = 0.005f;
+  float critSlope = 0.57f;
 
   float rainfall = 1.5f;    // [m/y]
   float evapRate = 0.001f;

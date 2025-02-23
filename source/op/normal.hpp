@@ -19,11 +19,11 @@ namespace soil {
 struct normal {
 
   template<std::floating_point T, typename I>
-  static glm::vec3 operator()(soil::buffer_t<T> buffer_t, I index, const glm::ivec2 pos) {
+  static glm::vec3 operator()(soil::buffer_t<T> buffer_t, I index, const glm::ivec2 pos, const vec3 scale = vec3(1.0f)) {
 
     lerp5_t<T> lerp;
     lerp.gather(buffer_t, index, pos);
-    const glm::vec2 g = lerp.grad();
+    const glm::vec2 g = lerp.grad(scale);
     glm::vec3 n = glm::vec3(-g.x, -g.y, 1.0);
     if (length(n) > 0) {
       n = normalize(n);
@@ -36,7 +36,7 @@ struct normal {
   //
 
   // Direct Execution
-  static soil::buffer operator()(const soil::buffer &buffer, soil::index index) {
+  static soil::buffer operator()(const soil::buffer &buffer, soil::index index, const vec3 scale = vec3(1.0f)) {
 
     static_assert(index_2D<soil::quad>, "test");
 
@@ -54,7 +54,7 @@ struct normal {
         soil::buffer_t<vec3> output(buffer.elem());
         for (auto [i, b] : output.iter()) {
           soil::ivec2 position = index_t.unflatten(i);
-          *b = soil::normal::operator()(buffer_t, index_t, position);
+          *b = soil::normal::operator()(buffer_t, index_t, position, scale);
         }
 
         return soil::buffer(std::move(output));
@@ -62,9 +62,9 @@ struct normal {
     });
   }
 
-  static glm::vec3 operator()(soil::buffer buffer, soil::flat_t<2> index, const glm::ivec2 pos) {
-    return soil::select(buffer.type(), [buffer, index, pos]<std::floating_point T>() -> glm::vec3 {
-      return soil::normal::operator()(buffer.as<T>(), index, pos);
+  static glm::vec3 operator()(soil::buffer buffer, soil::flat_t<2> index, const glm::ivec2 pos, const vec3 scale = vec3(1.0f)) {
+    return soil::select(buffer.type(), [buffer, index, pos, scale]<std::floating_point T>() -> glm::vec3 {
+      return soil::normal::operator()(buffer.as<T>(), index, pos, scale);
     });
   }
 
