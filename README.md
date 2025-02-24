@@ -1,8 +1,8 @@
 # soillib
 
-soillib is a library and toolbox for numerical geomorphology simulation.
+soillib is a library and toolbox for numerical geomorphology simulation on the GPU
 
-Written in in C++23 and exposed to Python3 through bindings.
+Written in in C++23 + CUDA and exposed to Python3 through bindings.
 
 Based on concepts developed by and maintained by [Nicholas McDonald](https://github.com/weigert).
 

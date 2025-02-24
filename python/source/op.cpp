@@ -165,13 +165,11 @@ param_t.def_rw("thermalRate", &soil::param_t::thermalRate);
 param_t.def_rw("rainfall", &soil::param_t::rainfall);
 param_t.def_rw("evapRate", &soil::param_t::evapRate);
 param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
-param_t.def_rw("entrainment", &soil::param_t::entrainment);
+param_t.def_rw("suspensionRate", &soil::param_t::suspensionRate);
 param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("viscosity", &soil::param_t::viscosity);
-param_t.def_rw("minVol", &soil::param_t::minVol);
 param_t.def_rw("lrate", &soil::param_t::lrate);
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
-param_t.def_rw("hscale", &soil::param_t::hscale);
 
 auto model_t = nb::class_<soil::model_t>(module, "model_t");
 model_t.def(nb::init<soil::index, soil::vec3>());

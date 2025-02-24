@@ -70,11 +70,10 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   const float R = param.rainfall;         // Rainfall Amount  [m/y]
   const float g = param.gravity;          // Specific Gravity [m/s^2]
-  const float kd = param.depositionRate;  // Fluvial Deposition Rate
-
-  // Two Problem Parameters:
   const float nu = param.viscosity;// * 24000.0f;      // Kinematic Viscosity [m^2/s]
-  const float ks = kd * param.entrainment * 7E-7f;  // Fluvial Suspension Rate
+
+  const float kd = param.depositionRate;            // Fluvial Deposition Rate
+  const float ks = param.suspensionRate / 2000.0f;  // Fluvial Suspension Rate
 
   //
   // Position Sampling Procedure:
@@ -158,7 +157,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     }
 
     float deposit = kd * sed;
-    float suspend = ks * vol  * glm::max(0.0f, -slope) * pow(discharge, 0.4f);
+    float suspend = ks * glm::max(0.0f, -slope) * pow(discharge, 0.4f);
     float transfer = (deposit - suspend);
 
     // Erosion Stability: Limit Transfer by Slope
@@ -170,7 +169,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
         const float maxtransfer = slope * glm::length(cl)/scale.z;
         transfer = glm::min(maxtransfer, transfer / P / float(N)) * P * float(N);
       }
-    } 
+    }
     
     else if(transfer < 0.0f) { // Remove Material from Map
       if(slope < 0.0f){

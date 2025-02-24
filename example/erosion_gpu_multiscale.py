@@ -64,7 +64,7 @@ def main():
   param.thermalRate = 0.005   # Thermal Erosion Rate
 
   param.depositionRate = 0.05 # Fluvial Deposition Rate
-  param.entrainment = 0.00025 # Fluvial Suspension Rate
+  param.suspensionRate = 0.00025 # Fluvial Suspension Rate
   param.exitSlope = 0.01      # Boundary Slope [m/m]
 
   timer = soil.timer()
