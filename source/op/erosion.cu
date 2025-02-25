@@ -156,103 +156,70 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     
     float discharge = model.discharge[find];
     float slope = -param.exitSlope;
+    float h0 = (model.height[find] + model.sediment[find])*scale.z;
+    float h1 = h0 + slope * glm::length(cl);
+    
     if(!model.index.oob(npos)){
       const int nind = model.index.flatten(npos);
-      float h0 = (model.height[find] + model.sediment[find])*scale.z;
-      float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
+      h1 = (model.height[nind] + model.sediment[nind])*scale.z;
       slope = (h1 - h0)/glm::length(cl);
     }
 
     float alpha = (slope < 0.0f)?1.0f:0.0f; // Activation Function
-    float deposit = dt * kd * sed;                                        // [kg]
     float suspend = dt * ks * vol * slope * alpha * pow(discharge, 0.4f); // [kg]
+    float deposit = dt * kd * sed;                                        // [kg]
+    deposit = glm::min(sed, deposit);       // Limit by Suspended Amount
 
-    // Erosion Stability: Limit Transfer by Slope
-    //  Note: This is a hard-max function applied to an explicit euler scheme.
-    //  This combination can be replaced by an implicit scheme on its own.
+    /*
+    // Single Material, Implicit Euler Scheme
+    //  This use an activation function which lowers the amount transferred
+    //  which scales with the amount of equilibriation force. Note that this
+    //  tends to over-damp, which is why we don't use it.
 
+    float kq = ks * vol * alpha * pow(discharge, 0.4f) / glm::length(cl);
+    float transfer = 1.0f / (1.0f + dt * kq) * (suspend + deposit);
+    atomicAdd(&model.height[find], transfer / Z / Q);
+    sed -= transfer;
+    */
+
+    // Single Material, Explicit Euler Scheme
+    //  This use an activation function (maxtransfer), which limits the
+    //  total amount of mass that can be moved based on the slope.
+    //  Similar to the implicit scheme, which uses a similar construction
+    //  but that scales with the rate.
+
+    const float maxtransfer = glm::abs(slope) * glm::length(cl) / scale.z * Z * Q;
     float transfer = (deposit + suspend);
-
-    if(transfer > 0.0f){ // Add Material to Map
-      if(slope > 0.0f){
-        const float maxtransfer = slope * glm::length(cl)/scale.z;
-        transfer = glm::min(maxtransfer, transfer / Z / Q) * Z * Q;
-      }
-    }
-    
-    else if(transfer < 0.0f) { // Remove Material from Map
-      if(slope < 0.0f){
-        const float maxtransfer = -slope * glm::length(cl)/scale.z;
-        transfer = -glm::min(maxtransfer, -transfer / Z / Q) * Z * Q;
-      }
-    }
+    transfer = transfer * glm::min(1.0f, maxtransfer/glm::abs(transfer));
 
     atomicAdd(&model.height[find], transfer / Z / Q);
     sed -= transfer;
 
-/*
-//    if(transfer > 0.0f){ // Add Material to Map
-      if(slope > 0.0f){
-        const float maxtransfer = 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
-        deposit = glm::min(maxtransfer, deposit / Z / Q) * Z * Q;
-      }
-//    }
-//    
-//    else if(transfer < 0.0f) { // Remove Material from Map
-      if(slope < 0.0f){
-        const float maxtransfer = - 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
-        suspend = -glm::min(maxtransfer, -suspend / Z / Q) * Z * Q;
-      }
-//    }
-*/
-
-/*
-//    if(transfer > 0.0f){ // Add Material to Map
-      if(slope > 0.0f){
-        const float maxtransfer = 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
-        deposit = glm::min(maxtransfer, deposit / Z / Q) * Z * Q;
-      }
-//    }
-//    
-//    else if(transfer < 0.0f) { // Remove Material from Map
-      if(slope < 0.0f){
-        const float maxtransfer = - 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
-        suspend = -glm::min(maxtransfer, -suspend / Z / Q) * Z * Q;
-      }
-//    }
-
-    // Simple Equilibrium, Single-Material Mass-Transfer
-
-    deposit = glm::min(sed, deposit);
-    atomicAdd(&model.height[find], deposit / Z / Q);
-    sed -= deposit;
-
-    atomicAdd(&model.height[find], suspend / Z / Q);
-    sed -= suspend;
-    */
-
-
-    // Simple Equilibrium, Multi-Material Mass Transfer
-
     /*
-    if(transfer > 0.0f){      // Add Material to Map
+    // Multi-Material Mass Transfer
 
-      transfer = glm::min(sed, transfer);
-      atomicAdd(&model.sediment[find], transfer / P / float(N));
+    const float maxtransfer = slope * glm::length(cl) / scale.z * Z * Q;
+    suspend = suspend * glm::min(1.0f, glm::abs(maxtransfer/suspend));
+
+    float transfer = (deposit + suspend);
+
+    if(transfer > 0.0f){  // Add Material to Map
+
+      atomicAdd(&model.sediment[find], transfer / Z / Q);
       sed -= transfer;
 
     }
 
     else if(transfer < 0.0f){ // Remove Sediment from Map
 
-      const float maxtransfer = model.sediment[find];
-      float t1 = -glm::min(maxtransfer, -transfer / P / float(N)) * P * float(N);
+      const float maxtransfer = model.sediment[find] * Z * Q;
+      float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
 
-      atomicAdd(&model.sediment[find], t1/ P / float(N));
+      atomicAdd(&model.sediment[find], t1 / Z / Q);
       sed -= t1;
-
       transfer -= t1;
-      atomicAdd(&model.height[find], transfer / P / float(N));
+
+      atomicAdd(&model.height[find], transfer / Z / Q);
       sed -= transfer;
 
     }
