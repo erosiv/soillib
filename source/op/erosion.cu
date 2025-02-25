@@ -72,6 +72,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   const float g = param.gravity;          // Specific Gravity [m/s^2]
   const float nu = param.viscosity;// * 24000.0f;      // Kinematic Viscosity [m^2/s]
 
+  const float dt = param.timeStep;        // Geological Timestep [y]
   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
 
@@ -95,7 +96,6 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   // Transport Initial Condition
   //
 
-  float dt = 1.0f;    // [y]
   float vol = Ac * R; // [m^3/y]
   float sed = 0.0f;
 
@@ -224,7 +224,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     atomicAdd(&model.height[find], suspend / Z / Q);
     sed -= suspend;
-*/
+    */
 
 
     // Simple Equilibrium, Multi-Material Mass Transfer

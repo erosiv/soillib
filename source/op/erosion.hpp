@@ -19,6 +19,8 @@ struct param_t {
   size_t maxage = 128;
   float lrate = 0.2f;
 
+  float timeStep = 1.0f;    // [y]
+
   float rainfall = 1.5f;    // [m/y]
   float evapRate = 0.0001f; // [m^3/s]
 
