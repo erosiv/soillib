@@ -72,8 +72,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   const float g = param.gravity;          // Specific Gravity [m/s^2]
   const float nu = param.viscosity;// * 24000.0f;      // Kinematic Viscosity [m^2/s]
 
-  const float kd = param.depositionRate;            // Fluvial Deposition Rate
-  const float ks = param.suspensionRate / 2000.0f;  // Fluvial Suspension Rate
+  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
+  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
 
   //
   // Position Sampling Procedure:
@@ -156,39 +156,80 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
       slope = (h1 - h0)/glm::length(cl);
     }
 
-    float deposit = kd * sed;
-    float suspend = ks * glm::max(0.0f, -slope) * pow(discharge, 0.4f);
-    float transfer = (deposit - suspend);
+    float deposit = dt * kd * sed;  // [kg]
+    float suspend = -dt * ks * vol * glm::max(0.0f, -slope) * pow(discharge, 0.4f); // [kg]
 
     // Erosion Stability: Limit Transfer by Slope
     //  Note: This is a hard-max function applied to an explicit euler scheme.
     //  This combination can be replaced by an implicit scheme on its own.
 
+    const float Z = Ac * scale.z; // Height Conversion [m^3]
+    const float Q = P * float(N); // Sampling Probability Scale
+
+    float transfer = (deposit + suspend);
+
     if(transfer > 0.0f){ // Add Material to Map
       if(slope > 0.0f){
         const float maxtransfer = slope * glm::length(cl)/scale.z;
-        transfer = glm::min(maxtransfer, transfer / P / float(N)) * P * float(N);
+        transfer = glm::min(maxtransfer, transfer / Z / Q) * Z * Q;
       }
     }
     
     else if(transfer < 0.0f) { // Remove Material from Map
       if(slope < 0.0f){
         const float maxtransfer = -slope * glm::length(cl)/scale.z;
-        transfer = -glm::min(maxtransfer, -transfer / P / float(N)) * P * float(N);
+        transfer = -glm::min(maxtransfer, -transfer / Z / Q) * Z * Q;
       }
     }
 
-    // Simple Equilibrium, Single-Material Mass-Transfer
-    
-//    if(transfer > 0.0f){
-//      transfer = glm::min(sed, transfer);
+    atomicAdd(&model.height[find], transfer / Z / Q);
+    sed -= transfer;
+
+/*
+//    if(transfer > 0.0f){ // Add Material to Map
+      if(slope > 0.0f){
+        const float maxtransfer = 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
+        deposit = glm::min(maxtransfer, deposit / Z / Q) * Z * Q;
+      }
 //    }
-//
-//    atomicAdd(&model.height[find], transfer / P / float(N));
-//    sed -= transfer;
+//    
+//    else if(transfer < 0.0f) { // Remove Material from Map
+      if(slope < 0.0f){
+        const float maxtransfer = - 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
+        suspend = -glm::min(maxtransfer, -suspend / Z / Q) * Z * Q;
+      }
+//    }
+*/
+
+/*
+//    if(transfer > 0.0f){ // Add Material to Map
+      if(slope > 0.0f){
+        const float maxtransfer = 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
+        deposit = glm::min(maxtransfer, deposit / Z / Q) * Z * Q;
+      }
+//    }
+//    
+//    else if(transfer < 0.0f) { // Remove Material from Map
+      if(slope < 0.0f){
+        const float maxtransfer = - 0.8f * slope * glm::length(cl)/scale.z; // in dimensionless length
+        suspend = -glm::min(maxtransfer, -suspend / Z / Q) * Z * Q;
+      }
+//    }
+
+    // Simple Equilibrium, Single-Material Mass-Transfer
+
+    deposit = glm::min(sed, deposit);
+    atomicAdd(&model.height[find], deposit / Z / Q);
+    sed -= deposit;
+
+    atomicAdd(&model.height[find], suspend / Z / Q);
+    sed -= suspend;
+*/
+
 
     // Simple Equilibrium, Multi-Material Mass Transfer
 
+    /*
     if(transfer > 0.0f){      // Add Material to Map
 
       transfer = glm::min(sed, transfer);
@@ -210,6 +251,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
       sed -= transfer;
 
     }
+    */
 
     //
     // Integrate Sub-Solution Quantities

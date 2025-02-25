@@ -30,7 +30,7 @@ struct param_t {
   float thermalRate = 0.005f;
   
   float depositionRate = 0.05f;
-  float suspensionRate = 0.00025f;
+  float suspensionRate = 0.001f;
   float exitSlope = 0.01f;
   
 };
