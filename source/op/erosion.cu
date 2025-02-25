@@ -165,10 +165,10 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
       slope = (h1 - h0)/glm::length(cl);
     }
 
-    float alpha = (slope < 0.0f)?1.0f:0.0f; // Activation Function
+    // Activation Function
+    float alpha = (slope < 0.0f)?1.0f:0.0f;
     float suspend = dt * ks * vol * slope * alpha * pow(discharge, 0.4f); // [kg]
     float deposit = dt * kd * sed;                                        // [kg]
-    deposit = glm::min(sed, deposit);       // Limit by Suspended Amount
 
     /*
     // Single Material, Implicit Euler Scheme
@@ -187,23 +187,26 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     //  total amount of mass that can be moved based on the slope.
     //  Similar to the implicit scheme, which uses a similar construction
     //  but that scales with the rate.
-
-    const float maxtransfer = glm::abs(slope) * glm::length(cl) / scale.z * Z * Q;
+  
+    // Note: Maxtransfer here is damped for stability. This should be
+    //  attempted to be removed using alternative stabilizing methods.
     float transfer = (deposit + suspend);
-    transfer = transfer * glm::min(1.0f, maxtransfer/glm::abs(transfer));
+    const float maxtransfer = 0.1f * glm::abs(slope) * glm::length(cl) / scale.z * Z * Q;
+    const float tmin = transfer * glm::min(1.0f, maxtransfer/glm::abs(transfer));
+    const float tmax = sed;
+    transfer = glm::clamp(transfer, tmin, tmax);
 
     atomicAdd(&model.height[find], transfer / Z / Q);
     sed -= transfer;
 
-    /*
     // Multi-Material Mass Transfer
 
+    /*
     const float maxtransfer = slope * glm::length(cl) / scale.z * Z * Q;
     suspend = suspend * glm::min(1.0f, glm::abs(maxtransfer/suspend));
-
     float transfer = (deposit + suspend);
 
-    if(transfer > 0.0f){  // Add Material to Map
+    if(transfer > 0.0f){  // Add Material to Map (Note: Single Material Model)
 
       atomicAdd(&model.sediment[find], transfer / Z / Q);
       sed -= transfer;
@@ -214,11 +217,10 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
       const float maxtransfer = model.sediment[find] * Z * Q;
       float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-
       atomicAdd(&model.sediment[find], t1 / Z / Q);
       sed -= t1;
-      transfer -= t1;
 
+      transfer -= t1;
       atomicAdd(&model.height[find], transfer / Z / Q);
       sed -= transfer;
 
