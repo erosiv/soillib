@@ -93,6 +93,13 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   int find = model.index.flatten(pos);
 
   //
+  // Mass-Transfer Scaling Parameters
+  //
+
+  const float Z = Ac * scale.z; // Height Conversion [m^3]
+  const float Q = P * float(N); // Sampling Probability Scale
+
+  //
   // Transport Initial Condition
   //
 
@@ -156,15 +163,13 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
       slope = (h1 - h0)/glm::length(cl);
     }
 
-    float deposit = dt * kd * sed;  // [kg]
-    float suspend = -dt * ks * vol * glm::max(0.0f, -slope) * pow(discharge, 0.4f); // [kg]
+    float alpha = (slope < 0.0f)?1.0f:0.0f; // Activation Function
+    float deposit = dt * kd * sed;                                        // [kg]
+    float suspend = dt * ks * vol * slope * alpha * pow(discharge, 0.4f); // [kg]
 
     // Erosion Stability: Limit Transfer by Slope
     //  Note: This is a hard-max function applied to an explicit euler scheme.
     //  This combination can be replaced by an implicit scheme on its own.
-
-    const float Z = Ac * scale.z; // Height Conversion [m^3]
-    const float Q = P * float(N); // Sampling Probability Scale
 
     float transfer = (deposit + suspend);
 
