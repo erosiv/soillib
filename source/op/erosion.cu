@@ -215,7 +215,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     else if(transfer < 0.0f){ // Remove Sediment from Map
 
-      const float maxtransfer = model.sediment[find] * Z * Q;
+      const float maxtransfer = 0.1f * model.sediment[find] * Z * Q;
       float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
       atomicAdd(&model.sediment[find], t1 / Z / Q);
       sed -= t1;

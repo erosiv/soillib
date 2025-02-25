@@ -19,7 +19,7 @@ struct param_t {
   size_t maxage = 128;
   float lrate = 0.2f;
 
-  float timeStep = 1.0f;    // [y]
+  float timeStep = 10.0f;   // [y]
 
   float rainfall = 1.5f;    // [m/y]
   float evapRate = 0.0001f; // [m^3/s]
@@ -31,8 +31,8 @@ struct param_t {
   float settleRate = 0.005f;
   float thermalRate = 0.005f;
   
-  float depositionRate = 0.05f;
-  float suspensionRate = 0.001f;
+  float depositionRate = 0.01f;
+  float suspensionRate = 0.0007f;
   float exitSlope = 0.01f;
   
 };

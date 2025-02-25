@@ -82,6 +82,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
   const vec3 scale = model.scale;
   const float g = param.gravity;
+  const float dt = param.timeStep;
 
   // Spawn Particle at Random Position
 
@@ -141,7 +142,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     const float stable0 = (hn + param.critSlope*dist/scale.z);
 
     // Deposit Mass onto Sediment Field, Limited by Suspended Mass
-    const float deposit = kds * mass;
+    const float deposit = dt * kds * mass;
     const float t1 = _transfer(&model.sediment[find], deposit, mass);
     mass -= t1;
 
@@ -149,7 +150,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
     if(hf_1 + t1 > 0.0f){ // is there anything to potentially suspend?
 
-      const float suspend = -kth1 * glm::max(0.0f, hf - stable1);
+      const float suspend = -dt * kth1 * glm::max(0.0f, hf - stable1);
       const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
       mass -= t2;
 
@@ -160,7 +161,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     }
 
     // Suspend Mass from Bedrock Field, Unlimited Amount
-    const float suspend = -kth0 * glm::max(0.0f, hf - stable0);
+    const float suspend = -dt * kth0 * glm::max(0.0f, hf - stable0);
     const float t3 = _transfer(&model.height[find], suspend, INFINITY);
     mass -= t3;
 
