@@ -49,8 +49,8 @@ def main():
   model.momentum = momentum
 
   param = soil.param_t()
-  param.samples = 8192  # Number of Path Samples
-  param.maxage = 128    # Maximum Path Length
+  param.samples = 8192  # Number of Samples
+  param.maxage = 128    # Maximum Particle Age
   param.lrate = 0.2     # Filter Learning Rate
 
   param.rainfall = 2.0      # Rainfall Rate [m/y]
