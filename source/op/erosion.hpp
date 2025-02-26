@@ -26,7 +26,7 @@ struct param_t {
 
   float gravity = 9.81f;    // [m/s]
   float viscosity = 0.05f;  // [m^2/s]
-  float bedShear = 0.025f;    // 
+  float bedShear = 0.025f;  // 
 
   float critSlope = 0.57f;
   float settleRate = 0.005f;

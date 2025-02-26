@@ -80,9 +80,14 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
 
   // Parameters
 
-  const vec3 scale = model.scale;
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m]
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+
   const float g = param.gravity;
   const float dt = param.timeStep;
+
+  float mass = 0.0f;  // Currently Transported Mass
 
   // Spawn Particle at Random Position
 
@@ -92,10 +97,9 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     curand_uniform(randState)*float(model.index[1])
   };
   const float P = 1.0f / float(model.index.elem());
+  const float Q = P * float(N); // Sampling Probability Scale
 
   // Iterate over a Number of Steps
-
-  float mass = 0.0f;  // Currently Transported Mass
 
   // Note: Parameterize
   for(size_t age = 0; age < 256; ++age){
@@ -118,52 +122,86 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     int find = model.index.flatten(pos);
     int nind = model.index.flatten(npos);
 
+    const float dist = glm::length(cl*(npos - pos));
+    pos = npos;
+
     // Stable Bank-Height Computation:
 
-    float hf_0 = model.height[find];
-    float hf_1 = model.sediment[find];
-    float hn_0 = model.height[nind];
-    float hn_1 = model.sediment[nind];
+    float hf_0 = scale.z * model.height[find];
+    float hn_0 = scale.z * model.height[nind];
+    float hf_1 = scale.z * model.sediment[find];
+    float hn_1 = scale.z * model.sediment[nind];
     float hf = (hf_0 + hf_1);
     float hn = (hn_0 + hn_1);
 
-    const float dist = glm::length(vec2(scale.x, scale.y)*(npos - pos));
-    pos = npos;
-    
-    // Rate Constants:
-    // Arbitrary Rate Limiting due to Explicit Method:
-    //  Note: The parametesr per material can be varied here.
+    const float kds =  param.settleRate;
+    const float kth1 = param.thermalRate;
+    const float kth0 = param.thermalRate;
 
-    const float kds = glm::min(0.8f, param.settleRate / P / float(N));
-    const float kth1 = glm::min(0.8f, param.thermalRate / P / float(N));
-    const float kth0 = glm::min(0.8f, param.thermalRate / P / float(N));
+    const float stable1 = (hn + param.critSlope*dist);  // [m]
+    const float stable0 = (hn + param.critSlope*dist);  // [m]
 
-    const float stable1 = (hn + param.critSlope*dist/scale.z);
-    const float stable0 = (hn + param.critSlope*dist/scale.z);
+    const float deposit =  dt * kds * mass;
+    const float suspend = -dt * kth1 * glm::max(0.0f, hf - stable1) * Ac;
+    float transfer = (deposit + suspend);
+    if(transfer == 0.0f)
+      continue;
 
-    // Deposit Mass onto Sediment Field, Limited by Suspended Mass
-    const float deposit = kds * mass;
-    const float t1 = _transfer(&model.sediment[find], deposit, mass);
-    mass -= t1;
+    if(transfer > 0.0f){
 
-    // Suspend Mass from Sediment Field, Limited by Total Height of Field
+      const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
+      transfer = glm::min(transfer, maxtransfer);
+      transfer = glm::min(transfer, mass);
 
-    if(hf_1 + t1 > 0.0f){ // is there anything to potentially suspend?
+      atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
+      mass -= transfer;
 
-      const float suspend = - kth1 * glm::max(0.0f, hf - stable1);
-      const float t2 = _transfer(&model.sediment[find], suspend, hf_1 + t1);
-      mass -= t2;
-
-      // Remaining Top Sediment
-      if(hf_1 + t1 + t2 > 0.0f)
-        continue;
-    
     }
 
-    // Suspend Mass from Bedrock Field, Unlimited Amount
-    const float suspend = - kth0 * glm::max(0.0f, hf - stable0);
-    const float t3 = _transfer(&model.height[find], suspend, INFINITY);
-    mass -= t3;
+    else if(transfer < 0.0f){
+
+      const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * Q;
+      transfer = -glm::min(-transfer, maxtransfer);
+
+      atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
+      mass -= transfer;
+
+    }
+
+    /*
+    transfer = glm::min(transfer, mass);  // Can't add more than mass
+
+    const float maxtransfer = glm::abs(hf - hn) * Q * Z;
+    transfer = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));      // Can't remove more than
+
+//    if(hf > stable1){
+//    }
+
+    atomicAdd(&model.height[find], transfer / Q / Z);
+    mass -= transfer;
+    */
+
+    /*
+    if(transfer > 0.0f){  // Add Material to Map (Note: Single Material Model)
+
+      atomicAdd(&model.sediment[find], transfer / Q / Z);
+      mass -= transfer;
+
+    }
+
+    else if(transfer < 0.0f){ // Remove Sediment from Map
+
+      const float maxtransfer = model.sediment[find] * Z * Q;
+      float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+      atomicAdd(&model.sediment[find], t1 / Q / Z);
+      mass -= t1;
+
+      transfer -= t1;
+      atomicAdd(&model.height[find], transfer / Q / Z);
+      mass -= transfer;
+
+    }
+    */
 
   }
 
