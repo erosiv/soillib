@@ -103,7 +103,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   // Transport Initial Condition
   //
 
-  float vol = Ac * R; // [m^3/y]
+  const float rho = 1000.0f;  // [kg / m^3]
+  float vol = Ac * R;         // [m^3/y]
   float sed = 0.0f;
 
   //
@@ -232,7 +233,6 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     //    using an Implicit Forward Scheme
 
     vol = 1.0f/(1.0f + ds*param.evapRate)*vol;
-    dspeed = 1.0f/(1.0f + ds*nu)*dspeed;
 
     //
     // Flow Integration / Trajectory
@@ -259,7 +259,22 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     // Implicit Euler Forward Integration:
 
     speed = speed + ds * g * vec2(normal.x, normal.y);
-    speed = 1.0f/(1.0f + ds*nu)*speed + ds*nu/(1.0f + ds*nu)*average_speed;
+
+    // Shear-Stress and Viscosity Terms:
+    //  The viscosity and shear-stress are some combination
+    //  of bed shear-stress from friction, and mixing with the
+    //  bulk stream from viscosity. These two terms are linearly
+    //  related to the velocity and bulk velocity deviation
+    //  by some constants k1 and k2 respectively.
+    //
+    //  The only key question is how these parameters scale with
+    //  the space and time resolution of the simulation.
+
+    const float k1 = param.bedShear;
+    const float k2 = param.viscosity;
+
+    speed =  1.0f/(1.0f + ds * (k1+k2))*speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
+    dspeed = 1.0f/(1.0f + ds * (k1+k2))*dspeed;
 
     if(glm::length(speed) == 0.0f)
       break;

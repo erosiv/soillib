@@ -169,6 +169,7 @@ param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
 param_t.def_rw("suspensionRate", &soil::param_t::suspensionRate);
 param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("viscosity", &soil::param_t::viscosity);
+param_t.def_rw("bedShear", &soil::param_t::bedShear);
 param_t.def_rw("lrate", &soil::param_t::lrate);
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 

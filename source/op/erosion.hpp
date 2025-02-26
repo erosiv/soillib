@@ -25,7 +25,8 @@ struct param_t {
   float evapRate = 0.0001f; // [m^3/s]
 
   float gravity = 9.81f;    // [m/s]
-  float viscosity = 0.03f;  // [m^2/s]
+  float viscosity = 0.05f;  // [m^2/s]
+  float bedShear = 0.025f;    // 
 
   float critSlope = 0.57f;
   float settleRate = 0.005f;
@@ -33,7 +34,7 @@ struct param_t {
   
   float depositionRate = 0.01f;
   float suspensionRate = 0.0007f;
-  float exitSlope = 0.01f;
+  float exitSlope = 0.0075f;
   
 };
 
