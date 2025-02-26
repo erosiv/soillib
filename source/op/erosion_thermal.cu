@@ -122,15 +122,22 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     int find = model.index.flatten(pos);
     int nind = model.index.flatten(npos);
 
-    const float dist = glm::length(cl*(npos - pos));
+    // Note: Because of the way the height-lookup works, we are
+    //  doing a floor of the position here. If the position was
+    //  sampled smoothly, this would not be necessary.
+    // const float dist = glm::length(cl*vec2(ivec2(npos) - ivec2(pos)));
+    const float dist = glm::length(cl*(npos-pos));
     pos = npos;
 
     // Stable Bank-Height Computation:
 
     float hf_0 = scale.z * model.height[find];
     float hn_0 = scale.z * model.height[nind];
-    float hf_1 = scale.z * model.sediment[find];
-    float hn_1 = scale.z * model.sediment[nind];
+
+    // for some reason, this is making the sediment buffer negative... not good.
+    //  this needs to be reconsidered in terms of overall stability.
+    float hf_1 = glm::max(0.0f, scale.z * model.sediment[find]);
+    float hn_1 = glm::max(0.0f, scale.z * model.sediment[nind]);
     float hf = (hf_0 + hf_1);
     float hn = (hn_0 + hn_1);
 
@@ -147,6 +154,8 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     if(transfer == 0.0f)
       continue;
 
+    /*
+    // Single Material
     if(transfer > 0.0f){
 
       const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
@@ -167,46 +176,41 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
       mass -= transfer;
 
     }
-
-    /*
-    transfer = glm::min(transfer, mass);  // Can't add more than mass
-
-    const float maxtransfer = glm::abs(hf - hn) * Q * Z;
-    transfer = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));      // Can't remove more than
-
-//    if(hf > stable1){
-//    }
-
-    atomicAdd(&model.height[find], transfer / Q / Z);
-    mass -= transfer;
     */
 
-    /*
-    if(transfer > 0.0f){  // Add Material to Map (Note: Single Material Model)
+    // Multi-Material
+    if(transfer > 0.0f){ // Add Material to Map
 
-      atomicAdd(&model.sediment[find], transfer / Q / Z);
+      const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
+      transfer = glm::min(transfer, maxtransfer);
+      transfer = glm::min(transfer, mass);
+      transfer = glm::max(0.0f, transfer);
+
+      atomicAdd(&model.sediment[find], transfer / Q / scale.z / Ac);
       mass -= transfer;
 
     }
 
-    else if(transfer < 0.0f){ // Remove Sediment from Map
+    else { // Remove Material from Map
 
-      const float maxtransfer = model.sediment[find] * Z * Q;
-      float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-      atomicAdd(&model.sediment[find], t1 / Q / Z);
+      const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * Q;
+      transfer = -glm::min(-transfer, maxtransfer);
+
+      const float maxt1 = hf_1 * Ac * Q;
+      float t1 = transfer * glm::min(1.0f, glm::abs(maxt1/transfer));
+
+      atomicAdd(&model.sediment[find], t1 / Q / scale.z / Ac);
       mass -= t1;
 
       transfer -= t1;
-      atomicAdd(&model.height[find], transfer / Q / Z);
+      atomicAdd(&model.height[find], transfer / Q / Ac / scale.z );
       mass -= transfer;
 
     }
-    */
 
   }
 
 }
-
 
 } // end of namespace soil
 
