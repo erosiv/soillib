@@ -7,7 +7,7 @@ Written in in C++23 + CUDA and exposed to Python3 through bindings.
 Maintained by [Erosiv](https://erosiv.studio). Based on concepts developed by and maintained by [Nicholas McDonald](https://github.com/weigert).
 
 <p align="center">
-<img alt="Terrain Generated with Soillib" src="https://github.com/erosiv/soillib/image/render.png" width="75%" align="center"/>
+<img alt="Terrain Generated with Soillib" src="https://github.com/user-attachments/assets/74a6d55f-2f1c-43f7-b911-81ac91a1374b" width="50%" align="center"/>
 </p>
 
 ## Description
