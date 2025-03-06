@@ -68,7 +68,7 @@ protected:
 bool tiff::peek(const char *filename) {
 
   TIFF *tif = TIFFOpen(filename, "r");
-  if(tif == NULL){
+  if (tif == NULL) {
     throw soil::error::missing_file(filename);
     return false;
   }
@@ -118,7 +118,7 @@ bool tiff::read(const char *filename) {
   }
 
   TIFF *tif = TIFFOpen(filename, "r");
-  if(tif == NULL){
+  if (tif == NULL) {
     throw soil::error::missing_file(filename);
     return false;
   }

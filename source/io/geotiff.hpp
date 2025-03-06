@@ -119,8 +119,8 @@ struct geotiff: soil::io::tiff {
   // The idea is for us to store a single one...
   // Then just copy the essential stuff!
 
-  void unsetNaN();  //!< Set Available NoData Values to NaN=
-  meta_t _meta;     //!< Local Meta-Data
+  void unsetNaN(); //!< Set Available NoData Values to NaN=
+  meta_t _meta;    //!< Local Meta-Data
 
 private:
   void setNaN(); //!< Set Available NoData Values to NaN=
@@ -141,7 +141,7 @@ bool geotiff::peek(const char *filename) {
   this->_meta.bits = this->bits();
 
   TIFF *tif = TIFFOpen(filename, "r");
-  if(tif == NULL){
+  if (tif == NULL) {
     throw soil::error::missing_file(filename);
     return false;
   }

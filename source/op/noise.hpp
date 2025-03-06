@@ -34,10 +34,9 @@ struct noise_param_t {
   soil::vec2 ext = {512, 512}; // Grid-Space Frequency
 
   //! Single Sample Value
-  float operator()(const soil::ivec2 pos){
-    return this->source.GetNoise(pos[0]/ext[0], pos[1]/ext[1], this->seed);
+  float operator()(const soil::ivec2 pos) {
+    return this->source.GetNoise(pos[0] / ext[0], pos[1] / ext[1], this->seed);
   }
-
 };
 
 struct noise {
@@ -51,7 +50,7 @@ struct noise {
         auto buffer_t = soil::buffer_t<float>(index_t.elem(), soil::CPU);
 
         param.update();
-        for(size_t i = 0; i < index_t.elem(); ++i){
+        for (size_t i = 0; i < index_t.elem(); ++i) {
           soil::ivec2 position = index_t.unflatten(i);
           buffer_t[i] = param(position);
         }
@@ -60,9 +59,7 @@ struct noise {
       } else
         throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
     });
-
-  }  
-
+  }
 };
 
 }; // end of namespace soil

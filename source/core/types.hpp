@@ -1,9 +1,9 @@
 #ifndef SOILLIB_TYPES
 #define SOILLIB_TYPES
 
-#include <soillib/soillib.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <soillib/soillib.hpp>
 
 #include <format>
 #include <typeinfo>

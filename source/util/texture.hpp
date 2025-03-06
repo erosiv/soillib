@@ -1,9 +1,9 @@
 #ifndef SOILLIB_TEXTURE
 #define SOILLIB_TEXTURE
 
+#include <cuda_runtime.h>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
-#include <cuda_runtime.h>
 
 #include <iostream>
 
@@ -19,22 +19,22 @@ namespace soil {
 template<typename T>
 struct texture {
 
-  texture(const soil::buffer_t<T>& buf, const soil::flat_t<2>& index){
+  texture(const soil::buffer_t<T> &buf, const soil::flat_t<2> &index) {
 
-    if(buf.host() != soil::host_t::GPU){
+    if (buf.host() != soil::host_t::GPU) {
       throw soil::error::mismatch_host(soil::host_t::GPU, buf.host());
     }
 
-    if constexpr(std::is_same_v<T, int>){
+    if constexpr (std::is_same_v<T, int>) {
 
-      this->w = index[1];  // Index Domain Width
-      this->h = index[0];  // Index Domain Height
+      this->w = index[1]; // Index Domain Width
+      this->h = index[0]; // Index Domain Height
 
       this->channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned);
       cudaMallocArray(&this->cuArray, &this->channelDesc, w, h, cudaArraySurfaceLoadStore);
 
-      const size_t spitch = this->w*sizeof(T);
-      cudaMemcpy2DToArray(this->cuArray, 0, 0, buf.data(), spitch, this->w*sizeof(T), this->h, cudaMemcpyDeviceToDevice);
+      const size_t spitch = this->w * sizeof(T);
+      cudaMemcpy2DToArray(this->cuArray, 0, 0, buf.data(), spitch, this->w * sizeof(T), this->h, cudaMemcpyDeviceToDevice);
 
       memset(&this->texDesc, 0, sizeof(this->texDesc));
       this->texDesc.normalizedCoords = 0;
@@ -53,9 +53,7 @@ struct texture {
     } else {
 
       throw std::invalid_argument("type not supported by texture");
-  
     }
-  
   }
 
   __device__ const T operator[](const soil::vec2 pos) const {
@@ -73,6 +71,6 @@ private:
   struct cudaTextureDesc texDesc;
 };
 
-}
+} // namespace soil
 
 #endif

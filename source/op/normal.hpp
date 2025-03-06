@@ -1,9 +1,9 @@
 #ifndef SOILLIB_LAYER_NORMAL
 #define SOILLIB_LAYER_NORMAL
 
-#include <soillib/soillib.hpp>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
+#include <soillib/soillib.hpp>
 #include <soillib/util/error.hpp>
 
 #include <soillib/op/gather.hpp>
@@ -67,7 +67,6 @@ struct normal {
       return soil::normal::operator()(buffer.as<T>(), index, pos, scale);
     });
   }
-
 };
 
 } // end of namespace soil

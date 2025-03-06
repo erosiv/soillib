@@ -88,5 +88,4 @@ lint:
 	@clang-format -i ./index/*.hpp
 	@clang-format -i ./io/*.hpp
 	@clang-format -i ./op/*.hpp
-	@clang-format -i ./particle/*.hpp
 	@clang-format -i ./util/*.hpp
