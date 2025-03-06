@@ -1,16 +1,16 @@
 #ifndef SOILLIB_PARTICLE_CASCADE
 #define SOILLIB_PARTICLE_CASCADE
 
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
-#include <soillib/soillib.hpp>
+#include <core/buffer.hpp>
+#include <core/index.hpp>
+#include <soillib.hpp>
 
-#include <soillib/core/node.hpp>
-#include <soillib/node/cached.hpp>
-#include <soillib/node/constant.hpp>
+#include <core/node.hpp>
+#include <node/cached.hpp>
+#include <node/constant.hpp>
 
-#include <soillib/core/matrix.hpp>
-#include <soillib/core/model.hpp>
+#include <core/matrix.hpp>
+#include <core/model.hpp>
 
 #include <algorithm>
 

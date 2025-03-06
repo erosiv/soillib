@@ -1,9 +1,9 @@
 #ifndef SOILLIB_INDEX_FLAT
 #define SOILLIB_INDEX_FLAT
 
-#include <soillib/core/types.hpp>
-#include <soillib/soillib.hpp>
-#include <soillib/util/yield.hpp>
+#include <core/types.hpp>
+#include <soillib.hpp>
+#include <util/yield.hpp>
 
 #include <vector>
 

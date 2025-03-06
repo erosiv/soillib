@@ -1,21 +1,21 @@
 #ifndef SOILLIB_PARTICLE_WATER
 #define SOILLIB_PARTICLE_WATER
 
-#include <soillib/particle/cascade.hpp>
-#include <soillib/particle/particle.hpp>
-#include <soillib/soillib.hpp>
+#include <particle/cascade.hpp>
+#include <particle/particle.hpp>
+#include <soillib.hpp>
 
-#include <soillib/core/model.hpp>
-#include <soillib/core/node.hpp>
+#include <core/model.hpp>
+#include <core/node.hpp>
 
-#include <soillib/node/cached.hpp>
-#include <soillib/node/computed.hpp>
-#include <soillib/node/constant.hpp>
+#include <node/cached.hpp>
+#include <node/computed.hpp>
+#include <node/constant.hpp>
 
-#include <soillib/node/algorithm/normal.hpp>
+#include <node/algorithm/normal.hpp>
 
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/matrix.hpp>
+#include <core/buffer.hpp>
+#include <core/matrix.hpp>
 
 namespace soil {
 

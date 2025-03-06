@@ -1,15 +1,15 @@
 #ifndef SOILLIB_LAYER_COMPUTED_NOISE
 #define SOILLIB_LAYER_COMPUTED_NOISE
 
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
-#include <soillib/core/types.hpp>
+#include <core/buffer.hpp>
+#include <core/index.hpp>
+#include <core/types.hpp>
 
-#include <soillib/core/node.hpp>
-#include <soillib/node/computed.hpp>
+#include <core/node.hpp>
+#include <node/computed.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
-#include <soillib/external/FastNoiseLite.h>
+#include <external/FastNoiseLite.h>
 
 namespace soil {
 

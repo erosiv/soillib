@@ -1,8 +1,8 @@
 #ifndef SOILLIB_IO_TIFF
 #define SOILLIB_IO_TIFF
 
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
+#include <core/buffer.hpp>
+#include <core/index.hpp>
 
 #include <iostream>
 #include <tiffio.h>

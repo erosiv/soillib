@@ -10,16 +10,16 @@ namespace nb = nanobind;
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/function.h>
 
-#include <soillib/core/types.hpp>
+#include <core/types.hpp>
 
-#include <soillib/core/node.hpp>
+#include <core/node.hpp>
 
-#include <soillib/node/cached.hpp>
-#include <soillib/node/constant.hpp>
-#include <soillib/node/computed.hpp>
+#include <node/cached.hpp>
+#include <node/constant.hpp>
+#include <node/computed.hpp>
 
-#include <soillib/node/algorithm/noise.hpp>
-#include <soillib/node/algorithm/normal.hpp>
+#include <node/algorithm/noise.hpp>
+#include <node/algorithm/normal.hpp>
 
 #include <iostream>
 

@@ -14,10 +14,10 @@ namespace nb = nanobind;
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/tuple.h>
 
-#include <soillib/util/timer.hpp>
-#include <soillib/core/types.hpp>
-#include <soillib/core/index.hpp>
-#include <soillib/core/buffer.hpp>
+#include <util/timer.hpp>
+#include <core/types.hpp>
+#include <core/index.hpp>
+#include <core/buffer.hpp>
 
 #include "glm.hpp"
 

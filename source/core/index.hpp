@@ -1,8 +1,8 @@
 #ifndef SOILLIB_INDEX
 #define SOILLIB_INDEX
 
-#include <soillib/index/flat.hpp>
-#include <soillib/index/quad.hpp>
+#include <index/flat.hpp>
+#include <index/quad.hpp>
 
 //! index is a polymorphic index_t wrapper
 //!

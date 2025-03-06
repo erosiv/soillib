@@ -1,10 +1,10 @@
 #ifndef SOILLIB_INDEX_QUAD
 #define SOILLIB_INDEX_QUAD
 
-#include <soillib/core/types.hpp>
-#include <soillib/index/flat.hpp>
-#include <soillib/soillib.hpp>
-#include <soillib/util/yield.hpp>
+#include <core/types.hpp>
+#include <index/flat.hpp>
+#include <soillib.hpp>
+#include <util/yield.hpp>
 
 #include <climits>
 #include <vector>

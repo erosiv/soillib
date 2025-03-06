@@ -1,9 +1,9 @@
 #ifndef SOILLIB_MODEL
 #define SOILLIB_MODEL
 
-#include <soillib/core/index.hpp>
-#include <soillib/core/matrix.hpp>
-#include <soillib/core/node.hpp>
+#include <core/index.hpp>
+#include <core/matrix.hpp>
+#include <core/node.hpp>
 
 // #include <std::unordered_map>
 

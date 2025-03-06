@@ -1,7 +1,7 @@
 #ifndef SOILLIB_IO_GEOTIFF
 #define SOILLIB_IO_GEOTIFF
 
-#include <soillib/io/tiff.hpp>
+#include <io/tiff.hpp>
 
 namespace soil {
 namespace io {

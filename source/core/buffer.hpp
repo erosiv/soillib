@@ -4,8 +4,8 @@
 //! A buffer represents a raw data extent
 //! \todo add more detail about this file
 
-#include <soillib/core/types.hpp>
-#include <soillib/soillib.hpp>
+#include <core/types.hpp>
+#include <soillib.hpp>
 
 namespace soil {
 

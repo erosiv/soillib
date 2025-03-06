@@ -1,9 +1,9 @@
 #ifndef SOILLIB_LAYER_CACHED
 #define SOILLIB_LAYER_CACHED
 
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/types.hpp>
-#include <soillib/util/error.hpp>
+#include <core/buffer.hpp>
+#include <core/types.hpp>
+#include <util/error.hpp>
 
 namespace soil {
 

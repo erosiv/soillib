@@ -3,7 +3,7 @@
 
 #include <format>
 #include <glm/gtc/type_ptr.hpp>
-#include <soillib/soillib.hpp>
+#include <soillib.hpp>
 
 namespace soil {
 

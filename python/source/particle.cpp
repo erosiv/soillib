@@ -4,8 +4,8 @@
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
 
-#include <soillib/particle/particle.hpp>
-#include <soillib/particle/water.hpp>
+#include <particle/particle.hpp>
+#include <particle/water.hpp>
 
 #include "glm.hpp"
 

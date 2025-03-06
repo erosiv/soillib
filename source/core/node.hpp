@@ -1,13 +1,13 @@
 #ifndef SOILLIB_NODE
 #define SOILLIB_NODE
 
-#include <soillib/core/index.hpp>
-#include <soillib/core/types.hpp>
-#include <soillib/soillib.hpp>
+#include <core/index.hpp>
+#include <core/types.hpp>
+#include <soillib.hpp>
 
-#include <soillib/node/cached.hpp>
-#include <soillib/node/computed.hpp>
-#include <soillib/node/constant.hpp>
+#include <node/cached.hpp>
+#include <node/computed.hpp>
+#include <node/constant.hpp>
 
 namespace soil {
 

@@ -1,11 +1,11 @@
 #ifndef SOILLIB_LAYER_NORMAL
 #define SOILLIB_LAYER_NORMAL
 
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
-#include <soillib/core/node.hpp>
-#include <soillib/soillib.hpp>
-#include <soillib/util/error.hpp>
+#include <core/buffer.hpp>
+#include <core/index.hpp>
+#include <core/node.hpp>
+#include <soillib.hpp>
+#include <util/error.hpp>
 
 namespace soil {
 

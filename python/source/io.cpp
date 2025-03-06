@@ -6,10 +6,10 @@ namespace nb = nanobind;
 
 #include <nanobind/stl/string.h>
 
-#include <soillib/io/tiff.hpp>
-#include <soillib/io/geotiff.hpp>
+#include <io/tiff.hpp>
+#include <io/geotiff.hpp>
 
-#include <soillib/core/node.hpp>
+#include <core/node.hpp>
 
 #include "glm.hpp"
 

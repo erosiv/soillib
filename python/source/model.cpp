@@ -4,7 +4,7 @@
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
 
-#include <soillib/core/model.hpp>
+#include <core/model.hpp>
 
 #include "glm.hpp"
 
