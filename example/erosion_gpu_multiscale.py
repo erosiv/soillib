@@ -50,22 +50,24 @@ def main():
 
   param = soil.param_t()
   param.samples = 8192  # Number of Samples
-  param.maxage = 128    # Maximum Particle Age
+  param.maxage = 512    # Maximum Particle Age
   param.lrate = 0.2     # Filter Learning Rate
+  param.timeStep = 10.0 # 
 
-  param.rainfall = 2.0      # Rainfall Rate [m/y]
+  param.rainfall = 1.0      # Rainfall Rate [m/y]
   param.evapRate = 0.0001   # Evaporation Rate [1/s]
 
   param.gravity = 9.81      # Specific Gravity [m/s^2]
-  param.viscosity = 0.03    # Kinematic Viscosity [m^2/s]
+  param.viscosity = 0.05    # Kinematic Viscosity [m^2/s]
+  param.bedShear = 0.025
 
   param.critSlope = 0.57      # Critical Slope [m/m]
-  param.settleRate = 0.005    # Debris Settling Rate
+  param.settleRate = 0.2      # Debris Settling Rate
   param.thermalRate = 0.005   # Thermal Erosion Rate
 
-  param.depositionRate = 0.05 # Fluvial Deposition Rate
-  param.suspensionRate = 0.00025 # Fluvial Suspension Rate
-  param.exitSlope = 0.01      # Boundary Slope [m/m]
+  param.depositionRate = 0.01   # Fluvial Deposition Rate
+  param.suspensionRate = 0.0007 # Fluvial Suspension Rate
+  param.exitSlope = 0.005       # Boundary Slope [m/m]
 
   timer = soil.timer()
 
