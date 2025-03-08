@@ -1,10 +1,10 @@
 # soillib/python Makefile
 # Compiler Configuration
 
-INCPATH = -I$(HOME)/.local/include -I/usr/local/cuda-12/include
-LIBPATH = -L$(HOME)/.local/lib
+INCPATH = -I/usr/local/include -I/usr/local/cuda-12/include
+LIBPATH = /usr/local/lib
 DIRNAME = soillib
-LINKLIB = -lsoil -ltiff -lnanobind 
+LINKLIB = -lsoil -ltiff -lnanobind
 
 CC = g++ -std=c++23
 CF = -Wfatal-errors -O3 -Os #-fno-char8_t
@@ -54,14 +54,14 @@ build:
 	@$(CC) $(CF) $(INCPATH) -fPIC	-c source/op.cpp 	 		-o $(BUILDDIR)/op.o
 	@echo "  Linking Object Files..."
 	@$(CC) -shared -o $(BUILDDIR)/${MODULE} \
-		$(LIBPATH) \
+		-L$(LIBPATH) \
 		$(BUILDDIR)/soillib.o \
 		$(BUILDDIR)/buffer.o \
 		$(BUILDDIR)/index.o \
 		$(BUILDDIR)/io.o \
 		$(BUILDDIR)/util.o \
 		$(BUILDDIR)/op.o \
-		$(HOME)/.local/lib/libnanobind.o \
+		$(LIBPATH)/libnanobind.o \
 		-lnanobind \
 		-lsoil \
 		-ltiff \

@@ -38,6 +38,7 @@
 **/*.tiff
 **/*.zip
 
+build
 _todo.md
 **/imgui.ini
 .vscode

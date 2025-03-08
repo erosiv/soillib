@@ -55,6 +55,29 @@ Note: Currently only Linux builds are supported. Other builds should come online
 
 `soillib` is a combination of CUDA code compiled with `nvcc`, regular C++ code compiled with `g++` and a python module that requires linking with `nanobind`. The compilation process is currently slightly more involved than is desirable.
 
+#### Dependencies
+
+##### Ubuntu
+
+```bash
+sudo apt-get install libglm-dev
+```
+
+##### Fedora
+
+```bash
+sudo dnf install glm-devel
+```
+
+##### Building with CMake
+
+```bash
+rm -rf build/*
+cmake -S . -B build
+cmake --build build -j1
+sudo cmake --install build
+```
+
 ##### Building soillib
 
 `soillib` consists of header files `<soillib/*>` and a library `libsoil.a`. To install the header files and the library, build with the `Makefile`:

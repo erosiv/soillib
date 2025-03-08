@@ -6,12 +6,6 @@
 # Build / Installation Rules
 #
 
-.PHONY: source
-source:
-	@echo "soillib: building and installing from source..."
-	@cd source; $(MAKE) --no-print-directory all
-	@echo "soillib: done"
-
 .PHONY: python
 python:
 	@echo "soillib: building python module..."
@@ -19,7 +13,11 @@ python:
 	@echo "soillib: done"
 
 .PHONY: all
-all: source python
+all: #source python
+	rm -rf build
+	cmake -S . -B build
+	cmake --build build
+	cmake --install build
 
 .PHONY: test
 test:
