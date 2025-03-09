@@ -132,12 +132,13 @@ def main():
   height = model.height
   soil.add(height, model.sediment)
 
-  tiff_out = soil.geotiff(height.cpu(), index)
-  tiff_out.meta.scale = pscale  # Pixel Scale Important!
-  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu_multi.tiff")
+  # tiff_out = soil.geotiff(height.cpu(), index)
+  # tiff_out.meta.scale = pscale  # Pixel Scale Important!
+  # tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu_multi.tiff")
 
 #  show_layers([model.height, model.sediment], index, pscale)
-  show_relief(height, index, pscale)
+  show_relief(height.cpu(), index, pscale)
+
 #  show_discharge(model.discharge, index)
 
 if __name__ == "__main__":

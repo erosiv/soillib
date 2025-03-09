@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.28)
 project(soillib LANGUAGES CXX CUDA)
 
 include(FetchContent)
@@ -20,12 +20,14 @@ if(NOT Python3_LIBRARIES)
 endif()
 
 # Find CUDA
-find_package(CUDA REQUIRED)
-if(CUDA_FOUND)
-  message(STATUS "CUDA found: ${CUDA_VERSION} at ${CUDA_TOOLKIT_ROOT_DIR}")
+find_package(CUDAToolkit REQUIRED)
+
+if(CUDAToolkit_FOUND)
+  message(STATUS "CUDA found: ${CUDAToolkit_VERSION} at ${CUDAToolkit_LIBRARY_DIR}")
 else()
-  message(FATAL_ERROR "CUDA not found. Please install CUDA.")
+  message(FATAL_ERROR "CUDA Toolkit not found. Please install CUDA.")
 endif()
+
 
 # Fetch dependencies
 FetchContent_Declare(
@@ -110,7 +112,7 @@ target_compile_options(soillib PRIVATE
 # Ensure the compiler can find headers
 target_include_directories(soillib PRIVATE
   ${SOILLIB_INCLUDE_DIR}
-  ${CUDA_INCLUDE_DIRS}    # For cuda_runtime.h
+  ${CUDAToolkit_INCLUDE_DIRS}
   ${Python3_INCLUDE_DIRS}
   ${nanobind_SOURCE_DIR}/include
   ${nanobind_SOURCE_DIR}/ext/robin_map/include
