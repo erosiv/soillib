@@ -14,4 +14,3 @@ project(soillib LANGUAGES CXX CUDA)
 
 add_subdirectory(ext)     # Build Nanobind
 add_subdirectory(source)  # Build Soillib
-add_subdirectory(python)  # Build Python Bindings
