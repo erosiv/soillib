@@ -7,12 +7,6 @@ set_target_properties(nanobind PROPERTIES
   LINKER_LANGUAGE CXX
   CMAKE_CXX_STANDARD 17
 )
-set(NANOBIND_DIR ${CMAKE_SOURCE_DIR}/ext/nanobind)
-
-target_include_directories(nanobind PUBLIC
-  ${NANOBIND_DIR}/ext/robin_map/include
-  ${NANOBIND_DIR}/include
-)
 
 set(CMAKE_CXX_FLAGS "-fvisibility=hidden \
     	-DNDEBUG -DNB_COMPACT_ASSERTIONS \
@@ -21,11 +15,23 @@ set(CMAKE_CXX_FLAGS "-fvisibility=hidden \
       -ffunction-sections -fdata-sections
 ")
 
+# Install Headers
+set(NANOBIND_DIR ${CMAKE_SOURCE_DIR}/ext/nanobind)
+install(
+  DIRECTORY ${NANOBIND_DIR}/include/nanobind 
+  DESTINATION include
+)
+
+# Build and Intall Library
+target_include_directories(nanobind PUBLIC
+  ${NANOBIND_DIR}/ext/robin_map/include
+  ${NANOBIND_DIR}/include
+)
+
 target_sources(nanobind PUBLIC
   ${NANOBIND_DIR}/src/nb_combined.cpp
 )
 
 install(
   TARGETS nanobind
-#  FILE_SET public_headers
 )

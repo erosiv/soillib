@@ -61,7 +61,6 @@ build:
 		$(BUILDDIR)/io.o \
 		$(BUILDDIR)/util.o \
 		$(BUILDDIR)/op.o \
-		$(LIBPATH)/libnanobind.o \
 		-lnanobind \
 		-lsoil \
 		-ltiff \

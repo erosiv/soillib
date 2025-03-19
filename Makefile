@@ -13,8 +13,7 @@ python:
 	@echo "soillib: done"
 
 .PHONY: all
-all: #source python
-	rm -rf build
+all:
 	cmake -S . -B build
 	cmake --build build
 	cmake --install build

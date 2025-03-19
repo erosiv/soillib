@@ -2,17 +2,10 @@
 # soillib python bindings
 #
   
-#install(
-  #  LIBRARY DESTINATION ${PYTHON_VENV_SITE_PACKAGES}
-#)
+# install(
+#   LIBRARY DESTINATION ${PYTHON_VENV_SITE_PACKAGES}
+# )
 
-#  ${Python3_INCLUDE_DIRS}
-#  ${nanobind_SOURCE_DIR}/include
-#  ${nanobind_SOURCE_DIR}/ext/robin_map/include
-#)
-
-#project(soillib LANGUAGES CXX CUDA)
-#include(FetchContent)
 #
 ## Find CUDA
 #find_package(CUDA REQUIRED)
