@@ -15,7 +15,7 @@ def main(input):
 
     scale = image.scale
     print(scale)
-    mesh = soil.mesh(image.buffer, image.index, [10, 10, 10/scale[0]/scale[1]])
+    mesh = soil.mesh(image.buffer, image.index, [0.5, 0.5, 1])
     mesh.center()
     #mesh.write("out.ply")
     mesh.write_binary("out_binary_min.ply")
