@@ -14,7 +14,7 @@ def main(input):
 
     index = image.index
     height = image.buffer.numpy(index)
-    normal = soil.normal(image.buffer, index).numpy(index)
+    normal = soil.normal(image.buffer, index, image.meta.scale).numpy(index)
 
     # Compute Shading
     relief = relief_shade(height, normal)
@@ -25,5 +25,6 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "merged.tiff"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+
   main(data)

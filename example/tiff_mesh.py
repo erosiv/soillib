@@ -28,9 +28,6 @@ if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/HydroSHEDS/n40e010_con.tif"
   #data = "/home/nickmcdonald/Datasets/elevation.tiff"
-  #data = "./conditioned.tiff"
-#  data = "merge.tiff"
-  data = "erosion_basic.tiff"
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
 
@@ -42,6 +39,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern"
 
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "_dem_merged.tiff"
 
   main(data)
