@@ -17,6 +17,7 @@ namespace nb = nanobind;
 #include <soillib/op/flow.hpp>
 #include <soillib/op/math.hpp>
 #include <soillib/op/erosion.hpp>
+#include <soillib/op/pointcloud.hpp>
 
 #include <iostream>
 
@@ -240,6 +241,23 @@ module.def("upstream", [](const soil::buffer& buffer, const soil::index& index, 
 
 module.def("distance", [](const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
   return soil::distance(buffer, index, target);
+});
+
+module.def("sample_pointcloud", [](const soil::buffer& buffer, const soil::index& index, const size_t N){
+
+  const auto buffer_t = buffer.as<float>();
+  return soil::buffer(soil::sample_pointcloud(buffer_t, index, N));
+//  return soil::select(buffer.type(), [&]<typename T>(){
+//  })
+//
+//  soil::buffer_t<T>* target  = new soil::buffer_t<T>(soil::resample(source, index)); // Target Buffer (Heap)
+//  nb::capsule owner(target, [](void *p) noexcept {
+//    delete (soil::buffer_t<T>*)p;
+//  });
+//
+//  return soil::pointclou
+//
+//  sample_pointcloud
 });
 
 }

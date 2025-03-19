@@ -32,6 +32,7 @@ target_sources(soil PUBLIC
   ${CMAKE_SOURCE_DIR}/source/soillib/op/erosion.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/math.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/common.cu
+  ${CMAKE_SOURCE_DIR}/source/soillib/op/pointcloud.cu
 )
 
 install(
