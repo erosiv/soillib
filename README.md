@@ -72,6 +72,10 @@ sudo dnf install glm-devel
 ##### Building with CMake
 
 ```bash
+git submodule update --init --recursive
+```
+
+```bash
 rm -rf build/*
 cmake -S . -B build
 cmake --build build -j1
