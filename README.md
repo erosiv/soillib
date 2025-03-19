@@ -53,9 +53,11 @@ Note: Currently only Linux builds are supported. Other builds should come online
 
 ### Building from Source
 
-`soillib` is a combination of CUDA code compiled with `nvcc`, regular C++ code compiled with `g++` and a python module that requires linking with `nanobind`. The compilation process is currently slightly more involved than is desirable.
+`soillib` is a combination of CUDA code compiled with `nvcc`, regular C++ code compiled with `g++` and a python module that requires linking with `nanobind`. Additionally, it depends on `glm` and `libtiff`.
 
 #### Dependencies
+
+Make sure to instal the cuda toolkit so that you have the `nvcc` compiler, the cuda runtime headers and the cuda library.
 
 ##### Ubuntu
 
@@ -71,46 +73,28 @@ sudo dnf install glm-devel
 
 ##### Building with CMake
 
+Update the git submodule to install nanobind.
+
 ```bash
 git submodule update --init --recursive
 ```
 
+Build nanobind and soillib as a C++ library using CMake.
+
 ```bash
-rm -rf build/*
 cmake -S . -B build
 cmake --build build -j1
-sudo cmake --install build
+cmake --install build
 ```
 
-##### Building soillib
+Note that installation with cmake might require super-user privilege.
 
-`soillib` consists of header files `<soillib/*>` and a library `libsoil.a`. To install the header files and the library, build with the `Makefile`:
-
-```bash
-make source
-```
-
-Note that the library is build with `nvcc`. Linking the library with your project does not require using `nvcc` and can be done with `g++`. 
-
-##### Building the Python Module
-
-With the header files and library installed, the python library can be built using the `Makefile`:
+Build the python bindings using make:
 
 ```bash
 make python
 ```
 
-This requires a working installation of `nanobind`. `nanobind` has to be built with position independent code, as it is simply linked in this step. Note that the building code has not been made fully platform independent yet - some effort is needed to build on alternative platforms by modifying the parameters in the `Makefiles`.
-
 Note that this will install the headers, compile the python shared object, build a `.whl` file and install it with `pip`. Inspect the `Makefile` for more granular control.
 
-#### Building with CUDA Enabled
-
-The build will automatically detect whether you have CUDA installed:
-
-```bash
-sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/fedora39/x86_64/cuda-fedora39.repo
-sudo dnf clean all
-sudo dnf module disable nvidia-driver
-sudo dnf -y install cuda
-```
+Note that the library is built with `nvcc`. Linking the library with your project does not require using `nvcc` and can be done with `g++`. 
