@@ -247,6 +247,10 @@ module.def("pointcloud_sample", [](const soil::buffer& buffer, const soil::index
   return soil::pointcloud_sample(buffer, index, N);
 });
 
+module.def("pointcloud_normal", [](const soil::buffer& height, const soil::buffer& pos, const soil::index& index, const soil::vec3 scale){
+  return soil::pointcloud_normal(height, pos, index, scale);
+});
+
 module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
   soil::pointcloud_scale(buffer, index, scale);
 });

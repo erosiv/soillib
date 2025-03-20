@@ -44,13 +44,26 @@ soil::buffer pointcloud_sample(const soil::buffer& buffer, const soil::index& in
 
 }
 
+soil::buffer_t<vec3> pointcloud_normal_impl(const soil::buffer_t<float> &height, const soil::buffer_t<vec3> &pos, const soil::index &index, const vec3 scale);
+
+soil::buffer pointcloud_normal(const soil::buffer& height, const soil::buffer& pos, const soil::index& index, const vec3 scale){
+
+  if (height.host() != soil::host_t::GPU)
+  throw soil::error::mismatch_host(height.host(), soil::host_t::GPU);
+
+  if (pos.host() != soil::host_t::GPU)
+  throw soil::error::mismatch_host(pos.host(), soil::host_t::GPU);
+
+  const auto height_t = height.as<float>();
+  const auto pos_t = pos.as<vec3>();
+  return soil::buffer(pointcloud_normal_impl(height_t, pos_t, index, scale));
+
+}
+
 void pointcloud_scale_impl(const soil::buffer_t<vec3> &buffer, const soil::index &index, const soil::vec3 scale);
 
 void pointcloud_scale(const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
 
-//  if (buffer.elem() != index.elem())
-//  throw soil::error::mismatch_size(buffer.elem(), index.elem());
-  
   if (buffer.host() != soil::host_t::GPU)
   throw soil::error::mismatch_host(buffer.host(), soil::host_t::GPU);
 
