@@ -29,17 +29,33 @@
 
 namespace soil {
 
-soil::buffer_t<vec3> sample_pointcloud_impl(const soil::buffer_t<float> &buffer, const soil::index &index, const size_t N);
+soil::buffer_t<vec3> pointcloud_sample_impl(const soil::buffer_t<float> &buffer, const soil::index &index, const size_t N);
 
-soil::buffer_t<soil::vec3> sample_pointcloud(const soil::buffer_t<float>& buffer, const soil::index& index, const size_t N){
+soil::buffer pointcloud_sample(const soil::buffer& buffer, const soil::index& index, const size_t N){
 
   if (buffer.elem() != index.elem())
-    throw soil::error::mismatch_size(buffer.elem(), index.elem());
-
+  throw soil::error::mismatch_size(buffer.elem(), index.elem());
+  
   if (buffer.host() != soil::host_t::GPU)
-    throw soil::error::mismatch_host(buffer.host(), soil::host_t::GPU);
+  throw soil::error::mismatch_host(buffer.host(), soil::host_t::GPU);
 
-  return sample_pointcloud_impl(buffer, index, N);
+  const auto buffer_t = buffer.as<float>();
+  return soil::buffer(pointcloud_sample_impl(buffer_t, index, N));
+
+}
+
+void pointcloud_scale_impl(const soil::buffer_t<vec3> &buffer, const soil::index &index, const soil::vec3 scale);
+
+void pointcloud_scale(const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
+
+//  if (buffer.elem() != index.elem())
+//  throw soil::error::mismatch_size(buffer.elem(), index.elem());
+  
+  if (buffer.host() != soil::host_t::GPU)
+  throw soil::error::mismatch_host(buffer.host(), soil::host_t::GPU);
+
+  const auto buffer_t = buffer.as<vec3>();
+  pointcloud_scale_impl(buffer_t, index, scale);
 
 }
 

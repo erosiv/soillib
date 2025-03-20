@@ -243,21 +243,12 @@ module.def("distance", [](const soil::buffer& buffer, const soil::index& index, 
   return soil::distance(buffer, index, target);
 });
 
-module.def("sample_pointcloud", [](const soil::buffer& buffer, const soil::index& index, const size_t N){
+module.def("pointcloud_sample", [](const soil::buffer& buffer, const soil::index& index, const size_t N){
+  return soil::pointcloud_sample(buffer, index, N);
+});
 
-  const auto buffer_t = buffer.as<float>();
-  return soil::buffer(soil::sample_pointcloud(buffer_t, index, N));
-//  return soil::select(buffer.type(), [&]<typename T>(){
-//  })
-//
-//  soil::buffer_t<T>* target  = new soil::buffer_t<T>(soil::resample(source, index)); // Target Buffer (Heap)
-//  nb::capsule owner(target, [](void *p) noexcept {
-//    delete (soil::buffer_t<T>*)p;
-//  });
-//
-//  return soil::pointclou
-//
-//  sample_pointcloud
+module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
+  soil::pointcloud_scale(buffer, index, scale);
 });
 
 }

@@ -20,8 +20,11 @@ namespace {
   }
 }
 
-//template<typename T, typename Index, typename Flat>
-__global__ void _sample_pointcloud(soil::buffer_t<float> input, soil::buffer_t<vec3> output, soil::buffer_t<curandState> rand, const soil::flat_t<2> index, const size_t N){
+//
+// Uniform Pointcloud Sampling
+//
+
+__global__ void _pointcloud_sample(soil::buffer_t<float> input, soil::buffer_t<vec3> output, soil::buffer_t<curandState> rand, const soil::flat_t<2> index, const size_t N){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
@@ -44,7 +47,7 @@ __global__ void _sample_pointcloud(soil::buffer_t<float> input, soil::buffer_t<v
 
 }
 
-soil::buffer_t<vec3> sample_pointcloud_impl(const soil::buffer_t<float> &buffer, const soil::index &index, const size_t N){
+soil::buffer_t<vec3> pointcloud_sample_impl(const soil::buffer_t<float> &buffer, const soil::index &index, const size_t N){
 
   soil::buffer_t<vec3> output(N, soil::GPU);
   soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
@@ -52,9 +55,37 @@ soil::buffer_t<vec3> sample_pointcloud_impl(const soil::buffer_t<float> &buffer,
   const auto index_t = index.as<soil::flat_t<2>>();
   seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
   cudaDeviceSynchronize();
-  _sample_pointcloud<<<block(N, 1024), 1024>>>(buffer, output, rand, index_t, N);
+  _pointcloud_sample<<<block(N, 1024), 1024>>>(buffer, output, rand, index_t, N);
 
   return output;
+
+}
+
+//
+// Pointcloud Scaling
+//
+
+__global__ void _pointcloud_scale(soil::buffer_t<vec3> input, const soil::flat_t<2> index, const soil::vec3 scale){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= input.elem()) return;
+
+  const vec3 wmin = vec3(0.0f, 0.0f, -1.0f) * scale;
+  const vec3 wmax = vec3(index[0], index[1], 1.0f) * scale;
+  const vec3 wext = (wmax - wmin);      // Extent of Buffer in World-Space
+  const vec3 wmid = (wmax + wmin)*0.5f; // Center Point in World-Space
+  const float wscale = glm::max(wext.x, glm::max(wext.y, wext.z));
+
+  vec3 pos = input[n] * scale;
+  vec3 cpos = 2.0f*(pos - wmid)/wscale;
+  input[n] = cpos;
+
+}
+
+void pointcloud_scale_impl(const soil::buffer_t<vec3> &buffer, const soil::index &index, const soil::vec3 scale){
+
+  const auto index_t = index.as<soil::flat_t<2>>();
+  _pointcloud_scale<<<block(buffer.elem(), 1024), 1024>>>(buffer, index_t, scale);
 
 }
 
