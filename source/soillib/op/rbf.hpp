@@ -33,6 +33,11 @@ struct rbf {
   //! Note: This can be split into two buffers in theory.
   void fit(const buffer_t<vec3>& data, const size_t steps);
 
+  // Parameters
+
+  float lrate = 0.01f;
+  float shape = 1.0f;
+
 private:
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<vec2> pos;       //!< Positions

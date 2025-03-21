@@ -21,10 +21,10 @@ namespace soil {
 //!  considered for a certain amount of accuracy.
 //!  This requires implementation of an acceleration structure.
 //
-__device__ float _rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, const vec2 p){
+__device__ float _rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, const vec2 p, const float shape){
   float val = 0.0f;
   for(int k = 0; k < w.elem(); ++k){
-    val += w[k] * rbf::func(glm::length(c[k] - p), 1.0f);
+    val += w[k] * rbf::func(glm::length(c[k] - p), shape);
   }
   return val;
 }
@@ -35,10 +35,10 @@ __device__ float _rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, 
 
 // Position-Buffer based Sampling
 
-__global__ void _rbf_sample(const buffer_t<float> weight_b, const buffer_t<vec2> centroid_b, soil::buffer_t<float> val_b, const soil::buffer_t<vec2> pos){
+__global__ void _rbf_sample(const buffer_t<float> weight_b, const buffer_t<vec2> centroid_b, soil::buffer_t<float> val_b, const soil::buffer_t<vec2> pos, const float shape){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= pos.elem()) return;
-  val_b[n] = _rbf_sample(weight_b, centroid_b, pos[n]);
+  val_b[n] = _rbf_sample(weight_b, centroid_b, pos[n], shape);
 }
 
 buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos) const {
@@ -46,17 +46,17 @@ buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos) const {
   auto output = soil::buffer_t<float>(pos.elem(), soil::host_t::GPU);
   const size_t elem = pos.elem();
 
-  _rbf_sample<<<block(elem, 1024), 1024>>>(this->weights, this->pos, output, pos);
+  _rbf_sample<<<block(elem, 1024), 1024>>>(this->weights, this->pos, output, pos, this->shape);
   return output;
 
 }
 
 // Index Based Sampling (Full Shape)
 
-__global__ void _rbf_sample(const buffer_t<float> weight_b, const buffer_t<vec2> centroid_b, soil::buffer_t<float> val_b, const soil::flat_t<2> index){
+__global__ void _rbf_sample(const buffer_t<float> weight_b, const buffer_t<vec2> centroid_b, soil::buffer_t<float> val_b, const soil::flat_t<2> index, const float shape){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= index.elem()) return;
-  val_b[n] = _rbf_sample(weight_b, centroid_b, index.unflatten(n));
+  val_b[n] = _rbf_sample(weight_b, centroid_b, index.unflatten(n), shape);
 }
 
 buffer_t<float> soil::rbf::sample(const index& index) const {
@@ -65,7 +65,7 @@ buffer_t<float> soil::rbf::sample(const index& index) const {
   auto output = soil::buffer_t<float>(index.elem(), soil::host_t::GPU);
   const size_t elem = index_t.elem();
 
-  _rbf_sample<<<block(elem, 1024), 1024>>>(this->weights, this->pos, output, index_t);
+  _rbf_sample<<<block(elem, 1024), 1024>>>(this->weights, this->pos, output, index_t, this->shape);
   return output;
 
 }
@@ -109,7 +109,7 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
   for(size_t i = 0; i < steps; i++){
     const auto values = this->sample(this->pos); // evaluate at positions
-    _rbf_fit_update<<<block(elem, 1024), 1024>>>(values, data, this->weights, 0.01f);
+    _rbf_fit_update<<<block(elem, 1024), 1024>>>(values, data, this->weights, this->lrate);
   }
 
 }

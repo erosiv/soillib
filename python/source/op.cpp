@@ -262,6 +262,8 @@ module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index&
 
 auto rbf_t = nb::class_<soil::rbf>(module, "rbf");
 rbf_t.def(nb::init<>());
+rbf_t.def_rw("lrate", &soil::rbf::lrate);
+rbf_t.def_rw("shape", &soil::rbf::shape);
 rbf_t.def("sample", [](const soil::rbf& rbf, const soil::index& index){
   return soil::buffer(rbf.sample(index));
 });
