@@ -72,6 +72,7 @@ buffer_t<float> soil::rbf::sample(const index& index) const {
 
 //
 // Radial Basis Function Fitting
+//  Note: Gradient Descent on L1 Metric
 //
 
 __global__ void _rbf_fit_init(buffer_t<float> weight_b, buffer_t<vec2> centroid_b, const soil::buffer_t<vec3> data_b){
@@ -99,7 +100,7 @@ __global__ void _rbf_fit_delta(buffer_t<float> weight_b, buffer_t<vec2> centroid
   }
 
   delta_b[n] = (val - data.z);
-  
+
 }
 
 __global__ void _rbf_fit_update(buffer_t<float> weight_b, const buffer_t<float> delta_b, const float lrate){
