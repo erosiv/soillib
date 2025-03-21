@@ -85,18 +85,29 @@ __global__ void _rbf_fit_init(buffer_t<float> weight_b, buffer_t<vec2> centroid_
   
 }
 
-__global__ void _rbf_fit_update(const buffer_t<float> value_b, const soil::buffer_t<vec3> data_b, buffer_t<float> weight_b, const float lrate){
+__global__ void _rbf_fit_delta(buffer_t<float> weight_b, buffer_t<vec2> centroid_b, const soil::buffer_t<vec3> data_b, buffer_t<float> delta_b, const float shape){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= data_b.elem()) return;
 
   const vec3 data = data_b[n];
-  const float w = weight_b[n];
-  const float est = value_b[n];
-  const float act = data_b[n].z;
-  const float err = (est - act);//*(est - act); 
-  weight_b[n] -= lrate * err;
+  const vec2 pos(data.x, data.y);
+
+  float val = 0.0f;
+  for(int k = 0; k < weight_b.elem(); ++k){
+    val += weight_b[k] * rbf::func(glm::length(centroid_b[k] - pos), shape);
+  }
+
+  delta_b[n] = (val - data.z);
   
+}
+
+__global__ void _rbf_fit_update(buffer_t<float> weight_b, const buffer_t<float> delta_b, const float lrate){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= weight_b.elem()) return;
+  weight_b[n] -= lrate * delta_b[n];
+
 }
 
 void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
@@ -107,9 +118,11 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
   this->pos = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
   _rbf_fit_init<<<block(elem, 1024), 1024>>>(this->weights, this->pos, data);
 
+  auto delta = soil::buffer_t<float>(elem, soil::host_t::GPU);
+
   for(size_t i = 0; i < steps; i++){
-    const auto values = this->sample(this->pos); // evaluate at positions
-    _rbf_fit_update<<<block(elem, 1024), 1024>>>(values, data, this->weights, this->lrate);
+    _rbf_fit_delta<<<block(elem, 1024), 1024>>>(this->weights, this->pos, data, delta, this->shape);
+    _rbf_fit_update<<<block(elem, 1024), 1024>>>(this->weights, delta, this->lrate);
   }
 
 }
