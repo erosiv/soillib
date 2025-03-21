@@ -18,6 +18,7 @@ namespace nb = nanobind;
 #include <soillib/op/math.hpp>
 #include <soillib/op/erosion.hpp>
 #include <soillib/op/pointcloud.hpp>
+#include <soillib/op/rbf.hpp>
 
 #include <iostream>
 
@@ -253,6 +254,20 @@ module.def("pointcloud_normal", [](const soil::buffer& height, const soil::buffe
 
 module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
   soil::pointcloud_scale(buffer, index, scale);
+});
+
+//
+// Radial Basis Functions
+//
+
+auto rbf_t = nb::class_<soil::rbf>(module, "rbf");
+rbf_t.def(nb::init<>());
+rbf_t.def("sample", [](const soil::rbf& rbf, const soil::index& index){
+  return soil::buffer(rbf.sample(index));
+});
+rbf_t.def("fit", [](soil::rbf& rbf, const soil::buffer& buffer, const size_t steps){
+  const auto buffer_t = buffer.as<soil::vec3>();
+  rbf.fit(buffer_t, steps);
 });
 
 }

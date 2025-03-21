@@ -23,6 +23,7 @@ install(DIRECTORY ${SOILLIB_DIR} DESTINATION include)
 
 # Build and Install Library
 target_include_directories(soil PRIVATE
+  ${CMAKE_SOURCE_DIR}/source
   ${CUDA_INCLUDE_DIRS}    # For cuda_runtime.h
 )
 
@@ -33,6 +34,7 @@ target_sources(soil PUBLIC
   ${CMAKE_SOURCE_DIR}/source/soillib/op/math.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/common.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/pointcloud.cu
+  ${CMAKE_SOURCE_DIR}/source/soillib/op/rbf.cu
 )
 
 install(
