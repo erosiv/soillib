@@ -143,6 +143,26 @@ buffer_t<float> soil::rbf::sample(const index& index) const {
 
 namespace {
 
+//! Compute the Deviation at the Data-Points
+__global__ void rbf_error(const soil::buffer_t<vec3> data_b, const rbf rbf, buffer_t<float> error_b){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= data_b.elem()) return;
+
+  const size_t K = rbf.elem;
+  const vec3 data = data_b[n];
+  const vec2 pos(data.x, data.y);
+
+  float val = 0.0f;
+  for(int k = 0; k < K; ++k){
+    const vec2 center = rbf.centers[k];
+    val += rbf.weights[k] * rbf::func(glm::length(center - pos), rbf.shape);
+  }
+
+  error_b[n] =  val - data_b[n].z;
+
+}
+
 __global__ void rbf_matrix(const flat_t<2> shape, const buffer_t<vec2> center_b, const soil::buffer_t<vec3> data_b, buffer_t<float> matrix_b, const float shapef){
 
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -160,26 +180,7 @@ __global__ void rbf_matrix(const flat_t<2> shape, const buffer_t<vec2> center_b,
 
 }
 
-//! Launch with the Number of Components in out_b
-__global__ void rbf_matvec(const flat_t<2> shape, const buffer_t<float> matrix_b, const buffer_t<float> vector_b, buffer_t<float> out_b, const soil::buffer_t<vec3> data_b){
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= out_b.elem()) return;
-
-  const size_t N = shape[0];
-  const size_t K = shape[1];
-
-  float val = 0.0f;
-  for(int k = 0; k < K; ++k){
-    const int i = shape.flatten(ivec2(n, k));
-    val += vector_b[k] * matrix_b[i];
-  }
-
-  out_b[n] = val - data_b[n].z;
-
-}
-
-__global__ void rbf_matvecT(const flat_t<2> shape, const buffer_t<float> matrix_b, const buffer_t<float> vector_b, buffer_t<float> out_b){
+__global__ void rbf_matvec(const flat_t<2> shape, const buffer_t<float> matrix_b, const buffer_t<float> vector_b, buffer_t<float> out_b){
 
   const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= out_b.elem()) return;
@@ -205,21 +206,32 @@ __global__ void rbf_descend(buffer_t<float> value_b, const buffer_t<float> delta
 
 }
 
+// Fit the radial basis function set to the data
+//  This uses a gradient-descent approach to fit the data.
+//  An error function is first computed, the matrices which
+//  convert the error function into the correct gradient to
+//  descend the parameters along.
+//
 void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
-  const size_t N = data.elem();
-  const size_t K = this->elem;
-  const flat_t<2> shape({N, K});
+  const size_t N = data.elem();   // Number of Data-Points
+  const size_t K = this->elem;    // Number of Representation Points
 
+  // Deviation Function
+  auto error = soil::buffer_t<float>(N, soil::host_t::GPU);
+
+  // 
+  const flat_t<2> shape({N, K});
   auto matrix = soil::buffer_t<float>(shape.elem(), soil::host_t::GPU);
-  auto adiff = soil::buffer_t<float>(N, soil::host_t::GPU); // Approximation Difference
   auto delta = soil::buffer_t<float>(K, soil::host_t::GPU); // Descent Delta
   rbf_matrix<<<block(shape.elem(), 1024), 1024>>>(shape, this->centers, data, matrix, this->shape);
 
   for(size_t i = 0; i < steps; i++){
 
-    rbf_matvec<<<block(N, 1024), 1024>>>(shape, matrix, this->weights, adiff, data);
-    rbf_matvecT<<<block(K, 1024), 1024>>>(shape, matrix, adiff, delta);
+    rbf_error<<<block(N, 1024), 1024>>>(data, *this, error);
+
+    // 
+    rbf_matvec<<<block(K, 1024), 1024>>>(shape, matrix, error, delta);
     rbf_descend<<<block(elem, 1024), 1024>>>(this->weights, delta, this->lrate);
   
   }
