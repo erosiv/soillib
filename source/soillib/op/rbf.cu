@@ -85,30 +85,32 @@ void rbf::init(const index& index, const size_t N){
 
 }
 
-//! Sample Function Implementation
-//!  Note: This utilizes all points, when in reality
-//!  only points within a certain radius have to be
-//!  considered for a certain amount of accuracy.
-//!  This requires implementation of an acceleration structure.
 //
-__device__ float _rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, const vec2 p, const float shape){
+// Radial Basis Function Sampling
+//
+
+namespace {
+
+__device__ float rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, const buffer_t<float>& s, const vec2 p){
   float val = 0.0f;
   for(int k = 0; k < w.elem(); ++k){
-    val += w[k] * rbf::func(glm::length(c[k] - p), shape);
+    val += w[k] * rbf::func(w[k], glm::length(c[k] - p), s[k]);
   }
   return val;
 }
 
-//
-// Simple Radial Basis Function Sampling
-//
-
-// Position-Buffer based Sampling
-
-__global__ void _rbf_sample(const buffer_t<float> weight_b, const buffer_t<vec2> centroid_b, soil::buffer_t<float> val_b, const soil::buffer_t<vec2> pos, const float shape){
+__global__ void _rbf_sample(const rbf rbf, const soil::buffer_t<vec2> pos, soil::buffer_t<float> val_b){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= pos.elem()) return;
-  val_b[n] = _rbf_sample(weight_b, centroid_b, pos[n], shape);
+  val_b[n] = rbf_sample(rbf.weights, rbf.centers, rbf.shapes, pos[n]);
+}
+
+__global__ void _rbf_sample(const rbf rbf, const soil::flat_t<2> index, soil::buffer_t<float> val_b){
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= index.elem()) return;
+  val_b[n] = rbf_sample(rbf.weights, rbf.centers, rbf.shapes, index.unflatten(n));
+}
+
 }
 
 buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos) const {
@@ -116,17 +118,9 @@ buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos) const {
   auto output = soil::buffer_t<float>(pos.elem(), soil::host_t::GPU);
   const size_t elem = pos.elem();
 
-  _rbf_sample<<<block(elem, 1024), 1024>>>(this->weights, this->centers, output, pos, this->shape);
+  _rbf_sample<<<block(elem, 1024), 1024>>>(*this, pos, output);
   return output;
 
-}
-
-// Index Based Sampling (Full Shape)
-
-__global__ void _rbf_sample(const buffer_t<float> weight_b, const buffer_t<vec2> centroid_b, soil::buffer_t<float> val_b, const soil::flat_t<2> index, const float shape){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= index.elem()) return;
-  val_b[n] = _rbf_sample(weight_b, centroid_b, index.unflatten(n), shape);
 }
 
 buffer_t<float> soil::rbf::sample(const index& index) const {
@@ -135,7 +129,7 @@ buffer_t<float> soil::rbf::sample(const index& index) const {
   auto output = soil::buffer_t<float>(index.elem(), soil::host_t::GPU);
   const size_t elem = index_t.elem();
 
-  _rbf_sample<<<block(elem, 1024), 1024>>>(this->weights, this->centers, output, index_t, this->shape);
+  _rbf_sample<<<block(elem, 1024), 1024>>>(*this, index_t, output);
   return output;
 
 }
@@ -159,17 +153,22 @@ __global__ void rbf_error(const soil::buffer_t<vec3> data_b, const rbf rbf, buff
 
   float val = 0.0f;
   for(int k = 0; k < K; ++k){
-    const vec2 center = rbf.centers[k];
-    val += rbf.weights[k] * rbf::func(glm::length(center - pos), rbf.shapes[k]);
+
+    const vec2 c = rbf.centers[k];
+    const float w = rbf.weights[k];
+    const float s = rbf.shapes[k];
+    const float r = glm::length(c - pos);
+    val += w * rbf::func(w, r, s);
+  
   }
 
   error_b[n] =  val - data_b[n].z;
 
 }
 
-__device__ float grad_weights(const rbf& rbf, const vec2 pos, const vec2 center, const float shape){
-  return rbf::func(glm::length(center - pos), shape);
-}
+//
+// Gradient Implementations
+//
 
 __global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
 
@@ -180,15 +179,51 @@ __global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_
   float val = 0.0f;
 
   for(int n = 0; n < N; ++n){
-    // apply the gradient of the objective function wrt. weights!
-    // note the downcast from vec2 to vec3 here
-    const float grad = grad_weights(rbf, data_b[n], rbf.centers[k], rbf.shapes[k]);
-    val += grad * error_b[n];
+
+    const float r = glm::length(rbf.centers[k] - vec2(data_b[n]));
+    const float s = rbf.shapes[k];
+    const float grad_n = rbf::func(1.0f, r, s);
+    val += grad_n * error_b[n];
+
   }
   
   out_b[k] = val;
 
 }
+
+__device__ float grad_shapes(const rbf& rbf, const vec2 pos, const vec2 center, const float shape){
+  return rbf::func(1.0f, glm::length(center - pos), shape);
+}
+
+__global__ void rbf_grad_shapes(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
+
+  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= out_b.elem()) return;
+
+  const size_t N = error_b.elem();
+  float val = 0.0f;
+
+  for(int n = 0; n < N; ++n){
+
+    // 
+    // apply the gradient of the objective function wrt. weights!
+    // note the downcast from vec2 to vec3 here
+    const float r = glm::length(rbf.centers[k] - vec2(data_b[n]));
+    const float s = rbf.shapes[k];
+    const float grad_n = - rbf.weights[k] * 2 * s * r * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s);
+    
+    // Add Gradient
+    val += grad_n * error_b[n];
+
+  }
+  
+  out_b[k] = val;
+
+}
+
+//
+// Descent Application
+//
 
 __global__ void rbf_descend(buffer_t<float> value_b, const buffer_t<float> delta_b, const float lrate){
   const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
@@ -214,17 +249,33 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
   // Gradient Vectors
   auto delta_weights = soil::buffer_t<float>(this->weights.elem(), soil::host_t::GPU);
+  auto delta_shapes = soil::buffer_t<float>(this->shapes.elem(), soil::host_t::GPU);
 
   for(size_t i = 0; i < steps; i++){
+
+    std::cout<<"Iteration "<<i<<std::endl;
 
     // Compute the Solution Deviation from Datapoints
     rbf_error<<<block(N, 1024), 1024>>>(data, *this, error);
 
     // Compute the Gradients wrt. the Parameters, Multiplied by Error
+
     rbf_grad_weights<<<block(this->weights.elem(), 1024), 1024>>>(*this, data, error, delta_weights);
-    rbf_descend<<<block(elem, 1024), 1024>>>(this->weights, delta_weights, this->lrate);
-  
+    //rbf_grad_shapes<<<block(this->shapes.elem(), 1024), 1024>>>(*this, data, error, delta_shapes);
+    
+    // Compute the Gradients wrt. the
+    rbf_descend<<<block(K, 1024), 1024>>>(this->weights, delta_weights, this->lrate);
+    //rbf_descend<<<block(K, 1024), 1024>>>(this->shapes, delta_shapes, 100.0f * this->lrate);
+
   }
+
+  rbf_error<<<block(N, 1024), 1024>>>(data, *this, error);
+  error.to_cpu();
+  float total_error = 0.0f;
+  for(size_t i = 0; i < error.elem(); ++i){
+    total_error += error[i] * error[i];
+  }
+  std::cout<<"TOTAL ERROR: "<<total_error<<std::endl;
 
 }
 

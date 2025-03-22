@@ -38,15 +38,20 @@ struct rbf {
   float lrate = 0.01f;
   float shape = 1.0f;
 
-  //! Note: Make differentiable for Gradient-Descent
-  GPU_ENABLE static float func(const float dist, const float shape){
-    return 1.0f / ( 1.0f + (shape * dist) * (shape * dist) );
-  }
-  
   size_t elem = 0;          //!< Number of Components
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<float> shapes;   //!< Interpolation Shape Parameters
   buffer_t<vec2> centers;   //!< Interpolation Centers
+
+  //
+  // Basis Function Implementation
+  //
+
+  GPU_ENABLE static float func(const float w, const float r, const float s){
+    return 1.0f/(1.0f+(s*s*r*r));
+  }
+  
+
 };
 
 }
