@@ -45,6 +45,7 @@ struct rbf {
   
   size_t elem = 0;          //!< Number of Components
   buffer_t<float> weights;  //!< Interpolation Weights
+  buffer_t<float> shapes;   //!< Interpolation Shape Parameters
   buffer_t<vec2> centers;   //!< Interpolation Centers
 };
 

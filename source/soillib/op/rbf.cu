@@ -31,20 +31,22 @@ __global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size
   curand_init(seed, n, offset, &buffer[n]);
 }
 
-__global__ void rbf_init(buffer_t<float> weight_b, buffer_t<vec2> center_b, const soil::buffer_t<vec3> data_b){
+__global__ void rbf_init(rbf rbf, const soil::buffer_t<vec3> data_b){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= data_b.elem()) return;
   const vec3 data = data_b[n];
-  weight_b[n] = 0.0f;
-  center_b[n] = vec2(data.x, data.y);
+  rbf.weights[n] = 0.0f;
+  rbf.shapes[n] = rbf.shape;
+  rbf.centers[n] = vec2(data.x, data.y);
 }
 
-__global__ void rbf_init(buffer_t<float> weight_b, buffer_t<vec2> center_b, buffer_t<curandState> rand, const flat_t<2> index){
+__global__ void rbf_init(rbf rbf, buffer_t<curandState> rand, const flat_t<2> index){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rand.elem()) return;
   curandState* randState = &rand[n];
-  weight_b[n] = 0.0f;
-  center_b[n] = vec2 {
+  rbf.weights[n] = 0.0f;
+  rbf.shapes[n] = rbf.shape;
+  rbf.centers[n] = vec2 {
     curand_uniform(randState)*float(index[0]-1),
     curand_uniform(randState)*float(index[1]-1)
   };
@@ -57,10 +59,11 @@ void rbf::init(const buffer_t<vec3>& data){
   const size_t elem = data.elem();
   this->elem = elem;
 
+  this->shapes = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
 
-  rbf_init<<<block(elem, 1024), 1024>>>(this->weights, this->centers, data);
+  rbf_init<<<block(elem, 1024), 1024>>>(*this, data);
 
 }
 
@@ -69,6 +72,7 @@ void rbf::init(const index& index, const size_t N){
   const size_t elem = N;
   this->elem = elem;
 
+  this->shapes = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
 
@@ -77,7 +81,7 @@ void rbf::init(const index& index, const size_t N){
   cudaDeviceSynchronize();
 
   auto index_t = index.as<flat_t<2>>();
-  rbf_init<<<block(elem, 1024), 1024>>>(this->weights, this->centers, rand, index_t);
+  rbf_init<<<block(elem, 1024), 1024>>>(*this, rand, index_t);
 
 }
 
@@ -156,15 +160,15 @@ __global__ void rbf_error(const soil::buffer_t<vec3> data_b, const rbf rbf, buff
   float val = 0.0f;
   for(int k = 0; k < K; ++k){
     const vec2 center = rbf.centers[k];
-    val += rbf.weights[k] * rbf::func(glm::length(center - pos), rbf.shape);
+    val += rbf.weights[k] * rbf::func(glm::length(center - pos), rbf.shapes[k]);
   }
 
   error_b[n] =  val - data_b[n].z;
 
 }
 
-__device__ float grad_weights(const rbf& rbf, const vec2 pos, const vec2 center){
-  return rbf::func(glm::length(center - pos), rbf.shape);
+__device__ float grad_weights(const rbf& rbf, const vec2 pos, const vec2 center, const float shape){
+  return rbf::func(glm::length(center - pos), shape);
 }
 
 __global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
@@ -178,7 +182,7 @@ __global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_
   for(int n = 0; n < N; ++n){
     // apply the gradient of the objective function wrt. weights!
     // note the downcast from vec2 to vec3 here
-    const float grad = grad_weights(rbf, data_b[n], rbf.centers[k]);
+    const float grad = grad_weights(rbf, data_b[n], rbf.centers[k], rbf.shapes[k]);
     val += grad * error_b[n];
   }
   
