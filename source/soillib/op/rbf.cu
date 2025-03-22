@@ -6,13 +6,16 @@
 #include <soillib/op/rbf.hpp>
 #include <soillib/op/common.hpp>
 
-// Radial Basis Function Interpolator
-// 1. Fit the Weight-Set from a set of Values, Positions
-//  1.1 For Different Interpolator Types
-//  1.2 Allow for Shape-Parameter Optimization as well?
-// 2. Compute the Values from a Weight-Set, Positions
-//  Kernelize this for Performance
-//  Obviously, implement the gradient of this as well.
+// Radial Basis Function Interpolator:
+//  Supports Fitting of Data-Points with Non-Aligned Centroids,
+//  as well as data sampling.
+//
+// Next Steps:
+//  Implement gradient-descent for the centroid positions as well.
+//  This should improve the quality of the fit tremendously.
+//  Finally, implement the shape function gradient as well. 
+//  As long as the number of centroids is less than the number of
+//  data points, this convergence should be stable.
 
 namespace soil {
 
