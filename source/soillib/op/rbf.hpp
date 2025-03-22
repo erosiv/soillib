@@ -48,9 +48,16 @@ struct rbf {
   //
 
   GPU_ENABLE static float func(const float w, const float r, const float s){
-    return 1.0f/(1.0f+(s*s*r*r));
+    return w / ( 1.0f + (s*s*r*r) );
   }
   
+  GPU_ENABLE static float grad_w(const float w, const float r, const float s){
+    return 1.0f / ( 1.0f + (s*s*r*r) );
+  }
+
+  GPU_ENABLE static float grad_s(const float w, const float r, const float s){
+    return - w * 2 * s * r * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s);
+  }
 
 };
 

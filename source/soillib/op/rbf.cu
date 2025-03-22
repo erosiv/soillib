@@ -94,7 +94,7 @@ namespace {
 __device__ float rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, const buffer_t<float>& s, const vec2 p){
   float val = 0.0f;
   for(int k = 0; k < w.elem(); ++k){
-    val += w[k] * rbf::func(w[k], glm::length(c[k] - p), s[k]);
+    val += rbf::func(w[k], glm::length(c[k] - p), s[k]);
   }
   return val;
 }
@@ -158,7 +158,7 @@ __global__ void rbf_error(const soil::buffer_t<vec3> data_b, const rbf rbf, buff
     const float w = rbf.weights[k];
     const float s = rbf.shapes[k];
     const float r = glm::length(c - pos);
-    val += w * rbf::func(w, r, s);
+    val += rbf::func(w, r, s);
   
   }
 
@@ -176,23 +176,20 @@ __global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_
   if(k >= out_b.elem()) return;
 
   const size_t N = error_b.elem();
-  float val = 0.0f;
 
+  float val = 0.0f;
   for(int n = 0; n < N; ++n){
 
-    const float r = glm::length(rbf.centers[k] - vec2(data_b[n]));
+    const vec2 c = rbf.centers[k];
+    const float w = rbf.weights[k];
     const float s = rbf.shapes[k];
-    const float grad_n = rbf::func(1.0f, r, s);
-    val += grad_n * error_b[n];
+    const float r = glm::length(c - vec2(data_b[n]));
+    val += error_b[n] * rbf::grad_w(w, r, s);
 
   }
   
   out_b[k] = val;
 
-}
-
-__device__ float grad_shapes(const rbf& rbf, const vec2 pos, const vec2 center, const float shape){
-  return rbf::func(1.0f, glm::length(center - pos), shape);
 }
 
 __global__ void rbf_grad_shapes(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
@@ -205,15 +202,11 @@ __global__ void rbf_grad_shapes(const rbf rbf, const soil::buffer_t<vec3> data_b
 
   for(int n = 0; n < N; ++n){
 
-    // 
-    // apply the gradient of the objective function wrt. weights!
-    // note the downcast from vec2 to vec3 here
-    const float r = glm::length(rbf.centers[k] - vec2(data_b[n]));
+    const vec2 c = rbf.centers[k];
+    const float w = rbf.weights[k];
     const float s = rbf.shapes[k];
-    const float grad_n = - rbf.weights[k] * 2 * s * r * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s);
-    
-    // Add Gradient
-    val += grad_n * error_b[n];
+    const float r = glm::length(c - vec2(data_b[n]));
+    val += error_b[n] * rbf::grad_s(w, r, s);
 
   }
   
