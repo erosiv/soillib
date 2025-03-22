@@ -70,6 +70,9 @@ void rbf::init(const index& index, const size_t N){
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
 
   auto rand = soil::buffer_t<curandState>(elem, soil::host_t::GPU);
+  seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
+  cudaDeviceSynchronize();
+
   auto index_t = index.as<flat_t<2>>();
   rbf_init<<<block(elem, 1024), 1024>>>(this->weights, this->centers, rand, index_t);
 
