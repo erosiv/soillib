@@ -35,13 +35,15 @@ struct rbf {
 
   // Parameters
 
-  float lrate = 0.01f;
   float shape = 1.0f;
-
   size_t elem = 0;          //!< Number of Components
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<float> shapes;   //!< Interpolation Shape Parameters
   buffer_t<vec2> centers;   //!< Interpolation Centers
+  
+  float lrate_w = 0.01f;
+  float lrate_s = 0.01f;
+  float lrate_c = 0.01f;
 
   //
   // Basis Function Implementation
@@ -57,6 +59,11 @@ struct rbf {
 
   GPU_ENABLE static float grad_s(const float w, const float r, const float s){
     return - w * 2 * s * r * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s);
+  }
+
+  GPU_ENABLE static vec2 grad_c(const float w, const vec2 d, const float s){
+    const float r = glm::length(d);
+    return - w * 2 * s * s * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s) * d;
   }
 
 };

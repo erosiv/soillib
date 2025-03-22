@@ -214,11 +214,33 @@ __global__ void rbf_grad_shapes(const rbf rbf, const soil::buffer_t<vec3> data_b
 
 }
 
+__global__ void rbf_grad_centers(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<vec2> out_b){
+
+  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= out_b.elem()) return;
+
+  const size_t N = error_b.elem();
+  vec2 val(0.0f);
+
+  for(int n = 0; n < N; ++n){
+
+    const vec2 c = rbf.centers[k];
+    const float w = rbf.weights[k];
+    const float s = rbf.shapes[k];
+    val += error_b[n] * rbf::grad_c(w, c - vec2(data_b[n]), s);
+
+  }
+  
+  out_b[k] = val;
+
+}
+
 //
 // Descent Application
 //
 
-__global__ void rbf_descend(buffer_t<float> value_b, const buffer_t<float> delta_b, const float lrate){
+template<typename T>
+__global__ void rbf_descend(buffer_t<T> value_b, const buffer_t<T> delta_b, const float lrate){
   const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= value_b.elem()) return;
   value_b[k] -= lrate * delta_b[k];
@@ -243,6 +265,7 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
   // Gradient Vectors
   auto delta_weights = soil::buffer_t<float>(this->weights.elem(), soil::host_t::GPU);
   auto delta_shapes = soil::buffer_t<float>(this->shapes.elem(), soil::host_t::GPU);
+//  auto delta_centers = soil::buffer_t<vec2>(this->centers.elem(), soil::host_t::GPU);
 
   for(size_t i = 0; i < steps; i++){
 
@@ -253,12 +276,24 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
     // Compute the Gradients wrt. the Parameters, Multiplied by Error
 
-    rbf_grad_weights<<<block(this->weights.elem(), 1024), 1024>>>(*this, data, error, delta_weights);
-    //rbf_grad_shapes<<<block(this->shapes.elem(), 1024), 1024>>>(*this, data, error, delta_shapes);
+    if(this->lrate_w != 0.0f)
+      rbf_grad_weights<<<block(K, 1024), 1024>>>(*this, data, error, delta_weights);
     
+    if(this->lrate_s != 0.0f)
+      rbf_grad_shapes<<<block(K, 1024), 1024>>>(*this, data, error, delta_shapes);
+    
+//    if(this->lrate_c != 0.0f)
+//      rbf_grad_centers<<<block(K, 1024), 1024>>>(*this, data, error, delta_centers);
+
     // Compute the Gradients wrt. the
-    rbf_descend<<<block(K, 1024), 1024>>>(this->weights, delta_weights, this->lrate);
-    //rbf_descend<<<block(K, 1024), 1024>>>(this->shapes, delta_shapes, 100.0f * this->lrate);
+    if(this->lrate_w != 0.0f)
+      rbf_descend<<<block(K, 1024), 1024>>>(this->weights, delta_weights, this->lrate_w);
+
+    if(this->lrate_s != 0.0f)
+      rbf_descend<<<block(K, 1024), 1024>>>(this->shapes, delta_shapes, this->lrate_s);
+
+//    if(this->lrate_c != 0.0f)
+//      rbf_descend<<<block(K, 1024), 1024>>>(this->centers, delta_centers, this->lrate_c);
 
   }
 

@@ -272,7 +272,9 @@ rbf_t.def("init", [](soil::rbf& rbf, const soil::buffer& buffer){
   rbf.init(buffer_t);
 });
 
-rbf_t.def_rw("lrate", &soil::rbf::lrate);
+rbf_t.def_rw("lrate_w", &soil::rbf::lrate_w);
+rbf_t.def_rw("lrate_s", &soil::rbf::lrate_s);
+rbf_t.def_rw("lrate_c", &soil::rbf::lrate_c);
 rbf_t.def_rw("shape", &soil::rbf::shape);
 
 rbf_t.def("sample", [](const soil::rbf& rbf, const soil::index& index){
