@@ -166,10 +166,28 @@ __global__ void rbf_matvec(const flat_t<2> shape, const buffer_t<float> matrix_b
   float val = 0.0f;
   for(int k = 0; k < K; ++k){
     const int i = shape.flatten(ivec2(n, k));
-    val += vector_b[k]*matrix_b[i];
+    val += vector_b[k] * matrix_b[i];
   }
 
   out_b[n] = val - data_b[n].z;
+
+}
+
+__global__ void rbf_matvecT(const flat_t<2> shape, const buffer_t<float> matrix_b, const buffer_t<float> vector_b, buffer_t<float> out_b){
+
+  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= out_b.elem()) return;
+
+  const size_t N = shape[0];
+  const size_t K = shape[1];
+
+  float val = 0.0f;
+  for(int n = 0; n < N; ++n){
+    const int i = shape.flatten(ivec2(n, k));
+    val += vector_b[n] * matrix_b[i];
+  }
+  
+  out_b[k] = val;
 
 }
 
@@ -194,7 +212,8 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
   for(size_t i = 0; i < steps; i++){
 
-    rbf_matvec<<<block(N, 1024), 1024>>>(shape, matrix, this->weights, delta, data);
+    rbf_matvec<<<block(N, 1024), 1024>>>(shape, matrix, this->weights, adiff, data);
+    rbf_matvecT<<<block(K, 1024), 1024>>>(shape, matrix, adiff, delta);
     rbf_descend<<<block(elem, 1024), 1024>>>(this->weights, delta, this->lrate);
   
   }
