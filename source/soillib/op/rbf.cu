@@ -50,19 +50,29 @@ __global__ void rbf_init(buffer_t<float> weight_b, buffer_t<vec2> center_b, buff
 }
 
 void rbf::init(const buffer_t<vec3>& data){
+
   const size_t elem = data.elem();
+  this->elem = elem;
+
   this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
+
   rbf_init<<<block(elem, 1024), 1024>>>(this->weights, this->centers, data);
+
 }
 
 void rbf::init(const index& index, const size_t N){
+
   const size_t elem = N;
+  this->elem = elem;
+
   this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
+
   auto rand = soil::buffer_t<curandState>(elem, soil::host_t::GPU);
   auto index_t = index.as<flat_t<2>>();
   rbf_init<<<block(elem, 1024), 1024>>>(this->weights, this->centers, rand, index_t);
+
 }
 
 //! Sample Function Implementation
@@ -125,7 +135,7 @@ buffer_t<float> soil::rbf::sample(const index& index) const {
 //  Note: Gradient Descent on L1 Metric
 //
 
-__global__ void _rbf_fit_delta(buffer_t<float> weight_b, buffer_t<vec2> centroid_b, const soil::buffer_t<vec3> data_b, buffer_t<float> delta_b, const float shape){
+__global__ void _rbf_fit_delta(const buffer_t<float> weight_b, const buffer_t<vec2> center_b, const soil::buffer_t<vec3> data_b, buffer_t<float> delta_b, const float shape){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= data_b.elem()) return;
@@ -135,7 +145,7 @@ __global__ void _rbf_fit_delta(buffer_t<float> weight_b, buffer_t<vec2> centroid
 
   float val = 0.0f;
   for(int k = 0; k < weight_b.elem(); ++k){
-    val += weight_b[k] * rbf::func(glm::length(centroid_b[k] - pos), shape);
+    val += weight_b[k] * rbf::func(glm::length(center_b[k] - pos), shape);
   }
 
   delta_b[n] = (val - data.z);
@@ -152,7 +162,7 @@ __global__ void _rbf_fit_update(buffer_t<float> weight_b, const buffer_t<float> 
 
 void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
-  const size_t elem = data.elem();
+  const size_t elem = this->elem;
   auto delta = soil::buffer_t<float>(elem, soil::host_t::GPU);
 
   for(size_t i = 0; i < steps; i++){

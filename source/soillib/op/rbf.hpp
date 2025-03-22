@@ -44,6 +44,7 @@ struct rbf {
   }
   
 private:
+  size_t elem = 0;          //!< Number of Components
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<vec2> centers;   //!< Interpolation Centers
 };
