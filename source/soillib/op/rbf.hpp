@@ -21,10 +21,10 @@ namespace soil {
 //!
 struct rbf {
 
-  //! Note: Make differentiable for Gradient-Descent
-  GPU_ENABLE static float func(const float dist, const float shape){
-    return 1.0f / ( 1.0f + (shape * dist) * (shape * dist) );
-  }
+  // rbf centroid initialization
+
+  void init(const buffer_t<vec3>& data);          //!< Initialize Centroids from Pointcloud
+  void init(const index& index, const size_t N);  //!< Initialize Centroids Randomly
 
   buffer_t<float> sample(const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions  
   buffer_t<float> sample(const index& index) const;         //!< Sample the RBF for a full Index
@@ -38,9 +38,14 @@ struct rbf {
   float lrate = 0.01f;
   float shape = 1.0f;
 
+  //! Note: Make differentiable for Gradient-Descent
+  GPU_ENABLE static float func(const float dist, const float shape){
+    return 1.0f / ( 1.0f + (shape * dist) * (shape * dist) );
+  }
+  
 private:
   buffer_t<float> weights;  //!< Interpolation Weights
-  buffer_t<vec2> pos;       //!< Positions
+  buffer_t<vec2> centers;   //!< Interpolation Centers
 };
 
 }
