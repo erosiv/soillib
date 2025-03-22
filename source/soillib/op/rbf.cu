@@ -135,39 +135,68 @@ buffer_t<float> soil::rbf::sample(const index& index) const {
 //  Note: Gradient Descent on L1 Metric
 //
 
-__global__ void _rbf_fit_delta(const buffer_t<float> weight_b, const buffer_t<vec2> center_b, const soil::buffer_t<vec3> data_b, buffer_t<float> delta_b, const float shape){
+namespace {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= data_b.elem()) return;
+__global__ void rbf_matrix(const flat_t<2> shape, const buffer_t<vec2> center_b, const soil::buffer_t<vec3> data_b, buffer_t<float> matrix_b, const float shapef){
 
+  const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if(i >= matrix_b.elem()) return;
+
+  const ivec2 ind = shape.unflatten(i);
+  const size_t n = ind[0];
+  const size_t k = ind[1];
+  
   const vec3 data = data_b[n];
-  const vec2 pos(data.x, data.y);
+  const vec2 ctr = center_b[k];
+  const vec2 pos = vec2(data.x, data.y);
 
-  float val = 0.0f;
-  for(int k = 0; k < weight_b.elem(); ++k){
-    val += weight_b[k] * rbf::func(glm::length(center_b[k] - pos), shape);
-  }
-
-  delta_b[n] = (val - data.z);
+  matrix_b[i] = rbf::func(glm::length(ctr - pos), shapef);
 
 }
 
-__global__ void _rbf_fit_update(buffer_t<float> weight_b, const buffer_t<float> delta_b, const float lrate){
+//! Launch with the Number of Components in out_b
+__global__ void rbf_matvec(const flat_t<2> shape, const buffer_t<float> matrix_b, const buffer_t<float> vector_b, buffer_t<float> out_b, const soil::buffer_t<vec3> data_b){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= weight_b.elem()) return;
-  weight_b[n] -= lrate * delta_b[n];
+  if(n >= out_b.elem()) return;
+
+  const size_t N = shape[0];
+  const size_t K = shape[1];
+
+  float val = 0.0f;
+  for(int k = 0; k < K; ++k){
+    const int i = shape.flatten(ivec2(n, k));
+    val += vector_b[k]*matrix_b[i];
+  }
+
+  out_b[n] = val - data_b[n].z;
+
+}
+
+__global__ void rbf_descend(buffer_t<float> value_b, const buffer_t<float> delta_b, const float lrate){
+  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if(k >= value_b.elem()) return;
+  value_b[k] -= lrate * delta_b[k];
+}
 
 }
 
 void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
 
-  const size_t elem = this->elem;
-  auto delta = soil::buffer_t<float>(elem, soil::host_t::GPU);
+  const size_t N = data.elem();
+  const size_t K = this->elem;
+  const flat_t<2> shape({N, K});
+
+  auto matrix = soil::buffer_t<float>(shape.elem(), soil::host_t::GPU);
+  auto adiff = soil::buffer_t<float>(N, soil::host_t::GPU); // Approximation Difference
+  auto delta = soil::buffer_t<float>(K, soil::host_t::GPU); // Descent Delta
+  rbf_matrix<<<block(shape.elem(), 1024), 1024>>>(shape, this->centers, data, matrix, this->shape);
 
   for(size_t i = 0; i < steps; i++){
-    _rbf_fit_delta<<<block(elem, 1024), 1024>>>(this->weights, this->centers, data, delta, this->shape);
-    _rbf_fit_update<<<block(elem, 1024), 1024>>>(this->weights, delta, this->lrate);
+
+    rbf_matvec<<<block(N, 1024), 1024>>>(shape, matrix, this->weights, delta, data);
+    rbf_descend<<<block(elem, 1024), 1024>>>(this->weights, delta, this->lrate);
+  
   }
 
 }
