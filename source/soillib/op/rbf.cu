@@ -163,35 +163,23 @@ __global__ void rbf_error(const soil::buffer_t<vec3> data_b, const rbf rbf, buff
 
 }
 
-__global__ void rbf_matrix(const flat_t<2> shape, const buffer_t<vec2> center_b, const soil::buffer_t<vec3> data_b, buffer_t<float> matrix_b, const float shapef){
-
-  const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if(i >= matrix_b.elem()) return;
-
-  const ivec2 ind = shape.unflatten(i);
-  const size_t n = ind[0];
-  const size_t k = ind[1];
-  
-  const vec3 data = data_b[n];
-  const vec2 ctr = center_b[k];
-  const vec2 pos = vec2(data.x, data.y);
-
-  matrix_b[i] = rbf::func(glm::length(ctr - pos), shapef);
-
+__device__ float grad_weights(const rbf& rbf, const vec2 pos, const vec2 center){
+  return rbf::func(glm::length(center - pos), rbf.shape);
 }
 
-__global__ void rbf_matvec(const flat_t<2> shape, const buffer_t<float> matrix_b, const buffer_t<float> vector_b, buffer_t<float> out_b){
+__global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
 
   const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
   if(k >= out_b.elem()) return;
 
-  const size_t N = shape[0];
-  const size_t K = shape[1];
-
+  const size_t N = error_b.elem();
   float val = 0.0f;
+
   for(int n = 0; n < N; ++n){
-    const int i = shape.flatten(ivec2(n, k));
-    val += vector_b[n] * matrix_b[i];
+    // apply the gradient of the objective function wrt. weights!
+    // note the downcast from vec2 to vec3 here
+    const float grad = grad_weights(rbf, data_b[n], rbf.centers[k]);
+    val += grad * error_b[n];
   }
   
   out_b[k] = val;
@@ -220,19 +208,17 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
   // Deviation Function
   auto error = soil::buffer_t<float>(N, soil::host_t::GPU);
 
-  // 
-  const flat_t<2> shape({N, K});
-  auto matrix = soil::buffer_t<float>(shape.elem(), soil::host_t::GPU);
-  auto delta = soil::buffer_t<float>(K, soil::host_t::GPU); // Descent Delta
-  rbf_matrix<<<block(shape.elem(), 1024), 1024>>>(shape, this->centers, data, matrix, this->shape);
+  // Gradient Vectors
+  auto delta_weights = soil::buffer_t<float>(this->weights.elem(), soil::host_t::GPU);
 
   for(size_t i = 0; i < steps; i++){
 
+    // Compute the Solution Deviation from Datapoints
     rbf_error<<<block(N, 1024), 1024>>>(data, *this, error);
 
-    // 
-    rbf_matvec<<<block(K, 1024), 1024>>>(shape, matrix, error, delta);
-    rbf_descend<<<block(elem, 1024), 1024>>>(this->weights, delta, this->lrate);
+    // Compute the Gradients wrt. the Parameters, Multiplied by Error
+    rbf_grad_weights<<<block(this->weights.elem(), 1024), 1024>>>(*this, data, error, delta_weights);
+    rbf_descend<<<block(elem, 1024), 1024>>>(this->weights, delta_weights, this->lrate);
   
   }
 
