@@ -177,7 +177,7 @@ def main(input):
     index = image.index
     buffer = image.buffer.gpu().torch(index)
 
-    steps = 4096
+    steps = 2048
     layers = []
     tshape = torch.Tensor([index[0], index[1]]).to(device='cuda')
 
@@ -229,16 +229,6 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-#    # Downsample Image
-#
-#    buffer = buffer - rbf.full(index)
-#    pos, val = downsample(buffer, (16, 16))
-#    centers = gencenters(16, tshape)
-#
-#    rbf = RBFLayer(centers.to(device='cuda'))
-#    rbf.fit(pos, val, steps)
-#    layers.append(rbf)
-
     # We have to now attempt to optimize them jointly at higher res
     # or we also try to optimize jointly at current res...
     
@@ -272,17 +262,25 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
+#    buffer = buffer - rbf.full(index)
+#    pos, val = downsample(buffer, (128, 128))
+#    centers = gencenters(64, tshape)
+#
+#    rbf = RBFLayer(centers.to(device='cuda'))
+#    rbf.fit(pos, val, steps)
+#    layers.append(rbf)
+
     '''
     Visualization Code
     '''
 
     buffer = image.buffer.gpu().torch(index)
     rbf = RBFInterpolator(layers)
-    buffer = resize(buffer, (64, 64))
+    buffer = resize(buffer, (128, 128))
     height = buffer.cpu().numpy()
 
     newimage = rbf.full(index)
-    newimage = resize(newimage, (64, 64))
+    newimage = resize(newimage, (128, 128))
     height_new = newimage.cpu().numpy()
 
     vmin = np.min(height)
