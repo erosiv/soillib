@@ -101,45 +101,7 @@ class RBFLayer:
     for param in params:
       param.requires_grad = False
 
-'''
-class RBFInterpolator:
 
-  def __init__(self, index, K):
-    self.layers = [ RBFLayer(index, k) for k in K ]
-
-  def sample(self, pos):
-    approx = torch.full(pos.shape[:-1], 0.0, device='cuda')
-    for layer in self.layers:
-      approx += layer.sample(pos)
-    return approx
-
-  def full(self, index):
-    image = torch.full((index[0], index[1]), 0.0, device='cuda')
-    for layer in self.layers:
-      image += layer.full(index)
-    return image
-
-  def fit(self, pos, val, layer, steps = 2048):
-
-    params = self.layers[layer].params()
-    optimizer = torch.optim.Adam([
-      {'params': [params[0]], 'lr': 1e-2},
-      {'params': [params[1]], 'lr': 1e-2},
-      {'params': [params[2]], 'lr': 1e-3},
-    ])
-
-    with tqdm(range(steps)) as t:
-      for step in t:
-        optimizer.zero_grad()
-        approx = self.sample(pos)
-        loss = torch.mean((val-approx)*(val-approx))
-        loss.backward()
-        optimizer.step()
-        t.set_description(f"Loss ({loss.item()})")
-
-    for param in params:
-      param.requires_grad = False
-'''
 
 class RBFInterpolator:
 
@@ -158,13 +120,40 @@ class RBFInterpolator:
       image += layer.full(index)
     return image
 
+  def fit(self, pos, val, steps = 2048):
 
+     #self.weights, self.centers, self.shapes 
+    pweights = []
+    pcenters = []
+    pshapes = []
 
+    for layer in self.layers:
+      params = layer.params()
+      pweights = [*pweights, params[0]]
+      pcenters = [*pcenters, params[1]]
+      pshapes = [*pshapes, params[2]]
+    
+    optimizer = torch.optim.Adam([
+      {'params': pweights, 'lr': 1e-2},
+      {'params': pcenters, 'lr': 1e-2},
+      {'params': pshapes, 'lr': 1e-3},
+    ])
 
+    with tqdm(range(steps)) as t:
+      for step in t:
+        optimizer.zero_grad()
+        approx = self.sample(pos)
+        loss = torch.mean((val-approx)*(val-approx))
+        loss.backward()
+        optimizer.step()
+        t.set_description(f"Loss ({loss.item()})")
 
-
-
-
+    for param in pweights:
+      param.requires_grad = False
+    for param in pcenters:
+      param.requires_grad = False
+    for param in pshapes:
+      param.requires_grad = False
 
 def downsample(buffer, shape):
   shape = torch.Size(shape)
@@ -188,9 +177,18 @@ def main(input):
     index = image.index
     buffer = image.buffer.gpu().torch(index)
 
-    steps = 4095
+    steps = 4096
     layers = []
     tshape = torch.Tensor([index[0], index[1]]).to(device='cuda')
+
+    '''
+    Optimization Procedure:
+    1. Downsample Image
+    2. Add Layers of RBF up to Resolution
+    3. Jointly Optimize on Next Image Resolution
+    4. Add Layer at that Resolution
+    5. Repeat?
+    '''
 
     # Downsample Image
 
@@ -231,61 +229,64 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    # Downsample Image
+#    # Downsample Image
+#
+#    buffer = buffer - rbf.full(index)
+#    pos, val = downsample(buffer, (16, 16))
+#    centers = gencenters(16, tshape)
+#
+#    rbf = RBFLayer(centers.to(device='cuda'))
+#    rbf.fit(pos, val, steps)
+#    layers.append(rbf)
+
+    # We have to now attempt to optimize them jointly at higher res
+    # or we also try to optimize jointly at current res...
+    
+    '''
+    Joint Optimization:
+      Re-Use the Full Image
+    '''
+
+    buffer = image.buffer.gpu().torch(index)
+    pos, val = downsample(buffer, (32, 32))
+    rbf = RBFInterpolator(layers)
+    rbf.fit(pos, val, steps)
+
+    # Next Layer:
 
     buffer = buffer - rbf.full(index)
-    pos, val = downsample(buffer, (16, 16))
+    pos, val = downsample(buffer, (32, 32))
     centers = gencenters(16, tshape)
 
     rbf = RBFLayer(centers.to(device='cuda'))
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    # We have to now attempt to optimize them jointly at higher res
-    # or we also try to optimize jointly at current res...
+    # Next Layer:
 
-    '''
-    # basically, what we actually want to do here
-    # is we want to 
-
-    # Downsample Image
-
-    pos, val = downsample(buffer, (32, 32))
+    buffer = buffer - rbf.full(index)
+    pos, val = downsample(buffer, (64, 64))
     centers = gencenters(32, tshape)
 
     rbf = RBFLayer(centers.to(device='cuda'))
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    recon = rbf.full(index)
-    buffer = buffer - recon
-    '''
-
     '''
     Visualization Code
     '''
 
-    rbf = RBFInterpolator(layers)
-    newimage = rbf.full(index)
-    height_new = newimage.cpu().numpy()
-#    height_new = soil.buffer.from_numpy(newimage.cpu().numpy())
-    #normal_new = soil.normal(height_new, index, image.meta.scale).numpy(index)
-    #height_new = height_new.numpy(index)
-
-#    resize_transform = transforms.Resize((16, 16))
     buffer = image.buffer.gpu().torch(index)
-#    buffer = resize(buffer, (16, 16))
+    rbf = RBFInterpolator(layers)
+    buffer = resize(buffer, (64, 64))
     height = buffer.cpu().numpy()
 
-    #normal = soil.normal(image.buffer, index, image.meta.scale).numpy(index)
-
-    # Compute Shading
-#    relief_new = relief_shade(height_new, normal_new)
-#    relief = relief_shade(height, normal)
+    newimage = rbf.full(index)
+    newimage = resize(newimage, (64, 64))
+    height_new = newimage.cpu().numpy()
 
     vmin = np.min(height)
     vmax = np.max(height)
-    print("MEAN", np.mean(height))
 
     fig, axs = plt.subplots(1,2)
     axs[0].imshow(height_new, cmap='gray', vmin=vmin, vmax=vmax)
