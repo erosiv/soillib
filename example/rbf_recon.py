@@ -167,7 +167,6 @@ class RBFInterpolator:
 
 
 def downsample(buffer, shape):
-  print(buffer.shape)
   shape = torch.Size(shape)
   scale = torch.Tensor([buffer.shape[0]/shape[0], buffer.shape[1]/shape[1]]).to(device='cuda')
   pos = fullimage(shape)*scale
@@ -202,11 +201,9 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    recon = rbf.full(index)
-    buffer = buffer - recon
-
     # Downsample Image
 
+    buffer = buffer - rbf.full(index)
     pos, val = downsample(buffer, (16, 16))
     centers = gencenters(2, tshape)
 
@@ -214,11 +211,9 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    recon = rbf.full(index)
-    buffer = buffer - recon
-
     # Downsample Image
 
+    buffer = buffer - rbf.full(index)
     pos, val = downsample(buffer, (16, 16))
     centers = gencenters(4, tshape)
 
@@ -226,11 +221,9 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    recon = rbf.full(index)
-    buffer = buffer - recon
-
     # Downsample Image
   
+    buffer = buffer - rbf.full(index)
     pos, val = downsample(buffer, (16, 16))
     centers = gencenters(8, tshape)
 
@@ -238,11 +231,9 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
-    recon = rbf.full(index)
-    buffer = buffer - recon
-
     # Downsample Image
 
+    buffer = buffer - rbf.full(index)
     pos, val = downsample(buffer, (16, 16))
     centers = gencenters(16, tshape)
 
@@ -250,8 +241,25 @@ def main(input):
     rbf.fit(pos, val, steps)
     layers.append(rbf)
 
+    # We have to now attempt to optimize them jointly at higher res
+    # or we also try to optimize jointly at current res...
+
+    '''
+    # basically, what we actually want to do here
+    # is we want to 
+
+    # Downsample Image
+
+    pos, val = downsample(buffer, (32, 32))
+    centers = gencenters(32, tshape)
+
+    rbf = RBFLayer(centers.to(device='cuda'))
+    rbf.fit(pos, val, steps)
+    layers.append(rbf)
+
     recon = rbf.full(index)
     buffer = buffer - recon
+    '''
 
     '''
     Visualization Code
