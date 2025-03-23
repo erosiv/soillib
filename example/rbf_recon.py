@@ -96,7 +96,7 @@ class RBFLayer:
         loss = torch.mean((val-approx)*(val-approx))
         loss.backward()
         optimizer.step()
-        t.set_description(f"Loss ({loss.item():.3f})")
+        t.set_description(f"Loss ({loss.item():.6f})")
 
     for param in params:
       param.requires_grad = False
@@ -158,6 +158,28 @@ class RBFInterpolator:
       image += layer.full(index)
     return image
 
+
+
+
+
+
+
+
+
+def downsample(buffer, shape):
+  print(buffer.shape)
+  shape = torch.Size(shape)
+  scale = torch.Tensor([buffer.shape[0]/shape[0], buffer.shape[1]/shape[1]]).to(device='cuda')
+  pos = fullimage(shape)*scale
+  val = resize(buffer, shape)
+  return pos, val
+
+def gencenters(N, shape):
+  centers = (1 + fullimage((N, N)))/(N+1)
+  centers = centers * shape.unsqueeze(0).unsqueeze(0)
+  centers = centers.view((N*N, 2))
+  return centers
+
 def main(input):
 
   for file, path in iter_tiff(input):
@@ -169,97 +191,64 @@ def main(input):
 
     steps = 4095
     layers = []
+    tshape = torch.Tensor([index[0], index[1]]).to(device='cuda')
 
     # Downsample Image
-    shape = (16, 16)
-    buffer16 = resize(buffer, shape)
-    pos = fullimage(shape)
-    val = sampleimage(buffer16, shape, pos)
 
-    # Lowest-Level Interpolatin Tensor
-    centers = (1 + fullimage((1, 1)))/2
-    centers = centers * 512
-    print(centers.shape)
+    pos, val = downsample(buffer, (16, 16))
+    centers = gencenters(1, tshape)
 
     rbf = RBFLayer(centers.to(device='cuda'))
+    rbf.fit(pos, val, steps)
     layers.append(rbf)
-
-    rbf.fit(32*pos, val, steps)
 
     recon = rbf.full(index)
     buffer = buffer - recon
 
     # Downsample Image
-    shape = (16, 16)
-    buffer16 = resize(buffer, shape)
-    pos = fullimage(shape)
-    val = sampleimage(buffer16, shape, pos)
 
-    centers = (1 + fullimage((2, 2)))/3
-    centers = centers * 512
-    centers = centers.view((4, 2))
-    
+    pos, val = downsample(buffer, (16, 16))
+    centers = gencenters(2, tshape)
+
     rbf = RBFLayer(centers.to(device='cuda'))
+    rbf.fit(pos, val, steps)
     layers.append(rbf)
-
-    rbf.fit(32*pos, val, steps)
 
     recon = rbf.full(index)
     buffer = buffer - recon
 
     # Downsample Image
-    shape = (16, 16)
-    buffer16 = resize(buffer, shape)
-    pos = fullimage(shape)
-    val = sampleimage(buffer16, shape, pos)
 
-    centers = (1 + fullimage((4, 4)))/5
-    centers = centers * 512
-    centers = centers.view((16, 2))
-    print(centers.shape)
+    pos, val = downsample(buffer, (16, 16))
+    centers = gencenters(4, tshape)
 
     rbf = RBFLayer(centers.to(device='cuda'))
+    rbf.fit(pos, val, steps)
     layers.append(rbf)
-
-    rbf.fit(32*pos, val, steps)
 
     recon = rbf.full(index)
     buffer = buffer - recon
 
     # Downsample Image
-    shape = (16, 16)
-    buffer16 = resize(buffer, shape)
-    pos = fullimage(shape)
-    val = sampleimage(buffer16, shape, pos)
-
-    centers = (1 + fullimage((8, 8)))/9
-    centers = centers * 512
-    centers = centers.view((64, 2))
-    print(centers.shape)
+  
+    pos, val = downsample(buffer, (16, 16))
+    centers = gencenters(8, tshape)
 
     rbf = RBFLayer(centers.to(device='cuda'))
+    rbf.fit(pos, val, steps)
     layers.append(rbf)
-
-    rbf.fit(32*pos, val, steps)
 
     recon = rbf.full(index)
     buffer = buffer - recon
 
     # Downsample Image
-    shape = (16, 16)
-    buffer16 = resize(buffer, shape)
-    pos = fullimage(shape)
-    val = sampleimage(buffer16, shape, pos)
 
-    centers = (1 + fullimage((16, 16)))/17
-    centers = centers * 512
-    centers = centers.view((16*16, 2))
-    print(centers.shape)
+    pos, val = downsample(buffer, (16, 16))
+    centers = gencenters(16, tshape)
 
     rbf = RBFLayer(centers.to(device='cuda'))
+    rbf.fit(pos, val, steps)
     layers.append(rbf)
-
-    rbf.fit(32*pos, val, steps)
 
     recon = rbf.full(index)
     buffer = buffer - recon
@@ -267,10 +256,6 @@ def main(input):
     '''
     Visualization Code
     '''
-
-
-
-
 
     rbf = RBFInterpolator(layers)
     newimage = rbf.full(index)
