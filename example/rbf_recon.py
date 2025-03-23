@@ -7,6 +7,23 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+'''
+Multi-Scale RBF Fitting:
+
+In order to fit the DEM properly, we have to make sure that the fitting
+process is correctly multi-scale. This means that we have to remove features
+at the correct scales progressively while using all the image data at various
+resolutions.
+
+This means that we have to sample down the image to various resolutions, and
+progressively subtract the approximations at various levels so that we don't
+have to repeat the addition process all the time (for peformance).
+
+A number of utility functions will be necessary to make this efficient.
+
+Finally, we can attempt to optimize the RBF computation performance.
+'''
+
 def fullimage(index):
   # Sample Image Dataset
   posx, posy = torch.meshgrid(
@@ -26,8 +43,13 @@ def sampleimage(image, index, pos):
   test = image[ipos[:, 0], ipos[:, 1]]
   return test
 
+def resize(image, size):
+  view = image.unsqueeze(-1).permute(2, 0, 1).unsqueeze(0)
+  view = torch.nn.functional.interpolate(view, size=size) # mode='bilinear'
+  return view[0].permute(1, 2, 0)
+
 def fmap(dist, shape):
-  return torch.exp(-shape*shape*dist*dist)
+  return 1.0 / (1.0 + (shape*shape*dist*dist))
 
 class RBFLayer:
 
@@ -40,7 +62,6 @@ class RBFLayer:
     self.shapes = (torch.full((K,), 0.02)).to(device='cuda')
 
   def sample(self, pos):
-
     dist = torch.cdist(pos, self.centers, p=2)
     vals = fmap(dist, self.shapes)
     return torch.matmul(vals, self.weights)
@@ -78,20 +99,20 @@ class RBFInterpolator:
       image += layer.full(index)
     return image
 
-  def fit(self, pos, val, layer, lr = 0.01, steps = 2048):
+  def fit(self, pos, val, layer, steps = 2048,  lr = 0.01):
 
     params = self.layers[layer].params()
     optimizer = torch.optim.Adam([
       {'params': [params[0]], 'lr': 1e-2},
       {'params': [params[1]], 'lr': 1e-2},
-      {'params': [params[2]], 'lr': 1e-5},
+      {'params': [params[2]], 'lr': 1e-4},
     ])
 
     with tqdm(range(steps)) as t:
       for step in t:
-        optimizer.zero_grad(set_to_none=True)
+        optimizer.zero_grad()
         approx = self.sample(pos)
-        loss = torch.mean((val - approx) * (val - approx))
+        loss = torch.mean((val-approx)*(val-approx))
         loss.backward()
         optimizer.step()
         t.set_description(f"Loss ({loss.item()})")
@@ -108,15 +129,19 @@ def main(input):
     index = image.index
     buffer = image.buffer.gpu().torch(index)
 
-    K = [4]#, 64, 128]
+    
+
+
+    K = [1]#, 64, 128]
     rbf = RBFInterpolator(index, K)
 
+    #torch.nn.functional.interpolate(input, size=None, scale_factor=None, mode='nearest', align_corners=None, recompute_scale_factor=None, antialias=False)[source]
     pos = sparseimage(index, 1024)
     val = sampleimage(buffer, index, pos)
 
     for i, k in enumerate(K):
       print(f"Converging Iteration {i}")
-      rbf.fit(pos, val, i)
+      rbf.fit(pos, val, i, 128)
 
 
 
@@ -136,7 +161,10 @@ def main(input):
     #normal_new = soil.normal(height_new, index, image.meta.scale).numpy(index)
     #height_new = height_new.numpy(index)
 
-    height = image.buffer.cpu().numpy(index)
+#    resize_transform = transforms.Resize((16, 16))
+    buffer = resize(buffer, (16, 16))
+    height = buffer.cpu().numpy()
+
     #normal = soil.normal(image.buffer, index, image.meta.scale).numpy(index)
 
     # Compute Shading
