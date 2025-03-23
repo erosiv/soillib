@@ -19,7 +19,7 @@ def fullimage(index):
 
 def sparseimage(index, K = 1024):
   shape = torch.Tensor([index[0], index[1]])
-  return torch.rand(K, 2)*shape
+  return (torch.rand(K, 2)*shape).to(dtype=torch.int, device='cuda')
 
 def sampleimage(image, index, pos):
   test = image[pos[:, 0], pos[:, 1]]
@@ -41,43 +41,45 @@ class RBFInterpolator:
     def fmap(dist, shape):
       return 1.0 / (1.0 + shape * dist)
 
-    dist = torch.cdist(pos, self.centers, p = 2)
+    dist = torch.cdist(pos, self.centers, p=2)
     vals = fmap(dist, self.shapes)
     return torch.matmul(vals, self.weights)
 
   def fit(self, pos, val, lr = 0.01, steps = 4096):
 
-    params = [self.weights, self.centers]
+    params = [self.weights, self.centers, self.shapes]
     for param in params:
       param.requires_grad = True
 
-    optimizer = torch.optim.Adam(params, lr = lr) # Optimizer w. Learning Rate
+    optimizer = torch.optim.Adam([
+      {'params': [self.weights], 'lr': 1e-2},
+      {'params': [self.centers], 'lr': 1e-2},
+      {'params': [self.shapes], 'lr': 1e-4},
+    ])
 
-    for step in tqdm(range(steps)):
+    with tqdm(range(steps)) as t:
+      for step in t:
       
-      optimizer.zero_grad()
-      approx = self.sample(pos)
-      loss = torch.mean((val - approx) * (val - approx))
-      loss.backward()
-      optimizer.step()
+        optimizer.zero_grad()
+        approx = self.sample(pos)
+        loss = torch.mean((val - approx) * (val - approx))
+        loss.backward()
+        optimizer.step()
+        t.set_description(f"Loss ({loss.cpu().item()})")
 
-      print("LOSS", loss.cpu().item())
+    for param in params:
+      param.requires_grad = False
 
   def full(self, index):
     with torch.no_grad():
       def fmap(dist, shape):
         return 1.0 / (1.0 + shape * dist)
-
       pos = fullimage(index).to(device='cuda')
       image = torch.full((index[0], index[1]), 0.0, device='cuda')
-
       for k, center in tqdm(enumerate(self.centers)):
         dist = torch.cdist(pos, center.unsqueeze(0), p = 2)
         vals = fmap(dist, self.shapes[k])
         image += vals.squeeze(-1)*self.weights[k]
-  #      print(vals.shape)
-  #      image += torch.matmul(vals, self.weights)
-
       return image
 
 def main(input):
@@ -87,15 +89,16 @@ def main(input):
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
     index = image.index
+    buffer = image.buffer.gpu().torch(index)
 
     # Construct RBF Interpolator (Sparse Support Fit)
-    buffer = image.buffer.gpu().torch(index)
-    pos = sparseimage(index, 4096).to(dtype=torch.int, device='cuda')
+    pos = sparseimage(index, 2048)
     val = sampleimage(buffer, index, pos)
     pos = pos.to(dtype=torch.float32)
     shape = torch.Tensor([index[0], index[1]])
     rbf = RBFInterpolator(shape, 1024)
     rbf.fit(pos, val)
+#    rbf.fit_shape(pos, val)
 
     # Reconstruct Full Image from RBFInterpolator
 
