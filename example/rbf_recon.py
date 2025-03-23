@@ -19,29 +19,22 @@ def fullimage(index):
 
 def sparseimage(index, K = 1024):
   shape = torch.Tensor([index[0], index[1]])
-  return (torch.rand(K, 2)*shape).to(dtype=torch.int, device='cuda')
+  return (torch.rand(K, 2)*shape).to(device='cuda')
 
 def sampleimage(image, index, pos):
-  test = image[pos[:, 0], pos[:, 1]]
+  ipos = pos.to(dtype = torch.int)
+  test = image[ipos[:, 0], ipos[:, 1]]
   return test
 
 def fmap(dist, shape):
   return torch.exp(-shape*shape*dist*dist)
 
-
-
-
-
-
-
-
-class RBFInterpolator:
+class RBFLayer:
 
   def __init__(self, index, K):
 
     self.K = K
     self.shape = torch.Tensor([index[0], index[1]])
-
     self.centers = (torch.rand(K, 2)*self.shape).to(device='cuda')
     self.weights = (torch.full((K,), 0.0)).to(device='cuda')
     self.shapes = (torch.full((K,), 0.02)).to(device='cuda')
@@ -52,30 +45,11 @@ class RBFInterpolator:
     vals = fmap(dist, self.shapes)
     return torch.matmul(vals, self.weights)
 
-  def fit(self, pos, val, lr = 0.01, steps = 2048):
-
+  def params(self):
     params = [self.weights, self.centers, self.shapes]
     for param in params:
       param.requires_grad = True
-
-    optimizer = torch.optim.Adam([
-      {'params': [self.weights], 'lr': 1e-2},
-      {'params': [self.centers], 'lr': 1e-2},
-      {'params': [self.shapes], 'lr': 1e-5},
-    ])
-
-    with tqdm(range(steps)) as t:
-      for step in t:
-      
-        optimizer.zero_grad()
-        approx = self.sample(pos)
-        loss = torch.mean((val - approx) * (val - approx))
-        loss.backward()
-        optimizer.step()
-        t.set_description(f"Loss ({loss.cpu().item()})")
-
-    for param in params:
-      param.requires_grad = False
+    return params
 
   def full(self, index):
     with torch.no_grad():
@@ -87,6 +61,44 @@ class RBFInterpolator:
         image += vals.squeeze(-1)*self.weights[k]
       return image
 
+class RBFInterpolator:
+
+  def __init__(self, index, K):
+    self.layers = [ RBFLayer(index, k) for k in K ]
+
+  def sample(self, pos):
+    approx = torch.full((pos.shape[0],), 0.0, device='cuda')
+    for layer in self.layers:
+      approx += layer.sample(pos)
+    return approx
+
+  def full(self, index):
+    image = torch.full((index[0], index[1]), 0.0, device='cuda')
+    for layer in self.layers:
+      image += layer.full(index)
+    return image
+
+  def fit(self, pos, val, layer, lr = 0.01, steps = 2048):
+
+    params = self.layers[layer].params()
+    optimizer = torch.optim.Adam([
+      {'params': [params[0]], 'lr': 1e-2},
+      {'params': [params[1]], 'lr': 1e-2},
+      {'params': [params[2]], 'lr': 1e-5},
+    ])
+
+    with tqdm(range(steps)) as t:
+      for step in t:
+        optimizer.zero_grad(set_to_none=True)
+        approx = self.sample(pos)
+        loss = torch.mean((val - approx) * (val - approx))
+        loss.backward()
+        optimizer.step()
+        t.set_description(f"Loss ({loss.item()})")
+
+    for param in params:
+      param.requires_grad = False
+
 def main(input):
 
   for file, path in iter_tiff(input):
@@ -96,35 +108,44 @@ def main(input):
     index = image.index
     buffer = image.buffer.gpu().torch(index)
 
-    # Construct RBF Interpolator (Sparse Support Fit)
-    pos = sparseimage(index, 8192*4)
-    val = sampleimage(buffer, index, pos)
-    pos = pos.to(dtype=torch.float32)
+    K = [4]#, 64, 128]
+    rbf = RBFInterpolator(index, K)
 
-    # Construct RBF Interpolator
-    rbf = RBFInterpolator(index, 64)
-    rbf.fit(pos, val)
+    pos = sparseimage(index, 1024)
+    val = sampleimage(buffer, index, pos)
+
+    for i, k in enumerate(K):
+      print(f"Converging Iteration {i}")
+      rbf.fit(pos, val, i)
+
+
+
+
+
+
+
+
 
     '''
     Visualization Code
     '''
 
     newimage = rbf.full(index)
-    height_new = soil.buffer.from_numpy(newimage.cpu().numpy())
-    normal_new = soil.normal(height_new, index, image.meta.scale).numpy(index)
-    height_new = height_new.numpy(index)
+    height_new = newimage.cpu().numpy()
+#    height_new = soil.buffer.from_numpy(newimage.cpu().numpy())
+    #normal_new = soil.normal(height_new, index, image.meta.scale).numpy(index)
+    #height_new = height_new.numpy(index)
 
     height = image.buffer.cpu().numpy(index)
-    normal = soil.normal(image.buffer, index, image.meta.scale).numpy(index)
+    #normal = soil.normal(image.buffer, index, image.meta.scale).numpy(index)
 
     # Compute Shading
-    relief_new = relief_shade(height_new, normal_new)
-    relief = relief_shade(height, normal)
+#    relief_new = relief_shade(height_new, normal_new)
+#    relief = relief_shade(height, normal)
 
-    fig, axs = plt.subplots(2)
-    #fig.suptitle('Vertically stacked subplots')
-    axs[0].imshow(relief_new, cmap='gray')
-    axs[1].imshow(relief, cmap='gray')
+    fig, axs = plt.subplots(1,2)
+    axs[0].imshow(height_new, cmap='gray')
+    axs[1].imshow(height, cmap='gray')
 
     plt.show()
 
