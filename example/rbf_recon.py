@@ -25,12 +25,22 @@ def sampleimage(image, index, pos):
   test = image[pos[:, 0], pos[:, 1]]
   return test
 
+def fmap(dist, shape):
+  return torch.exp(-shape*shape*dist*dist)
+
+
+
+
+
+
+
+
 class RBFInterpolator:
 
-  def __init__(self, shape, K):
+  def __init__(self, index, K):
 
     self.K = K
-    self.shape = shape
+    self.shape = torch.Tensor([index[0], index[1]])
 
     self.centers = (torch.rand(K, 2)*self.shape).to(device='cuda')
     self.weights = (torch.full((K,), 0.0)).to(device='cuda')
@@ -38,14 +48,11 @@ class RBFInterpolator:
 
   def sample(self, pos):
 
-    def fmap(dist, shape):
-      return 1.0 / (1.0 + shape * dist)
-
     dist = torch.cdist(pos, self.centers, p=2)
     vals = fmap(dist, self.shapes)
     return torch.matmul(vals, self.weights)
 
-  def fit(self, pos, val, lr = 0.01, steps = 4096):
+  def fit(self, pos, val, lr = 0.01, steps = 2048):
 
     params = [self.weights, self.centers, self.shapes]
     for param in params:
@@ -54,7 +61,7 @@ class RBFInterpolator:
     optimizer = torch.optim.Adam([
       {'params': [self.weights], 'lr': 1e-2},
       {'params': [self.centers], 'lr': 1e-2},
-      {'params': [self.shapes], 'lr': 1e-4},
+      {'params': [self.shapes], 'lr': 1e-5},
     ])
 
     with tqdm(range(steps)) as t:
@@ -72,8 +79,6 @@ class RBFInterpolator:
 
   def full(self, index):
     with torch.no_grad():
-      def fmap(dist, shape):
-        return 1.0 / (1.0 + shape * dist)
       pos = fullimage(index).to(device='cuda')
       image = torch.full((index[0], index[1]), 0.0, device='cuda')
       for k, center in tqdm(enumerate(self.centers)):
@@ -92,19 +97,13 @@ def main(input):
     buffer = image.buffer.gpu().torch(index)
 
     # Construct RBF Interpolator (Sparse Support Fit)
-    pos = sparseimage(index, 2048)
+    pos = sparseimage(index, 8192*4)
     val = sampleimage(buffer, index, pos)
     pos = pos.to(dtype=torch.float32)
-    shape = torch.Tensor([index[0], index[1]])
-    rbf = RBFInterpolator(shape, 1024)
+
+    # Construct RBF Interpolator
+    rbf = RBFInterpolator(index, 64)
     rbf.fit(pos, val)
-#    rbf.fit_shape(pos, val)
-
-    # Reconstruct Full Image from RBFInterpolator
-
-#    print(buffer)
-#    print(newimage)
-#    return
 
     '''
     Visualization Code
