@@ -86,22 +86,21 @@ class RBFLayer:
     optimizer = torch.optim.Adam([
       {'params': [params[0]], 'lr': 1e-2},
       {'params': [params[1]], 'lr': 1e-2},
-      {'params': [params[2]], 'lr': 1e-4},
+      {'params': [params[2]], 'lr': 1e-3},
     ])
 
+    loss = None
     with tqdm(range(steps)) as t:
       for step in t:
         optimizer.zero_grad()
-        approx = self.sample(pos)
-        loss = torch.mean((val-approx)*(val-approx))
+        diff = self.sample(pos.detach()) - val.detach()
+        loss = torch.mean(diff*diff)
         loss.backward()
         optimizer.step()
-        t.set_description(f"Loss ({loss.item():.6f})")
+    print(f"Loss ({loss.item():.6f})")
 
     for param in params:
       param.requires_grad = False
-
-
 
 class RBFInterpolator:
 
@@ -122,7 +121,6 @@ class RBFInterpolator:
 
   def fit(self, pos, val, steps = 2048):
 
-     #self.weights, self.centers, self.shapes 
     pweights = []
     pcenters = []
     pshapes = []
@@ -139,6 +137,7 @@ class RBFInterpolator:
       {'params': pshapes, 'lr': 1e-3},
     ])
 
+    loss = None
     with tqdm(range(steps)) as t:
       for step in t:
         optimizer.zero_grad()
@@ -146,7 +145,7 @@ class RBFInterpolator:
         loss = torch.mean((val-approx)*(val-approx))
         loss.backward()
         optimizer.step()
-        t.set_description(f"Loss ({loss.item()})")
+    print(f"Loss ({loss.item():.6f})")
 
     for param in pweights:
       param.requires_grad = False
@@ -176,9 +175,6 @@ def main(input):
     print(f"File: {file}, {image.buffer.type}")
     index = image.index
     buffer = image.buffer.gpu().torch(index)
-
-    steps = 2048
-    layers = []
     tshape = torch.Tensor([index[0], index[1]]).to(device='cuda')
 
     '''
@@ -190,85 +186,80 @@ def main(input):
     5. Repeat?
     '''
 
-    # Downsample Image
-
-    pos, val = downsample(buffer, (16, 16))
-    centers = gencenters(1, tshape)
-
-    rbf = RBFLayer(centers.to(device='cuda'))
-    rbf.fit(pos, val, steps)
-    layers.append(rbf)
-
-    # Downsample Image
-
-    buffer = buffer - rbf.full(index)
-    pos, val = downsample(buffer, (16, 16))
-    centers = gencenters(2, tshape)
-
-    rbf = RBFLayer(centers.to(device='cuda'))
-    rbf.fit(pos, val, steps)
-    layers.append(rbf)
+    steps = 4096
+    layers = [
+      RBFLayer(gencenters(1, tshape).to(device='cuda')),
+      RBFLayer(gencenters(2, tshape).to(device='cuda')),
+      RBFLayer(gencenters(4, tshape).to(device='cuda')),
+      RBFLayer(gencenters(8, tshape).to(device='cuda')),
+      RBFLayer(gencenters(16, tshape).to(device='cuda')),
+      RBFLayer(gencenters(32, tshape).to(device='cuda')),
+      RBFLayer(gencenters(64, tshape).to(device='cuda')),
+    ]
 
     # Downsample Image
 
-    buffer = buffer - rbf.full(index)
-    pos, val = downsample(buffer, (16, 16))
-    centers = gencenters(4, tshape)
+    print("Optimizing Layers Individually...")
 
-    rbf = RBFLayer(centers.to(device='cuda'))
-    rbf.fit(pos, val, steps)
-    layers.append(rbf)
+    pos, val = downsample(buffer, (32, 32))
+    layers[0].fit(pos, val, steps)
+ 
+    buffer = buffer - layers[0].full(index)
+    pos, val = downsample(buffer, (32, 32))
+    layers[1].fit(pos, val, steps)
 
-    # Downsample Image
-  
-    buffer = buffer - rbf.full(index)
-    pos, val = downsample(buffer, (16, 16))
-    centers = gencenters(8, tshape)
+    buffer = buffer - layers[1].full(index)
+    pos, val = downsample(buffer, (32, 32))
+    layers[2].fit(pos, val, steps)
 
-    rbf = RBFLayer(centers.to(device='cuda'))
-    rbf.fit(pos, val, steps)
-    layers.append(rbf)
+    buffer = buffer - layers[2].full(index)
+    pos, val = downsample(buffer, (32, 32))
+    layers[3].fit(pos, val, steps)
 
-    # We have to now attempt to optimize them jointly at higher res
-    # or we also try to optimize jointly at current res...
-    
-    '''
-    Joint Optimization:
-      Re-Use the Full Image
-    '''
+    buffer = buffer - layers[3].full(index)
+    pos, val = downsample(buffer, (32, 32))
+    layers[4].fit(pos, val, steps)
 
+    # Jointly Optimize Layers 
+
+    print("Optimizing Layers Jointly...")
+
+    rbf = RBFInterpolator([
+      layers[0],
+      layers[1],
+      layers[2],
+      layers[3],
+      layers[4]
+    ])
     buffer = image.buffer.gpu().torch(index)
-    pos, val = downsample(buffer, (32, 32))
-    rbf = RBFInterpolator(layers)
-    rbf.fit(pos, val, steps)
+    pos, val = downsample(buffer, (64, 64))
+    rbf.fit(pos, val, 1024)
 
-    # Next Layer:
+    # Optimize Individually Again
 
-    buffer = buffer - rbf.full(index)
-    pos, val = downsample(buffer, (32, 32))
-    centers = gencenters(16, tshape)
-
-    rbf = RBFLayer(centers.to(device='cuda'))
-    rbf.fit(pos, val, steps)
-    layers.append(rbf)
-
-    # Next Layer:
+    print("Optimizing Next Scale...")
 
     buffer = buffer - rbf.full(index)
     pos, val = downsample(buffer, (64, 64))
-    centers = gencenters(32, tshape)
+    layers[5].fit(pos, val, steps)
 
-    rbf = RBFLayer(centers.to(device='cuda'))
-    rbf.fit(pos, val, steps)
-    layers.append(rbf)
+    buffer = buffer - rbf.full(index)
+    pos, val = downsample(buffer, (128, 128))
+    layers[6].fit(pos, val, 512)
 
-#    buffer = buffer - rbf.full(index)
-#    pos, val = downsample(buffer, (128, 128))
-#    centers = gencenters(64, tshape)
-#
-#    rbf = RBFLayer(centers.to(device='cuda'))
-#    rbf.fit(pos, val, steps)
-#    layers.append(rbf)
+    print("Optimizing Layers Jointly...")
+
+    rbf = RBFInterpolator([
+      layers[0],
+      layers[1],
+      layers[2],
+      layers[3],
+      layers[4],
+      layers[5]
+    ])
+    buffer = image.buffer.gpu().torch(index)
+    pos, val = downsample(buffer, (128, 128))
+    rbf.fit(pos, val, 4096)
 
     '''
     Visualization Code
