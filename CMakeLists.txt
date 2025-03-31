@@ -12,5 +12,7 @@ set(CMAKE_CUDA_ARCHITECTURES "50;60;70;75;80") # Supports Maxwell (5.0), Pascal 
 
 project(soillib LANGUAGES CXX CUDA)
 
+add_subdirectory(../cudaKDTree cudaKDTree)
+
 add_subdirectory(ext)     # Build Nanobind
 add_subdirectory(source)  # Build Soillib

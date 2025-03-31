@@ -257,6 +257,15 @@ module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index&
 });
 
 //
+// KDTree
+//
+
+auto kdtree_t = nb::class_<soil::kdtree>(module, "kdtree");
+kdtree_t.def(nb::init<soil::buffer&>());
+kdtree_t.def_ro("elem", &soil::kdtree::elem);
+kdtree_t.def("knn", &soil::kdtree::knn);
+
+//
 // Radial Basis Functions
 //
 

@@ -16,6 +16,8 @@ kind of binary tree. We will construct and then analyze this structure's shape.
 
 We can potentially use this as a base structure for fitting RBF or forward-
 generating terrain models.
+
+I should visualize the assignments to see if it creating any reasonable structure.
 '''
 
 def fullimage(index):
@@ -68,25 +70,24 @@ class PCANode:
     self.EW = L.to(dtype=torch.float32)
     self.EV = V.to(dtype=torch.float32)
 
-    ind = 1
+    ind = 0
     if(self.EW[1] > self.EW[0]):
-      ind = 0
-#      print("ZERO")
-#    else:
-#      print("ONE")
-
-    # Split the Centroids
+      ind = 1
 
     self.nodeA = None
     self.nodeB = None
 
+    if(self.EW[1-ind] < 0.1):
+      return
+
+    # Split the Centroids
     splitA = (torch.sum((self.pos-self.mean)*self.EV[ind], axis=-1) < 0.0)
     splitB = ~splitA
 
     countA = torch.sum(splitA).cpu().item()
     countB = torch.sum(splitB).cpu().item()
-    if(countA < 256): return
-    if(countB < 256): return
+    if(countA < 64): return
+    if(countB < 64): return
 
     self.nodeA = PCANode(self.pos[splitA], self.val[splitA])
     self.nodeB = PCANode(self.pos[splitB], self.val[splitB])

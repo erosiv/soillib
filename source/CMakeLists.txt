@@ -17,6 +17,8 @@ else()
   message(FATAL_ERROR "glm is not installed. Please install glm.")
 endif(GLM_INCLUDE_DIR)
 
+target_link_libraries(soil cudaKDTree)
+
 # Install Header Files
 set(SOILLIB_DIR ${CMAKE_SOURCE_DIR}/source/soillib)
 install(DIRECTORY ${SOILLIB_DIR} DESTINATION include)
