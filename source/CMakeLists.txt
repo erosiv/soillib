@@ -31,6 +31,7 @@ target_include_directories(soil PRIVATE
 
 target_sources(soil PUBLIC
   ${CMAKE_SOURCE_DIR}/source/soillib/core/buffer.cu
+  ${CMAKE_SOURCE_DIR}/source/soillib/index/kdtree.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/flow.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/erosion.cu
   ${CMAKE_SOURCE_DIR}/source/soillib/op/math.cu

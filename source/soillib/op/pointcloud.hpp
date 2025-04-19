@@ -72,42 +72,6 @@ void pointcloud_scale(const soil::buffer& buffer, const soil::index& index, cons
 
 }
 
-//
-// KDTree Wrapper
-//
-
-soil::buffer_t<vec3> knnquery(const soil::buffer_t<vec3>& data, const soil::buffer_t<vec3>& query, const size_t k);
-void knnbuild(soil::buffer_t<vec3>& data);
-
-struct kdtree {
-  
-  kdtree(soil::buffer& buffer):
-    elem(buffer.elem()){
-
-    if(buffer.type() != soil::VEC3)
-      throw soil::error::mismatch_type(buffer.type(), soil::VEC3);
-    
-    this->buffer = buffer.as<vec3>();
-    knnbuild(this->buffer);
-
-  }
-
-  buffer knn(const buffer& query, const size_t k) const {
-
-//    if(query.type() != soil::VEC3)
-//      throw soil::error::mismatch_type(query.type(), soil::VEC3);
-
-    const auto query_t = query.as<vec3>();
-    return soil::buffer(knnquery(this->buffer, query_t, k));
-
-  }
-
-  const size_t elem;
-
-private:
-  soil::buffer_t<vec3> buffer;
-};
-
 }
 
 #endif

@@ -11,6 +11,8 @@ namespace nb = nanobind;
 
 #include <soillib/core/types.hpp>
 
+#include <soillib/index/kdtree.hpp>
+
 #include <soillib/op/common.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
@@ -262,8 +264,8 @@ module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index&
 
 auto kdtree_t = nb::class_<soil::kdtree>(module, "kdtree");
 kdtree_t.def(nb::init<soil::buffer&>());
-kdtree_t.def_ro("elem", &soil::kdtree::elem);
-kdtree_t.def("knn", &soil::kdtree::knn);
+kdtree_t.def_prop_ro("elem", &soil::kdtree::elem);
+// kdtree_t.def("knn", &soil::kdtree::knn);
 
 //
 // Radial Basis Functions
