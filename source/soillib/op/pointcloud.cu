@@ -1,5 +1,5 @@
-#ifndef SOILLIB_OP_POINTCLOUD
-#define SOILLIB_OP_POINTCLOUD
+#ifndef SOILLIB_OP_POINTCLOUD_CU
+#define SOILLIB_OP_POINTCLOUD_CU
 #define HAS_CUDA
 
 #include <soillib/soillib.hpp>
