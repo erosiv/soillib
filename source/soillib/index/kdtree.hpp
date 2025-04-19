@@ -4,14 +4,13 @@
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
 
-// #include <cukd/builder.h>
-// #include <cukd/knn.h>
-
 namespace soil {
 
 struct payload_t {
+
   float3 p;
   size_t i;
+
 };
 
 //! kdtree is a wrapper for a kdtree type
@@ -21,32 +20,35 @@ struct payload_t {
 struct kdtree {
 
   kdtree(const soil::buffer& buffer){
-      this->allocate(buffer.elem());
-      this->setup(buffer.as<vec3>());
+    this->data = buffer_t<payload_t>(buffer.elem(), soil::host_t::GPU);
+    this->setup(buffer.as<vec3>());
   }
-
-  size_t elem() const { return this->_elem; }
 
   //
   // Allocate / Deallocate
   //
 
-  void allocate(const size_t elem); //!< Allocate Data
-  void deallocate();                //!< Deallocate Data
-
+  //! Construct the kdtree from buffer data
+  //!
+  //! Note that the data is unchanged, and any query operations
+  //! return a buffer of indices which align to this buffer.
   void setup(const buffer_t<vec3>& buffer);
+
+  //! Execute a k-nearest neighbors search, returning indices
+  buffer_t<int> knn(const buffer& query, const size_t k) const {
+    return this->knnq(query.as<vec3>(), k);
+  }
 
   buffer_t<int> knnq(const buffer_t<vec3>& query, const size_t k) const;
 
-//  void query()
+  //
+  // Data Inspection
+  //
 
-  buffer knn(const buffer& query, const size_t k) const {
-    return soil::buffer(this->knnq(query.as<vec3>(), k));  
-  }
+  size_t elem() const { return this->data.elem(); }
 
 private:
-  size_t _elem = 0;
-  payload_t* data = NULL;
+  buffer_t<payload_t> data; //!< kdtree structure with index
 };
 
 }
