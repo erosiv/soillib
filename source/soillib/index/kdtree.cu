@@ -78,7 +78,7 @@ void kdtree::setup(const buffer_t<vec3>& source) {
 
 namespace {
 
-__global__ void _knnquery(const soil::buffer_t<vec3> query_b, const payload_t* data, const size_t N, soil::buffer_t<vec3> output, const size_t K){
+__global__ void _knnquery(const soil::buffer_t<vec3> query_b, const payload_t* data, const size_t N, soil::buffer_t<int> output, const size_t K){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= query_b.elem()) return;
@@ -95,12 +95,12 @@ __global__ void _knnquery(const soil::buffer_t<vec3> query_b, const payload_t* d
   >(result, make_float3(q.x, q.y, q.z), data_ptr, N);
 
   for(int k = 0; k < K; ++k) {
+//    output[n*K + k] = 0;
     int ID = result.get_pointID(k);
     if(ID < 0){
-      output[n * K + k] = vec3(0.0f);
+      output[n * K + k] = -1;
     } else {
-      float3 r = data[ID].p;
-      output[n * K + k] = vec3(r.x, r.y, r.z);
+      output[n * K + k] = data[ID].i;
     }
   }
 
@@ -108,10 +108,11 @@ __global__ void _knnquery(const soil::buffer_t<vec3> query_b, const payload_t* d
 
 }
 
-buffer_t<vec3> kdtree::knnq(const buffer_t<vec3>& query, const size_t k) const {
+buffer_t<int> kdtree::knnq(const buffer_t<vec3>& query, const size_t k) const {
 
   const size_t n_query = query.elem()/3;
-  auto output = soil::buffer_t<vec3>{k * n_query, soil::host_t::GPU};
+
+  auto output = soil::buffer_t<int>{k * n_query, soil::host_t::GPU};
   _knnquery<<<block(n_query, 512), 512>>>(query, this->data, this->elem(), output, k);
   return output;
 

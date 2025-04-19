@@ -36,7 +36,7 @@ struct kdtree {
 
   void setup(const buffer_t<vec3>& buffer);
 
-  buffer_t<vec3> knnq(const buffer_t<vec3>& query, const size_t k) const;
+  buffer_t<int> knnq(const buffer_t<vec3>& query, const size_t k) const;
 
 //  void query()
 

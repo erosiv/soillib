@@ -28,14 +28,28 @@ def main(input):
     x = np.linspace(0, index[0]-1, index[0])
     y = np.linspace(0, index[1]-1, index[1])
     X, Y = np.meshgrid(x, y, indexing='ij')
-    Z = np.full(Y.shape, 0.0)
-    positions = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])
-    N = positions.shape[1]
-    query = soil.buffer.from_numpy(positions.astype(dtype=np.float32)).gpu()
-    result = kdtree.knn(query, 5)
-    result = result.cpu().numpy(soil.index([N, 5]))
-    print(result)
+    Z = np.full(Y.shape, 0.5)
+    positions = np.stack([X.ravel(), Y.ravel(), Z.ravel()]).transpose().copy()
+    positions = positions.astype(np.float32)
+
+    print(positions)
+    print(positions.shape)
+
+    positions = np.array([
+      [0.00e+00, 0.00e+00, 5.00e-01],
+      [0.00e+00, 5.11e+02, 5.00e-01],
+      [5.11e+02, 0.00e+00, 5.00e-01],
+      [5.11e+02, 5.11e+02, 5.00e-01],
+    ]).astype(np.float32)
   
+    query = soil.buffer.from_numpy(positions).gpu()
+    result = kdtree.knn(query, 5)
+
+    N = positions.shape[0]
+    result = result.cpu().numpy(soil.index([N, 5]))
+  
+    print(result)
+
     return
 
     '''
