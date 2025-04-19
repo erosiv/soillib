@@ -11,8 +11,5 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CUDA_ARCHITECTURES "50;60;70;75;80") # Supports Maxwell (5.0), Pascal (6.0), Volta (7.0), Turing (7.5), Ampere (8.0)
 
 project(soillib LANGUAGES CXX CUDA)
-
-add_subdirectory(../cudaKDTree cudaKDTree)
-
-add_subdirectory(ext)     # Build Nanobind
+add_subdirectory(ext)     # Build Dependencies
 add_subdirectory(source)  # Build Soillib

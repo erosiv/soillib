@@ -2,6 +2,8 @@
 # nanobind C++ Library
 #
 
+add_subdirectory(cudaKDTree)
+
 add_library(nanobind STATIC)
 set_target_properties(nanobind PROPERTIES 
   LINKER_LANGUAGE CXX
