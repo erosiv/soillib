@@ -59,34 +59,17 @@ soil::buffer sample_lerp(const buffer& field, const soil::index &index, const bu
 // Concatenate two Buffers (Copy)
 //
 
+buffer_t<vec3> concat_impl(const buffer_t<vec2>& a, const buffer_t<float>& b);
 
+soil::buffer concat(const buffer& a, const buffer& b){
+  const buffer_t<vec2> a_t = a.as<vec2>();
+  const buffer_t<float> b_t = b.as<float>();
+  return soil::buffer(concat_impl(a_t, b_t));
+}
 
 //
 // Index a Buffer at Integer Positions
 //
-
-
-
-
-
-//
-// Pointcloud Direct Methods
-//
-
-soil::buffer_t<vec3> pointcloud_sample_impl(const soil::buffer_t<float> &buffer, const soil::index &index, const size_t N);
-
-soil::buffer pointcloud_sample(const soil::buffer& buffer, const soil::index& index, const size_t N){
-
-  if (buffer.elem() != index.elem())
-  throw soil::error::mismatch_size(buffer.elem(), index.elem());
-  
-  if (buffer.host() != soil::host_t::GPU)
-  throw soil::error::mismatch_host(buffer.host(), soil::host_t::GPU);
-
-  const auto buffer_t = buffer.as<float>();
-  return soil::buffer(pointcloud_sample_impl(buffer_t, index, N));
-
-}
 
 }
 

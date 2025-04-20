@@ -246,6 +246,10 @@ module.def("distance", [](const soil::buffer& buffer, const soil::index& index, 
   return soil::distance(buffer, index, target);
 });
 
+//
+// Point-Based Operations
+//
+
 module.def("sampleN", [](const soil::index& index, const size_t N){
   return soil::sample_N(index, N);
 });
@@ -254,16 +258,8 @@ module.def("sample_lerp", [](const soil::buffer& field, const soil::index& index
   return soil::sample_lerp(field, index, pos);
 });
 
-module.def("pointcloud_sample", [](const soil::buffer& buffer, const soil::index& index, const size_t N){
-  return soil::pointcloud_sample(buffer, index, N);
-});
-
-module.def("pointcloud_normal", [](const soil::buffer& height, const soil::buffer& pos, const soil::index& index, const soil::vec3 scale){
-  return soil::pointcloud_normal(height, pos, index, scale);
-});
-
-module.def("pointcloud_scale", [](const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
-  soil::pointcloud_scale(buffer, index, scale);
+module.def("concat", [](const soil::buffer& a, const soil::buffer& b){
+  return soil::concat(a, b);
 });
 
 //

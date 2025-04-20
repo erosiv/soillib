@@ -34,12 +34,11 @@ def main(input):
 
     pos = soil.sampleN(index, 8192)
     height = soil.sample_lerp(buffer, index, pos)
+    pcl = soil.concat(pos, height)
 
-    print(pos.cpu().numpy(soil.index([8192])))
-    print(height.cpu().numpy(soil.index([8192])))
-
-    pcl = soil.pointcloud_sample(buffer, index, 8192)
-    print(pcl.cpu().numpy(soil.index([8192])))
+#    print(pos.cpu().numpy(soil.index([8192])))
+#    print(height.cpu().numpy(soil.index([8192])))
+#    print(pcl.cpu().numpy(soil.index([8192])))
 
     # do we want to concatenate? I suppose we can...
     # but I don't think that we really need it necessarily...
