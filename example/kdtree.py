@@ -42,7 +42,7 @@ def main(input):
 
     # do we want to concatenate? I suppose we can...
     # but I don't think that we really need it necessarily...
-#    kdtree = soil.kdtree(pcl)
+    kdtree = soil.kdtree(pcl)
 
     # can we query on a mesh-grid?
     # what's the performance of that?
@@ -64,10 +64,13 @@ def main(input):
       [5.11e+02, 5.11e+02, 5.00e-01],
     ]).astype(np.float32)
   
+    N = positions.shape[0]
     query = soil.buffer.from_numpy(positions).gpu()
     result = kdtree.knn(query, 5)
 
-    N = positions.shape[0]
+    nearest = soil.select_index(pos.gpu(), result.gpu())
+    print(nearest.cpu().numpy(soil.index([N, 5])))
+
     result = result.cpu().numpy(soil.index([N, 5]))
   
     print(result)

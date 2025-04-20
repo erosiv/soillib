@@ -121,12 +121,14 @@ __global__ void _select_index(soil::buffer_t<T> output, const soil::buffer_t<T> 
 }
 
 buffer select_index_impl(const buffer& buffer, const buffer_t<int>& index){
-  soil::select(buffer.type(), [&]<typename T>() -> soil::buffer {
+  return soil::select(buffer.type(), [&]<typename T>() -> soil::buffer {
 
+    const auto buffer_t = buffer.as<T>();
     const size_t elem = index.elem();
     soil::buffer_t<T> output(elem, soil::GPU);
 
-    const auto buffer_t = buffer.as<T>();
+    std::cout<<"impl called converted"<<std::endl;
+
     _select_index<<<block(elem, 1024), 1024>>>(output, buffer_t, index);
     return soil::buffer(output);
 
