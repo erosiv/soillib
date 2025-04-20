@@ -8,12 +8,12 @@ namespace soil {
 
 template<typename T>
 concept vectortype = (
-//  std::same_as<T, soil::vec2> ||
-  std::same_as<T, soil::vec3>
+//  std::same_as<T, soil::vec3> ||
+  std::same_as<T, soil::vec2>
 );
 
 struct payload_t {
-  float3 p;
+  float2 p;
   size_t i;
 };
 
@@ -23,10 +23,14 @@ struct payload_t {
 //! which can be used to then index separate buffers.
 struct kdtree {
 
+  using pnt_t = float2;
+  using vec_t = soil::vec2;
+  static constexpr int vec_n = 2;
+
   kdtree(const soil::buffer& buffer) {
     soil::select(buffer.type(), [&]<vectortype T>(){
       this->data = buffer_t<payload_t>(buffer.elem(), soil::host_t::GPU);
-      this->setup(buffer.as<vec3>());
+      this->setup(buffer.as<vec_t>());
     });
   }
 
@@ -38,18 +42,18 @@ struct kdtree {
   //!
   //! Note that the data is unchanged, and any query operations
   //! return a buffer of indices which align to this buffer.
-  void setup(const buffer_t<vec3>& buffer);
+  void setup(const buffer_t<vec_t>& buffer);
 
   //! Execute a k-nearest neighbors search, returning indices
   buffer_t<int> knn(const buffer& query, const size_t k) const {
-    const size_t n_query = query.elem()/3;
+    const size_t n_query = query.elem()/vec_n;
     auto indices = soil::buffer_t<int>{k * n_query, soil::host_t::GPU};
-    this->knni(query.as<vec3>(), k, indices);
+    this->knni(query.as<vec_t>(), k, indices);
     return indices;
   }
 
   //! Execute a k-nearest neighbors with existing indices
-  void knni(const buffer_t<vec3>& query, const size_t k, buffer_t<int>& indices) const;
+  void knni(const buffer_t<vec_t>& query, const size_t k, buffer_t<int>& indices) const;
 
   //
   // Data Inspection

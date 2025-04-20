@@ -10,12 +10,33 @@
 namespace soil {
 
 //
+// Utility Functions
+//
+
+namespace {
+
+inline int block(const int elem, const int thread) {
+  return (elem + thread - 1) / thread;
+}
+
+__device__ float2 make_point(const vec2 vec){
+  return make_float2(vec.x, vec.y);
+}
+
+__device__ float3 make_point(const vec3 vec){
+  return make_float3(vec.x, vec.y, vec.z);
+}
+
+}
+
+//
 // KDTree Implementation
 //
 
-struct payload_traits: public cukd::default_data_traits<float3> {
+struct payload_traits: 
+  public cukd::default_data_traits<kdtree::pnt_t> {
  
-  using point_t = float3;
+  using point_t = kdtree::pnt_t;
 
   static inline __device__ __host__
   point_t get_point(const payload_t &data)
@@ -32,24 +53,17 @@ struct payload_traits: public cukd::default_data_traits<float3> {
 
 namespace {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
-}
-
-__global__ void _kdtreecopy(buffer_t<payload_t> out, const soil::buffer_t<vec3> source) {
+__global__ void _kdtreecopy(buffer_t<payload_t> out, const soil::buffer_t<kdtree::vec_t> source) {
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= out.elem()) return;
-  const vec3 p = source[n];
-  out[n].p = make_float3(p.x, p.y, p.z);
+  out[n].p = make_point(source[n]);
   out[n].i = n;
 }
 
-__global__ void _knnquery(const buffer_t<vec3> query_b, const buffer_t<payload_t> data, soil::buffer_t<int> output, const size_t K){
+__global__ void _knnquery(const buffer_t<kdtree::vec_t> query_b, const buffer_t<payload_t> data, soil::buffer_t<int> output, const size_t K){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= query_b.elem()) return;
-
-  const vec3 q = query_b[n];
 
   // Candidate List, Query Result
   cukd::HeapCandidateList<16> result(100.0);
@@ -57,7 +71,7 @@ __global__ void _knnquery(const buffer_t<vec3> query_b, const buffer_t<payload_t
     cukd::HeapCandidateList<16>,
     payload_t,
     payload_traits
-  >(result, make_float3(q.x, q.y, q.z), data.data(), data.elem());
+  >(result, make_point(query_b[n]), data.data(), data.elem());
 
   for(int k = 0; k < K; ++k) {
     int ID = result.get_pointID(k);
@@ -72,15 +86,12 @@ __global__ void _knnquery(const buffer_t<vec3> query_b, const buffer_t<payload_t
 
 }
 
-void kdtree::setup(const buffer_t<vec3>& source) {
+void kdtree::setup(const buffer_t<vec_t>& source) {
   _kdtreecopy<<<block(this->elem(), 1024), 1024>>>(this->data, source);
-  cukd::buildTree<
-    payload_t,
-    payload_traits
-  >(this->data.data(), this->elem());
+  cukd::buildTree<payload_t, payload_traits>(this->data.data(), this->elem());
 }
 
-void kdtree::knni(const buffer_t<vec3>& query, const size_t k, buffer_t<int>& indices) const {
+void kdtree::knni(const buffer_t<vec_t>& query, const size_t k, buffer_t<int>& indices) const {
   _knnquery<<<block(indices.elem(), 512), 512>>>(query, this->data, indices, k);
 }
 

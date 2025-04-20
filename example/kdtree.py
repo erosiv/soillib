@@ -6,31 +6,25 @@ import soillib as soil
 import numpy as np
 from tqdm import tqdm
 
+'''
+kdtree kernel tests
+---
+
+'''
+
 def main(input):
 
   for file, path in iter_tiff(input):
 
+    # Load Digital Elevation Model
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
     index = image.index
     buffer = image.buffer.gpu()
 
-    '''
-    Sample Pointcloud?
-
-    Note: The pointcloud here is really a
-      buffer which consists of a set of positions,
-      and a buffer which consists of a set of height-values
-      which are interpolated at those positions.
-
-      So really if possible, we want to split that kernel...
-      so that we just generate the positions and then write
-      another kernel which lets that be sampled directly...
-
-      Then we generate the height-field buffer by interpolation...
-      and then we put this in the kd-tree in 2D, and we can
-      sample the height-values like that.
-    '''
+    # Sample Random Positions in 2D,
+    # lerp the height-map to get the corresponding height-values
+    # concatenate these into a point-cloud map!
 
     pos = soil.sampleN(index, 8192)
     height = soil.sample_lerp(buffer, index, pos)
@@ -42,7 +36,7 @@ def main(input):
 
     # do we want to concatenate? I suppose we can...
     # but I don't think that we really need it necessarily...
-    kdtree = soil.kdtree(pcl)
+    kdtree = soil.kdtree(pos)
 
     # can we query on a mesh-grid?
     # what's the performance of that?
@@ -54,26 +48,24 @@ def main(input):
     positions = np.stack([X.ravel(), Y.ravel(), Z.ravel()]).transpose().copy()
     positions = positions.astype(np.float32)
 
-    print(positions)
-    print(positions.shape)
-
+#    print(positions)
+#    print(positions.shape)
+#
     positions = np.array([
-      [0.00e+00, 0.00e+00, 5.00e-01],
-      [0.00e+00, 5.11e+02, 5.00e-01],
-      [5.11e+02, 0.00e+00, 5.00e-01],
-      [5.11e+02, 5.11e+02, 5.00e-01],
+      [0.00e+00, 0.00e+00],
+      [0.00e+00, 5.11e+02],
+      [5.11e+02, 0.00e+00],
+      [5.11e+02, 5.11e+02],
     ]).astype(np.float32)
   
     N = positions.shape[0]
     query = soil.buffer.from_numpy(positions).gpu()
+    
     result = kdtree.knn(query, 5)
-
     nearest = soil.select_index(pos.gpu(), result.gpu())
-    print(nearest.cpu().numpy(soil.index([N, 5])))
 
-    result = result.cpu().numpy(soil.index([N, 5]))
-  
-    print(result)
+    print(result.cpu().numpy(soil.index([N, 5])))
+    print(nearest.cpu().numpy(soil.index([N, 5])))
 
     return
 
