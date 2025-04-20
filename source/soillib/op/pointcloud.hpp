@@ -71,6 +71,15 @@ soil::buffer concat(const buffer& a, const buffer& b){
 // Index a Buffer at Integer Positions
 //
 
+soil::buffer select_index_impl(const buffer& source, const buffer_t<int>& index);
+
+soil::buffer select_index(const soil::buffer& source, const soil::buffer& index){
+
+  const auto index_t = index.as<int>();
+  return select_index_impl(source, index_t);
+
+}
+
 }
 
 #endif

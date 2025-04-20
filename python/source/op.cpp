@@ -262,6 +262,10 @@ module.def("concat", [](const soil::buffer& a, const soil::buffer& b){
   return soil::concat(a, b);
 });
 
+module.def("select_index", [](const soil::buffer& source, const soil::buffer& index){
+  return soil::select_index(source, index);
+});
+
 //
 // KDTree
 //

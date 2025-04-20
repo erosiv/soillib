@@ -109,6 +109,30 @@ buffer_t<vec3> concat_impl(const buffer_t<vec2>& a, const buffer_t<float>& b){
 // Index Based Buffer Select
 //
 
+template<typename T>
+__global__ void _select_index(soil::buffer_t<T> output, const soil::buffer_t<T> source, const soil::buffer_t<int> index_b){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= output.elem()) return;
+
+  const int index = index_b[n];
+  output[n] = source[index];
+
+}
+
+buffer select_index_impl(const buffer& buffer, const buffer_t<int>& index){
+  soil::select(buffer.type(), [&]<typename T>() -> soil::buffer {
+
+    const size_t elem = index.elem();
+    soil::buffer_t<T> output(elem, soil::GPU);
+
+    const auto buffer_t = buffer.as<T>();
+    _select_index<<<block(elem, 1024), 1024>>>(output, buffer_t, index);
+    return soil::buffer(output);
+
+  });
+}
+
 } // end of namespace soil
 
 #endif
