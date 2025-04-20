@@ -17,10 +17,33 @@ def main(input):
 
     '''
     Sample Pointcloud?
+
+    Note: The pointcloud here is really a
+      buffer which consists of a set of positions,
+      and a buffer which consists of a set of height-values
+      which are interpolated at those positions.
+
+      So really if possible, we want to split that kernel...
+      so that we just generate the positions and then write
+      another kernel which lets that be sampled directly...
+
+      Then we generate the height-field buffer by interpolation...
+      and then we put this in the kd-tree in 2D, and we can
+      sample the height-values like that.
     '''
 
+    pos = soil.sampleN(index, 8192)
+    height = soil.sample_lerp(buffer, index, pos)
+
+    print(pos.cpu().numpy(soil.index([8192])))
+    print(height.cpu().numpy(soil.index([8192])))
+
     pcl = soil.pointcloud_sample(buffer, index, 8192)
-    kdtree = soil.kdtree(pcl)
+    print(pcl.cpu().numpy(soil.index([8192])))
+
+    # do we want to concatenate? I suppose we can...
+    # but I don't think that we really need it necessarily...
+#    kdtree = soil.kdtree(pcl)
 
     # can we query on a mesh-grid?
     # what's the performance of that?

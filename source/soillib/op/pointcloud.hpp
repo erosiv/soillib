@@ -29,6 +29,50 @@
 
 namespace soil {
 
+//
+// Sample Random Positions within the Domain
+//
+
+buffer_t<vec2> sample_N_impl(const flat_t<2>& index, const size_t N);
+
+//! Sample N Random Positions within an Index Space
+soil::buffer sample_N(const soil::index &index, const size_t N){
+  const auto index_t = index.as<flat_t<2>>();
+  return soil::buffer(sample_N_impl(index_t, N));
+}
+
+//
+// Linear Interpolation Index
+//
+
+//! Lerp the Field at Positions
+buffer_t<float> sample_lerp_impl(const buffer_t<float>& field, const flat_t<2>& index, const buffer_t<vec2>& pos);
+
+soil::buffer sample_lerp(const buffer& field, const soil::index &index, const buffer& pos){
+  const auto index_t = index.as<flat_t<2>>();
+  const auto field_t = field.as<float>();
+  const auto pos_t = pos.as<vec2>();
+  return soil::buffer(sample_lerp_impl(field_t, index_t, pos_t));
+}
+
+//
+// Concatenate two Buffers (Copy)
+//
+
+
+
+//
+// Index a Buffer at Integer Positions
+//
+
+
+
+
+
+//
+// Pointcloud Direct Methods
+//
+
 soil::buffer_t<vec3> pointcloud_sample_impl(const soil::buffer_t<float> &buffer, const soil::index &index, const size_t N);
 
 soil::buffer pointcloud_sample(const soil::buffer& buffer, const soil::index& index, const size_t N){
@@ -41,34 +85,6 @@ soil::buffer pointcloud_sample(const soil::buffer& buffer, const soil::index& in
 
   const auto buffer_t = buffer.as<float>();
   return soil::buffer(pointcloud_sample_impl(buffer_t, index, N));
-
-}
-
-soil::buffer_t<vec3> pointcloud_normal_impl(const soil::buffer_t<float> &height, const soil::buffer_t<vec3> &pos, const soil::index &index, const vec3 scale);
-
-soil::buffer pointcloud_normal(const soil::buffer& height, const soil::buffer& pos, const soil::index& index, const vec3 scale){
-
-  if (height.host() != soil::host_t::GPU)
-  throw soil::error::mismatch_host(height.host(), soil::host_t::GPU);
-
-  if (pos.host() != soil::host_t::GPU)
-  throw soil::error::mismatch_host(pos.host(), soil::host_t::GPU);
-
-  const auto height_t = height.as<float>();
-  const auto pos_t = pos.as<vec3>();
-  return soil::buffer(pointcloud_normal_impl(height_t, pos_t, index, scale));
-
-}
-
-void pointcloud_scale_impl(const soil::buffer_t<vec3> &buffer, const soil::index &index, const soil::vec3 scale);
-
-void pointcloud_scale(const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
-
-  if (buffer.host() != soil::host_t::GPU)
-  throw soil::error::mismatch_host(buffer.host(), soil::host_t::GPU);
-
-  const auto buffer_t = buffer.as<vec3>();
-  pointcloud_scale_impl(buffer_t, index, scale);
 
 }
 

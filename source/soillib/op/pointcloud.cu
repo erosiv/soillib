@@ -15,11 +15,72 @@
 namespace soil {
 
 namespace {
-  __global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
-    const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if(n >= buffer.elem()) return;
-    curand_init(seed, n, offset, &buffer[n]);
-  }
+
+__global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= buffer.elem()) return;
+
+  curand_init(seed, n, offset, &buffer[n]);
+
+}
+
+}
+
+//
+// Random Position Sampling within Index Bound
+//
+
+__global__ void _sample_N(soil::buffer_t<vec2> output, soil::buffer_t<curandState> rand, const soil::flat_t<2> index, const size_t N){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  curandState* randState = &rand[n];
+  output[n] = vec2 {
+    curand_uniform(randState)*float(index[0]-1),
+    curand_uniform(randState)*float(index[1]-1)
+  };
+
+}
+
+soil::buffer_t<vec2> sample_N_impl(const soil::flat_t<2> &index, const size_t N){
+
+  soil::buffer_t<vec2> output(N, soil::GPU);
+  soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
+
+  seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
+  cudaDeviceSynchronize();
+  _sample_N<<<block(N, 1024), 1024>>>(output, rand, index, N);
+
+  return output;
+
+}
+
+//
+// Sample Lerp Implementation
+//
+
+__global__ void _sample_lerp(const soil::buffer_t<float> field, soil::buffer_t<float> output, const soil::flat_t<2> index, const soil::buffer_t<vec2> pos_b){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= pos_b.elem()) return;
+
+  vec2 pos = pos_b[n];
+  
+  lerp_t<float> lerp = gather(field, index, pos);
+  output[n] = lerp.val();
+
+}
+
+soil::buffer_t<float> sample_lerp_impl(const soil::buffer_t<float> &field, const soil::flat_t<2> &index, const soil::buffer_t<vec2>& pos){
+
+  const size_t elem = pos.elem();
+  soil::buffer_t<float> output(elem, soil::GPU);
+  _sample_lerp<<<block(elem, 1024), 1024>>>(field, output, index, pos);
+
+  return output;
+
 }
 
 //
@@ -63,61 +124,6 @@ soil::buffer_t<vec3> pointcloud_sample_impl(const soil::buffer_t<float> &buffer,
 
 }
 
-//
-// Pointcloud Scaling
-//
-
-__global__ void _pointcloud_scale(soil::buffer_t<vec3> input, const soil::flat_t<2> index, const soil::vec3 scale){
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= input.elem()) return;
-
-  const vec3 wmin = vec3(0.0f, 0.0f, -1.0f) * scale;
-  const vec3 wmax = vec3(index[0]-1, index[1]-1, 1.0f) * scale;
-  const vec3 wext = (wmax - wmin);      // Extent of Buffer in World-Space
-  const vec3 wmid = (wmax + wmin)*0.5f; // Center Point in World-Space
-  const float wscale = glm::max(wext.x, glm::max(wext.y, wext.z));
-
-  vec3 pos = input[n] * scale;
-  vec3 cpos = 2.0f*(pos - wmid)/wscale;
-  input[n] = cpos;
-
-}
-
-void pointcloud_scale_impl(const soil::buffer_t<vec3> &buffer, const soil::index &index, const soil::vec3 scale){
-
-  const auto index_t = index.as<soil::flat_t<2>>();
-  _pointcloud_scale<<<block(buffer.elem(), 1024), 1024>>>(buffer, index_t, scale);
-
-}
-
-//
-// Pointcloud Normal Sampling
-//
-
-__global__ void _pointcloud_normal(const soil::buffer_t<float> height, soil::buffer_t<vec3> pos_b, soil::buffer_t<vec3> output, const soil::flat_t<2> index, const vec3 scale){
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= pos_b.elem()) return;
-
-  const vec3 pos = pos_b[n];
-  lerp5_t<float> lerp;
-  lerp.gather(height, index, pos);
-  const vec2 grad = lerp.grad(scale);
-  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-  output[n] = normal;
-
-}
-
-soil::buffer_t<vec3> pointcloud_normal_impl(const soil::buffer_t<float> &height, const soil::buffer_t<vec3> &pos, const soil::index &index, const vec3 scale){
-
-  soil::buffer_t<vec3> output(pos.elem(), soil::GPU);
-  const auto index_t = index.as<soil::flat_t<2>>();
-  _pointcloud_normal<<<block(pos.elem(), 1024), 1024>>>(height, pos, output, index_t, scale);
-  return output;
-
-}
-
-}
+} // end of namespace soil
 
 #endif

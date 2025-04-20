@@ -246,6 +246,14 @@ module.def("distance", [](const soil::buffer& buffer, const soil::index& index, 
   return soil::distance(buffer, index, target);
 });
 
+module.def("sampleN", [](const soil::index& index, const size_t N){
+  return soil::sample_N(index, N);
+});
+
+module.def("sample_lerp", [](const soil::buffer& field, const soil::index& index, const soil::buffer& pos){
+  return soil::sample_lerp(field, index, pos);
+});
+
 module.def("pointcloud_sample", [](const soil::buffer& buffer, const soil::index& index, const size_t N){
   return soil::pointcloud_sample(buffer, index, N);
 });
