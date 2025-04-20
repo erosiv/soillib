@@ -26,6 +26,7 @@
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
+#include <soillib/index/kdtree.hpp>
 
 namespace soil {
 
@@ -81,6 +82,17 @@ soil::buffer select_index(const soil::buffer& source, const soil::buffer& index)
   return select_index_impl(source, index_t);
 
 }
+
+//
+// Sparse Hydrological Operations
+//
+
+//! Compute Sparse Accumulation
+//!
+//! Input is a kdtree and a pointcloud, which is used for
+//! computing gradients, etc. We compute the accumulation
+//! for each point based on the point-cloud interpolation.
+soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer points);
 
 }
 

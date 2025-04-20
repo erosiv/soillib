@@ -266,6 +266,10 @@ module.def("select_index", [](const soil::buffer& source, const soil::buffer& in
   return soil::select_index(source, index);
 });
 
+module.def("sparseacc", [](const soil::kdtree& kdtree, const soil::buffer& points){
+  return soil::sparseacc(kdtree, points);
+});
+
 //
 // KDTree
 //

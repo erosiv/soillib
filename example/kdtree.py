@@ -27,8 +27,12 @@ def main(input):
     # concatenate these into a point-cloud map!
 
     pos = soil.sampleN(index, 8192)
+    kdtree = soil.kdtree(pos)
+
     height = soil.sample_lerp(buffer, index, pos)
     pcl = soil.concat(pos, height)
+
+    '''
 
 #    print(pos.cpu().numpy(soil.index([8192])))
 #    print(height.cpu().numpy(soil.index([8192])))
@@ -36,7 +40,7 @@ def main(input):
 
     # do we want to concatenate? I suppose we can...
     # but I don't think that we really need it necessarily...
-    kdtree = soil.kdtree(pos)
+
 
     # can we query on a mesh-grid?
     # what's the performance of that?
@@ -66,30 +70,10 @@ def main(input):
 
     print(result.cpu().numpy(soil.index([N, 5])))
     print(nearest.cpu().numpy(soil.index([N, 5])))
-
-    return
-
-    '''
-    Visualization Code
     '''
 
-    buffer = image.buffer.gpu().torch(index)
-    rbf = RBFInterpolator(layers)
-    buffer = resize(buffer, (128, 128))
-    height = buffer.cpu().numpy()
-
-    newimage = rbf.full(index)
-    newimage = resize(newimage, (128, 128))
-    height_new = newimage.cpu().numpy()
-
-    vmin = np.min(height)
-    vmax = np.max(height)
-
-    fig, axs = plt.subplots(1,2)
-    axs[0].imshow(height_new, cmap='gray', vmin=vmin, vmax=vmax)
-    axs[1].imshow(height, cmap='gray', vmin=vmin, vmax=vmax)
-
-    plt.show()
+    print("Computing Accumulation...")
+    acc = soil.sparseacc(kdtree, pcl)
 
 if __name__ == "__main__":
 

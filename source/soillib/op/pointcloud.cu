@@ -11,6 +11,7 @@
 #include <soillib/op/gather.hpp>
 
 #include <soillib/op/pointcloud.hpp>
+#include <soillib/index/kdtree.hpp>
 
 namespace soil {
 
@@ -133,6 +134,20 @@ buffer select_index_impl(const buffer& buffer, const buffer_t<int>& index){
     return soil::buffer(output);
 
   });
+}
+
+//
+// Sparse Accumulation
+//
+
+soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer points){
+
+  soil::buffer_t<float> acc(points.elem(), soil::GPU);
+
+  // launch the accumulation kernel ...
+
+  return soil::buffer(acc);
+
 }
 
 } // end of namespace soil
