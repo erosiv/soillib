@@ -73,7 +73,8 @@ def main(input):
     '''
 
     print("Computing Accumulation...")
-    acc = soil.sparseacc(kdtree, pcl)
+    acc = soil.sparseacc(kdtree, pcl, index)
+    print(acc.cpu().numpy(soil.index([8192])))
 
 if __name__ == "__main__":
 

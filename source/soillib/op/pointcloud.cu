@@ -13,6 +13,9 @@
 #include <soillib/op/pointcloud.hpp>
 #include <soillib/index/kdtree.hpp>
 
+#include <cukd/builder.h>
+#include <cukd/knn.h>
+
 namespace soil {
 
 namespace {
@@ -153,12 +156,97 @@ __global__ void _init_acc(soil::buffer_t<float> acc){
 
 }
 
-__global__ void sparse_descend(const soil::kdtree& kdtree, const soil::buffer_t<vec3> points, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
+struct payload_traits: 
+  public cukd::default_data_traits<kdtree::pnt_t> {
+ 
+  using point_t = kdtree::pnt_t;
+
+  static inline __device__ __host__
+  point_t get_point(const payload_t &data)
+  { return data.p; }
+
+  static inline __device__ __host__
+  float get_coord(const payload_t &data, int dim)
+  { return cukd::get_coord(get_point(data),dim); }
+
+  enum { has_explicit_dim = false };
+  static inline __device__ int  get_dim(const payload_t &) { return -1; }
+
+};
+
+template<size_t K>
+__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandidateList<K>& list) {
+
+  cukd::stackBased::knn<
+    cukd::HeapCandidateList<K>,
+    payload_t,
+    payload_traits
+  >(list, make_point(pos), kdtree.data.data(), kdtree.elem());
+
+}
+
+__global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
+  // Initialize Position in Domain
+  curandState* randState = &rand[n];
+  vec2 pos = vec2 {
+    curand_uniform(randState)*float(index[0]-1),
+    curand_uniform(randState)*float(index[1]-1)
+  };
 
+  cukd::HeapCandidateList<3> list(100.0);
+  knn<3>(kdtree, pos, list);
+
+  // Closest 3 Point Indices
+  int ind[3] = {
+    kdtree.data[list.get_pointID(0)].i,
+    kdtree.data[list.get_pointID(1)].i,
+    kdtree.data[list.get_pointID(2)].i
+  };
+
+  int curr = ind[0];
+  acc[curr] += 1.0f;
+
+  size_t maxstep = 8192;
+  while(maxstep > 0){
+    maxstep--;
+
+    if(pos.x < 0.0f || pos.x >= index[0]) break;
+    if(pos.y < 0.0f || pos.y >= index[1]) break;
+    
+    // Closest 3 Point Indices
+    knn<3>(kdtree, pos, list);
+    int ind[3] = {
+      kdtree.data[list.get_pointID(0)].i,
+      kdtree.data[list.get_pointID(1)].i,
+      kdtree.data[list.get_pointID(2)].i
+    };
+
+    int next = ind[0];
+    if(next != curr){
+      acc[next] += 1.0f;
+      curr = next;
+    }
+
+    // Closest 3 Points
+    const vec3 a = points[ind[0]];
+    const vec3 b = points[ind[1]];
+    const vec3 c = points[ind[2]];
+
+    // Normal Vector, Oriented Up, Gradient
+    vec3 n = glm::normalize(glm::cross(b-a, c-a));
+    if(n.z < 0.0f) n *= -1.0f;
+    const vec2 g(n.x, n.y);
+
+    // 
+    pos += 0.1f * g;
+
+    // Nearest point gets the value...
+
+  }
 
 }
 
@@ -177,9 +265,13 @@ __global__ void sparse_descend(const soil::kdtree& kdtree, const soil::buffer_t<
 //!
 soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::index& index){
 
+  std::cout<<"Launching Sparse Accumulation"<<std::endl;
+
   // Initialize Accumulation
   soil::buffer_t<float> acc(points.elem(), soil::GPU);
   _init_acc<<<block(acc.elem(), 1024), 1024>>>(acc);
+
+  std::cout<<"Seeding Random Number Generator..."<<std::endl;
 
   // Initialize Random State
   const size_t N = 8192;
@@ -191,7 +283,11 @@ soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, c
   const auto index_t = index.as<soil::flat_t<2>>();
   const auto point_t = points.as<vec3>();
 
+  std::cout<<"Descending Particles..."<<std::endl;
+
   sparse_descend<<<block(N, 1024), 1024>>>(kdtree, point_t, acc, rand, N, index_t);
+
+  std::cout<<"Done"<<std::endl;
 
   return soil::buffer(acc);
 

@@ -12,6 +12,20 @@ concept vectortype = (
   std::same_as<T, soil::vec2>
 );
 
+namespace {
+#ifdef HAS_CUDA
+
+__device__ float2 make_point(const vec2 vec){
+  return make_float2(vec.x, vec.y);
+}
+
+__device__ float3 make_point(const vec3 vec){
+  return make_float3(vec.x, vec.y, vec.z);
+}
+
+#endif
+}
+
 struct payload_t {
   float2 p;
   size_t i;
@@ -34,10 +48,6 @@ struct kdtree {
     });
   }
 
-  //
-  // Allocate / Deallocate
-  //
-
   //! Construct the kdtree from buffer data
   //!
   //! Note that the data is unchanged, and any query operations
@@ -59,9 +69,9 @@ struct kdtree {
   // Data Inspection
   //
 
-  size_t elem() const { return this->data.elem(); }
+  GPU_ENABLE size_t elem() const { return this->data.elem(); }
 
-private:
+//private:
   buffer_t<payload_t> data; //!< kdtree structure with index
 };
 

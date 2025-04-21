@@ -19,14 +19,6 @@ inline int block(const int elem, const int thread) {
   return (elem + thread - 1) / thread;
 }
 
-__device__ float2 make_point(const vec2 vec){
-  return make_float2(vec.x, vec.y);
-}
-
-__device__ float3 make_point(const vec3 vec){
-  return make_float3(vec.x, vec.y, vec.z);
-}
-
 }
 
 //
