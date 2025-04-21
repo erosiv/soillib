@@ -47,11 +47,11 @@ __global__ void _sample_N(soil::buffer_t<vec2> output, soil::buffer_t<curandStat
 
 soil::buffer_t<vec2> sample_N_impl(const soil::flat_t<2> &index, const size_t N){
 
-  soil::buffer_t<vec2> output(N, soil::GPU);
   soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
-
   seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
   cudaDeviceSynchronize();
+
+  soil::buffer_t<vec2> output(N, soil::GPU);
   _sample_N<<<block(N, 1024), 1024>>>(output, rand, index, N);
 
   return output;
@@ -140,11 +140,58 @@ buffer select_index_impl(const buffer& buffer, const buffer_t<int>& index){
 // Sparse Accumulation
 //
 
-soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer points){
+//! Accumulation Initialization:
+//! In principle the assigned value should be the
+//! local region of influence of each point, but
+//! we don't know that value, so we set it to zero.
+//! A different initialization method might have a value.
+__global__ void _init_acc(soil::buffer_t<float> acc){
 
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= acc.elem()) return;
+  acc[n] = 0.0f;
+
+}
+
+__global__ void sparse_descend(const soil::kdtree& kdtree, const soil::buffer_t<vec3> points, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+
+
+}
+
+//! Sparse Accumulation with KDTree
+//!
+//! We allocate and initialize the accumulation buffer,
+//! which stores the estimate for each local point.
+//! The accumulation procedure spawns points randomly in
+//! the domain and then descends them along the gradient
+//! computed based on nearest neighbors until they leave
+//! the domain. If the nearest point switches at any point,
+//! then we accumulate to that value.
+//!
+//! \todo Replace Gradient Computation Method
+//! \todo Allow for Changing Point Height from Erosion / Slope
+//!
+soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::index& index){
+
+  // Initialize Accumulation
   soil::buffer_t<float> acc(points.elem(), soil::GPU);
+  _init_acc<<<block(acc.elem(), 1024), 1024>>>(acc);
 
-  // launch the accumulation kernel ...
+  // Initialize Random State
+  const size_t N = 8192;
+  soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
+  seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
+  
+  // Sparse Descent Kernel:
+  //  Launch N kernels...
+  const auto index_t = index.as<soil::flat_t<2>>();
+  const auto point_t = points.as<vec3>();
+
+  sparse_descend<<<block(N, 1024), 1024>>>(kdtree, point_t, acc, rand, N, index_t);
 
   return soil::buffer(acc);
 
