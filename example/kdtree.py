@@ -21,8 +21,18 @@ def plot_pcl(points, colors = None):
   points = points.cpu().numpy(soil.index([N]))
   xs = points[:, 0]
   ys = points[:, 1]
+  zs = points[:, 2]
+
+#  levels = np.linspace(zs.min(), zs.max(), 32)
+  # ax.tricontourf(xs, ys, zs, levels=levels, cmap='turbo')
+  col = colors.cpu().numpy(soil.index([N]))
+  ax.plot(xs, ys, 'o', markersize=2, color='grey')
+  ax.tripcolor(xs, ys, col, shading='gouraud')
+
+  plt.show()
 
 #    print()
+  '''
 
   if not colors is None:
     col = colors.cpu().numpy(soil.index([N]))
@@ -33,6 +43,11 @@ def plot_pcl(points, colors = None):
   ax.set_xlabel('X Label')
   ax.set_ylabel('Y Label')
   plt.show()
+  '''
+
+'''
+
+'''
 
 def plot_pcl_3D(points, colors = None):
 
@@ -88,8 +103,8 @@ def main(input):
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, index, 1024)
 
-#    plot_pcl(pcl, acc)
-    plot_pcl_3D(pcl, acc)
+    plot_pcl(pcl, acc)
+#    plot_pcl_3D(pcl, acc)
     return
 
 if __name__ == "__main__":
