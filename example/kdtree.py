@@ -99,7 +99,7 @@ def main(input):
     pcl = soil.concat(pos, height)
 
     print("Computing Accumulation...")
-    acc = soil.sparseacc(kdtree, pcl, index, 1024)
+    acc = soil.sparseacc(kdtree, pcl, index, 1024*4)
 
     plot_pcl(pcl, acc)
 #    plot_pcl_3D(pcl, acc)

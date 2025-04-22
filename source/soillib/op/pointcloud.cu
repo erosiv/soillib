@@ -185,52 +185,6 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::FixedCandi
 
 }
 
-/*
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
-
-  // Initialize Position in Domain
-  curandState* randState = &rand[n];
-
-  int cur = curand_uniform(randState)*points.elem();
-  vec3 pos = points[cur];
-  atomicAdd(&acc[cur], 1.0f);
-
-  const size_t K = 4;
-  cukd::FixedCandidateList<K> list(100.0);
-
-  int maxstep = 8192;
-  while(maxstep > 0){
-    maxstep--;
-    
-    knn<K>(kdtree, vec2(pos.x, pos.y), list);
-    
-    int next = -1;
-    for(int i = 0; i < K; ++i){
-      int ind = list.get_pointID(i);
-      if(ind >= 0){
-
-        const float n = kdtree.data[ind].i;
-        const vec3 np = points[n];
-        if(np.z < pos.z){
-          pos = np;
-          next = n;
-        }
-
-      }
-
-    }
-  
-    if(next == -1){
-      return;
-    }
-  
-    atomicAdd(&acc[next], 1.0f);
-
-  }
-*/
-
 //! Greedy Descent
 __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
 
@@ -242,7 +196,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   int ind = curand_uniform(randState)*(points.elem()-1);
   vec3 pos;
   
-  const size_t K = 16;
+  const size_t K = 32;
   cukd::FixedCandidateList<K> list(100.0);
   
   int maxstep = 8192;
@@ -256,7 +210,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
     
     // Closest 3 Point Indices
     int next = -1;
-    float nh = pos.z; // lowest height
+    float steep = 0.0f; // Steepest Descent
 
     for(int i = 0; i < K; ++i){
 
@@ -267,10 +221,15 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
           continue;
 
         const float n = kdtree.data[nk].i;
-        const vec3 np = points[n];
+        const vec3 npos = points[n];
 
-        if(np.z < nh){
-          nh = np.z;
+        const vec2 ip = vec2(pos);
+        const vec2 jp = vec2(npos);
+
+        const float slope = (npos.z - pos.z)/glm::length(jp - ip);
+
+        if(slope < steep){
+          steep = slope;
           next = n;
         }
       }
