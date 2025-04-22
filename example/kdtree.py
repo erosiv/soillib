@@ -13,6 +13,28 @@ kdtree kernel tests
 '''
 
 def plot_pcl(points, colors = None):
+  fig = plt.figure()
+  ax = fig.add_subplot()
+
+  N = points.elem
+
+  points = points.cpu().numpy(soil.index([N]))
+  xs = points[:, 0]
+  ys = points[:, 1]
+
+#    print()
+
+  if not colors is None:
+    col = colors.cpu().numpy(soil.index([N]))
+    ax.scatter(xs, ys, marker='o', c = col)
+  else:
+    ax.scatter(xs, ys, marker='o')
+
+  ax.set_xlabel('X Label')
+  ax.set_ylabel('Y Label')
+  plt.show()
+
+def plot_pcl_3D(points, colors = None):
 
   fig = plt.figure()
   ax = fig.add_subplot(projection='3d')
@@ -28,6 +50,8 @@ def plot_pcl(points, colors = None):
 
   if not colors is None:
     col = colors.cpu().numpy(soil.index([N]))
+    print(np.max(col))
+    col = np.log(1.0 + col)
     ax.scatter(xs, ys, zs, marker='o', c = col)
   else:
     ax.scatter(xs, ys, zs, marker='o')
@@ -64,7 +88,8 @@ def main(input):
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, index, 1024)
 
-    plot_pcl(pcl, acc)
+#    plot_pcl(pcl, acc)
+    plot_pcl_3D(pcl, acc)
     return
 
 if __name__ == "__main__":

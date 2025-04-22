@@ -198,12 +198,12 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
     curand_uniform(randState)*float(index[1]-1)
   };
 
-  const size_t K = 8;
+  const size_t K = 4;
   cukd::HeapCandidateList<K> list(100.0);
   knn<K>(kdtree, pos, list);
 
-  int next = -1;
   float nheight = 100000.0f;  // float max
+  int next = -1;
 
   // Closest 3 Point Indices
   for(int i = 0; i < K; ++i){
