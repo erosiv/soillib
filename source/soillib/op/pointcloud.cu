@@ -224,7 +224,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   int ind = curand_uniform(randState)*(points.elem()-1);
   vec3 pos;
   
-  const size_t K = 32;
+  const size_t K = 16;
   cukd::FixedCandidateList<K> list(100.0);
   
   int maxstep = 8192;

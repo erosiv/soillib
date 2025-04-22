@@ -12,7 +12,8 @@ kdtree kernel tests
 
 '''
 
-def plot_pcl(points, colors = None):
+def plot_pcl(points, colors = None, normals = None):
+
   fig = plt.figure()
   ax = fig.add_subplot()
 
@@ -32,21 +33,6 @@ def plot_pcl(points, colors = None):
 
   plt.show()
 
-#    print()
-  '''
-
-  if not colors is None:
-    col = colors.cpu().numpy(soil.index([N]))
-    ax.scatter(xs, ys, marker='o', c = col)
-  else:
-    ax.scatter(xs, ys, marker='o')
-
-  ax.set_xlabel('X Label')
-  ax.set_ylabel('Y Label')
-  plt.show()
-  '''
-
-
 def plot_pcl_3D(points, colors = None, normals = None):
 
   fig = plt.figure()
@@ -61,7 +47,6 @@ def plot_pcl_3D(points, colors = None, normals = None):
 
 #    print()
 
-  '''
   if not colors is None:
     col = colors.cpu().numpy(soil.index([N]))
     print(np.max(col))
@@ -69,11 +54,12 @@ def plot_pcl_3D(points, colors = None, normals = None):
     ax.scatter(xs, ys, zs, marker='o', c = col)
   else:
     ax.scatter(xs, ys, zs, marker='o')
-  '''
 
+  '''
   normals = normals.cpu().numpy(soil.index([N]))
   normals = 0.5 + 0.5*normals
   ax.scatter(xs, ys, zs, marker='o', c=normals)
+  '''
 
   zmin = np.min(zs)
   zmax = np.max(zs)
@@ -99,7 +85,7 @@ def main(input):
     # lerp the height-map to get the corresponding height-values
     # concatenate these into a point-cloud map!
 
-    pos = soil.sampleN(index, 8192*4)
+    pos = soil.sampleN(index, 8192)
     kdtree = soil.kdtree(pos)
     
     height = soil.sample_lerp(buffer, index, pos)
@@ -110,7 +96,7 @@ def main(input):
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, index, 1024*4)
 
-#    plot_pcl(pcl, normal)
+#    plot_pcl(pcl, acc, normal)
     plot_pcl_3D(pcl, acc, normal)
     return
 
