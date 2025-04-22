@@ -12,6 +12,36 @@ kdtree kernel tests
 
 '''
 
+def plot_pcl(points, colors = None):
+
+  fig = plt.figure()
+  ax = fig.add_subplot(projection='3d')
+
+  N = points.elem
+
+  points = points.cpu().numpy(soil.index([N]))
+  xs = points[:, 0]
+  ys = points[:, 1]
+  zs = points[:, 2]
+
+#    print()
+
+  if not colors is None:
+    col = colors.cpu().numpy(soil.index([N]))
+    ax.scatter(xs, ys, zs, marker='o', c = col)
+  else:
+    ax.scatter(xs, ys, zs, marker='o')
+
+  zmin = np.min(zs)
+  zmax = np.max(zs)
+  zmid = 0.5*(zmin + zmax)
+
+  ax.set_xlabel('X Label')
+  ax.set_ylabel('Y Label')
+  ax.set_zlabel('Z Label')
+  ax.set_zlim(zmid-256, zmid+256)
+  plt.show()
+
 def main(input):
 
   for file, path in iter_tiff(input):
@@ -28,53 +58,14 @@ def main(input):
 
     pos = soil.sampleN(index, 8192)
     kdtree = soil.kdtree(pos)
-
     height = soil.sample_lerp(buffer, index, pos)
     pcl = soil.concat(pos, height)
 
-    '''
-
-#    print(pos.cpu().numpy(soil.index([8192])))
-#    print(height.cpu().numpy(soil.index([8192])))
-#    print(pcl.cpu().numpy(soil.index([8192])))
-
-    # do we want to concatenate? I suppose we can...
-    # but I don't think that we really need it necessarily...
-
-
-    # can we query on a mesh-grid?
-    # what's the performance of that?
-
-    x = np.linspace(0, index[0]-1, index[0])
-    y = np.linspace(0, index[1]-1, index[1])
-    X, Y = np.meshgrid(x, y, indexing='ij')
-    Z = np.full(Y.shape, 0.5)
-    positions = np.stack([X.ravel(), Y.ravel(), Z.ravel()]).transpose().copy()
-    positions = positions.astype(np.float32)
-
-#    print(positions)
-#    print(positions.shape)
-#
-    positions = np.array([
-      [0.00e+00, 0.00e+00],
-      [0.00e+00, 5.11e+02],
-      [5.11e+02, 0.00e+00],
-      [5.11e+02, 5.11e+02],
-    ]).astype(np.float32)
-  
-    N = positions.shape[0]
-    query = soil.buffer.from_numpy(positions).gpu()
-    
-    result = kdtree.knn(query, 5)
-    nearest = soil.select_index(pos.gpu(), result.gpu())
-
-    print(result.cpu().numpy(soil.index([N, 5])))
-    print(nearest.cpu().numpy(soil.index([N, 5])))
-    '''
-
     print("Computing Accumulation...")
-    acc = soil.sparseacc(kdtree, pcl, index)
-    print(acc.cpu().numpy(soil.index([8192])))
+    acc = soil.sparseacc(kdtree, pcl, index, 1024)
+
+    plot_pcl(pcl, acc)
+    return
 
 if __name__ == "__main__":
 
