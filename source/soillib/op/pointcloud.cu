@@ -241,55 +241,31 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   curandState* randState = &rand[n];
   int ind = curand_uniform(randState)*(points.elem()-1);
   vec3 pos = points[ind];
-//  vec2 pos = vec2 {
-//    curand_uniform(randState)*float(index[0]-1),
-//    curand_uniform(randState)*float(index[1]-1)
-//  };
 
-  const size_t K = 8;
+  const size_t K = 16;
   cukd::FixedCandidateList<K> list(100.0);
-  knn<K>(kdtree, vec2(pos.x, pos.y), list);
 
-  float nheight = 100000.0f;  // float max
-  int next = -1;
-
-  // Closest 3 Point Indices
-  for(int i = 0; i < K; ++i){
-    int ind = list.get_pointID(i);
-    if(ind >= 0){
-      const float n = kdtree.data[ind].i;
-      const float h = points[n].z;
-      if(h < nheight){
-        nheight = h;
-        next = n;
-      }
-    }
-  }
-
-  if(next == -1){
-    return;
-  }
-
-  acc[next] += 1.0f;
-  pos = points[next];
-//  pos = vec2(points[next].x, points[next].y);
+  atomicAdd(&acc[ind], 1.0f);
 
   int maxstep = 8192;
   while(maxstep > 0){
     maxstep--;
 
-    next = -1;
-
     knn<K>(kdtree, vec2(pos.x, pos.y), list);
-
+    
     // Closest 3 Point Indices
+    int next = -1;
+    float nh = pos.z; // lowest height
+
     for(int i = 0; i < K; ++i){
       int ind = list.get_pointID(i);
       if(ind >= 0){
+
         const float n = kdtree.data[ind].i;
-        const float h = points[n].z;
-        if(h < nheight){
-          nheight = h;
+        const vec3 np = points[n];
+
+        if(np.z < nh){
+          nh = np.z;
           next = n;
         }
       }
@@ -299,9 +275,8 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
       return;
     }
   
-    acc[next] += 1.0f;
     pos = points[next];
-//    pos = vec2(points[next].x, points[next].y);
+    atomicAdd(&acc[next], 1.0f);
 
   }
 
