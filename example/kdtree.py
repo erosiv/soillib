@@ -26,7 +26,8 @@ def plot_pcl(points, colors = None):
 #  levels = np.linspace(zs.min(), zs.max(), 32)
   # ax.tricontourf(xs, ys, zs, levels=levels, cmap='turbo')
   col = colors.cpu().numpy(soil.index([N]))
-  ax.plot(xs, ys, 'o', markersize=2, color='grey')
+  col = np.log(1.0 + col)
+#  ax.plot(xs, ys, 'o', markersize=2, color='grey')
   ax.tripcolor(xs, ys, col, shading='gouraud')
 
   plt.show()
@@ -45,9 +46,6 @@ def plot_pcl(points, colors = None):
   plt.show()
   '''
 
-'''
-
-'''
 
 def plot_pcl_3D(points, colors = None):
 
@@ -95,7 +93,7 @@ def main(input):
     # lerp the height-map to get the corresponding height-values
     # concatenate these into a point-cloud map!
 
-    pos = soil.sampleN(index, 8192)
+    pos = soil.sampleN(index, 8192*4)
     kdtree = soil.kdtree(pos)
     height = soil.sample_lerp(buffer, index, pos)
     pcl = soil.concat(pos, height)
@@ -112,6 +110,6 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
-  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
+  data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
 
   main(data)

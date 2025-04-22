@@ -175,10 +175,10 @@ struct payload_traits:
 };
 
 template<size_t K>
-__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandidateList<K>& list) {
+__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::FixedCandidateList<K>& list) {
 
   cukd::stackBased::knn<
-    cukd::HeapCandidateList<K>,
+    cukd::FixedCandidateList<K>,
     payload_t,
     payload_traits
   >(list, make_point(pos), kdtree.data.data(), kdtree.elem());
@@ -199,7 +199,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   };
 
   const size_t K = 4;
-  cukd::HeapCandidateList<K> list(100.0);
+  cukd::FixedCandidateList<K> list(100.0);
   knn<K>(kdtree, pos, list);
 
   float nheight = 100000.0f;  // float max
