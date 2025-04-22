@@ -185,6 +185,52 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::FixedCandi
 
 }
 
+/*
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  // Initialize Position in Domain
+  curandState* randState = &rand[n];
+
+  int cur = curand_uniform(randState)*points.elem();
+  vec3 pos = points[cur];
+  atomicAdd(&acc[cur], 1.0f);
+
+  const size_t K = 4;
+  cukd::FixedCandidateList<K> list(100.0);
+
+  int maxstep = 8192;
+  while(maxstep > 0){
+    maxstep--;
+    
+    knn<K>(kdtree, vec2(pos.x, pos.y), list);
+    
+    int next = -1;
+    for(int i = 0; i < K; ++i){
+      int ind = list.get_pointID(i);
+      if(ind >= 0){
+
+        const float n = kdtree.data[ind].i;
+        const vec3 np = points[n];
+        if(np.z < pos.z){
+          pos = np;
+          next = n;
+        }
+
+      }
+
+    }
+  
+    if(next == -1){
+      return;
+    }
+  
+    atomicAdd(&acc[next], 1.0f);
+
+  }
+*/
+
 //! Greedy Descent
 __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
 
@@ -193,14 +239,16 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
 
   // Initialize Position in Domain
   curandState* randState = &rand[n];
-  vec2 pos = vec2 {
-    curand_uniform(randState)*float(index[0]-1),
-    curand_uniform(randState)*float(index[1]-1)
-  };
+  int ind = curand_uniform(randState)*(points.elem()-1);
+  vec3 pos = points[ind];
+//  vec2 pos = vec2 {
+//    curand_uniform(randState)*float(index[0]-1),
+//    curand_uniform(randState)*float(index[1]-1)
+//  };
 
-  const size_t K = 4;
+  const size_t K = 8;
   cukd::FixedCandidateList<K> list(100.0);
-  knn<K>(kdtree, pos, list);
+  knn<K>(kdtree, vec2(pos.x, pos.y), list);
 
   float nheight = 100000.0f;  // float max
   int next = -1;
@@ -223,7 +271,8 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   }
 
   acc[next] += 1.0f;
-  pos = vec2(points[next].x, points[next].y);
+  pos = points[next];
+//  pos = vec2(points[next].x, points[next].y);
 
   int maxstep = 8192;
   while(maxstep > 0){
@@ -231,7 +280,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
 
     next = -1;
 
-    knn<K>(kdtree, pos, list);
+    knn<K>(kdtree, vec2(pos.x, pos.y), list);
 
     // Closest 3 Point Indices
     for(int i = 0; i < K; ++i){
@@ -251,7 +300,8 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
     }
   
     acc[next] += 1.0f;
-    pos = vec2(points[next].x, points[next].y);
+    pos = points[next];
+//    pos = vec2(points[next].x, points[next].y);
 
   }
 
