@@ -57,6 +57,19 @@ soil::buffer sample_lerp(const buffer& field, const soil::index &index, const bu
 }
 
 //
+// Normal Computation / Field Gradient
+//
+
+buffer_t<vec3> sample_grad_impl(const buffer_t<float>& field, const flat_t<2>& index, const buffer_t<vec2>& pos);
+
+soil::buffer sample_grad(const buffer& field, const soil::index &index, const buffer& pos){
+  const auto index_t = index.as<flat_t<2>>();
+  const auto field_t = field.as<float>();
+  const auto pos_t = pos.as<vec2>();
+  return soil::buffer(sample_grad_impl(field_t, index_t, pos_t));
+}
+
+//
 // Concatenate two Buffers (Copy)
 //
 

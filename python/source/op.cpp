@@ -258,6 +258,10 @@ module.def("sample_lerp", [](const soil::buffer& field, const soil::index& index
   return soil::sample_lerp(field, index, pos);
 });
 
+module.def("sample_grad", [](const soil::buffer& field, const soil::index& index, const soil::buffer& pos){
+  return soil::sample_grad(field, index, pos);
+});
+
 module.def("concat", [](const soil::buffer& a, const soil::buffer& b){
   return soil::concat(a, b);
 });

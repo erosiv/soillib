@@ -47,7 +47,7 @@ def plot_pcl(points, colors = None):
   '''
 
 
-def plot_pcl_3D(points, colors = None):
+def plot_pcl_3D(points, colors = None, normals = None):
 
   fig = plt.figure()
   ax = fig.add_subplot(projection='3d')
@@ -61,6 +61,7 @@ def plot_pcl_3D(points, colors = None):
 
 #    print()
 
+  '''
   if not colors is None:
     col = colors.cpu().numpy(soil.index([N]))
     print(np.max(col))
@@ -68,6 +69,11 @@ def plot_pcl_3D(points, colors = None):
     ax.scatter(xs, ys, zs, marker='o', c = col)
   else:
     ax.scatter(xs, ys, zs, marker='o')
+  '''
+
+  normals = normals.cpu().numpy(soil.index([N]))
+  normals = 0.5 + 0.5*normals
+  ax.scatter(xs, ys, zs, marker='o', c=normals)
 
   zmin = np.min(zs)
   zmax = np.max(zs)
@@ -95,14 +101,17 @@ def main(input):
 
     pos = soil.sampleN(index, 8192*4)
     kdtree = soil.kdtree(pos)
+    
     height = soil.sample_lerp(buffer, index, pos)
+    normal = soil.sample_grad(buffer, index, pos)
+
     pcl = soil.concat(pos, height)
 
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, index, 1024*4)
 
-    plot_pcl(pcl, acc)
-#    plot_pcl_3D(pcl, acc)
+#    plot_pcl(pcl, normal)
+    plot_pcl_3D(pcl, acc, normal)
     return
 
 if __name__ == "__main__":

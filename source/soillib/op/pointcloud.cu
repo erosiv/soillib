@@ -88,6 +88,34 @@ soil::buffer_t<float> sample_lerp_impl(const soil::buffer_t<float> &field, const
 }
 
 //
+// Sample Gradient Implementation
+//
+
+__global__ void _sample_grad(const soil::buffer_t<float> field, soil::buffer_t<vec3> output, const soil::flat_t<2> index, const soil::buffer_t<vec2> pos_b){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= pos_b.elem()) return;
+
+  vec2 pos = pos_b[n];
+  
+  lerp5_t<float> lerp;
+  lerp.gather(field, index, ivec2(pos));
+  const vec2 grad = lerp.grad();
+  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  output[n] = normal;
+
+}
+
+soil::buffer_t<vec3> sample_grad_impl(const soil::buffer_t<float> &field, const soil::flat_t<2> &index, const soil::buffer_t<vec2>& pos){
+
+  const size_t elem = pos.elem();
+  soil::buffer_t<vec3> output(elem, soil::GPU);
+  _sample_grad<<<block(elem, 1024), 1024>>>(field, output, index, pos);
+  return output;
+
+}
+
+//
 // Buffer Concatenation
 //
 
