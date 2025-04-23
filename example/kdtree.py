@@ -108,15 +108,16 @@ def main(input):
 
     rbf = soil.rbf()
     rbf.init(center)
-    rbf.shape = 0.01
-    rbf.lrate_w = 0.0001
+    s = 0.005
+    rbf.shape = s
+    rbf.lrate_w = s*s
     
     N = 4 * K
     pos = soil.sampleN(index, N)
     height = soil.sample_lerp(buffer, index, pos)
     normal = soil.sample_grad(buffer, index, pos)
     pcl = soil.concat(pos, height)
-    rbf.fit(kdtree, pcl, 64)
+    rbf.fit(kdtree, pcl, 128)
 
     values = rbf.sample(kdtree, pos)
     pcl2 = soil.concat(pos, values)
