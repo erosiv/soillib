@@ -31,7 +31,7 @@ namespace {
 __global__ void rbf_init(rbf rbf, const soil::buffer_t<vec2> center_b){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= center_b.elem()) return;
-  rbf.weights[n] = 1.0f;
+  rbf.weights[n] = 0.0f;
   rbf.centers[n] = center_b[n];
 }
 
@@ -90,6 +90,37 @@ __global__ void zero_delta(soil::buffer_t<float> delta_b){
   delta_b[n] = 0.0f;
 }
 
+__device__ float rbf_sample(const soil::kdtree& kdtree, const rbf& rbf, const vec2& pos){
+
+  // Sample Closest Points
+
+  const size_t B = 32;
+  cukd::HeapCandidateList<B> list(200.0);
+  knn<B>(kdtree, pos, list);
+  float val = 0.0f;
+
+  // Closest Point Accumulation:
+  for(int b = 0; b < B; ++b) {
+    
+    int k = list.get_pointID(b);
+    if(k >= 0){
+      k = kdtree.data[k].i;
+
+      // accumulate into val!
+      const vec2 c = rbf.centers[k];
+      const float w = rbf.weights[k];
+      const float s = rbf.shape;
+      const float r = glm::length(c - pos);
+      val += rbf::func(w, r, s);
+
+    }
+
+  }
+
+  return val;
+
+}
+
 //! Compute Delta Kernel
 //!
 //! For every data-point, this kernel finds the nearest points
@@ -110,10 +141,10 @@ __global__ void rbf_delta_w(const soil::kdtree kdtree, const rbf rbf, const soil
   const vec3 data = data_b[n];
   const vec2 pos(data);
 
-  // Sample Closest Points
+  // Compute Approximation Error
 
   const size_t B = 32;
-  cukd::HeapCandidateList<B> list(100.0);
+  cukd::HeapCandidateList<B> list(200.0);
   knn<B>(kdtree, pos, list);
   float val = 0.0f;
 
@@ -134,7 +165,6 @@ __global__ void rbf_delta_w(const soil::kdtree kdtree, const rbf rbf, const soil
 
   }
 
-  // this is the local error...
   const float err = val - data.z;
 
   // Closest Point Accumulation:
@@ -206,33 +236,20 @@ __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil:
   const size_t K = kdtree.elem();
 
   const vec2 pos = pos_b[n];
+  val_b[n] = rbf_sample(kdtree, rbf, pos);
 
-  // Sample Closest Points
+}
 
-  const size_t B = 32;
-  cukd::HeapCandidateList<B> list(100.0);
-  knn<B>(kdtree, pos, list);
-  float val = 0.0f;
+__global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil::flat_t<2> index, soil::buffer_t<float> val_b){
 
-  // Closest Point Accumulation:
-  for(int b = 0; b < B; ++b) {
-    
-    int k = list.get_pointID(b);
-    if(k >= 0){
-      k = kdtree.data[k].i;
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= index.elem()) return;
 
-      // accumulate into val!
-      const vec2 c = rbf.centers[k];
-      const float w = rbf.weights[k];
-      const float s = rbf.shape;
-      const float r = glm::length(c - pos);
-      val += rbf::func(w, r, s);
+  const size_t N = index.elem();
+  const size_t K = kdtree.elem();
 
-    }
-
-  }
-
-  val_b[n] = val;
+  const vec2 pos = index.unflatten(n);
+  val_b[n] = rbf_sample(kdtree, rbf, pos);
 
 }
 
@@ -243,6 +260,15 @@ buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const buffer_t<vec
   const size_t N = pos.elem();
   auto values = soil::buffer_t<float>(N, soil::host_t::GPU);
   rbf_sample<<<block(N, 1024), 1024>>>(kdtree, *this, pos, values);
+  return values;
+
+}
+
+buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const soil::flat_t<2>& index) const {
+
+  const size_t N = index.elem();
+  auto values = soil::buffer_t<float>(N, soil::host_t::GPU);
+  rbf_sample<<<block(N, 1024), 1024>>>(kdtree, *this, index, values);
   return values;
 
 }

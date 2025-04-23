@@ -10,6 +10,15 @@ from tqdm import tqdm
 kdtree kernel tests
 ---
 
+Basically, right now this is not working how I want it to.
+I don't want to stash the whole matrix away, given that it
+is quite large, but in principle it's just a large image.
+
+Instead, what if we just use pytorch to solve the least
+squares problem directly, then use the weights directly
+in the sampling?
+
+Let's try it.
 '''
 
 def plot_pcl(points, colors = None, normals = None):
@@ -102,17 +111,17 @@ def main(input):
     # lerp the height-map to get the corresponding height-values
     # concatenate these into a point-cloud map!
 
-    K = 8192
+    K = 2048
     center = soil.sampleN(index, K)
     kdtree = soil.kdtree(center)
 
     rbf = soil.rbf()
     rbf.init(center)
-    s = 0.005
+    s = 0.1
     rbf.shape = s
     rbf.lrate_w = s*s
     
-    N = 4 * K
+    N = 8 * K
     pos = soil.sampleN(index, N)
     height = soil.sample_lerp(buffer, index, pos)
     normal = soil.sample_grad(buffer, index, pos)
@@ -128,22 +137,34 @@ def main(input):
     err = (values - height)
     print(np.sum(err * err)/N)
 
+    pps = center.cpu().numpy(soil.index([K]))
+
+    img = rbf.sample(kdtree, index)
+    img = img.cpu().numpy(index)
+    plt.imshow(img)
+    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
+    plt.show()
+
+    img = buffer.cpu().numpy(index)
+    plt.imshow(img)
+    plt.show()
+
     '''
+
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, normal, index, 64)
-
     plot_pcl(pcl, acc, normal)
-    '''
 
     plot_pcl_3D(pcl2, None, normal)
     return
+    '''
 
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
-  data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
-  #data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
+  #data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
+  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
 
   main(data)

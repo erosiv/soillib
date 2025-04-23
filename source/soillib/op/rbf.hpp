@@ -50,11 +50,21 @@ struct rbf {
   //
 
   buffer_t<float> sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions
+  buffer_t<float> sample(const soil::kdtree& kdtree, const soil::flat_t<2>& index) const;
 
   //
   // Basis Function Implementation
   //
 
+  GPU_ENABLE static float func(const float w, const float r, const float s){
+    return w * exp(-r*r*s*s);
+  }
+  
+  GPU_ENABLE static float grad_w(const float w, const float r, const float s){
+    return exp(-r*r*s*s);
+  }
+
+  /*
   GPU_ENABLE static float func(const float w, const float r, const float s){
     return w / ( 1.0f + (s*s*r*r) );
   }
@@ -62,15 +72,15 @@ struct rbf {
   GPU_ENABLE static float grad_w(const float w, const float r, const float s){
     return 1.0f / ( 1.0f + (s*s*r*r) );
   }
-  
+  */
+
   /*
-  GPU_ENABLE static float grad_s(const float w, const float r, const float s){
-    return - w * 2 * s * r * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s);
+  GPU_ENABLE static float func(const float w, const float r, const float s){
+    return w * r * r * log( r );
   }
   
-  GPU_ENABLE static vec2 grad_c(const float w, const vec2 d, const float s){
-    const float r = glm::length(d);
-    return - w * 2 * s * s * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s) * d;
+  GPU_ENABLE static float grad_w(const float w, const float r, const float s){
+    return r * r * log( r );
   }
   */
 

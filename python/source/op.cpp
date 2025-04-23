@@ -306,6 +306,11 @@ rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::b
   return soil::buffer(rbf.sample(kdtree, data_t));
 });
 
+rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::index& index){
+  const auto index_t = index.as<soil::flat_t<2>>();
+  return soil::buffer(rbf.sample(kdtree, index_t));
+});
+
 rbf_t.def_rw("lrate_w", &soil::rbf::lrate_w);
 rbf_t.def_rw("shape", &soil::rbf::shape);
 
