@@ -20,18 +20,34 @@ def plot_pcl(points, colors = None, normals = None):
   N = points.elem
 
   points = points.cpu().numpy(soil.index([N]))
-  xs = points[:, 0]
-  ys = points[:, 1]
-  zs = points[:, 2]
+  X = points[:, 0]
+  Y = points[:, 1]
+  Z = points[:, 2]
 
-#  levels = np.linspace(zs.min(), zs.max(), 32)
-  # ax.tricontourf(xs, ys, zs, levels=levels, cmap='turbo')
   col = colors.cpu().numpy(soil.index([N]))
   col = np.log(1.0 + col)
-#  ax.plot(xs, ys, 'o', markersize=2, color='grey')
-  ax.tripcolor(xs, ys, col, shading='gouraud')
+
+#  ax.plot(X, Y, 'o', markersize=2, color='grey')
+  ax.tripcolor(X, Y, col, shading='gouraud')
+
+  normals = normals.cpu().numpy(soil.index([N]))
+  normals = normals[:, 0:2]
+  norm = np.sqrt(np.sum(normals * normals, axis=-1))
+  normals = normals / np.expand_dims(norm, axis=-1)
+  U = 5.0 * normals[:, 0]
+  V = 5.0 * normals[:, 1]
+
+#  ax.quiver(X, Y, U, V, color="black", angles='xy', scale_units='xy', scale=1, width=.0015)
+#    headwidth=0, headaxislength=0, headlength=0)
 
   plt.show()
+
+  '''
+  # def plot_quiver()
+#   q = g.quiver()
+
+#  acc = g.acc().cpu().numpy().transpose()
+  '''
 
 def plot_pcl_3D(points, colors = None, normals = None):
 
@@ -47,6 +63,7 @@ def plot_pcl_3D(points, colors = None, normals = None):
 
 #    print()
 
+  '''
   if not colors is None:
     col = colors.cpu().numpy(soil.index([N]))
     print(np.max(col))
@@ -54,12 +71,11 @@ def plot_pcl_3D(points, colors = None, normals = None):
     ax.scatter(xs, ys, zs, marker='o', c = col)
   else:
     ax.scatter(xs, ys, zs, marker='o')
-
   '''
+
   normals = normals.cpu().numpy(soil.index([N]))
   normals = 0.5 + 0.5*normals
   ax.scatter(xs, ys, zs, marker='o', c=normals)
-  '''
 
   zmin = np.min(zs)
   zmax = np.max(zs)
@@ -85,7 +101,7 @@ def main(input):
     # lerp the height-map to get the corresponding height-values
     # concatenate these into a point-cloud map!
 
-    pos = soil.sampleN(index, 8192)
+    pos = soil.sampleN(index, 8192*8)
     kdtree = soil.kdtree(pos)
     
     height = soil.sample_lerp(buffer, index, pos)
@@ -94,10 +110,10 @@ def main(input):
     pcl = soil.concat(pos, height)
 
     print("Computing Accumulation...")
-    acc = soil.sparseacc(kdtree, pcl, index, 1024*4)
+    acc = soil.sparseacc(kdtree, pcl, normal, index, 64)
 
-#    plot_pcl(pcl, acc, normal)
-    plot_pcl_3D(pcl, acc, normal)
+    plot_pcl(pcl, acc, normal)
+#    plot_pcl_3D(pcl, acc, normal)
     return
 
 if __name__ == "__main__":
@@ -106,5 +122,6 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
   data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
+  #data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
 
   main(data)

@@ -270,8 +270,8 @@ module.def("select_index", [](const soil::buffer& source, const soil::buffer& in
   return soil::select_index(source, index);
 });
 
-module.def("sparseacc", [](const soil::kdtree& kdtree, const soil::buffer& points, const soil::index& index, const size_t niter){
-  return soil::sparseacc(kdtree, points, index, niter);
+module.def("sparseacc", [](const soil::kdtree& kdtree, const soil::buffer& points, const soil::buffer& normal, const soil::index& index, const size_t niter){
+  return soil::sparseacc(kdtree, points, normal, index, niter);
 });
 
 //

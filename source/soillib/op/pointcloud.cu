@@ -213,12 +213,13 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::FixedCandi
 
 }
 
-//! Greedy Descent
-__global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
+/*
+//! Greedy Descent: Steepest Slope from Neighbors
+__global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, const soil::buffer_t<vec3> normal, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
-
+  
   // Initialize Position in Domain
   curandState* randState = &rand[n];
   int ind = curand_uniform(randState)*(points.elem()-1);
@@ -230,10 +231,10 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   int maxstep = 8192;
   while(maxstep > 0){
     maxstep--;
-
+    
     pos = points[ind];
     atomicAdd(&acc[ind], 1.0f);
-
+    
     knn<K>(kdtree, vec2(pos.x, pos.y), list);
     
     // Closest 3 Point Indices
@@ -272,6 +273,64 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   }
 
 }
+*/
+
+//! Smooth Closest Normal Descent:
+//! Pick the closest point's normal,
+//! move along that direction until
+//! you reach the next closest point.
+//! or: choose the distance-weighted average!
+//! 
+__global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, const soil::buffer_t<vec3> normal, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  // Initialize Position in Domain
+  curandState* randState = &rand[n];
+  int ind = curand_uniform(randState)*(points.elem()-1);
+  vec3 pos = points[ind];
+  
+  const size_t K = 4;
+  cukd::FixedCandidateList<K> list(100.0);
+  
+  int maxstep = 8192;
+  while(maxstep > 0){
+    maxstep--;
+
+    knn<K>(kdtree, vec2(pos.x, pos.y), list);
+
+    // Nearest Accumulation
+
+    int n0 = list.get_pointID(0);
+    int n1 = list.get_pointID(1);
+    if(n0 < 0 || n1 < 0)
+      break;
+
+    n0 = kdtree.data[n0].i;
+    n1 = kdtree.data[n1].i;
+
+    atomicAdd(&acc[n0], 1.0f);
+    ind = n0;
+
+    // Motion Computation
+  
+//    const vec2 p0 = vec2(points[n0]);
+    const vec2 p1 = vec2(points[n1]);
+    const float rad = 10.0f;// * glm::length(p1-vec2(pos));
+
+    vec3 dir = normal[ind];
+    dir = glm::normalize(dir);
+    vec2 dir2 = glm::normalize(vec2(dir.x, dir.y));
+    pos.x += rad * dir2.x;
+    pos.y += rad * dir2.y;
+
+    if(pos.x < 0.0f || pos.x >= index[0]) break;
+    if(pos.y < 0.0f || pos.y >= index[1]) break;
+
+  }
+
+}
 
 //! Sparse Accumulation with KDTree
 //!
@@ -286,7 +345,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
 //! \todo Replace Gradient Computation Method
 //! \todo Allow for Changing Point Height from Erosion / Slope
 //!
-soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::index& index, const size_t niter){
+soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::buffer& normal, const soil::index& index, const size_t niter){
 
   std::cout<<"Launching Sparse Accumulation"<<std::endl;
 
@@ -305,11 +364,12 @@ soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, c
   //  Launch N kernels...
   const auto index_t = index.as<soil::flat_t<2>>();
   const auto point_t = points.as<vec3>();
+  const auto normal_t = normal.as<vec3>();
 
   std::cout<<"Descending Particles..."<<std::endl;
   
   for(int i = 0; i < niter; ++i){
-    sparse_descend<<<block(N, 1024), 1024>>>(kdtree, point_t, acc, rand, N, index_t);
+    sparse_descend<<<block(N, 1024), 1024>>>(kdtree, point_t, normal_t, acc, rand, N, index_t);
   }
 
   std::cout<<"Done"<<std::endl;

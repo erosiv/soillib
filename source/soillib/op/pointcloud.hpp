@@ -105,7 +105,7 @@ soil::buffer select_index(const soil::buffer& source, const soil::buffer& index)
 //! Input is a kdtree and a pointcloud, which is used for
 //! computing gradients, etc. We compute the accumulation
 //! for each point based on the point-cloud interpolation.
-soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::index& index, const size_t niter);
+soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::buffer& normal, const soil::index& index, const size_t niter);
 
 }
 
