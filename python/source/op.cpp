@@ -292,15 +292,11 @@ kdtree_t.def("knn", [](const soil::kdtree& kdtree, const soil::buffer& query, co
 auto rbf_t = nb::class_<soil::rbf>(module, "rbf");
 rbf_t.def(nb::init<>());
 
-rbf_t.def("init", [](soil::rbf& rbf, const soil::index& index, const size_t N){
-  rbf.init(index, N);
+rbf_t.def("init", [](soil::rbf& rbf, const soil::buffer& centroids){
+  rbf.init(centroids.as<soil::vec2>());
 });
 
-rbf_t.def("init", [](soil::rbf& rbf, const soil::buffer& buffer){
-  const auto buffer_t = buffer.as<soil::vec3>();
-  rbf.init(buffer_t);
-});
-
+/*
 rbf_t.def_rw("lrate_w", &soil::rbf::lrate_w);
 rbf_t.def_rw("lrate_s", &soil::rbf::lrate_s);
 rbf_t.def_rw("lrate_c", &soil::rbf::lrate_c);
@@ -313,6 +309,7 @@ rbf_t.def("fit", [](soil::rbf& rbf, const soil::buffer& buffer, const size_t ste
   const auto buffer_t = buffer.as<soil::vec3>();
   rbf.fit(buffer_t, steps);
 });
+*/
 
 }
 

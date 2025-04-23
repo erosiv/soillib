@@ -25,66 +25,28 @@ namespace soil {
 
 namespace {
 
-__global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
+__global__ void rbf_init(rbf rbf, const soil::buffer_t<vec2> center_b){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= buffer.elem()) return;
-  curand_init(seed, n, offset, &buffer[n]);
-}
-
-__global__ void rbf_init(rbf rbf, const soil::buffer_t<vec3> data_b){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= data_b.elem()) return;
-  const vec3 data = data_b[n];
+  if(n >= center_b.elem()) return;
   rbf.weights[n] = 0.0f;
-  rbf.shapes[n] = rbf.shape;
-  rbf.centers[n] = vec2(data.x, data.y);
-}
-
-__global__ void rbf_init(rbf rbf, buffer_t<curandState> rand, const flat_t<2> index){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= rand.elem()) return;
-  curandState* randState = &rand[n];
-  rbf.weights[n] = 0.0f;
-  rbf.shapes[n] = rbf.shape;
-  rbf.centers[n] = vec2 {
-    curand_uniform(randState)*float(index[0]-1),
-    curand_uniform(randState)*float(index[1]-1)
-  };
+  rbf.centers[n] = center_b[n];
 }
 
 }
 
-void rbf::init(const buffer_t<vec3>& data){
+void rbf::init(const buffer_t<vec2>& centers){
 
-  const size_t elem = data.elem();
+  const size_t elem = centers.elem();
   this->elem = elem;
 
-  this->shapes = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
 
-  rbf_init<<<block(elem, 1024), 1024>>>(*this, data);
+  rbf_init<<<block(elem, 1024), 1024>>>(*this, centers);
 
 }
 
-void rbf::init(const index& index, const size_t N){
-
-  const size_t elem = N;
-  this->elem = elem;
-
-  this->shapes = soil::buffer_t<float>(elem, soil::host_t::GPU);
-  this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
-  this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
-
-  auto rand = soil::buffer_t<curandState>(elem, soil::host_t::GPU);
-  seed<<<block(N, 1024), 1024>>>(rand, 1, 2);
-  cudaDeviceSynchronize();
-
-  auto index_t = index.as<flat_t<2>>();
-  rbf_init<<<block(elem, 1024), 1024>>>(*this, rand, index_t);
-
-}
-
+/*
 //
 // Radial Basis Function Sampling
 //
@@ -306,6 +268,8 @@ void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
   std::cout<<"TOTAL ERROR: "<<total_error<<std::endl;
 
 }
+
+*/
 
 }
 

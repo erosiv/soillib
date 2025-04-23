@@ -3,6 +3,7 @@
 
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
+#include <soillib/index/kdtree.hpp>
 
 // Radial Basis Function Interpolator
 // 1. Fit the Weight-Set from a set of Values, Positions
@@ -16,34 +17,42 @@ namespace soil {
 
 //! rbf is a radial basis function interpolator
 //!
-//! rbf supports various basis function types,
-//! and provides host and device functions for sampling.
+//! rbf can fit data using a kd-tree using various
+//! basis function types.
+//!
+//! rbf supports buffer-based value and gradient sampling.
 //!
 struct rbf {
 
   // rbf centroid initialization
 
-  void init(const buffer_t<vec3>& data);          //!< Initialize Centroids from Pointcloud
-  void init(const index& index, const size_t N);  //!< Initialize Centroids Randomly
+  void init(const buffer_t<vec2>& centroids);  //!< Initialize Centroids from Pointcloud
 
-  buffer_t<float> sample(const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions  
-  buffer_t<float> sample(const index& index) const;         //!< Sample the RBF for a full Index
+  size_t elem = 0;          //!< Number of Components
+  float shape = 1.0f;       //!< Singular Shape Parameter
+
+  buffer_t<float> weights;  //!< Interpolation Weights
+  buffer_t<vec2> centers;   //!< Interpolation Centers
+
+  /*
+  //
+  // Fitting Procedure
+  //
 
   //! Fit the RBF Interpolator to a 2.5D Dataset
   //! Note: This can be split into two buffers in theory.
   void fit(const buffer_t<vec3>& data, const size_t steps);
-
-  // Parameters
-
-  float shape = 1.0f;
-  size_t elem = 0;          //!< Number of Components
-  buffer_t<float> weights;  //!< Interpolation Weights
-  buffer_t<float> shapes;   //!< Interpolation Shape Parameters
-  buffer_t<vec2> centers;   //!< Interpolation Centers
   
   float lrate_w = 0.01f;
   float lrate_s = 0.01f;
   float lrate_c = 0.01f;
+
+  //
+  // Sampling Methods
+  //
+
+  buffer_t<float> sample(const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions  
+  buffer_t<float> sample(const index& index) const;         //!< Sample the RBF for a full Index
 
   //
   // Basis Function Implementation
@@ -65,6 +74,7 @@ struct rbf {
     const float r = glm::length(d);
     return - w * 2 * s * s * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s) * d;
   }
+  */
 
 };
 

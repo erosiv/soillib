@@ -91,7 +91,8 @@ def main(input):
 
   for file, path in iter_tiff(input):
 
-    # Load Digital Elevation Model
+    print("Loading Digital Elevation Model...")
+
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
     index = image.index
@@ -103,6 +104,8 @@ def main(input):
 
     pos = soil.sampleN(index, 8192*8)
     kdtree = soil.kdtree(pos)
+    rbf = soil.rbf()
+    rbf.init(pos)
     
     height = soil.sample_lerp(buffer, index, pos)
     normal = soil.sample_grad(buffer, index, pos)
