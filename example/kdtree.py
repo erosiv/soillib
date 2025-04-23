@@ -104,19 +104,24 @@ def main(input):
 
     pos = soil.sampleN(index, 8192*8)
     kdtree = soil.kdtree(pos)
+
     rbf = soil.rbf()
     rbf.init(pos)
     
     height = soil.sample_lerp(buffer, index, pos)
     normal = soil.sample_grad(buffer, index, pos)
 
+    rbf.fit(kdtree, height, 64)
     pcl = soil.concat(pos, height)
 
+    '''
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, normal, index, 64)
 
     plot_pcl(pcl, acc, normal)
-#    plot_pcl_3D(pcl, acc, normal)
+    '''
+
+    plot_pcl_3D(pcl, None, normal)
     return
 
 if __name__ == "__main__":

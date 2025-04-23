@@ -46,6 +46,16 @@ void rbf::init(const buffer_t<vec2>& centers){
 
 }
 
+//
+// RBF Fitting Procedure
+//
+
+void rbf::fit(const kdtree& kdtree, const buffer_t<float>& data, const size_t steps) {
+
+  std::cout<<"Fitting RBF..."<<std::endl;
+
+}
+
 /*
 //
 // Radial Basis Function Sampling

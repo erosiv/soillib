@@ -296,6 +296,11 @@ rbf_t.def("init", [](soil::rbf& rbf, const soil::buffer& centroids){
   rbf.init(centroids.as<soil::vec2>());
 });
 
+rbf_t.def("fit", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buffer& buffer, const size_t steps){
+  const auto value_t = buffer.as<float>();
+  rbf.fit(kdtree, value_t, steps);
+});
+
 /*
 rbf_t.def_rw("lrate_w", &soil::rbf::lrate_w);
 rbf_t.def_rw("lrate_s", &soil::rbf::lrate_s);
@@ -305,10 +310,7 @@ rbf_t.def_rw("shape", &soil::rbf::shape);
 rbf_t.def("sample", [](const soil::rbf& rbf, const soil::index& index){
   return soil::buffer(rbf.sample(index));
 });
-rbf_t.def("fit", [](soil::rbf& rbf, const soil::buffer& buffer, const size_t steps){
-  const auto buffer_t = buffer.as<soil::vec3>();
-  rbf.fit(buffer_t, steps);
-});
+
 */
 
 }

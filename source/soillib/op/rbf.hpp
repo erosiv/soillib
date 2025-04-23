@@ -24,9 +24,12 @@ namespace soil {
 //!
 struct rbf {
 
-  // rbf centroid initialization
+  //
+  // rbf initialization
+  //
 
-  void init(const buffer_t<vec2>& centroids);  //!< Initialize Centroids from Pointcloud
+  //!< Initialize Centroids from 2D Pointcloud
+  void init(const buffer_t<vec2>& centroids);
 
   size_t elem = 0;          //!< Number of Components
   float shape = 1.0f;       //!< Singular Shape Parameter
@@ -34,18 +37,15 @@ struct rbf {
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<vec2> centers;   //!< Interpolation Centers
 
-  /*
   //
   // Fitting Procedure
   //
 
   //! Fit the RBF Interpolator to a 2.5D Dataset
-  //! Note: This can be split into two buffers in theory.
-  void fit(const buffer_t<vec3>& data, const size_t steps);
-  
-  float lrate_w = 0.01f;
-  float lrate_s = 0.01f;
-  float lrate_c = 0.01f;
+  void fit(const kdtree& kdtree, const buffer_t<float>& data, const size_t steps);
+  float lrate_w = 0.01f;  //!< Weight Learning Rate
+
+  /*
 
   //
   // Sampling Methods
