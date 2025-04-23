@@ -50,6 +50,43 @@ void rbf::init(const buffer_t<vec2>& centers){
 }
 
 //
+// Matrix Computation
+//
+
+namespace {
+
+__global__ void rbf_matrix(rbf rbf, soil::buffer_t<float> matrix_b, const soil::buffer_t<vec2> samples_b, const soil::flat_t<2> index, const size_t K, const size_t N) {
+
+  const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if(i >= N*K) return;
+  
+  soil::ivec2 entry = index.unflatten(i);
+  const size_t n = entry[0];
+  const size_t k = entry[1];
+
+  const vec2 sample = samples_b[n];
+  const vec2 center = rbf.centers[k];
+  const float r = glm::length(center - sample);
+  matrix_b[i] = rbf::func(1.0, r, rbf.shape);
+
+}
+
+}
+
+buffer_t<float> rbf::matrix(const buffer_t<vec2>& samples) const {
+
+  const size_t K = this->elem;
+  const size_t N = samples.elem();
+  buffer_t<float> matrix = buffer_t<float>{ N*K, soil::host_t::GPU };
+
+  const auto index_t = soil::flat_t<2>(vec2(N, K));
+  rbf_matrix<<<block(N*K, 1024), 1024>>>(*this, matrix, samples, index_t, K, N);
+
+  return matrix;
+
+}
+
+//
 // RBF Fitting Procedure
 //
 
@@ -92,31 +129,49 @@ __global__ void zero_delta(soil::buffer_t<float> delta_b){
 
 __device__ float rbf_sample(const soil::kdtree& kdtree, const rbf& rbf, const vec2& pos){
 
-  // Sample Closest Points
+  /*
+  // Closest Point Accumulation:
 
   const size_t B = 32;
   cukd::HeapCandidateList<B> list(200.0);
   knn<B>(kdtree, pos, list);
+  
   float val = 0.0f;
-
-  // Closest Point Accumulation:
   for(int b = 0; b < B; ++b) {
     
-    int k = list.get_pointID(b);
-    if(k >= 0){
+  int k = list.get_pointID(b);
+  if(k >= 0){
       k = kdtree.data[k].i;
-
+      
       // accumulate into val!
       const vec2 c = rbf.centers[k];
       const float w = rbf.weights[k];
       const float s = rbf.shape;
       const float r = glm::length(c - pos);
       val += rbf::func(w, r, s);
-
+      
     }
-
+    
   }
+  
+  return val;
+  */
 
+  // Full Accumulation:
+  const size_t K = rbf.elem;
+
+  float val = 0.0f;
+  for(int k = 0; k < K; ++k) {
+      
+    // accumulate into val!
+    const vec2 c = rbf.centers[k];
+    const float w = rbf.weights[k];
+    const float s = rbf.shape;
+    const float r = glm::length(c - pos);
+    val += rbf::func(w, r, s);
+      
+  }
+  
   return val;
 
 }

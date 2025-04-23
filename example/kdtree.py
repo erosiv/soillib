@@ -5,6 +5,7 @@ from __common__ import *
 import soillib as soil
 import numpy as np
 from tqdm import tqdm
+import torch
 
 '''
 kdtree kernel tests
@@ -111,21 +112,45 @@ def main(input):
     # lerp the height-map to get the corresponding height-values
     # concatenate these into a point-cloud map!
 
-    K = 2048
+    K = 4096
+    N = 4 * K
+
+    # note: we could uniformly sample
+    #   somehow... I guess we should try different
+    #   sampling methods as well? and make sure the
+    #   fit works well...
+
     center = soil.sampleN(index, K)
-    kdtree = soil.kdtree(center)
+    sample = soil.sampleN(index, N)
+
+    value = soil.sample_lerp(buffer, index, sample)
+
+    print("Constructing Radial Basis Function Interpolator...")
 
     rbf = soil.rbf()
+    rbf.shape = 0.05
+
     rbf.init(center)
-    s = 0.1
-    rbf.shape = s
-    rbf.lrate_w = s*s
+    matrix = rbf.matrix(sample)
+
+    tmatrix = matrix.torch(soil.index([N, K]))
+    tvalue = value.torch(soil.index([N]))
+
+    print("Solving Least Squares...")
+    w = torch.linalg.lstsq(tmatrix, tvalue).solution
+    rbf.set_w(soil.buffer.from_numpy(w.cpu().numpy()).gpu())
+
+    print("Weights Set!")
+
+    kdtree = soil.kdtree(center)
+    img = rbf.sample(kdtree, index)
+    plt.imshow(img.cpu().numpy(index))
+#    pps = center.cpu().numpy(soil.index([K]))
+#    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
+    plt.show()
     
-    N = 8 * K
-    pos = soil.sampleN(index, N)
-    height = soil.sample_lerp(buffer, index, pos)
+    '''
     normal = soil.sample_grad(buffer, index, pos)
-    pcl = soil.concat(pos, height)
     rbf.fit(kdtree, pcl, 128)
 
     values = rbf.sample(kdtree, pos)
@@ -137,17 +162,13 @@ def main(input):
     err = (values - height)
     print(np.sum(err * err)/N)
 
-    pps = center.cpu().numpy(soil.index([K]))
 
-    img = rbf.sample(kdtree, index)
-    img = img.cpu().numpy(index)
-    plt.imshow(img)
-    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
-    plt.show()
+
 
     img = buffer.cpu().numpy(index)
     plt.imshow(img)
     plt.show()
+    '''
 
     '''
 
