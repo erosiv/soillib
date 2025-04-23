@@ -45,16 +45,11 @@ struct rbf {
   void fit(const kdtree& kdtree, const buffer_t<vec3>& data, const size_t steps);
   float lrate_w = 0.01f;  //!< Weight Learning Rate
 
-  /*
-
   //
   // Sampling Methods
   //
 
-  buffer_t<float> sample(const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions  
-  buffer_t<float> sample(const index& index) const;         //!< Sample the RBF for a full Index
-
-  */
+  buffer_t<float> sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions
 
   //
   // Basis Function Implementation

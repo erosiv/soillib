@@ -201,197 +201,61 @@ void rbf::fit(const kdtree& kdtree, const buffer_t<vec3>& data, const size_t ste
 
 }
 
-/*
 //
 // Radial Basis Function Sampling
 //
 
 namespace {
 
-__device__ float rbf_sample(const buffer_t<float>& w, const buffer_t<vec2>& c, const buffer_t<float>& s, const vec2 p){
-  float val = 0.0f;
-  for(int k = 0; k < w.elem(); ++k){
-    val += rbf::func(w[k], glm::length(c[k] - p), s[k]);
-  }
-  return val;
-}
+__global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil::buffer_t<vec2> pos_b, soil::buffer_t<float> val_b){
 
-__global__ void _rbf_sample(const rbf rbf, const soil::buffer_t<vec2> pos, soil::buffer_t<float> val_b){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= pos.elem()) return;
-  val_b[n] = rbf_sample(rbf.weights, rbf.centers, rbf.shapes, pos[n]);
-}
+  if(n >= pos_b.elem()) return;
 
-__global__ void _rbf_sample(const rbf rbf, const soil::flat_t<2> index, soil::buffer_t<float> val_b){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= index.elem()) return;
-  val_b[n] = rbf_sample(rbf.weights, rbf.centers, rbf.shapes, index.unflatten(n));
-}
+  const size_t N = pos_b.elem();
+  const size_t K = kdtree.elem();
 
-}
+  const vec2 pos = pos_b[n];
 
-buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos) const {
+  // Sample Closest Points
 
-  auto output = soil::buffer_t<float>(pos.elem(), soil::host_t::GPU);
-  const size_t elem = pos.elem();
-
-  _rbf_sample<<<block(elem, 1024), 1024>>>(*this, pos, output);
-  return output;
-
-}
-
-buffer_t<float> soil::rbf::sample(const index& index) const {
-
-  const auto index_t = index.as<soil::flat_t<2>>();
-  auto output = soil::buffer_t<float>(index.elem(), soil::host_t::GPU);
-  const size_t elem = index_t.elem();
-
-  _rbf_sample<<<block(elem, 1024), 1024>>>(*this, index_t, output);
-  return output;
-
-}
-
-//
-// Radial Basis Function Fitting
-//  Note: Gradient Descent on L1 Metric
-//
-
-namespace {
-
-
-
-//
-// Gradient Implementations
-//
-
-__global__ void rbf_grad_weights(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
-
-  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
-  if(k >= out_b.elem()) return;
-
-  const size_t N = error_b.elem();
-
-  float val = 0.0f;
-  for(int n = 0; n < N; ++n){
-
-    const vec2 c = rbf.centers[k];
-    const float w = rbf.weights[k];
-    const float s = rbf.shapes[k];
-    const float r = glm::length(c - vec2(data_b[n]));
-    val += error_b[n] * rbf::grad_w(w, r, s);
-
-  }
-  
-  out_b[k] = val;
-
-}
-
-__global__ void rbf_grad_shapes(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<float> out_b){
-
-  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
-  if(k >= out_b.elem()) return;
-
-  const size_t N = error_b.elem();
+  const size_t B = 16;
+  cukd::HeapCandidateList<B> list(100.0);
+  knn<B>(kdtree, pos, list);
   float val = 0.0f;
 
-  for(int n = 0; n < N; ++n){
-
-    const vec2 c = rbf.centers[k];
-    const float w = rbf.weights[k];
-    const float s = rbf.shapes[k];
-    const float r = glm::length(c - vec2(data_b[n]));
-    val += error_b[n] * rbf::grad_s(w, r, s);
-
-  }
-  
-  out_b[k] = val;
-
-}
-
-__global__ void rbf_grad_centers(const rbf rbf, const soil::buffer_t<vec3> data_b, const buffer_t<float> error_b, buffer_t<vec2> out_b){
-
-  const unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
-  if(k >= out_b.elem()) return;
-
-  const size_t N = error_b.elem();
-  vec2 val(0.0f);
-
-  for(int n = 0; n < N; ++n){
-
-    const vec2 c = rbf.centers[k];
-    const float w = rbf.weights[k];
-    const float s = rbf.shapes[k];
-    val += error_b[n] * rbf::grad_c(w, c - vec2(data_b[n]), s);
-
-  }
-  
-  out_b[k] = val;
-
-}
-
-
-}
-
-// Fit the radial basis function set to the data
-//  This uses a gradient-descent approach to fit the data.
-//  An error function is first computed, the matrices which
-//  convert the error function into the correct gradient to
-//  descend the parameters along.
-//
-void soil::rbf::fit(const buffer_t<vec3>& data, const size_t steps){
-
-  const size_t N = data.elem();   // Number of Data-Points
-  const size_t K = this->elem;    // Number of Representation Points
-
-  // Deviation Function
-  auto error = soil::buffer_t<float>(N, soil::host_t::GPU);
-
-  // Gradient Vectors
-  auto delta_weights = soil::buffer_t<float>(this->weights.elem(), soil::host_t::GPU);
-  auto delta_shapes = soil::buffer_t<float>(this->shapes.elem(), soil::host_t::GPU);
-//  auto delta_centers = soil::buffer_t<vec2>(this->centers.elem(), soil::host_t::GPU);
-
-  for(size_t i = 0; i < steps; i++){
-
-    std::cout<<"Iteration "<<i<<std::endl;
-
-    // Compute the Solution Deviation from Datapoints
-    rbf_error<<<block(N, 1024), 1024>>>(data, *this, error);
-
-    // Compute the Gradients wrt. the Parameters, Multiplied by Error
-
-    if(this->lrate_w != 0.0f)
-      rbf_grad_weights<<<block(K, 1024), 1024>>>(*this, data, error, delta_weights);
+  // Closest Point Accumulation:
+  for(int b = 0; b < B; ++b) {
     
-    if(this->lrate_s != 0.0f)
-      rbf_grad_shapes<<<block(K, 1024), 1024>>>(*this, data, error, delta_shapes);
-    
-//    if(this->lrate_c != 0.0f)
-//      rbf_grad_centers<<<block(K, 1024), 1024>>>(*this, data, error, delta_centers);
+    int k = list.get_pointID(b);
+    if(k >= 0){
+      k = kdtree.data[k].i;
 
-    // Compute the Gradients wrt. the
-    if(this->lrate_w != 0.0f)
-      rbf_descend<<<block(K, 1024), 1024>>>(this->weights, delta_weights, this->lrate_w);
+      // accumulate into val!
+      const vec2 c = rbf.centers[k];
+      const float w = rbf.weights[k];
+      const float s = rbf.shape;
+      const float r = glm::length(c - pos);
+      val += rbf::func(w, r, s);
 
-    if(this->lrate_s != 0.0f)
-      rbf_descend<<<block(K, 1024), 1024>>>(this->shapes, delta_shapes, this->lrate_s);
-
-//    if(this->lrate_c != 0.0f)
-//      rbf_descend<<<block(K, 1024), 1024>>>(this->centers, delta_centers, this->lrate_c);
+    }
 
   }
 
-  rbf_error<<<block(N, 1024), 1024>>>(data, *this, error);
-  error.to_cpu();
-  float total_error = 0.0f;
-  for(size_t i = 0; i < error.elem(); ++i){
-    total_error += error[i] * error[i];
-  }
-  std::cout<<"TOTAL ERROR: "<<total_error<<std::endl;
+  val_b[n] = val;
 
 }
 
-*/
+}
+  
+buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos) const {
+
+  const size_t N = pos.elem();
+  auto values = soil::buffer_t<float>(N, soil::host_t::GPU);
+  rbf_sample<<<block(N, 1024), 1024>>>(kdtree, *this, pos, values);
+  return values;
+
+}
 
 }
 

@@ -301,6 +301,11 @@ rbf_t.def("fit", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buff
   rbf.fit(kdtree, data_t, steps);
 });
 
+rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buffer& buffer){
+  const auto data_t = buffer.as<soil::vec2>();
+  return soil::buffer(rbf.sample(kdtree, data_t));
+});
+
 /*
 rbf_t.def_rw("lrate_w", &soil::rbf::lrate_w);
 rbf_t.def_rw("lrate_s", &soil::rbf::lrate_s);
