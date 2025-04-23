@@ -213,7 +213,6 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::FixedCandi
 
 }
 
-/*
 //! Greedy Descent: Steepest Slope from Neighbors
 __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, const soil::buffer_t<vec3> normal, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
 
@@ -273,8 +272,8 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   }
 
 }
-*/
 
+/*
 //! Smooth Closest Normal Descent:
 //! Pick the closest point's normal,
 //! move along that direction until
@@ -291,10 +290,11 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   int ind = curand_uniform(randState)*(points.elem()-1);
   vec3 pos = points[ind];
   
-  const size_t K = 4;
+  const size_t K = 16;
+//  const float fK = float(K);
   cukd::FixedCandidateList<K> list(100.0);
   
-  int maxstep = 8192;
+  int maxstep = 8192*4;
   while(maxstep > 0){
     maxstep--;
 
@@ -302,24 +302,34 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
 
     // Nearest Accumulation
 
+    vec3 dir = vec3(0.0f);
+    float fK = 1.0f;
+    for(int k = 0; k < K; ++k){
+
+      int nk = list.get_pointID(k);
+      if(nk >= 0){
+        nk = kdtree.data[nk].i;
+        dir += normal[nk];
+        fK += 1.0f;
+      }
+
+    }
+
+    // Normalize
+    //  note: optionally weight-this...
+    dir /= fK;
+
     int n0 = list.get_pointID(0);
-    int n1 = list.get_pointID(1);
-    if(n0 < 0 || n1 < 0)
-      break;
-
     n0 = kdtree.data[n0].i;
-    n1 = kdtree.data[n1].i;
-
     atomicAdd(&acc[n0], 1.0f);
-    ind = n0;
 
     // Motion Computation
   
 //    const vec2 p0 = vec2(points[n0]);
-    const vec2 p1 = vec2(points[n1]);
-    const float rad = 10.0f;// * glm::length(p1-vec2(pos));
+//    const vec2 p1 = vec2(points[n1]);
+    const float rad = 5.0f;// * glm::length(p1-vec2(pos));
 
-    vec3 dir = normal[ind];
+//    vec3 dir = normal[ind];
     dir = glm::normalize(dir);
     vec2 dir2 = glm::normalize(vec2(dir.x, dir.y));
     pos.x += rad * dir2.x;
@@ -331,6 +341,7 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
   }
 
 }
+*/
 
 //! Sparse Accumulation with KDTree
 //!
