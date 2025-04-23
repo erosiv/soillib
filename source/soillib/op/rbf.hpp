@@ -42,7 +42,7 @@ struct rbf {
   //
 
   //! Fit the RBF Interpolator to a 2.5D Dataset
-  void fit(const kdtree& kdtree, const buffer_t<float>& data, const size_t steps);
+  void fit(const kdtree& kdtree, const buffer_t<vec3>& data, const size_t steps);
   float lrate_w = 0.01f;  //!< Weight Learning Rate
 
   /*
@@ -53,6 +53,8 @@ struct rbf {
 
   buffer_t<float> sample(const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions  
   buffer_t<float> sample(const index& index) const;         //!< Sample the RBF for a full Index
+
+  */
 
   //
   // Basis Function Implementation
@@ -65,11 +67,12 @@ struct rbf {
   GPU_ENABLE static float grad_w(const float w, const float r, const float s){
     return 1.0f / ( 1.0f + (s*s*r*r) );
   }
-
+  
+  /*
   GPU_ENABLE static float grad_s(const float w, const float r, const float s){
     return - w * 2 * s * r * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s);
   }
-
+  
   GPU_ENABLE static vec2 grad_c(const float w, const vec2 d, const float s){
     const float r = glm::length(d);
     return - w * 2 * s * s * r / (1.0f + r * r * s * s) / (1.0f + r * r * s * s) * d;

@@ -111,8 +111,8 @@ def main(input):
     height = soil.sample_lerp(buffer, index, pos)
     normal = soil.sample_grad(buffer, index, pos)
 
-    rbf.fit(kdtree, height, 64)
     pcl = soil.concat(pos, height)
+    rbf.fit(kdtree, pcl, 64)
 
     '''
     print("Computing Accumulation...")

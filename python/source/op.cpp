@@ -297,8 +297,8 @@ rbf_t.def("init", [](soil::rbf& rbf, const soil::buffer& centroids){
 });
 
 rbf_t.def("fit", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buffer& buffer, const size_t steps){
-  const auto value_t = buffer.as<float>();
-  rbf.fit(kdtree, value_t, steps);
+  const auto data_t = buffer.as<soil::vec3>();
+  rbf.fit(kdtree, data_t, steps);
 });
 
 /*
