@@ -31,7 +31,7 @@ namespace {
 __global__ void rbf_init(rbf rbf, const soil::buffer_t<vec2> center_b){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= center_b.elem()) return;
-  rbf.weights[n] = 0.0f;
+  rbf.weights[n] = 1.0f;
   rbf.centers[n] = center_b[n];
 }
 
@@ -90,13 +90,6 @@ __global__ void zero_delta(soil::buffer_t<float> delta_b){
   delta_b[n] = 0.0f;
 }
 
-/*
-Effectively, we have to use the kdtree to get the centroids
-that are closest to the sample point, then use that to compute
-the approximate value, get the error and compute the delta to
-the weight function for each quantity nearest to us.
-*/
-
 //! Compute Delta Kernel
 //!
 //! For every data-point, this kernel finds the nearest points
@@ -119,7 +112,7 @@ __global__ void rbf_delta_w(const soil::kdtree kdtree, const rbf rbf, const soil
 
   // Sample Closest Points
 
-  const size_t B = 16;
+  const size_t B = 32;
   cukd::HeapCandidateList<B> list(100.0);
   knn<B>(kdtree, pos, list);
   float val = 0.0f;
@@ -129,9 +122,8 @@ __global__ void rbf_delta_w(const soil::kdtree kdtree, const rbf rbf, const soil
     
     int k = list.get_pointID(b);
     if(k >= 0){
-      k = kdtree.data[k].i;
 
-      // accumulate into val!
+      k = kdtree.data[k].i;
       const vec2 c = rbf.centers[k];
       const float w = rbf.weights[k];
       const float s = rbf.shape;
@@ -190,8 +182,6 @@ void rbf::fit(const kdtree& kdtree, const buffer_t<vec3>& data, const size_t ste
   buffer_t<float> delta_w = buffer_t<float>{K, soil::host_t::GPU};
 
   for(int step = 0; step < steps; ++step){
-    
-    std::cout<<"Executing Fitting Step ("<<step<<")"<<std::endl;
 
     zero_delta<<<block(K, 1024), 1024>>>(delta_w);
     rbf_delta_w<<<block(N, 1024), 1024>>>(kdtree, *this, data, delta_w);
@@ -219,7 +209,7 @@ __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil:
 
   // Sample Closest Points
 
-  const size_t B = 16;
+  const size_t B = 32;
   cukd::HeapCandidateList<B> list(100.0);
   knn<B>(kdtree, pos, list);
   float val = 0.0f;

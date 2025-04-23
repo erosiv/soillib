@@ -102,17 +102,30 @@ def main(input):
     # lerp the height-map to get the corresponding height-values
     # concatenate these into a point-cloud map!
 
-    pos = soil.sampleN(index, 8192*8)
-    kdtree = soil.kdtree(pos)
+    K = 8192
+    center = soil.sampleN(index, K)
+    kdtree = soil.kdtree(center)
 
     rbf = soil.rbf()
-    rbf.init(pos)
+    rbf.init(center)
+    rbf.shape = 0.01
+    rbf.lrate_w = 0.0001
     
+    N = 4 * K
+    pos = soil.sampleN(index, N)
     height = soil.sample_lerp(buffer, index, pos)
     normal = soil.sample_grad(buffer, index, pos)
-
     pcl = soil.concat(pos, height)
     rbf.fit(kdtree, pcl, 64)
+
+    values = rbf.sample(kdtree, pos)
+    pcl2 = soil.concat(pos, values)
+    
+    values = values.cpu().numpy(soil.index([N]))
+    height = height.cpu().numpy(soil.index([N]))
+
+    err = (values - height)
+    print(np.sum(err * err)/N)
 
     '''
     print("Computing Accumulation...")
@@ -121,7 +134,7 @@ def main(input):
     plot_pcl(pcl, acc, normal)
     '''
 
-    plot_pcl_3D(pcl, None, normal)
+    plot_pcl_3D(pcl2, None, normal)
     return
 
 if __name__ == "__main__":
