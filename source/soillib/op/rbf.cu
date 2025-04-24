@@ -31,7 +31,7 @@ void rbf::init(const buffer_t<vec2>& centers){
   const size_t elem = centers.elem();
   this->_elem = elem;
 
-  this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
+  this->weights = soil::buffer_t<float>(elem + this->P, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
 
   soil::set(this->weights, 0.0f);
@@ -45,20 +45,56 @@ void rbf::init(const buffer_t<vec2>& centers){
 
 namespace {
 
-__global__ void rbf_matrix(rbf rbf, soil::buffer_t<float> matrix_b, const soil::buffer_t<vec2> samples_b, const soil::flat_t<2> index, const size_t K, const size_t N) {
+//! Simple Multi-Dimensional Monomial Function
+__device__ float monomial(const size_t o, const vec2 p){
+  if(o == 0){ return 1.0f; }
+  if(o == 1){ return p.x; }
+  if(o == 2){ return p.y; }
+}
+
+__global__ void rbf_matrix(rbf rbf, soil::buffer_t<float> matrix_b, const soil::buffer_t<vec2> samples_b, const soil::flat_t<2> index, const size_t N, const size_t K) {
 
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if(i >= N*K) return;
+  if(i >= index.elem()) return;
   
   soil::ivec2 entry = index.unflatten(i);
-  const size_t n = entry[0];
-  const size_t k = entry[1];
 
-  const vec2 pos = samples_b[n];
-  const vec2 c = rbf.centers[k];
-  const float s = rbf.shape;
-  const float r = glm::length(c - pos);
-  matrix_b[i] = rbf::func(r / s);
+  // Construct Matrix w. 4 Sub-Matrices:
+  //  Radial Basis Function Weight Matrix
+  //  2 Monomial Support Matrices, and Zeros
+  // Note that if P is zero, it is only the
+  //  first upper left matrix (RBF Matrix)
+
+  const size_t d0 = entry[0];
+  const size_t d1 = entry[1];
+  const size_t D0 = index[0];
+  const size_t D1 = index[1];
+  const size_t P = rbf.P;
+
+  // Radial Basis Function Matrix
+  if(d0 < N && d1 < K){
+    const size_t n = d0;
+    const size_t k = d1;
+    const vec2 pos = samples_b[n];
+    const vec2 c = rbf.centers[k];
+    const float s = rbf.shape;
+    const float r = glm::length(c - pos);
+    matrix_b[i] = rbf::func(r / s);
+  }
+
+  // K Overflow Polynomial Matrix
+  else if(d0 < N && d1 >= K) {
+    matrix_b[i] = monomial(d1-K, samples_b[d0]);
+  }
+
+  // N Overflow Polynomial Matrix
+  else if(d0 >= N && d1 < K) {
+    matrix_b[i] = monomial(d0-N, rbf.centers[d1]);
+  }
+
+  else {
+    matrix_b[i] = 0.0f;
+  }
 
 }
 
@@ -66,13 +102,19 @@ __global__ void rbf_matrix(rbf rbf, soil::buffer_t<float> matrix_b, const soil::
 
 buffer_t<float> rbf::matrix(const buffer_t<vec2>& samples) const {
 
-  const size_t K = this->elem();
-  const size_t N = samples.elem();
-  buffer_t<float> matrix = buffer_t<float>{ N*K, soil::host_t::GPU };
+  // Parameter and Value Dimensions
+  const size_t K = this->elem();    //!< Centroid Weights
+  const size_t N = samples.elem();  //!< Sample Positions
+  const size_t P = this->P;         //!< Polynomial Weights
 
-  const auto index_t = soil::flat_t<2>(vec2(N, K));
-  rbf_matrix<<<block(N*K, 1024), 1024>>>(*this, matrix, samples, index_t, K, N);
+  // Matrix Dimensions
+  const size_t D0 = N + P;
+  const size_t D1 = K + P;
 
+  // Construct Matrix
+  const auto index_t = soil::flat_t<2>(vec2(D0, D1));
+  buffer_t<float> matrix = buffer_t<float>{D0 * D1, soil::host_t::GPU };
+  rbf_matrix<<<block(D0*D1, 1024), 1024>>>(*this, matrix, samples, index_t, N, K);
   return matrix;
 
 }

@@ -321,6 +321,7 @@ rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::i
 });
 
 rbf_t.def_rw("shape", &soil::rbf::shape);
+rbf_t.def_rw("P", &soil::rbf::P);
 
 rbf_t.def("set_w", [](soil::rbf& rbf, const soil::buffer& weights){
   rbf.weights = weights.as<float>();

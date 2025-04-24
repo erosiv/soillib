@@ -37,9 +37,9 @@ struct rbf {
   
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<vec2> centers;   //!< Interpolation Centers
-  float shape = 1.0f;       //!< Singular Shape Parameter
 
-  const size_t P = 3;       //!< Polynomial Weights
+  float shape = 1.0f;       //!< Singular Shape Parameter
+  size_t P = 3;             //!< Polynomial Weights
 
   //
   // Fitting Procedure
