@@ -122,39 +122,36 @@ def main(input):
     index = image.index
     buffer = image.buffer.gpu()
 
-    # Sample Random Positions in 2D,
-    # lerp the height-map to get the corresponding height-values
-    # concatenate these into a point-cloud map!
+    print("Sampling Digital Elevation Model...")
+
+    # Note: Replace with e.g. Halton Sampler
 
     K = 4096
     N = 4 * K
-
-    # note: we could uniformly sample
-    #   somehow... I guess we should try different
-    #   sampling methods as well? and make sure the
-    #   fit works well...
 
     center = soil.sampleN(index, K)
     sample = soil.sampleN(index, N)
 
     value = soil.sample_lerp(buffer, index, sample)
+    #normal = soil.sample_grad(buffer, index, sample)
 
-    print("Constructing Radial Basis Function Interpolator...")
+    print("Initializing Radial Basis Function Interpolator...")
 
     rbf = soil.rbf()
+    rbf.init(center)
     rbf.shape = 16
 
-    rbf.init(center)
-    matrix = rbf.matrix(sample)
+    print("Solving Least Squares Problem...")
 
+    matrix = rbf.matrix(sample)
     tmatrix = matrix.torch(soil.index([N, K]))
     tvalue = value.torch(soil.index([N]))
-
-    print("Solving Least Squares...")
     w = torch.linalg.lstsq(tmatrix, tvalue).solution
+
+    # Note: Replace with a soil from_torch method!
     rbf.set_w(soil.buffer.from_numpy(w.cpu().numpy()).gpu())
 
-    print("Weights Set!")
+    print("Re-Sampling Radial Basis Function Interpolator...")
 
     kdtree = soil.kdtree(center)
     img = rbf.sample(kdtree, index)
@@ -168,7 +165,7 @@ def main(input):
 #    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
     
     '''
-    normal = soil.sample_grad(buffer, index, pos)
+   
     rbf.fit(kdtree, pcl, 128)
 
     values = rbf.sample(kdtree, pos)

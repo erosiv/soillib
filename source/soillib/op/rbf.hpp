@@ -44,10 +44,6 @@ struct rbf {
   //! Compute the Radial Basis Function Interpolation Matrix
   buffer_t<float> matrix(const buffer_t<vec2>& samples) const;
 
-  //! Fit the RBF Interpolator to a 2.5D Dataset
-  void fit(const kdtree& kdtree, const buffer_t<vec3>& data, const size_t steps);
-  float lrate_w = 0.01f;  //!< Weight Learning Rate
-
   //
   // Sampling Methods
   //
@@ -59,34 +55,21 @@ struct rbf {
   // Basis Function Implementation
   //
 
-//  GPU_ENABLE static float func(const float w, const float r, const float s){
-//    return w * exp(-r*r*s*s);
+  //! Inverse Quadratic
+  __device__ static float func(const float r){
+    return 1.0f / ( 1.0f + r*r );
+  }
+  
+  //! Gaussian
+//  __device__ static float func(const float r){
+//    return __expf(- r * r);
 //  }
-  
-//  GPU_ENABLE static float grad_w(const float w, const float r, const float s){
-//    return exp(-r*r*s*s);
+
+  //! Bump Function
+//  __device__ static float func(const float r){
+//    if(r > 1.0f) return 0.0f;
+//    return expf(- 1.0f / (1.0f - r * r));
 //  }
-
-  GPU_ENABLE static float func(const float w, const float r, const float s){
-    return w / ( 1.0f + (s*s*r*r) );
-  }
-
-  
-  GPU_ENABLE static float grad_w(const float w, const float r, const float s){
-    return 1.0f / ( 1.0f + (s*s*r*r) );
-    }
-    /*
-  */
-
-  /*
-  GPU_ENABLE static float func(const float w, const float r, const float s){
-    return w * r * r * log( r );
-  }
-  
-  GPU_ENABLE static float grad_w(const float w, const float r, const float s){
-    return r * r * log( r );
-  }
-  */
 
 };
 

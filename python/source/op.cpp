@@ -300,11 +300,6 @@ rbf_t.def("matrix", [](soil::rbf& rbf, const soil::buffer& samples){
   return soil::buffer(rbf.matrix(samples.as<soil::vec2>()));
 });
 
-rbf_t.def("fit", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buffer& buffer, const size_t steps){
-  const auto data_t = buffer.as<soil::vec3>();
-  rbf.fit(kdtree, data_t, steps);
-});
-
 rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buffer& buffer){
   const auto data_t = buffer.as<soil::vec2>();
   return soil::buffer(rbf.sample(kdtree, data_t));
@@ -315,7 +310,6 @@ rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::i
   return soil::buffer(rbf.sample(kdtree, index_t));
 });
 
-rbf_t.def_rw("lrate_w", &soil::rbf::lrate_w);
 rbf_t.def_rw("shape", &soil::rbf::shape);
 
 rbf_t.def("set_w", [](soil::rbf& rbf, const soil::buffer& weights){
