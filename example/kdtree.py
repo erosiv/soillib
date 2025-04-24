@@ -36,6 +36,7 @@ def plot_images(images):
 
   plt.show()
 
+'''
 def plot_pcl(points, colors = None, normals = None):
 
   fig = plt.figure()
@@ -66,13 +67,6 @@ def plot_pcl(points, colors = None, normals = None):
 
   plt.show()
 
-  '''
-  # def plot_quiver()
-#   q = g.quiver()
-
-#  acc = g.acc().cpu().numpy().transpose()
-  '''
-
 def plot_pcl_3D(points, colors = None, normals = None):
 
   fig = plt.figure()
@@ -84,18 +78,6 @@ def plot_pcl_3D(points, colors = None, normals = None):
   xs = points[:, 0]
   ys = points[:, 1]
   zs = points[:, 2]
-
-#    print()
-
-  '''
-  if not colors is None:
-    col = colors.cpu().numpy(soil.index([N]))
-    print(np.max(col))
-    col = np.log(1.0 + col)
-    ax.scatter(xs, ys, zs, marker='o', c = col)
-  else:
-    ax.scatter(xs, ys, zs, marker='o')
-  '''
 
   normals = normals.cpu().numpy(soil.index([N]))
   normals = 0.5 + 0.5*normals
@@ -110,6 +92,7 @@ def plot_pcl_3D(points, colors = None, normals = None):
   ax.set_zlabel('Z Label')
   ax.set_zlim(zmid-256, zmid+256)
   plt.show()
+'''
 
 def main(input):
 
@@ -139,7 +122,7 @@ def main(input):
 
     rbf = soil.rbf()
     rbf.init(center)
-    rbf.shape = 16
+    rbf.shape = 20
 
     print("Solving Least Squares Problem...")
 
@@ -151,10 +134,17 @@ def main(input):
     # Note: Replace with a soil from_torch method!
     rbf.set_w(soil.buffer.from_numpy(w.cpu().numpy()).gpu())
 
+    print("Computing Estimation Error...")
+
+    value_est = rbf.sample(sample)
+    value_est = value_est.cpu().numpy(soil.index([N]))
+    value_tru = value.cpu().numpy(soil.index([N]))
+    abs_err = (value_est - value_tru)
+    print("MSE:", np.sum(abs_err**2)/N)
+
     print("Re-Sampling Radial Basis Function Interpolator...")
 
-    kdtree = soil.kdtree(center)
-    img = rbf.sample(kdtree, index)
+    img = rbf.sample(index)
 
     plot_images([
       buffer.cpu().numpy(index),
@@ -166,6 +156,7 @@ def main(input):
     
     '''
    
+#    kdtree = soil.kdtree(center)
     rbf.fit(kdtree, pcl, 128)
 
     values = rbf.sample(kdtree, pos)

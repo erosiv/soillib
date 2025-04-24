@@ -48,8 +48,11 @@ struct rbf {
   // Sampling Methods
   //
 
-  buffer_t<float> sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos) const;  //!< Sample the RBF at set of Positions
-  buffer_t<float> sample(const soil::kdtree& kdtree, const soil::flat_t<2>& index) const;
+  buffer_t<float> sample(const buffer_t<vec2>& pos)     const;  //!< Sample Dense RBF w. Sparse Positions
+  buffer_t<float> sample(const soil::flat_t<2>& index)  const;  //!< Sample Dense RBF w. Dense Index
+
+  buffer_t<float> sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos)     const;  //!< Sample Dense RBF w. Sparse Positions
+  buffer_t<float> sample(const soil::kdtree& kdtree, const soil::flat_t<2>& index)  const;  //!< Sample Sparse RBF w. Dense Index
 
   //
   // Basis Function Implementation

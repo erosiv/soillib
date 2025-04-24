@@ -122,44 +122,13 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandid
 
 }
 
-__global__ void zero_delta(soil::buffer_t<float> delta_b){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= delta_b.elem()) return;
-  delta_b[n] = 0.0f;
-}
+//
+// Radial Basis Function Sampling
+//
 
-__device__ float rbf_sample(const soil::kdtree& kdtree, const rbf& rbf, const vec2& pos){
+//! Dense RBF Sampling
+__device__ float rbf_sample_dense(const rbf& rbf, const vec2& pos){
 
-  // Closest Point Accumulation:
-
-  /*
-  const size_t B = 64;
-  const float rad = rbf.shape * 10.0f;
-  cukd::HeapCandidateList<B> list(rad);
-  knn<B>(kdtree, pos, list);
-  
-  float val = 0.0f;
-  for(int b = 0; b < B; ++b) {
-    
-  int k = list.get_pointID(b);
-  if(k >= 0){
-    k = kdtree.data[k].i;
-    
-    // accumulate into val!
-    const vec2 c = rbf.centers[k];
-    const float w = rbf.weights[k];
-    const float s = rbf.shape;
-    const float r = glm::length(c - pos);
-    val += w * rbf::func(r / s);
-    
-  }
-  
-}
-
-return val;
-*/
-
-  // Full Accumulation:
   const size_t K = rbf.elem;
   
   float val = 0.0f;
@@ -178,13 +147,63 @@ return val;
 
 }
 
+//! Sparse RBF Sampling
+__device__ float rbf_sample_sparse(const soil::kdtree& kdtree, const rbf& rbf, const vec2& pos){
+   
+  // Closest Point Accumulation:
+
+  const size_t B = 64;
+  const float rad = rbf.shape * 10.0f;
+  cukd::HeapCandidateList<B> list(rad);
+  knn<B>(kdtree, pos, list);
+  
+  float val = 0.0f;
+  for(int b = 0; b < B; ++b) {
+      
+    int k = list.get_pointID(b);
+    if(k >= 0){
+      k = kdtree.data[k].i;
+      
+      // accumulate into val!
+      const vec2 c = rbf.centers[k];
+      const float w = rbf.weights[k];
+      const float s = rbf.shape;
+      const float r = glm::length(c - pos);
+      val += w * rbf::func(r / s);
+      
+    }
+  
+  }
+
+  return val;
+
 }
 
-//
-// Radial Basis Function Sampling
-//
+__global__ void rbf_sample(const rbf rbf, const soil::buffer_t<vec2> pos_b, soil::buffer_t<float> val_b){
 
-namespace {
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= pos_b.elem()) return;
+
+  const size_t N = pos_b.elem();
+  const size_t K = rbf.elem;
+
+  const vec2 pos = pos_b[n];
+  val_b[n] = rbf_sample_dense(rbf, pos);
+
+}
+
+__global__ void rbf_sample(const rbf rbf, const soil::flat_t<2> index, soil::buffer_t<float> val_b){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= index.elem()) return;
+
+  const size_t N = index.elem();
+  const size_t K = rbf.elem;
+
+  const vec2 pos = index.unflatten(n);
+  val_b[n] = rbf_sample_dense(rbf, pos);
+
+}
 
 __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil::buffer_t<vec2> pos_b, soil::buffer_t<float> val_b){
 
@@ -192,10 +211,10 @@ __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil:
   if(n >= pos_b.elem()) return;
 
   const size_t N = pos_b.elem();
-  const size_t K = kdtree.elem();
+  const size_t K = rbf.elem;
 
   const vec2 pos = pos_b[n];
-  val_b[n] = rbf_sample(kdtree, rbf, pos);
+  val_b[n] = rbf_sample_sparse(kdtree, rbf, pos);
 
 }
 
@@ -205,15 +224,33 @@ __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil:
   if(n >= index.elem()) return;
 
   const size_t N = index.elem();
-  const size_t K = kdtree.elem();
+  const size_t K = rbf.elem;
 
   const vec2 pos = index.unflatten(n);
-  val_b[n] = rbf_sample(kdtree, rbf, pos);
+  val_b[n] = rbf_sample_sparse(kdtree, rbf, pos);
 
 }
 
 }
-  
+
+buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos) const {
+
+  const size_t N = pos.elem();
+  auto values = soil::buffer_t<float>(N, soil::host_t::GPU);
+  rbf_sample<<<block(N, 1024), 1024>>>(*this, pos, values);
+  return values;
+
+}
+
+buffer_t<float> soil::rbf::sample(const soil::flat_t<2>& index) const {
+
+  const size_t N = index.elem();
+  auto values = soil::buffer_t<float>(N, soil::host_t::GPU);
+  rbf_sample<<<block(N, 1024), 1024>>>(*this, index, values);
+  return values;
+
+}
+
 buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos) const {
 
   const size_t N = pos.elem();
