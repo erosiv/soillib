@@ -162,6 +162,7 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandid
 __device__ float rbf_sample_dense(const rbf& rbf, const vec2& pos){
 
   const size_t K = rbf.elem();
+  const size_t P = rbf.P;
   
   float val = 0.0f;
   for(int k = 0; k < K; ++k) {
@@ -173,6 +174,12 @@ __device__ float rbf_sample_dense(const rbf& rbf, const vec2& pos){
     const float r = glm::length(c - pos);
     val += w * rbf::func(r / s);
   
+  }
+
+  // Monomial Term
+  for(int p = 0; p < P; ++p){
+    const float w = rbf.weights[K + p];
+    val += w * monomial(p, pos);
   }
 
   return val;
@@ -205,6 +212,15 @@ __device__ float rbf_sample_sparse(const soil::kdtree& kdtree, const rbf& rbf, c
       
     }
   
+  }
+
+  // Monomial Term
+  const size_t K = rbf.elem();
+  const size_t P = rbf.P;
+  
+  for(int p = 0; p < P; ++p){
+    const float w = rbf.weights[K + p];
+    val += w * monomial(p, pos);
   }
 
   return val;

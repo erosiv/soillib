@@ -109,8 +109,8 @@ def main(input):
 
     # Note: Replace with e.g. Halton Sampler
 
-    K = 4096
-    N = 4 * K
+    K = 2048
+    N = 8 * K
 
     center = soil.sampleN(index, K)
     sample = soil.sampleN(index, N)
@@ -122,7 +122,7 @@ def main(input):
 
     rbf = soil.rbf()
     rbf.init(center)
-    rbf.shape = 20
+    rbf.shape = 24
     rbf.P = 3
 
     print("Solving Least Squares Problem...")
