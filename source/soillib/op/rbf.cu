@@ -26,26 +26,16 @@ namespace soil {
 // Initialize RBF Centroids
 //
 
-namespace {
-
-__global__ void rbf_init(rbf rbf, const soil::buffer_t<vec2> center_b){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= center_b.elem()) return;
-  rbf.weights[n] = 0.0f;
-  rbf.centers[n] = center_b[n];
-}
-
-}
-
 void rbf::init(const buffer_t<vec2>& centers){
 
   const size_t elem = centers.elem();
-  this->elem = elem;
+  this->_elem = elem;
 
   this->weights = soil::buffer_t<float>(elem, soil::host_t::GPU);
   this->centers = soil::buffer_t<vec2>(elem, soil::host_t::GPU);
 
-  rbf_init<<<block(elem, 1024), 1024>>>(*this, centers);
+  soil::set(this->weights, 0.0f);
+  soil::set(this->centers, centers);
 
 }
 
@@ -76,7 +66,7 @@ __global__ void rbf_matrix(rbf rbf, soil::buffer_t<float> matrix_b, const soil::
 
 buffer_t<float> rbf::matrix(const buffer_t<vec2>& samples) const {
 
-  const size_t K = this->elem;
+  const size_t K = this->elem();
   const size_t N = samples.elem();
   buffer_t<float> matrix = buffer_t<float>{ N*K, soil::host_t::GPU };
 
@@ -129,7 +119,7 @@ __device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandid
 //! Dense RBF Sampling
 __device__ float rbf_sample_dense(const rbf& rbf, const vec2& pos){
 
-  const size_t K = rbf.elem;
+  const size_t K = rbf.elem();
   
   float val = 0.0f;
   for(int k = 0; k < K; ++k) {
@@ -185,7 +175,7 @@ __global__ void rbf_sample(const rbf rbf, const soil::buffer_t<vec2> pos_b, soil
   if(n >= pos_b.elem()) return;
 
   const size_t N = pos_b.elem();
-  const size_t K = rbf.elem;
+  const size_t K = rbf.elem();
 
   const vec2 pos = pos_b[n];
   val_b[n] = rbf_sample_dense(rbf, pos);
@@ -198,7 +188,7 @@ __global__ void rbf_sample(const rbf rbf, const soil::flat_t<2> index, soil::buf
   if(n >= index.elem()) return;
 
   const size_t N = index.elem();
-  const size_t K = rbf.elem;
+  const size_t K = rbf.elem();
 
   const vec2 pos = index.unflatten(n);
   val_b[n] = rbf_sample_dense(rbf, pos);
@@ -211,7 +201,7 @@ __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil:
   if(n >= pos_b.elem()) return;
 
   const size_t N = pos_b.elem();
-  const size_t K = rbf.elem;
+  const size_t K = rbf.elem();
 
   const vec2 pos = pos_b[n];
   val_b[n] = rbf_sample_sparse(kdtree, rbf, pos);
@@ -224,7 +214,7 @@ __global__ void rbf_sample(const soil::kdtree kdtree, const rbf rbf, const soil:
   if(n >= index.elem()) return;
 
   const size_t N = index.elem();
-  const size_t K = rbf.elem;
+  const size_t K = rbf.elem();
 
   const vec2 pos = index.unflatten(n);
   val_b[n] = rbf_sample_sparse(kdtree, rbf, pos);

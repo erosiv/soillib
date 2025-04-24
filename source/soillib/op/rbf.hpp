@@ -28,14 +28,18 @@ struct rbf {
   // rbf initialization
   //
 
-  //!< Initialize Centroids from 2D Pointcloud
+  //! Initialize Centroids from 2D Pointcloud
   void init(const buffer_t<vec2>& centroids);
 
-  size_t elem = 0;          //!< Number of Components
-  float shape = 1.0f;       //!< Singular Shape Parameter
-
+  GPU_ENABLE inline size_t elem() const {
+    return this->_elem;
+  }
+  
   buffer_t<float> weights;  //!< Interpolation Weights
   buffer_t<vec2> centers;   //!< Interpolation Centers
+  float shape = 1.0f;       //!< Singular Shape Parameter
+
+  const size_t P = 3;       //!< Polynomial Weights
 
   //
   // Fitting Procedure
@@ -74,6 +78,8 @@ struct rbf {
 //    return expf(- 1.0f / (1.0f - r * r));
 //  }
 
+private:
+  size_t _elem = 0;
 };
 
 }
