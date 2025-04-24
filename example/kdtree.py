@@ -22,6 +22,20 @@ in the sampling?
 Let's try it.
 '''
 
+def plot_images(images):
+
+  K = len(images)
+  fig, ax = plt.subplots(1, K, figsize=(8, 4))
+  fig.patch.set_alpha(0)
+  plt.grid('on', zorder=0)
+  for k, img in enumerate(images):
+
+    im = ax[k].imshow(img, zorder=2,
+      cmap='CMRmap',
+      interpolation='bilinear')
+
+  plt.show()
+
 def plot_pcl(points, colors = None, normals = None):
 
   fig = plt.figure()
@@ -128,7 +142,7 @@ def main(input):
     print("Constructing Radial Basis Function Interpolator...")
 
     rbf = soil.rbf()
-    rbf.shape = 0.05
+    rbf.shape = 16
 
     rbf.init(center)
     matrix = rbf.matrix(sample)
@@ -144,10 +158,14 @@ def main(input):
 
     kdtree = soil.kdtree(center)
     img = rbf.sample(kdtree, index)
-    plt.imshow(img.cpu().numpy(index))
+
+    plot_images([
+      buffer.cpu().numpy(index),
+      img.cpu().numpy(index),
+    ])
+
 #    pps = center.cpu().numpy(soil.index([K]))
 #    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
-    plt.show()
     
     '''
     normal = soil.sample_grad(buffer, index, pos)
@@ -162,20 +180,14 @@ def main(input):
     err = (values - height)
     print(np.sum(err * err)/N)
 
-
-
-
-    img = buffer.cpu().numpy(index)
+    img = 
     plt.imshow(img)
     plt.show()
     '''
 
     '''
-
     print("Computing Accumulation...")
     acc = soil.sparseacc(kdtree, pcl, normal, index, 64)
-    plot_pcl(pcl, acc, normal)
-
     plot_pcl_3D(pcl2, None, normal)
     return
     '''
