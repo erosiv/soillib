@@ -12,6 +12,65 @@ kdtree kernel tests
 
 '''
 
+'''
+def plot_pcl(points, colors = None, normals = None):
+
+  fig = plt.figure()
+  ax = fig.add_subplot()
+
+  N = points.elem
+
+  points = points.cpu().numpy(soil.index([N]))
+  X = points[:, 0]
+  Y = points[:, 1]
+  Z = points[:, 2]
+
+  col = colors.cpu().numpy(soil.index([N]))
+  col = np.log(1.0 + col)
+
+#  ax.plot(X, Y, 'o', markersize=2, color='grey')
+  ax.tripcolor(X, Y, col, shading='gouraud')
+
+  normals = normals.cpu().numpy(soil.index([N]))
+  normals = normals[:, 0:2]
+  norm = np.sqrt(np.sum(normals * normals, axis=-1))
+  normals = normals / np.expand_dims(norm, axis=-1)
+  U = 5.0 * normals[:, 0]
+  V = 5.0 * normals[:, 1]
+
+#  ax.quiver(X, Y, U, V, color="black", angles='xy', scale_units='xy', scale=1, width=.0015)
+#    headwidth=0, headaxislength=0, headlength=0)
+
+  plt.show()
+
+def plot_pcl_3D(points, colors = None, normals = None):
+
+  fig = plt.figure()
+  ax = fig.add_subplot(projection='3d')
+
+  N = points.elem
+
+  points = points.cpu().numpy(soil.index([N]))
+  xs = points[:, 0]
+  ys = points[:, 1]
+  zs = points[:, 2]
+
+  normals = normals.cpu().numpy(soil.index([N]))
+  normals = 0.5 + 0.5*normals
+  ax.scatter(xs, ys, zs, marker='o', c=normals)
+
+  zmin = np.min(zs)
+  zmax = np.max(zs)
+  zmid = 0.5*(zmin + zmax)
+
+  ax.set_xlabel('X Label')
+  ax.set_ylabel('Y Label')
+  ax.set_zlabel('Z Label')
+  ax.set_zlim(zmid-256, zmid+256)
+  plt.show()
+'''
+
+
 def main(input):
 
   for file, path in iter_tiff(input):

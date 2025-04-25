@@ -8,18 +8,31 @@ from tqdm import tqdm
 import torch
 
 '''
-kdtree kernel tests
----
+radial basis functions (with kdtree)
 
-Basically, right now this is not working how I want it to.
-I don't want to stash the whole matrix away, given that it
-is quite large, but in principle it's just a large image.
+This is an improved version of radial basis
+function fitting with added polynomial support.
 
-Instead, what if we just use pytorch to solve the least
-squares problem directly, then use the weights directly
-in the sampling?
+The computation can be accelerated with a kdtree.
+Currently, the fitting procedure occurs in pytorch
+using a linear algebra least-squares solver, which
+could potentially be moved into C++ for uniformity.
 
-Let's try it.
+Todo:
+- Some Code Interface Cleanup
+- Test Application in CUDA Code
+- Better Point Samplers
+- Point Placement Optimization?
+- Multi-Scale RBF?
+
+In principle, we could say that a small number
+of radial basis functions is always applied to
+solve the broad shape. We can even use multiple
+kdtrees to accelerate the multi-layer lookup,
+or simply ignore that for certain layers.
+    
+This could dramatically improve the fit overall,
+especially with position optimization.
 '''
 
 def plot_images(images):
@@ -35,64 +48,6 @@ def plot_images(images):
       interpolation='bilinear')
 
   plt.show()
-
-'''
-def plot_pcl(points, colors = None, normals = None):
-
-  fig = plt.figure()
-  ax = fig.add_subplot()
-
-  N = points.elem
-
-  points = points.cpu().numpy(soil.index([N]))
-  X = points[:, 0]
-  Y = points[:, 1]
-  Z = points[:, 2]
-
-  col = colors.cpu().numpy(soil.index([N]))
-  col = np.log(1.0 + col)
-
-#  ax.plot(X, Y, 'o', markersize=2, color='grey')
-  ax.tripcolor(X, Y, col, shading='gouraud')
-
-  normals = normals.cpu().numpy(soil.index([N]))
-  normals = normals[:, 0:2]
-  norm = np.sqrt(np.sum(normals * normals, axis=-1))
-  normals = normals / np.expand_dims(norm, axis=-1)
-  U = 5.0 * normals[:, 0]
-  V = 5.0 * normals[:, 1]
-
-#  ax.quiver(X, Y, U, V, color="black", angles='xy', scale_units='xy', scale=1, width=.0015)
-#    headwidth=0, headaxislength=0, headlength=0)
-
-  plt.show()
-
-def plot_pcl_3D(points, colors = None, normals = None):
-
-  fig = plt.figure()
-  ax = fig.add_subplot(projection='3d')
-
-  N = points.elem
-
-  points = points.cpu().numpy(soil.index([N]))
-  xs = points[:, 0]
-  ys = points[:, 1]
-  zs = points[:, 2]
-
-  normals = normals.cpu().numpy(soil.index([N]))
-  normals = 0.5 + 0.5*normals
-  ax.scatter(xs, ys, zs, marker='o', c=normals)
-
-  zmin = np.min(zs)
-  zmax = np.max(zs)
-  zmid = 0.5*(zmin + zmax)
-
-  ax.set_xlabel('X Label')
-  ax.set_ylabel('Y Label')
-  ax.set_zlabel('Z Label')
-  ax.set_zlim(zmid-256, zmid+256)
-  plt.show()
-'''
 
 def main(input):
 
@@ -122,7 +77,7 @@ def main(input):
 
     rbf = soil.rbf()
     rbf.init(center)
-    rbf.shape = 24
+    rbf.shape = 14
     rbf.P = 6
 
     print("Solving Least Squares Problem...")
@@ -145,8 +100,8 @@ def main(input):
 
     print("Computing Estimation Error...")
 
-    kdtree = soil.kdtree(center)
-    value_est = rbf.sample(kdtree, sample)
+#    kdtree = soil.kdtree(center)
+    value_est = rbf.sample(sample)
     value_est = value_est.cpu().numpy(soil.index([N]))
     value_tru = value.cpu().numpy(soil.index([N]))
     abs_err = (value_est - value_tru)
@@ -161,38 +116,12 @@ def main(input):
       img.cpu().numpy(index),
     ])
 
-#    pps = center.cpu().numpy(soil.index([K]))
-#    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
-    
-    '''
-
-    values = rbf.sample(kdtree, pos)
-    pcl2 = soil.concat(pos, values)
-    
-    values = values.cpu().numpy(soil.index([N]))
-    height = height.cpu().numpy(soil.index([N]))
-
-    err = (values - height)
-    print(np.sum(err * err)/N)
-
-    img = 
-    plt.imshow(img)
-    plt.show()
-    '''
-
-    '''
-    print("Computing Accumulation...")
-    acc = soil.sparseacc(kdtree, pcl, normal, index, 64)
-    plot_pcl_3D(pcl2, None, normal)
-    return
-    '''
-
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
-  data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
-  #data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
+  #data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
+  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
 
   main(data)
