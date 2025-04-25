@@ -123,7 +123,7 @@ def main(input):
     rbf = soil.rbf()
     rbf.init(center)
     rbf.shape = 24
-    rbf.P = 3
+    rbf.P = 6
 
     print("Solving Least Squares Problem...")
 
@@ -132,8 +132,9 @@ def main(input):
     tvalue = value.torch(soil.index([N]))
     
     # note: this part could also be automated...
-    if rbf.P == 3:
-      pvalue = torch.tensor([0, 0, 0]).to(device='cuda')
+    if rbf.P > 0:
+      # this syntax is crazy
+      pvalue = torch.tensor(rbf.P*[0]).to(device='cuda')
       tvalue = torch.cat((tvalue, pvalue))
     w = torch.linalg.lstsq(tmatrix, tvalue).solution
 

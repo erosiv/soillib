@@ -50,6 +50,9 @@ __device__ float monomial(const size_t o, const vec2 p){
   if(o == 0){ return 1.0f; }
   if(o == 1){ return p.x; }
   if(o == 2){ return p.y; }
+  if(o == 3){ return p.x*p.x; }
+  if(o == 4){ return p.y*p.y; }
+  if(o == 5){ return p.x*p.y; }
   return 0.0f;
 }
 
