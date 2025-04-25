@@ -63,14 +63,14 @@ struct rbf {
   //
 
   //! Inverse Quadratic
-  __device__ static float func(const float r){
-    return 1.0f / ( 1.0f + r*r );
-  }
+//  __device__ static float func(const float r){
+//    return 1.0f / ( 1.0f + r*r );
+//  }
   
   //! Gaussian
-//  __device__ static float func(const float r){
-//    return __expf(- r * r);
-//  }
+  __device__ static float func(const float r){
+    return __expf(- r * r);
+  }
 
   //! Bump Function
 //  __device__ static float func(const float r){

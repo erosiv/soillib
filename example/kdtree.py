@@ -109,7 +109,7 @@ def main(input):
 
     # Note: Replace with e.g. Halton Sampler
 
-    K = 2048
+    K = 4096
     N = 8 * K
 
     center = soil.sampleN(index, K)
@@ -137,12 +137,15 @@ def main(input):
       tvalue = torch.cat((tvalue, pvalue))
     w = torch.linalg.lstsq(tmatrix, tvalue).solution
 
+    print(torch.mean(torch.abs(w)))
+
     # Note: Replace with a soil from_torch method!
     rbf.set_w(soil.buffer.from_numpy(w.cpu().numpy()).gpu())
 
     print("Computing Estimation Error...")
 
-    value_est = rbf.sample(sample)
+    kdtree = soil.kdtree(center)
+    value_est = rbf.sample(kdtree, sample)
     value_est = value_est.cpu().numpy(soil.index([N]))
     value_tru = value.cpu().numpy(soil.index([N]))
     abs_err = (value_est - value_tru)
@@ -161,9 +164,6 @@ def main(input):
 #    plt.scatter(pps[:, 1], pps[:, 0], marker='x', color="black")
     
     '''
-   
-#    kdtree = soil.kdtree(center)
-    rbf.fit(kdtree, pcl, 128)
 
     values = rbf.sample(kdtree, pos)
     pcl2 = soil.concat(pos, values)
@@ -191,7 +191,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
-  #data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
-  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
+  data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
+  #data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
 
   main(data)

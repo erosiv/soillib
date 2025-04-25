@@ -50,6 +50,7 @@ __device__ float monomial(const size_t o, const vec2 p){
   if(o == 0){ return 1.0f; }
   if(o == 1){ return p.x; }
   if(o == 2){ return p.y; }
+  return 0.0f;
 }
 
 __global__ void rbf_matrix(rbf rbf, soil::buffer_t<float> matrix_b, const soil::buffer_t<vec2> samples_b, const soil::flat_t<2> index, const size_t N, const size_t K) {
