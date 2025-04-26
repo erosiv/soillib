@@ -69,8 +69,7 @@ def main(input):
 
     center = soil.sampleN(index, K)
     sample = soil.sampleN(index, N)
-
-    value = soil.sample_lerp(buffer, index, sample)
+    values = soil.sample_lerp(buffer, index, sample)
     #normal = soil.sample_grad(buffer, index, sample)
 
     print("Initializing Radial Basis Function Interpolator...")
@@ -83,15 +82,12 @@ def main(input):
     print("Solving Least Squares Problem...")
 
     matrix = rbf.matrix(sample)
+    vector = rbf.vector(values)
+
     tmatrix = matrix.torch(soil.index([N+rbf.P, K+rbf.P]))
-    tvalue = value.torch(soil.index([N]))
-    
-    # note: this part could also be automated...
-    if rbf.P > 0:
-      # this syntax is crazy
-      pvalue = torch.tensor(rbf.P*[0]).to(device='cuda')
-      tvalue = torch.cat((tvalue, pvalue))
-    w = torch.linalg.lstsq(tmatrix, tvalue).solution
+    tvector = vector.torch(soil.index([N+rbf.P]))
+
+    w = torch.linalg.lstsq(tmatrix, tvector).solution
 
     print(torch.mean(torch.abs(w)))
 
@@ -100,10 +96,10 @@ def main(input):
 
     print("Computing Estimation Error...")
 
-#    kdtree = soil.kdtree(center)
-    value_est = rbf.sample(sample)
+    kdtree = soil.kdtree(center)
+    value_est = rbf.sample(sample, kdtree)
     value_est = value_est.cpu().numpy(soil.index([N]))
-    value_tru = value.cpu().numpy(soil.index([N]))
+    value_tru = values.cpu().numpy(soil.index([N]))
     abs_err = (value_est - value_tru)
     print("MSE:", np.sum(abs_err**2)/N)
 

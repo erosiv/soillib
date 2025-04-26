@@ -117,9 +117,44 @@ buffer_t<float> rbf::matrix(const buffer_t<vec2>& samples) const {
 
   // Construct Matrix
   const auto index_t = soil::flat_t<2>(vec2(D0, D1));
-  buffer_t<float> matrix = buffer_t<float>{D0 * D1, soil::host_t::GPU };
+  buffer_t<float> matrix = buffer_t<float>{ D0 * D1, soil::host_t::GPU };
   rbf_matrix<<<block(D0*D1, 1024), 1024>>>(*this, matrix, samples, index_t, N, K);
   return matrix;
+
+}
+
+//
+// Target Vector Computation
+//
+
+namespace {
+
+__global__ void rbf_vector(rbf rbf, soil::buffer_t<float> vector_b, const soil::buffer_t<float> value_b) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= vector_b.elem()) return;
+  
+  const size_t N = value_b.elem();
+  if(n < N){
+    vector_b[n] = value_b[n];
+  } else {
+    vector_b[n] = 0.0f;
+  }
+
+}
+
+}
+
+buffer_t<float> rbf::vector(const buffer_t<float>& values) const {
+
+  const size_t N = values.elem(); //!< Sample Positions
+  const size_t P = this->P;       //!< Polynomial Weights
+  const size_t D0 = N + P;        //!< Vector Dimension
+
+  // Construct Vector
+  buffer_t<float> vector = buffer_t<float>{ D0, soil::host_t::GPU };
+  rbf_vector<<<block(D0, 1024), 1024>>>(*this, vector, values);
+  return vector;
 
 }
 
@@ -303,7 +338,7 @@ buffer_t<float> soil::rbf::sample(const soil::flat_t<2>& index) const {
 
 }
 
-buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos) const {
+buffer_t<float> soil::rbf::sample(const buffer_t<vec2>& pos, const soil::kdtree& kdtree) const {
 
   const size_t N = pos.elem();
   auto values = soil::buffer_t<float>(N, soil::host_t::GPU);
@@ -312,7 +347,7 @@ buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const buffer_t<vec
 
 }
 
-buffer_t<float> soil::rbf::sample(const soil::kdtree& kdtree, const soil::flat_t<2>& index) const {
+buffer_t<float> soil::rbf::sample(const soil::flat_t<2>& index, const soil::kdtree& kdtree) const {
 
   const size_t N = index.elem();
   auto values = soil::buffer_t<float>(N, soil::host_t::GPU);

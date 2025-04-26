@@ -43,10 +43,11 @@ struct rbf {
 
   //
   // Fitting Procedure
-  //
+  //  These two tensors form a least-squares system that jointly
+  //  solves for the weights of the RBF and monomial basis set.
 
-  //! Compute the Radial Basis Function Interpolation Matrix
-  buffer_t<float> matrix(const buffer_t<vec2>& samples) const;
+  buffer_t<float> matrix(const buffer_t<vec2>& samples) const;  //!< RBF Interpolation Matrix
+  buffer_t<float> vector(const buffer_t<float>& values) const;  //!< RBF Interoplation Vector
 
   //
   // Sampling Methods
@@ -55,8 +56,8 @@ struct rbf {
   buffer_t<float> sample(const buffer_t<vec2>& pos)     const;  //!< Sample Dense RBF w. Sparse Positions
   buffer_t<float> sample(const soil::flat_t<2>& index)  const;  //!< Sample Dense RBF w. Dense Index
 
-  buffer_t<float> sample(const soil::kdtree& kdtree, const buffer_t<vec2>& pos)     const;  //!< Sample Dense RBF w. Sparse Positions
-  buffer_t<float> sample(const soil::kdtree& kdtree, const soil::flat_t<2>& index)  const;  //!< Sample Sparse RBF w. Dense Index
+  buffer_t<float> sample(const buffer_t<vec2>& pos, const soil::kdtree& kdtree)     const;  //!< Sample Dense RBF w. Sparse Positions
+  buffer_t<float> sample(const soil::flat_t<2>& index, const soil::kdtree& kdtree)  const;  //!< Sample Sparse RBF w. Dense Index
 
   //
   // Basis Function Implementation

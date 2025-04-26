@@ -300,6 +300,10 @@ rbf_t.def("matrix", [](soil::rbf& rbf, const soil::buffer& samples){
   return soil::buffer(rbf.matrix(samples.as<soil::vec2>()));
 });
 
+rbf_t.def("vector", [](soil::rbf& rbf, const soil::buffer& values){
+  return soil::buffer(rbf.vector(values.as<float>()));
+});
+
 rbf_t.def("sample", [](soil::rbf& rbf, const soil::buffer& buffer){
   const auto data_t = buffer.as<soil::vec2>();
   return soil::buffer(rbf.sample(data_t));
@@ -310,14 +314,14 @@ rbf_t.def("sample", [](soil::rbf& rbf,const soil::index& index){
   return soil::buffer(rbf.sample(index_t));
 });
 
-rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::buffer& buffer){
+rbf_t.def("sample", [](soil::rbf& rbf, const soil::buffer& buffer, const soil::kdtree& kdtree){
   const auto data_t = buffer.as<soil::vec2>();
-  return soil::buffer(rbf.sample(kdtree, data_t));
+  return soil::buffer(rbf.sample(data_t, kdtree));
 });
 
-rbf_t.def("sample", [](soil::rbf& rbf, const soil::kdtree& kdtree, const soil::index& index){
+rbf_t.def("sample", [](soil::rbf& rbf, const soil::index& index, const soil::kdtree& kdtree){
   const auto index_t = index.as<soil::flat_t<2>>();
-  return soil::buffer(rbf.sample(kdtree, index_t));
+  return soil::buffer(rbf.sample(index_t, kdtree));
 });
 
 rbf_t.def_rw("shape", &soil::rbf::shape);
