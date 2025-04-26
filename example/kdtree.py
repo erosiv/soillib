@@ -19,10 +19,7 @@ using a linear algebra least-squares solver, which
 could potentially be moved into C++ for uniformity.
 
 Todo:
-- Some Code Interface Cleanup
 - Test Application in CUDA Code
-- Better Point Samplers
-- Point Placement Optimization?
 - Multi-Scale RBF?
 
 In principle, we could say that a small number
@@ -49,6 +46,21 @@ def plot_images(images):
 
   plt.show()
 
+def plot_image(images, points):
+
+  K = len(images)
+  fig, ax = plt.subplots(1, K, figsize=(8, 4))
+  fig.patch.set_alpha(0)
+  plt.grid('on', zorder=0)
+#  for k, img in enumerate(images):
+
+  plt.imshow(images[0],
+    cmap='CMRmap',
+    interpolation='bilinear')
+  plt.scatter(points[:,0], points[:, 1], marker='x', color="black")
+
+  plt.show()
+
 def main(input):
 
   for file, path in iter_tiff(input):
@@ -67,7 +79,8 @@ def main(input):
     K = 4096
     N = 8 * K
 
-    center = soil.sampleN(index, K)
+#    center = soil.sampleN(index, K)
+    center = soil.sample_halton(index, K)
     sample = soil.sampleN(index, N)
     values = soil.sample_lerp(buffer, index, sample)
     #normal = soil.sample_grad(buffer, index, sample)
@@ -76,7 +89,7 @@ def main(input):
 
     rbf = soil.rbf()
     rbf.init(center)
-    rbf.shape = 14
+    rbf.shape = 1.25 * np.sqrt(index.elem() / K)
     rbf.P = 6
 
     print("Solving Least Squares Problem...")
@@ -117,7 +130,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
-  #data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
-  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
+  data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
+#  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
 
   main(data)

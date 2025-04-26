@@ -43,6 +43,17 @@ soil::buffer sample_N(const soil::index &index, const size_t N){
 }
 
 //
+// Halton Sampler
+//
+
+buffer_t<vec2> sample_halton_impl(const flat_t<2>& index, const size_t N);
+
+soil::buffer sample_halton(const soil::index &index, const size_t N){
+  const auto index_t = index.as<flat_t<2>>();
+  return soil::buffer(sample_halton_impl(index_t, N));
+}
+
+//
 // Linear Interpolation Index
 //
 

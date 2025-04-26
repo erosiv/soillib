@@ -62,6 +62,46 @@ soil::buffer_t<vec2> sample_N_impl(const soil::flat_t<2> &index, const size_t N)
 }
 
 //
+// Halton Sampler
+//
+
+__device__ float halton_val(int n, const int b){
+
+  float f = 1.0f;
+  float r = 0.0f;
+
+  while(n > 0){
+
+    f = f / b;
+    r = r + f * (n % b);
+    n = floorf(n / b);
+
+  }
+
+  return r;
+
+}
+
+__global__ void _sample_halton(soil::buffer_t<vec2> output, const soil::flat_t<2> index, const size_t N){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
+
+  const float x = halton_val(n, 2) * (index[0] - 1);
+  const float y = halton_val(n, 3) * (index[1] - 1);
+  output[n] = soil::vec2(x, y);
+
+}
+
+soil::buffer_t<vec2> sample_halton_impl(const soil::flat_t<2> &index, const size_t N){
+
+  soil::buffer_t<vec2> output{N, soil::GPU};
+  _sample_halton<<<block(N, 1024), 1024>>>(output, index, N);
+  return output;
+
+}
+
+//
 // Sample Lerp Implementation
 //
 

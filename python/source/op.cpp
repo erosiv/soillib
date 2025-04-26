@@ -254,6 +254,10 @@ module.def("sampleN", [](const soil::index& index, const size_t N){
   return soil::sample_N(index, N);
 });
 
+module.def("sample_halton", [](const soil::index& index, const size_t N){
+  return soil::sample_halton(index, N);
+});
+
 module.def("sample_lerp", [](const soil::buffer& field, const soil::index& index, const soil::buffer& pos){
   return soil::sample_lerp(field, index, pos);
 });
