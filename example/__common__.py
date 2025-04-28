@@ -149,3 +149,17 @@ def show_layers(layers, index, scale):
   plt.imshow(shaded,
     interpolation='bilinear')
   plt.show()
+
+def plot_images(images):
+
+  K = len(images)
+  fig, ax = plt.subplots(1, K, figsize=(8, 4))
+  fig.patch.set_alpha(0)
+  plt.grid('on', zorder=0)
+  for k, img in enumerate(images):
+
+    im = ax[k].imshow(img, zorder=2,
+      cmap='CMRmap',
+      interpolation='bilinear')
+
+  plt.show()

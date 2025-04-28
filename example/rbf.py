@@ -32,35 +32,6 @@ This could dramatically improve the fit overall,
 especially with position optimization.
 '''
 
-def plot_images(images):
-
-  K = len(images)
-  fig, ax = plt.subplots(1, K, figsize=(8, 4))
-  fig.patch.set_alpha(0)
-  plt.grid('on', zorder=0)
-  for k, img in enumerate(images):
-
-    im = ax[k].imshow(img, zorder=2,
-      cmap='CMRmap',
-      interpolation='bilinear')
-
-  plt.show()
-
-def plot_image(images, points):
-
-  K = len(images)
-  fig, ax = plt.subplots(1, K, figsize=(8, 4))
-  fig.patch.set_alpha(0)
-  plt.grid('on', zorder=0)
-#  for k, img in enumerate(images):
-
-  plt.imshow(images[0],
-    cmap='CMRmap',
-    interpolation='bilinear')
-  plt.scatter(points[:,0], points[:, 1], marker='x', color="black")
-
-  plt.show()
-
 def main(input):
 
   for file, path in iter_tiff(input):
