@@ -12,6 +12,7 @@
 
 #include <soillib/op/pointcloud.hpp>
 #include <soillib/index/kdtree.hpp>
+#include <soillib/op/rbf.hpp>
 
 #include <cukd/builder.h>
 #include <cukd/knn.h>
@@ -396,16 +397,20 @@ __global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<v
 //! \todo Replace Gradient Computation Method
 //! \todo Allow for Changing Point Height from Erosion / Slope
 //!
-soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, const soil::buffer& normal, const soil::index& index, const size_t niter){
+soil::buffer sparseacc(const soil::rbf& rbf, const soil::kdtree& kdtree, const soil::index& index, const size_t niter){
 
   std::cout<<"Launching Sparse Accumulation"<<std::endl;
 
   // Initialize Accumulation
-  soil::buffer_t<float> acc(points.elem(), soil::GPU);
+  soil::buffer_t<float> acc(rbf.elem(), soil::GPU);
   _init_acc<<<block(acc.elem(), 1024), 1024>>>(acc);
 
-  std::cout<<"Seeding Random Number Generator..."<<std::endl;
+  /*
+  
 
+  
+  std::cout<<"Seeding Random Number Generator..."<<std::endl;
+  
   // Initialize Random State
   const size_t N = 8192;
   soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
@@ -416,14 +421,15 @@ soil::buffer sparseacc(const soil::kdtree& kdtree, const soil::buffer& points, c
   const auto index_t = index.as<soil::flat_t<2>>();
   const auto point_t = points.as<vec3>();
   const auto normal_t = normal.as<vec3>();
-
+  
   std::cout<<"Descending Particles..."<<std::endl;
   
   for(int i = 0; i < niter; ++i){
     sparse_descend<<<block(N, 1024), 1024>>>(kdtree, point_t, normal_t, acc, rand, N, index_t);
   }
-
+  
   std::cout<<"Done"<<std::endl;
+  */
 
   return soil::buffer(acc);
 

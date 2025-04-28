@@ -54,23 +54,14 @@ def main(input):
     w = torch.linalg.lstsq(tmatrix, tvector).solution
     rbf.set_w(soil.buffer.from_torch(w))
 
-    print("Computing Estimation Error...")
+    print("Computing Sparse Accumulation")
 
     kdtree = soil.kdtree(center)
-    value_est = rbf.sample(sample, kdtree)
-    value_est = value_est.cpu().numpy(soil.index([N]))
-    value_tru = values.cpu().numpy(soil.index([N]))
-    abs_err = (value_est - value_tru)
-    print("MSE:", np.sum(abs_err**2)/N)
+    acc = soil.sparseacc(rbf, kdtree, index, 64)
+    acc = acc.cpu().numpy(soil.index([K]))
+    print(acc)
 
-    print("Re-Sampling Radial Basis Function Interpolator...")
-
-    img = rbf.sample(index)
-
-    plot_images([
-      buffer.cpu().numpy(index),
-      img.cpu().numpy(index),
-    ])
+    # do something to plot this data...
 
 if __name__ == "__main__":
 
