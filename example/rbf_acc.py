@@ -62,10 +62,26 @@ def main(input):
     print(acc)
     print(np.min(acc), np.max(acc))
 
+    '''
     # ... how do we visualize this?
+
+    plt.show()
+    '''
     pos = center.cpu().numpy(soil.index([K]))
-    plt.scatter(pos[:,1], index[0]-1-pos[:,0], c=acc, 
-    cmap='CMRmap_r', norm=colors.LogNorm(acc.min(), acc.max()))
+    x = pos[:,1]
+    y = index[0]-1-pos[:,0]
+    z = np.log(acc)
+    amin = z.min()
+    amax = z.max()
+    levels = np.linspace(amin, amax, 8)
+
+    fig, ax = plt.subplots()
+    ax.scatter(x, y, c=z,
+      vmin=amin, vmax=amax, cmap='CMRmap_r')
+
+    ax.tricontourf(x, y, z,
+      levels=levels, cmap='CMRmap_r')
+    
     plt.show()
 
     # do something to plot this data...
