@@ -60,6 +60,13 @@ def main(input):
     acc = soil.sparseacc(rbf, kdtree, index, 64)
     acc = acc.cpu().numpy(soil.index([K]))
     print(acc)
+    print(np.min(acc), np.max(acc))
+
+    # ... how do we visualize this?
+    pos = center.cpu().numpy(soil.index([K]))
+    plt.scatter(pos[:,1], index[0]-1-pos[:,0], c=acc, 
+    cmap='CMRmap_r', norm=colors.LogNorm(acc.min(), acc.max()))
+    plt.show()
 
     # do something to plot this data...
 

@@ -244,145 +244,111 @@ struct payload_traits:
 };
 
 template<size_t K>
-__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::FixedCandidateList<K>& list) {
+__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandidateList<K>& list) {
 
   cukd::stackBased::knn<
-    cukd::FixedCandidateList<K>,
+    cukd::HeapCandidateList<K>,
     payload_t,
     payload_traits
   >(list, make_point(pos), kdtree.data.data(), kdtree.elem());
 
 }
 
+__device__ int nn(const soil::kdtree& kdtree, const vec2 pos) {
+  return cukd::stackBased::fcp<
+    payload_t,
+    payload_traits
+  >(make_point(pos), kdtree.data.data(), kdtree.elem());
+}
+
+//! Simple Multi-Dimensional Monomial Function
+__device__ vec2 monomial_grad(const size_t o, const vec2 p){
+  if(o == 0){ return vec2(0.0f); }
+  if(o == 1){ return vec2(1.0f, 0.0f); }
+  if(o == 2){ return vec2(0.0f, 1.0f); }
+  if(o == 3){ return vec2(2.0f*p.x, 0.0f); }
+  if(o == 4){ return vec2(0.0f, 2.0f*p.y); }
+  if(o == 5){ return vec2(p.y, p.x); }
+  return vec2(0.0f);
+}
+
 //! Greedy Descent: Steepest Slope from Neighbors
-__global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, const soil::buffer_t<vec3> normal, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N) return;
-  
-  // Initialize Position in Domain
-  curandState* randState = &rand[n];
-  int ind = curand_uniform(randState)*(points.elem()-1);
-  vec3 pos;
-  
-  const size_t K = 16;
-  cukd::FixedCandidateList<K> list(100.0);
-  
-  int maxstep = 8192;
-  while(maxstep > 0){
-    maxstep--;
-    
-    pos = points[ind];
-    atomicAdd(&acc[ind], 1.0f);
-    
-    knn<K>(kdtree, vec2(pos.x, pos.y), list);
-    
-    // Closest 3 Point Indices
-    int next = -1;
-    float steep = 0.0f; // Steepest Descent
-
-    for(int i = 0; i < K; ++i){
-
-      int nk = list.get_pointID(i);
-      if(nk >= 0){
-
-        if(nk == ind)
-          continue;
-
-        const float n = kdtree.data[nk].i;
-        const vec3 npos = points[n];
-
-        const vec2 ip = vec2(pos);
-        const vec2 jp = vec2(npos);
-
-        const float slope = (npos.z - pos.z)/glm::length(jp - ip);
-
-        if(slope < steep){
-          steep = slope;
-          next = n;
-        }
-      }
-    }
-  
-    if(next == -1){
-      return;
-    } else {
-      ind = next;
-    }
-
-  }
-
-}
-
-/*
-//! Smooth Closest Normal Descent:
-//! Pick the closest point's normal,
-//! move along that direction until
-//! you reach the next closest point.
-//! or: choose the distance-weighted average!
-//! 
-__global__ void sparse_descend(const soil::kdtree kdtree, const soil::buffer_t<vec3> points, const soil::buffer_t<vec3> normal, soil::buffer_t<float> acc, soil::buffer_t<curandState> rand, const size_t N, const soil::flat_t<2> index) {
+__global__ void sparse_descend(
+  const soil::rbf rbf,
+  const soil::kdtree kdtree,
+  soil::buffer_t<float> acc,
+  soil::buffer_t<curandState> rand,
+  const size_t N,
+  const soil::flat_t<2> index,
+  const float prob) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
 
   // Initialize Position in Domain
   curandState* randState = &rand[n];
-  int ind = curand_uniform(randState)*(points.elem()-1);
-  vec3 pos = points[ind];
+  int ind = curand_uniform(randState)*rbf.elem();
+  float2 p = kdtree.data[ind].p;
+  vec2 pos(p.x, p.y);
+
+  atomicAdd(&acc[ind], prob);
+
+  const size_t K = rbf.elem();  //!< Total Points
+  const size_t B = 64;          //!< Nearest Points
+  const size_t P = rbf.P;       //!< Monomial Terms
   
-  const size_t K = 16;
-//  const float fK = float(K);
-  cukd::FixedCandidateList<K> list(100.0);
-  
-  int maxstep = 8192*4;
+  const float rad = rbf.shape * 10.0f;
+  cukd::HeapCandidateList<B> list(rad);
+  knn<B>(kdtree, pos, list);
+
+  int maxstep = 1024;
   while(maxstep > 0){
     maxstep--;
 
-    knn<K>(kdtree, vec2(pos.x, pos.y), list);
+    knn<B>(kdtree, pos, list);
+    vec2 grad = vec2(0.0f);
+    for(int b = 0; b < B; ++b){
 
-    // Nearest Accumulation
+      int k = list.get_pointID(b);
+      if(k >= 0){
+        k = kdtree.data[k].i;
 
-    vec3 dir = vec3(0.0f);
-    float fK = 1.0f;
-    for(int k = 0; k < K; ++k){
+        // accumulate into val!
+        const vec2 c = rbf.centers[k];
+        const float w = rbf.weights[k];
+        const float s = rbf.shape;
+        const vec2 d = (pos - c)/s;
+        const float r = glm::length(c - pos);
+        grad += d * w * 2.0f * rbf::func(r / s) * r / s / s;
 
-      int nk = list.get_pointID(k);
-      if(nk >= 0){
-        nk = kdtree.data[nk].i;
-        dir += normal[nk];
-        fK += 1.0f;
       }
 
     }
 
-    // Normalize
-    //  note: optionally weight-this...
-    dir /= fK;
+    // Add Monomial Expressions to Grad
 
-    int n0 = list.get_pointID(0);
-    n0 = kdtree.data[n0].i;
-    atomicAdd(&acc[n0], 1.0f);
+    for(int p = 0; p < P; ++p){
+      const float w = rbf.weights[K + p];
+      grad += w * monomial_grad(p, pos);
+    }
 
-    // Motion Computation
-  
-//    const vec2 p0 = vec2(points[n0]);
-//    const vec2 p1 = vec2(points[n1]);
-    const float rad = 5.0f;// * glm::length(p1-vec2(pos));
+    // Move Position and Increment Nearest...
 
-//    vec3 dir = normal[ind];
-    dir = glm::normalize(dir);
-    vec2 dir2 = glm::normalize(vec2(dir.x, dir.y));
-    pos.x += rad * dir2.x;
-    pos.y += rad * dir2.y;
+    pos += rbf.shape * glm::normalize(grad);
+    // pos += 0.25f * grad;
 
-    if(pos.x < 0.0f || pos.x >= index[0]) break;
-    if(pos.y < 0.0f || pos.y >= index[1]) break;
+    int nearest = nn(kdtree, pos);
+    if(nearest >= 0){
+      nearest = kdtree.data[nearest].i;
+      if(nearest != ind){
+        ind = nearest;
+        atomicAdd(&acc[ind], prob);
+      }
+    }
 
   }
 
 }
-*/
 
 //! Sparse Accumulation with KDTree
 //!
@@ -405,31 +371,25 @@ soil::buffer sparseacc(const soil::rbf& rbf, const soil::kdtree& kdtree, const s
   soil::buffer_t<float> acc(rbf.elem(), soil::GPU);
   _init_acc<<<block(acc.elem(), 1024), 1024>>>(acc);
 
-  /*
-  
-
-  
-  std::cout<<"Seeding Random Number Generator..."<<std::endl;
-  
   // Initialize Random State
-  const size_t N = 8192;
+  std::cout<<"Seeding Random Number Generator..."<<std::endl;
+  const size_t N = 1024;
   soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
   seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
   
+  // normalization factor ...
+  const float Ntot = niter * N;             //!< Total Sample Count
+  const float P = float(rbf.elem()) / Ntot; //!< Total Probability
+
   // Sparse Descent Kernel:
   //  Launch N kernels...
   const auto index_t = index.as<soil::flat_t<2>>();
-  const auto point_t = points.as<vec3>();
-  const auto normal_t = normal.as<vec3>();
-  
   std::cout<<"Descending Particles..."<<std::endl;
-  
   for(int i = 0; i < niter; ++i){
-    sparse_descend<<<block(N, 1024), 1024>>>(kdtree, point_t, normal_t, acc, rand, N, index_t);
+    std::cout<<"Iteration "<<i<<std::endl;
+    sparse_descend<<<block(N, 1024), 1024>>>(rbf, kdtree, acc, rand, N, index_t, P);
+    cudaDeviceSynchronize();
   }
-  
-  std::cout<<"Done"<<std::endl;
-  */
 
   return soil::buffer(acc);
 
