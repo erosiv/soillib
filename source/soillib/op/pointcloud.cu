@@ -221,7 +221,7 @@ __global__ void _init_acc(soil::buffer_t<float> acc){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= acc.elem()) return;
-  acc[n] = 0.0f;
+  acc[n] = 1.0f;
 
 }
 
@@ -286,12 +286,12 @@ __global__ void sparse_descend(
   if(n >= N) return;
 
   // Initialize Position in Domain
+  int ind = -1;
   curandState* randState = &rand[n];
-  int ind = curand_uniform(randState)*rbf.elem();
-  float2 p = kdtree.data[ind].p;
-  vec2 pos(p.x, p.y);
-
-  atomicAdd(&acc[ind], prob);
+  vec2 pos = vec2(
+    curand_uniform(randState)*(index[0]-1),
+    curand_uniform(randState)*(index[1]-1)
+  );
 
   const size_t K = rbf.elem();  //!< Total Points
   const size_t B = 64;          //!< Nearest Points
@@ -299,13 +299,14 @@ __global__ void sparse_descend(
   
   const float rad = rbf.shape * 10.0f;
   cukd::HeapCandidateList<B> list(rad);
-  knn<B>(kdtree, pos, list);
 
   int maxstep = 1024;
   while(maxstep > 0){
     maxstep--;
 
     knn<B>(kdtree, pos, list);
+    
+    // Radial Basis Set Gradient
     vec2 grad = vec2(0.0f);
     for(int b = 0; b < B; ++b){
 
@@ -313,20 +314,18 @@ __global__ void sparse_descend(
       if(k >= 0){
         k = kdtree.data[k].i;
 
-        // accumulate into val!
         const vec2 c = rbf.centers[k];
         const float w = rbf.weights[k];
         const float s = rbf.shape;
         const vec2 d = (pos - c)/s;
         const float r = glm::length(c - pos);
-        grad += d * w * 2.0f * rbf::func(r / s) * r / s / s;
+        grad -= d * w * 2.0f * rbf::func(r / s) * r / s / s;
 
       }
 
     }
-
-    // Add Monomial Expressions to Grad
-
+    
+    // Monomial Basis Set Gradient
     for(int p = 0; p < P; ++p){
       const float w = rbf.weights[K + p];
       grad += w * monomial_grad(p, pos);
@@ -334,8 +333,7 @@ __global__ void sparse_descend(
 
     // Move Position and Increment Nearest...
 
-    pos += rbf.shape * glm::normalize(grad);
-    // pos += 0.25f * grad;
+    pos -= rbf.shape * glm::normalize(grad);
 
     int nearest = nn(kdtree, pos);
     if(nearest >= 0){

@@ -57,7 +57,7 @@ def main(input):
     print("Computing Sparse Accumulation")
 
     kdtree = soil.kdtree(center)
-    acc = soil.sparseacc(rbf, kdtree, index, 64)
+    acc = soil.sparseacc(rbf, kdtree, index, 16)
     acc = acc.cpu().numpy(soil.index([K]))
     print(acc)
     print(np.min(acc), np.max(acc))
