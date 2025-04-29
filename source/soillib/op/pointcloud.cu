@@ -331,8 +331,6 @@ __global__ void sparse_descend(
       grad += w * monomial_grad(p, pos);
     }
 
-    // Move Position and Increment Nearest...
-
     pos -= rbf.shape * glm::normalize(grad);
 
     int nearest = nn(kdtree, pos);
