@@ -300,7 +300,7 @@ __global__ void sparse_descend(
   const float rad = rbf.shape * 10.0f;
   cukd::HeapCandidateList<B> list(rad);
 
-  int maxstep = 1024;
+  int maxstep = 256;
   while(maxstep > 0){
     maxstep--;
 
@@ -371,7 +371,7 @@ soil::buffer sparseacc(const soil::rbf& rbf, const soil::kdtree& kdtree, const s
 
   // Initialize Random State
   std::cout<<"Seeding Random Number Generator..."<<std::endl;
-  const size_t N = 1024;
+  const size_t N = 2048;
   soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
   seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
   
@@ -385,7 +385,7 @@ soil::buffer sparseacc(const soil::rbf& rbf, const soil::kdtree& kdtree, const s
   std::cout<<"Descending Particles..."<<std::endl;
   for(int i = 0; i < niter; ++i){
     std::cout<<"Iteration "<<i<<std::endl;
-    sparse_descend<<<block(N, 1024), 1024>>>(rbf, kdtree, acc, rand, N, index_t, P);
+    sparse_descend<<<block(N, 128), 128>>>(rbf, kdtree, acc, rand, N, index_t, P);
     cudaDeviceSynchronize();
   }
 

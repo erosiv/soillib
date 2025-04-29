@@ -45,19 +45,27 @@ def main(input):
 
     print("Solving Least Squares Problem...")
 
-    matrix = rbf.matrix(sample)
-    vector = rbf.vector(values)
-
-    tmatrix = matrix.torch(soil.index([N+rbf.P, K+rbf.P]))
-    tvector = vector.torch(soil.index([N+rbf.P]))
-
-    w = torch.linalg.lstsq(tmatrix, tvector).solution
-    rbf.set_w(soil.buffer.from_torch(w))
+#    matrix = rbf.matrix(sample)
+#    vector = rbf.vector(values)
+#
+#    tmatrix = matrix.torch(soil.index([N+rbf.P, K+rbf.P]))
+#    tvector = vector.torch(soil.index([N+rbf.P]))
+#
+#    w = torch.linalg.lstsq(tmatrix, tvector).solution
+#    rbf.set_w(soil.buffer.from_torch(w))
+#    with open('w.npy', 'wb') as f:
+#      np.save(f, w.cpu().numpy())
+    
+    with open('w.npy', 'rb') as f:
+      w = np.load(f)
+      print(w.dtype)
+      rbf.set_w(soil.buffer.from_numpy(w))
 
     print("Computing Sparse Accumulation")
 
     kdtree = soil.kdtree(center)
-    acc = soil.sparseacc(rbf, kdtree, index, 16)
+    acc = soil.sparseacc(rbf, kdtree, index, 8)
+
     acc = acc.cpu().numpy(soil.index([K]))
     print(acc)
     print(np.min(acc), np.max(acc))

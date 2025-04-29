@@ -333,6 +333,7 @@ rbf_t.def_rw("P", &soil::rbf::P);
 
 rbf_t.def("set_w", [](soil::rbf& rbf, const soil::buffer& weights){
   rbf.weights = weights.as<float>();
+  rbf.weights.to_gpu();
 });
 
 }
