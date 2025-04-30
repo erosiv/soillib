@@ -18,26 +18,49 @@
 namespace soil {
 
 //
-// Erosion Kernels
+// Model Geometry and Lookup Procedures
+//
+
+__device__ vec3 __normal(const model_t& model, const vec2 pos, const vec3 scale){
+
+  lerp5_t<float> lerp;
+  lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
+  const vec2 grad = lerp.grad(scale);
+  return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+
+}
+
+__device__ int __nearest(const model_t& model, const vec2 pos){
+  return model.index.flatten(pos);
+}
+
+//
+// Mass-Transfer Systems
+//
+
+
+
+//
+// Model-Agnostic Solution Implementation
 //
 
 __global__ void solve(model_t model, const size_t N, const param_t param){
 
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= N) return;
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) return;
 
   //
   // Parameters
   //
 
-  // Scaled Domain Parameters
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m]
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const float R = param.rainfall;         // Rainfall Amount  [m/y]
   const float g = param.gravity;          // Specific Gravity [m/s^2]
-  const float nu = param.viscosity;// * 24000.0f;      // Kinematic Viscosity [m^2/s]
+  const float nu = param.viscosity;       // Kinematic Viscosity [m^2/s]
 
   const float dt = param.timeStep;        // Geological Timestep [y]
   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
@@ -45,33 +68,22 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   //
   // Position Sampling Procedure:
-  //  Note: If we isolate this, we also wish to return the probability
-  //  that any individual sample was chosen. For now, it is uniform.
-  //  Additionally, this can be area based, but ultimately depends
-  //  on the actual implementation of the sampling procedure.
+  //  Choose a sampling method, determine the sampling probability,
+  //  determine the contribution weight from the sample count.
+  //  Then get the sample and determine the nearest point.
   //
 
-  curandState* randState = &model.rand[ind];
-  vec2 pos = vec2{
-    curand_uniform(randState)*float(model.index[0]),
-    curand_uniform(randState)*float(model.index[1])
-  };
-  const float P = 1.0f / float(model.index.elem());
-  int find = model.index.flatten(pos);
+  const float P = 1.0f / float(model.index.elem()); // Sampling Probability
+  const float Q = P * float(N);                     // Sampling Contribution
 
-  //
-  // Mass-Transfer Scaling Parameters
-  //
-
-  const float Z = Ac * scale.z; // Height Conversion [m^3]
-  const float Q = P * float(N); // Sampling Probability Scale
+  vec2 pos = __sample_2D(&model.rand[n], model.index);
+  int find = __nearest(model, pos);
 
   //
   // Transport Initial Condition
   //
 
-  const float rho = 1000.0f;  // [kg / m^3]
-  float vol = Ac * R;         // [m^3/y]
+  float vol = Ac * R; // [m^3/y]
   float sed = 0.0f;
 
   //
@@ -79,10 +91,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   //
 
   // Surface Normal Vector
-  lerp5_t<float> lerp;
-  lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
-  const vec2 grad = lerp.grad(scale);
-  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  const vec3 normal = __normal(model, pos, scale);
 
   // Average Local Velocity
   const vec2 momentum = model.momentum[find];
@@ -113,9 +122,9 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     // Note: Accumulation Occurds at Current Position
 
-    atomicAdd(&model.discharge_track[find], (1.0f/P/N)*vol);
-    atomicAdd(&model.momentum_track[find].x, (1.0f/P/N)*vol*dspeed.x);
-    atomicAdd(&model.momentum_track[find].y, (1.0f/P/N)*vol*dspeed.y);
+    atomicAdd(&model.discharge_track[find], (1.0f/Q)*vol);
+    atomicAdd(&model.momentum_track[find].x, (1.0f/Q)*vol*dspeed.x);
+    atomicAdd(&model.momentum_track[find].y, (1.0f/Q)*vol*dspeed.y);
 
     //
     // Mass-Transfer
@@ -209,12 +218,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     if(model.index.oob(pos))
       break;
 
-    find = model.index.flatten(pos);
-
-    lerp5_t<float> lerp;
-    lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
-    const vec2 grad = lerp.grad(scale);
-    const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+    find = __nearest(model, pos);
+    const vec3 normal = __normal(model, pos, scale);
 
     discharge = model.discharge[find];
     const vec2 momentum = model.momentum[find];

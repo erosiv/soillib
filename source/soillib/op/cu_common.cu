@@ -10,6 +10,7 @@
 //  to exist in multiple places at once.
 
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/index.hpp>
 #include <curand_kernel.h>
 
 namespace {
@@ -69,6 +70,17 @@ __global__ void __filter(buffer_t<T> buf_A, const buffer_t<T> buf_B, const float
 template<typename T>
 void filter(buffer_t<T>& buf_A, const buffer_t<T>& buf_B, const float w){
   __filter<<<block(buf_A.elem(), 1024), 1024>>>(buf_A, buf_B, w);
+}
+
+//
+// Random Sampling
+//
+
+__device__ vec2 __sample_2D(curandState* randState, const flat_t<2>& index) {
+  return vec2 {
+    curand_uniform(randState)*float(index[0]-1),
+    curand_uniform(randState)*float(index[1]-1)
+  };
 }
 
 }

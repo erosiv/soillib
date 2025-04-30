@@ -25,16 +25,9 @@ namespace soil {
 //
 
 __global__ void _sample_N(soil::buffer_t<vec2> output, soil::buffer_t<curandState> rand, const soil::flat_t<2> index, const size_t N){
-
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) return;
-
-  curandState* randState = &rand[n];
-  output[n] = vec2 {
-    curand_uniform(randState)*float(index[0]-1),
-    curand_uniform(randState)*float(index[1]-1)
-  };
-
+  output[n] = __sample_2D(&rand[n], index);  
 }
 
 soil::buffer_t<vec2> sample_N_impl(const soil::flat_t<2> &index, const size_t N){
