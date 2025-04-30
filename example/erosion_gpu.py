@@ -69,7 +69,7 @@ def main():
   param.exitSlope = 0.01          # Boundary Slope [m/m]
 
   timer = soil.timer()
-  for i in range(1024):
+  for i in range(256):
     with timer:
       soil.erode(model, param, 1)
     print(f"Execution Time: {timer.count}ms")

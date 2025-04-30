@@ -18,6 +18,26 @@
 namespace soil {
 
 //
+// Local Particle State
+//
+
+struct particle_t {
+
+  vec2 pos;
+  float P;
+  int ind;
+
+  vec2 npos;
+  vec2 speed;
+  vec2 dspeed;
+  float ds;
+
+  float vol;
+  float sed;
+
+};
+
+//
 // Model Geometry and Lookup Procedures
 //
 
@@ -34,11 +54,34 @@ __device__ int __nearest(const model_t& model, const vec2 pos){
   return model.index.flatten(pos);
 }
 
+__device__ vec2 __avespeed(const model_t& model, const particle_t& part){
+  const vec2 momentum = model.momentum[part.ind];
+  const float discharge = model.discharge[part.ind];
+  if(discharge == 0.0f)
+    return vec2(0.0f);
+  return momentum / discharge;
+}
+
 //
-// Mass-Transfer Systems
+// Position Sampling Procedure:
+//  Choose a sampling method, determine the sampling probability,
+//  determine the contribution weight from the sample count.
+//  Then get the sample and determine the nearest point.
 //
 
+//! Position Sampling Procedure
+//!
+//! Based on a choice of sampling method for the position,
+//! we can also compute the probability. Finally, we also
+//! determine the index of the closest support point.
+__device__ void __sample(particle_t& part, const model_t& model, const size_t n){
 
+  part.pos = __sample_2D(&model.rand[n], model.index);
+  part.P = 1.0f / float(model.index.elem()); // Sampling Probability
+  
+  part.ind = __nearest(model, part.pos);
+
+}
 
 //
 // Model-Agnostic Solution Implementation
@@ -67,48 +110,34 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
 
   //
-  // Position Sampling Procedure:
-  //  Choose a sampling method, determine the sampling probability,
-  //  determine the contribution weight from the sample count.
-  //  Then get the sample and determine the nearest point.
+  // Transport Initial Condition:
+  //  The particle stores the data on a per-
+  //  sample along the trajectory basis.
   //
 
-  const float P = 1.0f / float(model.index.elem()); // Sampling Probability
-  const float Q = P * float(N);                     // Sampling Contribution
+  particle_t part;
+  __sample(part, model, n);
+  const float Q = part.P * float(N);
 
-  vec2 pos = __sample_2D(&model.rand[n], model.index);
-  int find = __nearest(model, pos);
-
-  //
-  // Transport Initial Condition
-  //
-
-  float vol = Ac * R; // [m^3/y]
-  float sed = 0.0f;
+  part.vol = Ac * R; // [m^3/y]
+  part.sed = 0.0f;
 
   //
   // Trajectory Initial Condition
   //
 
   // Surface Normal Vector
-  const vec3 normal = __normal(model, pos, scale);
-
-  // Average Local Velocity
-  const vec2 momentum = model.momentum[find];
-  const float discharge = model.discharge[find];
-  vec2 average_speed = vec2(0.0f);
-  if(discharge > 0.0f) {
-    average_speed = momentum / discharge;
-  }
+  const vec3 normal = __normal(model, part.pos, scale);
+  const vec2 average_speed = __avespeed(model, part);
 
   // Initial Velocity Estimate
-  vec2 speed = g * vec2(normal.x, normal.y) + nu * average_speed;
-  if(glm::length(speed) == 0.0f)
+  part.speed = g * vec2(normal.x, normal.y) + nu * average_speed;
+  if(glm::length(part.speed) == 0.0f)
     return;
 
-  float ds = glm::length(cl) / glm::length(speed);
-  vec2 npos = pos + ds*(speed / cl);
-  vec2 dspeed = speed;
+  part.ds = glm::length(cl) / glm::length(part.speed);
+  part.npos = part.pos + part.ds*(part.speed / cl);
+  part.dspeed = part.speed;
 
   // Solution Loop:
   //  Solve Conservation Law along Characteristic
@@ -117,35 +146,25 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   for(size_t age = 0; age < param.maxage; ++age){
 
     //
-    // Accumulate Estimated Values
-    //
-
-    // Note: Accumulation Occurds at Current Position
-
-    atomicAdd(&model.discharge_track[find], (1.0f/Q)*vol);
-    atomicAdd(&model.momentum_track[find].x, (1.0f/Q)*vol*dspeed.x);
-    atomicAdd(&model.momentum_track[find].y, (1.0f/Q)*vol*dspeed.y);
-
-    //
     // Mass-Transfer
     //  Compute Equilibrium Mass from Slope and Discharge
     //  Transfer Mass and Scale by Sampling Probability
     
-    float discharge = model.discharge[find];
+    float discharge = model.discharge[part.ind];
     float slope = -param.exitSlope;
-    float h0 = (model.height[find] + model.sediment[find])*scale.z;
+    float h0 = (model.height[part.ind] + model.sediment[part.ind])*scale.z;
     float h1 = h0 + slope * glm::length(cl);
     
-    if(!model.index.oob(npos)){
-      const int nind = model.index.flatten(npos);
+    if(!model.index.oob(part.npos)){
+      const int nind = model.index.flatten(part.npos);
       h1 = (model.height[nind] + model.sediment[nind])*scale.z;
       slope = (h1 - h0)/glm::length(cl);
     }
 
     // Activation Function
     float alpha = (slope < 0.0f)?1.0f:0.0f;
-    float suspend = dt * ks * vol * slope * alpha * pow(discharge, 0.4f); // [kg]
-    float deposit = dt * kd * sed;                                        // [kg]
+    float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
+    float deposit = dt * kd * part.sed;                                        // [kg]
 
     /*
     // Single Material, Implicit Euler Scheme
@@ -155,7 +174,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
     float kq = ks * vol * alpha * pow(discharge, 0.4f) / glm::length(cl);
     float transfer = 1.0f / (1.0f + dt * kq) * (suspend + deposit);
-    atomicAdd(&model.height[find], transfer / Z / Q);
+    atomicAdd(&model.height[part.ind], transfer / Z / Q);
     sed -= transfer;
     */
 
@@ -173,65 +192,65 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 //    const float tmax = sed;
 //    transfer = glm::clamp(transfer, tmin, tmax);
 //
-//    atomicAdd(&model.height[find], transfer / Z / Q);
+//    atomicAdd(&model.height[part.ind], transfer / Z / Q);
 //    sed -= transfer;
 
     // Multi-Material Mass Transfer
     float transfer = (deposit + suspend);
     const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * Q;
     const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/suspend));
-    const float tmax = sed;
+    const float tmax = part.sed;
     transfer = glm::clamp(transfer, tmin, tmax);
 
     if(transfer > 0.0f){  // Add Material to Map (Note: Single Material Model)
 
-      atomicAdd(&model.sediment[find], transfer / Z / Q);
-      sed -= transfer;
+      atomicAdd(&model.sediment[part.ind], transfer / Z / Q);
+      part.sed -= transfer;
 
     }
 
     else if(transfer < 0.0f){ // Remove Sediment from Map
 
-      const float maxtransfer = 0.1f * model.sediment[find] * Z * Q;
+      const float maxtransfer = 0.1f * model.sediment[part.ind] * Z * Q;
       float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-      atomicAdd(&model.sediment[find], t1 / Z / Q);
-      sed -= t1;
+      atomicAdd(&model.sediment[part.ind], t1 / Z / Q);
+      part.sed -= t1;
 
       transfer -= t1;
-      atomicAdd(&model.height[find], transfer / Z / Q);
-      sed -= transfer;
+      atomicAdd(&model.height[part.ind], transfer / Z / Q);
+      part.sed -= transfer;
 
     }
+
+    //
+    // Accumulate Estimated Values
+    //
+
+    // Note: Accumulation Occurds at Current Position
+
+    atomicAdd(&model.discharge_track[part.ind], (1.0f/Q)*part.vol);
+    atomicAdd(&model.momentum_track[part.ind].x, (1.0f/Q)*part.vol*part.dspeed.x);
+    atomicAdd(&model.momentum_track[part.ind].y, (1.0f/Q)*part.vol*part.dspeed.y);
+
+    //
+    // Flow Integration / Trajectory
+    //
+
+    part.pos = part.npos;
+    if(model.index.oob(part.pos))
+      break;
+
+    part.ind = __nearest(model, part.pos);
 
     //
     // Integrate Sub-Solution Quantities
     //  Note: Integrated in Quasi-Static Time
     //    using an Implicit Forward Scheme
 
-    vol = 1.0f/(1.0f + ds*param.evapRate)*vol;
+    part.vol = 1.0f/(1.0f + part.ds*param.evapRate)*part.vol;
 
-    //
-    // Flow Integration / Trajectory
-    //
-
-    pos = npos;
-    if(model.index.oob(pos))
-      break;
-
-    find = __nearest(model, pos);
-    const vec3 normal = __normal(model, pos, scale);
-
-    discharge = model.discharge[find];
-    const vec2 momentum = model.momentum[find];
-    vec2 average_speed = vec2(0.0f);
-    if(discharge > 0.0f){
-      average_speed = momentum / discharge;
-    }
-
-    // Implicit Euler Forward Integration:
-
-    speed = speed + ds * g * vec2(normal.x, normal.y);
-
+    // Implicit Euler Forward Integration for Gravity
+    // 
     // Shear-Stress and Viscosity Terms:
     //  The viscosity and shear-stress are some combination
     //  of bed shear-stress from friction, and mixing with the
@@ -241,18 +260,23 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     //
     //  The only key question is how these parameters scale with
     //  the space and time resolution of the simulation.
-
+    
     const float k1 = param.bedShear;
     const float k2 = param.viscosity;
 
-    speed =  1.0f/(1.0f + ds * (k1+k2))*speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
-    dspeed = 1.0f/(1.0f + ds * (k1+k2))*dspeed;
+    const vec3 normal = __normal(model, part.pos, scale);
+    const vec2 average_speed = __avespeed(model, part);
 
-    if(glm::length(speed) == 0.0f)
+    part.speed = part.speed + part.ds * g * vec2(normal.x, normal.y);
+
+    part.speed =  1.0f/(1.0f + part.ds * (k1+k2))*part.speed + part.ds*k2/(1.0f + part.ds*(k1+k2))*average_speed;
+    part.dspeed = 1.0f/(1.0f + part.ds * (k1+k2))*part.dspeed;
+
+    if(glm::length(part.speed) == 0.0f)
       break;
 
-    ds = glm::length(cl)/glm::length(speed);
-    npos = pos + ds * (speed / cl);
+    part.ds = glm::length(cl)/glm::length(part.speed);
+    part.npos = part.pos + part.ds * (part.speed / cl);
 
   }
 
