@@ -132,25 +132,34 @@ __device__ float __slope(const model_t& model, const particle_t& part, const par
 
 }
 
-// __device__ void __masstransfer(){
+ __device__ void __masstransfer1(model_t& model, particle_t& part, const param_t& param, const size_t N){
 
-//    float discharge = model.discharge[part.ind];  // Discharge Function
-//    float slope = __slope(model, part, param);    // Slope Function
-//    float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
-//    float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
-//    float deposit = dt * kd * part.sed;                                        // [kg]
+    const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+    const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+    const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+    const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-    /*
+    const float dt = param.timeStep;        // Geological Timestep [y]
+    const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
+    const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
+
+    const float Q = part.P * float(N);
+
+    float discharge = model.discharge[part.ind];  // Discharge Function
+    float slope = __slope(model, part, param);    // Slope Function
+    float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
+    float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
+    float deposit = dt * kd * part.sed;                                        // [kg]
+
     // Single Material, Implicit Euler Scheme
     //  This use an activation function which lowers the amount transferred
     //  which scales with the amount of equilibriation force. Note that this
     //  tends to over-damp, which is why we don't use it.
 
-    float kq = ks * vol * alpha * pow(discharge, 0.4f) / glm::length(cl);
-    float transfer = 1.0f / (1.0f + dt * kq) * (suspend + deposit);
-    atomicAdd(&model.height[part.ind], transfer / Z / Q);
-    sed -= transfer;
-    */
+//    float kq = ks * part.vol * alpha * pow(discharge, 0.4f) / glm::length(cl);
+//    float transfer = 1.0f / (1.0f + dt * kq) * (suspend + deposit);
+//    atomicAdd(&model.height[part.ind], transfer / Z / Q);
+//    part.sed -= transfer;
 
     // Single Material, Explicit Euler Scheme
     //  This use an activation function (maxtransfer), which limits the
@@ -160,18 +169,18 @@ __device__ float __slope(const model_t& model, const particle_t& part, const par
   
     // Note: Maxtransfer here is damped for stability. This should be
     //  attempted to be removed using alternative stabilizing methods.
-//    float transfer = (deposit + suspend);
-//    const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * Q;
-//    const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-//    const float tmax = sed;
-//    transfer = glm::clamp(transfer, tmin, tmax);
-//
-//    atomicAdd(&model.height[part.ind], transfer / Z / Q);
-//    sed -= transfer;
+    float transfer = (deposit + suspend);
+    const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * Q;
+    const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+    const float tmax = part.sed;
+    transfer = glm::clamp(transfer, tmin, tmax);
 
-// }
+    atomicAdd(&model.height[part.ind], transfer / Z / Q);
+    part.sed -= transfer;
 
-__device__ void __masstransfer(model_t& model, particle_t& part, const param_t& param, const size_t N){
+}
+
+__device__ void __masstransfer2(model_t& model, particle_t& part, const param_t& param, const size_t N){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -266,7 +275,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     //  Compute Equilibrium Mass from Slope and Discharge
     //  Transfer Mass and Scale by Sampling Probability
 
-    __masstransfer(model, part, param, N);
+    __masstransfer1(model, part, param, N);
     
     //
     // Accumulate Estimated Values

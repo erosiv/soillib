@@ -154,7 +154,6 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     if(transfer == 0.0f)
       continue;
 
-    /*
     // Single Material
     if(transfer > 0.0f){
 
@@ -176,8 +175,8 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
       mass -= transfer;
 
     }
-    */
-
+    
+    /*
     // Multi-Material
     if(transfer > 0.0f){ // Add Material to Map
 
@@ -207,6 +206,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
       mass -= transfer;
 
     }
+    */
 
   }
 
