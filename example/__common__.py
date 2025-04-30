@@ -126,8 +126,12 @@ def show_relief(array, index, scale):
 
 def show_discharge(array, index):
 
-  array = array.cpu().numpy(index)
-  plt.imshow(np.log(1.0 + array))
+  array = 1 + array.cpu().numpy(index)
+  fig, ax = plt.subplots(figsize=(8,6))
+  im = ax.imshow(array, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, array.max()),
+    interpolation='bilinear')
   plt.show()
 
 def show_layers(layers, index, scale):

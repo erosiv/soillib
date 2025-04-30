@@ -8,47 +8,14 @@
 #include <math_constants.h>
 #include <iostream>
 
-#include <soillib/op/common.hpp>
 #include <soillib/op/gather.hpp>
 #include <soillib/op/erosion.hpp>
+
+#include <soillib/op/cu_common.cu>
 
 #include "erosion_thermal.cu"
 
 namespace soil {
-
-//
-// Randstate and Estimate Initialization / Filtering
-//
-
-__global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= buffer.elem()) return;
-  curand_init(seed, n, offset, &buffer[n]);
-}
-
-__global__ void reset(model_t model){
-  
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= model.elem) return;
-  
-  // Reset Estimation Buffers
-
-  model.discharge_track[n] = 0.0f;
-  model.momentum_track[n] = vec2(0.0f);
-
-}
-
-__global__ void filter(model_t model, const param_t param){
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= model.elem) return;
-
-  // Apply Simple Exponential Filter to Noisy Estimates
-
-  model.discharge[n] = glm::mix(model.discharge[n], model.discharge_track[n], param.lrate);
-  model.momentum[n] = glm::mix(model.momentum[n], model.momentum_track[n], param.lrate);
-
-}
 
 //
 // Erosion Kernels
@@ -315,8 +282,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
 
   if(model.rand.elem() != n_samples){
     model.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
-    seed<<<block(n_samples, 512), 512>>>(model.rand, 0, 2 * model.age);
-    cudaDeviceSynchronize();
+    seed(model.rand, 0, 2 * model.age);
   }
 
   //
@@ -336,13 +302,14 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Reset, Solve, Filter, Apply
     //
 
-    reset<<<block(model.elem, 1024), 1024>>>(model);
-    cudaDeviceSynchronize();
+    set(model.discharge_track, 0.0f);
+    set(model.momentum_track, vec2(0.0f));
 
     solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
  
-    filter<<<block(model.elem, 1024), 1024>>>(model, param);
+    filter(model.momentum, model.momentum_track, param.lrate);
+    filter(model.discharge, model.discharge_track, param.lrate);
     cudaDeviceSynchronize();
 
     //

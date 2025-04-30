@@ -13,24 +13,12 @@
 #include <soillib/op/pointcloud.hpp>
 #include <soillib/index/kdtree.hpp>
 #include <soillib/op/rbf.hpp>
+#include <soillib/op/cu_common.cu>
 
 #include <cukd/builder.h>
 #include <cukd/knn.h>
 
 namespace soil {
-
-namespace {
-
-__global__ void seed(buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= buffer.elem()) return;
-
-  curand_init(seed, n, offset, &buffer[n]);
-
-}
-
-}
 
 //
 // Random Position Sampling within Index Bound
@@ -51,12 +39,11 @@ __global__ void _sample_N(soil::buffer_t<vec2> output, soil::buffer_t<curandStat
 
 soil::buffer_t<vec2> sample_N_impl(const soil::flat_t<2> &index, const size_t N){
 
-  soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
-  seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
-  cudaDeviceSynchronize();
+  soil::buffer_t<curandState> randStates(N, soil::host_t::GPU);
+  seed(randStates, 0, 0);
 
   soil::buffer_t<vec2> output(N, soil::GPU);
-  _sample_N<<<block(N, 1024), 1024>>>(output, rand, index, N);
+  _sample_N<<<block(N, 1024), 1024>>>(output, randStates, index, N);
 
   return output;
 
@@ -370,8 +357,8 @@ soil::buffer sparseacc(const soil::rbf& rbf, const soil::kdtree& kdtree, const s
   // Initialize Random State
   std::cout<<"Seeding Random Number Generator..."<<std::endl;
   const size_t N = 2048;
-  soil::buffer_t<curandState> rand(N, soil::host_t::GPU);
-  seed<<<block(N, 1024), 1024>>>(rand, 0, 0);
+  soil::buffer_t<curandState> randStates(N, soil::host_t::GPU);
+  seed(randStates, 0, 0);
   
   // normalization factor ...
   const float Ntot = niter * N;             //!< Total Sample Count
@@ -383,7 +370,7 @@ soil::buffer sparseacc(const soil::rbf& rbf, const soil::kdtree& kdtree, const s
   std::cout<<"Descending Particles..."<<std::endl;
   for(int i = 0; i < niter; ++i){
     std::cout<<"Iteration "<<i<<std::endl;
-    sparse_descend<<<block(N, 128), 128>>>(rbf, kdtree, acc, rand, N, index_t, P);
+    sparse_descend<<<block(N, 128), 128>>>(rbf, kdtree, acc, randStates, N, index_t, P);
     cudaDeviceSynchronize();
   }
 
