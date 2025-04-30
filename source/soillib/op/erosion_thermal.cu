@@ -154,29 +154,31 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
     if(transfer == 0.0f)
       continue;
 
+    /*
     // Single Material
     if(transfer > 0.0f){
-
-      const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
-      transfer = glm::min(transfer, maxtransfer);
-      transfer = glm::min(transfer, mass);
-
-      atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
-      mass -= transfer;
-
-    }
-
-    else if(transfer < 0.0f){
-
-      const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * Q;
-      transfer = -glm::min(-transfer, maxtransfer);
-
-      atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
-      mass -= transfer;
-
-    }
+      
+    const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
+    transfer = glm::min(transfer, maxtransfer);
+    transfer = glm::min(transfer, mass);
     
-    /*
+    atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
+    mass -= transfer;
+    
+  }
+  
+  else if(transfer < 0.0f){
+    
+  const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * Q;
+  transfer = -glm::min(-transfer, maxtransfer);
+  
+  atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
+  mass -= transfer;
+  
+}
+*/
+    
+    
     // Multi-Material
     if(transfer > 0.0f){ // Add Material to Map
 
@@ -206,7 +208,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
       mass -= transfer;
 
     }
-    */
+    
 
   }
 

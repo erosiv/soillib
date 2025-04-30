@@ -113,6 +113,73 @@ __device__ void __init(particle_t& part, const model_t& model, const param_t& pa
 
 }
 
+//! Note: Return's false if we wish to terminate!
+__device__ bool __move(const model_t& model, particle_t& part){
+
+  part.pos = part.npos;
+  if(model.index.oob(part.pos))
+    return false;
+    part.ind = __nearest(model, part.pos);
+  return true;
+
+}
+
+__device__ void __track(model_t& model, const particle_t& part, const size_t N){
+
+  const float Q = part.P * float(N);
+
+  atomicAdd(&model.discharge_track[part.ind], (1.0f/Q)*part.vol);
+  atomicAdd(&model.momentum_track[part.ind].x, (1.0f/Q)*part.vol*part.dspeed.x);
+  atomicAdd(&model.momentum_track[part.ind].y, (1.0f/Q)*part.vol*part.dspeed.y);
+
+}
+
+__device__ bool __integrate(const model_t& model, particle_t& part, const param_t& param){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float g = param.gravity;          // Specific Gravity [m/s^2]
+
+  //
+  // Integrate Sub-Solution Quantities
+  //  Note: Integrated in Quasi-Static Time
+  //    using an Implicit Forward Scheme
+
+  part.vol = 1.0f/(1.0f + part.ds*param.evapRate)*part.vol;
+
+  // Implicit Euler Forward Integration for Gravity
+  // 
+  // Shear-Stress and Viscosity Terms:
+  //  The viscosity and shear-stress are some combination
+  //  of bed shear-stress from friction, and mixing with the
+  //  bulk stream from viscosity. These two terms are linearly
+  //  related to the velocity and bulk velocity deviation
+  //  by some constants k1 and k2 respectively.
+  //
+  //  The only key question is how these parameters scale with
+  //  the space and time resolution of the simulation.
+  
+  const float k1 = param.bedShear;
+  const float k2 = param.viscosity;
+
+  const vec3 normal = __normal(model, part.pos, scale);
+  const vec2 average_speed = __avespeed(model, part);
+
+  part.speed = part.speed + part.ds * g * vec2(normal.x, normal.y);
+
+  part.speed =  1.0f/(1.0f + part.ds * (k1+k2))*part.speed + part.ds*k2/(1.0f + part.ds*(k1+k2))*average_speed;
+  part.dspeed = 1.0f/(1.0f + part.ds * (k1+k2))*part.dspeed;
+
+  if(glm::length(part.speed) == 0.0f)
+    return false;
+
+  part.ds = glm::length(cl)/glm::length(part.speed);
+  part.npos = part.pos + part.ds * (part.speed / cl);
+
+  return true;
+
+}
+
 __device__ float __slope(const model_t& model, const particle_t& part, const param_t& param){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
@@ -243,17 +310,6 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   if(n >= N) return;
 
   //
-  // Parameters
-  //
-
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-  const float Z = Ac * scale.z;           // Height Conversion [m^3]
-
-  const float g = param.gravity;          // Specific Gravity [m/s^2]
-
-  //
   // Transport Initial Condition:
   //  The particle stores the data on a per-
   //  sample along the trajectory basis.
@@ -270,68 +326,19 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
 
   for(size_t age = 0; age < param.maxage; ++age){
 
-    //
     // Mass-Transfer
-    //  Compute Equilibrium Mass from Slope and Discharge
-    //  Transfer Mass and Scale by Sampling Probability
+    __masstransfer2(model, part, param, N);
 
-    __masstransfer1(model, part, param, N);
+    // Accumulate Estimated Quantities
+    __track(model, part, N);
     
-    //
-    // Accumulate Estimated Values
-    //
-
-    // Note: Accumulation Occurds at Current Position
-
-    atomicAdd(&model.discharge_track[part.ind], (1.0f/Q)*part.vol);
-    atomicAdd(&model.momentum_track[part.ind].x, (1.0f/Q)*part.vol*part.dspeed.x);
-    atomicAdd(&model.momentum_track[part.ind].y, (1.0f/Q)*part.vol*part.dspeed.y);
-
-    //
-    // Flow Integration / Trajectory
-    //
-
-    part.pos = part.npos;
-    if(model.index.oob(part.pos))
+    // Shift Trajectory
+    if(!__move(model, part))
       break;
 
-    part.ind = __nearest(model, part.pos);
-
-    //
-    // Integrate Sub-Solution Quantities
-    //  Note: Integrated in Quasi-Static Time
-    //    using an Implicit Forward Scheme
-
-    part.vol = 1.0f/(1.0f + part.ds*param.evapRate)*part.vol;
-
-    // Implicit Euler Forward Integration for Gravity
-    // 
-    // Shear-Stress and Viscosity Terms:
-    //  The viscosity and shear-stress are some combination
-    //  of bed shear-stress from friction, and mixing with the
-    //  bulk stream from viscosity. These two terms are linearly
-    //  related to the velocity and bulk velocity deviation
-    //  by some constants k1 and k2 respectively.
-    //
-    //  The only key question is how these parameters scale with
-    //  the space and time resolution of the simulation.
-    
-    const float k1 = param.bedShear;
-    const float k2 = param.viscosity;
-
-    const vec3 normal = __normal(model, part.pos, scale);
-    const vec2 average_speed = __avespeed(model, part);
-
-    part.speed = part.speed + part.ds * g * vec2(normal.x, normal.y);
-
-    part.speed =  1.0f/(1.0f + part.ds * (k1+k2))*part.speed + part.ds*k2/(1.0f + part.ds*(k1+k2))*average_speed;
-    part.dspeed = 1.0f/(1.0f + part.ds * (k1+k2))*part.dspeed;
-
-    if(glm::length(part.speed) == 0.0f)
+    // Integrate Differential Quantities
+    if(!__integrate(model, part, param))
       break;
-
-    part.ds = glm::length(cl)/glm::length(part.speed);
-    part.npos = part.pos + part.ds * (part.speed / cl);
 
   }
 
