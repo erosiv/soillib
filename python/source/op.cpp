@@ -181,6 +181,10 @@ auto model_t = nb::class_<soil::model_t>(module, "model_t");
 model_t.def(nb::init<soil::index, soil::vec3>());
 model_t.def_ro("scale", &soil::model_t::scale);
 
+//
+// Height Components
+//
+
 model_t.def_prop_rw("height",
   [](soil::model_t& model){
     return soil::buffer(model.height);
@@ -195,6 +199,10 @@ model_t.def_prop_rw("sediment",
     model.sediment = buffer.as<float>();
 });
 
+//
+// Tracking Fields
+//
+
 model_t.def_prop_rw("discharge",
   [](soil::model_t& model){
     return soil::buffer(model.discharge);
@@ -207,6 +215,13 @@ model_t.def_prop_rw("momentum",
     return soil::buffer(model.momentum);
 },[](soil::model_t& model, soil::buffer buffer){
     model.momentum = buffer.as<soil::vec2>();
+});
+
+model_t.def_prop_rw("mass",
+  [](soil::model_t& model){
+    return soil::buffer(model.mass);
+},[](soil::model_t& model, soil::buffer buffer){
+    model.mass = buffer.as<float>();
 });
 
 module.def("erode", soil::erode);

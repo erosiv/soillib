@@ -132,7 +132,15 @@ def show_discharge(array, index):
     cmap='CMRmap',
     norm=colors.LogNorm(1, array.max()),
     interpolation='bilinear')
-  plt.show()
+
+def show_mass(array, index):
+
+  array = 1 + array.cpu().numpy(index)
+  fig, ax = plt.subplots(figsize=(8,6))
+  im = ax.imshow(array, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, array.max()),
+    interpolation='bilinear')
 
 def show_layers(layers, index, scale):
 

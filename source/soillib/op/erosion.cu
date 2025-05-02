@@ -69,6 +69,34 @@ __device__ float __slope(const model_t& model, const particle_t& part, const par
 
 }
 
+//! Directional Slope Computation
+__device__ float __slope_dir(const model_t& model, const param_t& param, const int ind){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  
+  const vec2 mom = model.momentum[ind];
+  if(glm::length(mom) == 0.0f){
+    return 0.0f;
+  }
+
+  vec2 pos = model.index.unflatten(ind);
+  pos = pos + vec2(0.5f);
+
+  const vec2 dir = glm::normalize(mom);
+  const vec2 npos = pos + dir;
+
+  if(model.index.oob(npos)){
+    return -param.exitSlope;
+  }
+
+  const int nind = model.index.flatten(npos);
+  float h0 = (model.height[ind] + model.sediment[ind])*scale.z;
+  float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
+  return (h1 - h0)/glm::length(cl);
+
+}
+
 //
 // Derived Quantities
 //
@@ -81,6 +109,127 @@ __device__ vec2 __avespeed(const model_t& model, const particle_t& part){
   
   const vec2 momentum = model.momentum[part.ind];
   return momentum / discharge;
+
+}
+
+__device__ float __suspend(const model_t& model, const particle_t& part, const param_t& param){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+
+  const float dt = param.timeStep;        // Geological Timestep [y]
+  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
+  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
+
+  float discharge = model.discharge[part.ind];  // Discharge Function
+  float slope = __slope(model, part, param);    // Slope Function
+  float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
+
+  float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
+
+  // limit suspended amount...
+  //   we can't suspend so much that the slope drops below zero!
+  const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * part.Q;
+  const float tmin = suspend * glm::min(1.0f, glm::abs(maxtransfer/suspend));
+  suspend = glm::max(suspend, tmin);
+  return -1.0f * suspend;
+
+}
+
+__device__ float __deposit_rate(const model_t& model, const param_t& param, const float mass){
+
+  const float dt = param.timeStep;        // Geological Timestep [y]
+  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
+
+  return kd;
+//  float deposit = dt * kd * part.sed;
+//  deposit = glm::min(part.sed, deposit);
+//  if(deposit == 0.0f)
+//    return deposit;
+//  return deposit / part.sed;
+  
+}
+
+// __device__ void __mt1(model_t& model, particle_t& part, const param_t& param, const size_t N){
+// 
+//   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+//   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+//   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+//   const float Z = Ac * scale.z;           // Height Conversion [m^3]
+// 
+//   const float dt = param.timeStep;        // Geological Timestep [y]
+//   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
+//   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
+// 
+//   float discharge = model.discharge[part.ind];  // Discharge Function
+//   float slope = __slope(model, part, param);    // Slope Function
+//   float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
+//   float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
+//   float deposit = dt * kd * part.sed;                                        // [kg]
+// 
+//   // Single Material, Implicit Euler Scheme
+//   //  This use an activation function which lowers the amount transferred
+//   //  which scales with the amount of equilibriation force. Note that this
+//   //  tends to over-damp, which is why we don't use it.
+// 
+// //    float kq = ks * part.vol * alpha * pow(discharge, 0.4f) / glm::length(cl);
+// //    float transfer = 1.0f / (1.0f + dt * kq) * (suspend + deposit);
+// //    atomicAdd(&model.height[part.ind], transfer / Z / Q);
+// //    part.sed -= transfer;
+// 
+//   // Single Material, Explicit Euler Scheme
+//   //  This use an activation function (maxtransfer), which limits the
+//   //  total amount of mass that can be moved based on the slope.
+//   //  Similar to the implicit scheme, which uses a similar construction
+//   //  but that scales with the rate.
+// 
+//   // Note: Maxtransfer here is damped for stability. This should be
+//   //  attempted to be removed using alternative stabilizing methods.
+//   float transfer = (deposit + suspend);
+//   const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * part.Q;
+//   const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+//   const float tmax = part.sed;
+//   transfer = glm::clamp(transfer, tmin, tmax);
+// 
+//   atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
+//   part.sed -= transfer;
+// 
+// }
+
+__global__ void mass_transfer(model_t model, const param_t param){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= model.height.elem())
+    return;
+
+   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+   const float Z = Ac * scale.z;           // Height Conversion [m^3]
+
+  const float dt = param.timeStep;        // Geological Timestep [y]
+  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
+  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
+
+  const float sed = model.mass[n];
+  const float discharge = model.discharge[n];  // Discharge Function
+
+  const float deposit = __deposit_rate(model, param, sed) * sed;
+
+  float slope = __slope_dir(model, param, n);     // Slope Function
+  float alpha = (slope < 0.0f)?1.0f:0.0f;         // Activation Function
+  float suspend = dt * ks * discharge * slope * alpha * pow(discharge, 0.4f); // [kg]
+
+  float transfer = (deposit + suspend);
+  const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z;// * part.Q;
+  const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+  const float tmax = sed;
+  transfer = glm::clamp(transfer, tmin, tmax);
+
+  model.height[n] += transfer / Z;
+  model.mass[n] -= transfer / Z;
 
 }
 
@@ -122,9 +271,9 @@ __device__ void __init(particle_t& part, const model_t& model, const param_t& pa
 
   // Initial Tracking Values
 
-  part.dspeed = part.speed; //!< Velocity Decay Value
-  part.vol = Ac * R;        //!< Particle Water Volume
-  part.sed = 0.0f;          //!< Particle Sediment Mass
+  part.dspeed = part.speed;                 //!< Velocity Decay Value
+  part.vol = Ac * R;                        //!< Particle Water Volume
+  part.sed = __suspend(model, part, param); //!< Particle Sediment Mass
 
 }
 
@@ -132,6 +281,7 @@ __device__ void __init(particle_t& part, const model_t& model, const param_t& pa
 //!
 __device__ void __track(model_t& model, const particle_t& part, const size_t N){
 
+  atomicAdd(&model.mass_track[part.ind], (part.sed)/part.Q);
   atomicAdd(&model.discharge_track[part.ind], (part.vol)/part.Q);
   atomicAdd(&model.momentum_track[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
   atomicAdd(&model.momentum_track[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
@@ -191,6 +341,9 @@ __device__ void __integrate(const model_t& model, particle_t& part, const param_
   
   part.vol = 1.0f/(1.0f + ds*param.evapRate)*part.vol;
 
+  const float drate = __deposit_rate(model, param, part.sed);
+  part.sed = (1.0f - drate)*part.sed;
+
 }
 
 //
@@ -210,35 +363,6 @@ In the future, we want to have a proper stochastic estimate of the mass being tr
 Then, we can use this estimate to effect the equilibrium change to the map everywhere
   at once.
 */
-
-__device__ void __mt1(model_t& model, particle_t& part, const param_t& param, const size_t N){
-
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-  const float Z = Ac * scale.z;           // Height Conversion [m^3]
-
-  const float dt = param.timeStep;        // Geological Timestep [y]
-  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
-  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
-
-  float discharge = model.discharge[part.ind];  // Discharge Function
-  float slope = __slope(model, part, param);    // Slope Function
-  float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
-
-  float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
-  float deposit = dt * kd * part.sed;                                        // [kg]
-  float transfer = (deposit + suspend);
-
-  const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * part.Q;
-  const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-  const float tmax = part.sed;
-  transfer = glm::clamp(transfer, tmin, tmax);
-
-  atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
-  part.sed -= transfer;
-
-}
 
 //! Model-Agnostic Solution Implementation
 //!
@@ -262,7 +386,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     if(glm::length(part.speed) == 0.0f)
       break;
 
-    __mt1(model, part, param, N);     //!< Perform Mass-Transfer
+//    __mt1(model, part, param, N);     //!< Perform Mass-Transfer
     __track(model, part, N);          //!< Accumulate Estimate
     __move(model, part);              //!< Move Trajectory
 
@@ -311,8 +435,9 @@ void erode(model_t& model, const param_t param, const size_t steps){
   // Estimate Buffers
   //
 
+  model.mass_track = soil::buffer_t<float>(model.mass.elem(), soil::host_t::GPU);
   model.discharge_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  model.momentum_track = soil::buffer_t<vec2>(model.discharge.elem(), soil::host_t::GPU);
+  model.momentum_track = soil::buffer_t<vec2>(model.momentum.elem(), soil::host_t::GPU);
 
   //
   // Execute Solution
@@ -324,16 +449,26 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Reset, Solve, Filter, Apply
     //
 
+    // Reset Estimates
     set(model.discharge_track, 0.0f);
     set(model.momentum_track, vec2(0.0f));
+    set(model.mass_track, 0.0f);
     cudaDeviceSynchronize();
 
     solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
  
+    // Filter Estimates
     filter(model.momentum, model.momentum_track, param.lrate);
     filter(model.discharge, model.discharge_track, param.lrate);
+    filter(model.mass, model.mass_track, param.lrate);
     cudaDeviceSynchronize();
+
+    //
+    // Execute Height-Map Mass-Transfer
+    //
+
+    mass_transfer<<<block(model.height.elem(), 1024), 1024>>>(model, param);
 
     //
     // Debris Flow Kernel
