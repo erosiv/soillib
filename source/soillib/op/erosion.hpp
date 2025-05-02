@@ -55,6 +55,9 @@ struct model_t {
   soil::buffer_t<float> discharge;
   soil::buffer_t<float> discharge_track;
 
+  soil::buffer_t<float> mass;
+  soil::buffer_t<float> mass_track;
+
   soil::buffer_t<vec2> momentum;
   soil::buffer_t<vec2> momentum_track;
 
