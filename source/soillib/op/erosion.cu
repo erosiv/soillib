@@ -126,14 +126,13 @@ __device__ float __deposit(const model_t& model, const param_t& param, const flo
 
 __device__ float __suspend(const model_t& model, const param_t& param, const particle_t& part){
 
-  const float dt = param.timeStep;        // Geological Timestep [y]
   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
 
   float discharge = model.discharge[part.ind];  // Discharge Function
   float slope = __slope(model, part, param);    // Slope Function
   float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
 
-  float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
+  float suspend = ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
   return -1.0f * suspend;
 
 }
@@ -144,32 +143,32 @@ __global__ void mass_transfer(model_t model, const param_t param){
   if(n >= model.height.elem())
     return;
 
-   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-
   const float dt = param.timeStep;        // Geological Timestep [y]
-  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
 
-  const float sed = model.mass[n];
+  const float mass = model.mass[n];
   const float discharge = model.discharge[n];  // Discharge Function
 
-  const float deposit = dt * __deposit(model, param, sed);
+  const float deposit = __deposit(model, param, mass);
 
   float slope = __slope_dir(model, param, n);     // Slope Function
   float alpha = (slope < 0.0f)?1.0f:0.0f;         // Activation Function
-  float suspend = dt * ks * discharge * slope * alpha * pow(discharge, 0.4f); // [kg]
+  float suspend = ks * discharge * slope * alpha * pow(discharge, 0.4f); // [kg]
 
-  float transfer = (deposit + suspend);
-  const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z;// * part.Q;
+  float transfer = dt * (deposit + suspend);
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+
+  const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z;
   const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-  const float tmax = sed;
+  const float tmax = mass;
   transfer = glm::clamp(transfer, tmin, tmax);
 
   model.height[n] += transfer / Z;
-  model.mass[n] -= transfer;
+//  model.mass[n] -= transfer;
 
 }
 
@@ -213,7 +212,9 @@ __device__ void __init(particle_t& part, const model_t& model, const param_t& pa
 
   part.dspeed = part.speed;                 //!< Velocity Decay Value
   part.vol = Ac * R;                        //!< Particle Water Volume
-  part.sed = __suspend(model, param, part); //!< Particle Sediment Mass
+
+  const float ds = 1.0f;//glm::length(cl)/glm::length(part.speed);
+  part.sed = ds * __suspend(model, param, part); //!< Particle Sediment Mass
 
 }
 
