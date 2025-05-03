@@ -123,7 +123,7 @@ __device__ vec2 __avespeed(const model_t& model, const particle_t& part){
 //
 
 //! Mass Deposition Rate
-__device__ float __deposit(const model_t& model, const param_t& param, const float mass){
+__device__ float __deposit(const param_t& param, const float mass){
 
   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
 
@@ -133,17 +133,37 @@ __device__ float __deposit(const model_t& model, const param_t& param, const flo
 }
 
 //! Mass Suspension Rate
-__device__ float __suspend(const model_t& model, const param_t& param, const float discharge, const float slope, const float vol){
+__device__ float __suspend(const param_t& param, const float discharge, const float slope, const float vol){
+
+  const float ks = param.suspensionRate;        // Fluvial Suspension Rate [(m^3/y)^-0.4]
+  
+  const float alpha = (slope < 0.0f)?1.0f:0.0f; // Activation Function
+  const float power = pow(discharge, 0.4f);     // Stream Power Function
+  const float suspend = ks * slope * power;     // Concentration
+  return suspend * alpha * vol;                 // [kg] (Activated)
+
+}
+
+//! Overall Mass-Transfer Rate
+__device__ float __transfer(const model_t& model, const param_t& param, const float mass, const float discharge, const float slope, const float vol){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
-  const float alpha = (slope < 0.0f)?1.0f:0.0f;             // Activation Function
-  
-  const float suspend = ks * slope * pow(discharge, 0.4f);  // [kg]
-  return suspend * alpha * vol;
+
+  const float dt = param.timeStep;        // Geological Timestep [y]
+  const float deposit = __deposit(param, mass);
+  const float suspend = __suspend(param, discharge, slope, vol);
+  float transfer = dt * (deposit + suspend);
+
+  // Note: Maxtransfer here is damped for stability. This should be
+  //  attempted to be removed using alternative stabilizing methods.
+  const float maxtransfer = 0.05f * slope * glm::length(cl) / scale.z * Z;
+  const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+  const float tmax = mass;
+  transfer = glm::clamp(transfer, tmin, tmax);
+  return transfer;
 
 }
 
@@ -161,50 +181,30 @@ __global__ void mass_transfer(model_t model, const param_t param){
   const float mass = model.mass[n];                 // Suspended Mass Function
   const float discharge = model.discharge[n];       // Discharge Function
   const float slope = __slope_dir(model, param, n); // Local Slope Function
-  
-  const float dt = param.timeStep;        // Geological Timestep [y]
-  const float deposit = __deposit(model, param, mass);
-  const float suspend = __suspend(model, param, discharge, slope, discharge);
-  float transfer = dt * (deposit + suspend);
 
-  const float maxtransfer = 0.05f * slope * glm::length(cl) / scale.z * Z;
-  const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-  const float tmax = mass;
-  transfer = glm::clamp(transfer, tmin, tmax);
+  const float transfer = __transfer(model, param, mass, discharge, slope, discharge);
   model.height[n] += transfer / Z;
+//  model.mass[n] -= transfer;
 
 }
 
 //! Fluvial Erosion Mass-Transfer System
 //! Single-Material
 //!
-__device__ void __mt1(model_t& model, particle_t& part, const param_t& param){
+__device__ void __integrate_mt(const model_t& model, const param_t& param, particle_t& part){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const float dt = param.timeStep;        // Geological Timestep [y]
-  const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
-  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
-
-  float discharge = model.discharge[part.ind];  // Discharge Function
-  float slope = __slope(model,  param, part);   // Slope Function
-  float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
-  float suspend = ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
-  float deposit = kd * part.sed;                                        // [kg]
-
-  // Note: Maxtransfer here is damped for stability. This should be
-  //  attempted to be removed using alternative stabilizing methods.
-  float transfer = dt * (deposit + suspend);
-  const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * part.Q;
-  const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-  const float tmax = part.sed;
-  transfer = glm::clamp(transfer, tmin, tmax);
-
-  //atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
+  const float mass = part.sed;
+  const float discharge = model.discharge[part.ind];  // Discharge Function
+  const float slope = __slope(model, param, part);    // Slope Function
+  
+  const float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
   part.sed -= transfer;
+  //atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
 
 }
 
@@ -295,10 +295,11 @@ __device__ void __move(const model_t& model, particle_t& part){
 //!  Note: Integrated in Quasi-Static Time
 //!    using an Implicit Forward Scheme
 //!
-__device__ void __integrate(const model_t& model, particle_t& part, const param_t& param){
+__device__ void __integrate(const model_t& model, const param_t& param, particle_t& part){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+
   const float g = param.gravity;          // Specific Gravity [m/s^2]
   const float k1 = param.bedShear;        // Shear-Stress Bed-Shear
   const float k2 = param.viscosity;       // Shear-Stress Viscosity
@@ -342,9 +343,9 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     if(model.index.oob(part.pos))
       break;
 
-    __integrate(model, part, param);  //!< Integrate Differential Equation
-    __mt1(model, part, param);        //!< Integrate Mass-Transfer
-    __track(model, part, N);          //!< Accumulate Estimate
+    __integrate(model, param, part);    //!< Integrate Differential Equation
+    __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
+    __track(model, part, N);            //!< Accumulate Estimate
 
     if(glm::length(part.speed) == 0.0f)
       break;
@@ -422,7 +423,8 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Execute Height-Map Mass-Transfer
     mass_transfer<<<block(model.height.elem(), 1024), 1024>>>(model, param);
 
-    model.age++; // Increment Model Age for Rand-State Initialization
+    // Increment Model Age for Rand-State Initialization
+    model.age++;
 
   }
 
