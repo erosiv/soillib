@@ -59,7 +59,7 @@ __device__ float __slope(const model_t& model, const param_t& param, const parti
   const float ds = glm::length(cl)/glm::length(part.speed);
   const ivec2 ipos = part.pos;
 
-  const vec2 npos = vec2(ipos) + vec2(0.5f) + ds * (part.speed / cl);
+  const vec2 npos = vec2(ipos) + 1.414f*ds * (part.speed / cl);
 
   if(model.index.oob(npos)){
     return -param.exitSlope;
@@ -177,21 +177,20 @@ __global__ void mass_transfer(model_t model, const param_t param){
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-    
+
   const float mass = model.mass[n];                 // Suspended Mass Function
   const float discharge = model.discharge[n];       // Discharge Function
   const float slope = __slope_dir(model, param, n); // Local Slope Function
 
   const float transfer = __transfer(model, param, mass, discharge, slope, discharge);
   model.height[n] += transfer / Z;
-//  model.mass[n] -= transfer;
 
 }
 
 //! Fluvial Erosion Mass-Transfer System
 //! Single-Material
 //!
-__device__ void __integrate_mt(const model_t& model, const param_t& param, particle_t& part){
+__device__ void __integrate_mt(model_t& model, const param_t& param, particle_t& part){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -204,7 +203,6 @@ __device__ void __integrate_mt(const model_t& model, const param_t& param, parti
   
   const float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
   part.sed -= transfer;
-  //atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
 
 }
 
@@ -343,8 +341,8 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     if(model.index.oob(part.pos))
       break;
 
-    __integrate(model, param, part);    //!< Integrate Differential Equation
     __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
+    __integrate(model, param, part);    //!< Integrate Differential Equation
     __track(model, part, N);            //!< Accumulate Estimate
 
     if(glm::length(part.speed) == 0.0f)
