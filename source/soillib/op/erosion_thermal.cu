@@ -52,18 +52,50 @@ namespace soil {
 //!   particle frictions though (e.g. for multi-material interfaces), then the
 //!   term does NOT becomes normalized away and becomes relevant again.
 //! 
-__device__ vec2 steepest_speed(const model_t& model, const param_t param, const ivec2 pos) {
+__device__ vec2 steepest_speed(const model_t& model, const param_t param, const vec2 pos) {
 
+  const vec2 shift[8] = {
+    vec2(-1.0, -1.0),
+    vec2( 0.0, -1.0),
+    vec2( 1.0, -1.0),
+    vec2(-1.0,  0.0),
+    vec2( 1.0,  0.0),
+    vec2(-1.0,  1.0),
+    vec2( 0.0,  1.0),
+    vec2( 1.0,  1.0)
+  };
+
+  int mini = -1;
+  float minh = model.height[model.index.flatten(pos)];
+
+  for(int i = 0; i < 8; ++i){
+    vec2 npos = pos + shift[i];
+    if(model.index.oob(npos)){
+      continue;
+    }
+    float h = model.height[model.index.flatten(npos)];
+    if(h < minh){
+      mini = i;
+      minh = h;
+    }
+  }
+
+  if(mini == -1)
+    return vec2(0.0f);
+  else return shift[mini];
+  
+  /*
   const vec3 scale = model.scale;
   const float g = param.gravity;
-
+  
   lerp5_t<float> lerp;
   lerp.gather(model.height, model.sediment, model.index, pos);
   //lerp.gather(model.height, model.index, pos);
   const vec2 grad = lerp.grad(model.scale);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
   return g * vec2(normal.x, normal.y);
-
+  */
+  
 }
 
 __device__ float _transfer(float* buf, float val, const float max){
@@ -145,14 +177,15 @@ __device__ void __integrate(const model_t& model, const param_t& param, debris_t
 
 }
 
+//! Note: This potentially removes a lot of mass at once.
+//! we need to make sure that we are limiting correctly!
+//!
 __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& part){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-  
-  const float dt = param.timeStep;
 
   vec2 npos = part.pos + glm::normalize(part.speed);
   if(model.index.oob(npos)){
@@ -161,6 +194,9 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& p
 
   int find = part.ind;
   int nind = model.index.flatten(npos);
+
+  const float kds = param.settleRate;
+  const float deposit = kds * part.mass;
 
   // Compute Equilibrium Mass Transfer
 
@@ -183,19 +219,33 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& p
   float hf = (hf_0 + hf_1);
   float hn = (hn_0 + hn_1);
 
-  const float kds =  param.settleRate;
-  const float kth1 = param.thermalRate;
-  const float kth0 = param.thermalRate;
-
   const float stable1 = (hn + param.critSlope*dist);  // [m]
   const float stable0 = (hn + param.critSlope*dist);  // [m]
+  
+  const float kth0 = param.thermalRate;
+  const float suspend = - kth0 * glm::max(0.0f, hf - stable1) * Ac;
 
-  const float deposit =  dt * kds * part.mass;
-  const float suspend = -dt * kth1 * glm::max(0.0f, hf - stable1) * Ac;
-  float transfer = (deposit + suspend);
-  if(transfer == 0.0f)
-    return;
+  const float dt = param.timeStep;
+  float transfer = dt * (deposit + suspend);
+
+  // Limit
+
+  if(transfer > 0.0f){
+    const float maxtransfer = 0.05f * glm::max(0.0f, stable1 - hf) * Ac * part.Q;
+    transfer = glm::min(transfer, maxtransfer);
+  }
     
+  else if(transfer < 0.0f){
+    const float maxtransfer = 0.05f * glm::max(0.0f, hf - stable1) * Ac * part.Q;
+    transfer = -glm::min(-transfer, maxtransfer);
+  }
+
+  transfer = glm::min(transfer, part.mass);
+
+  // Single Material
+  atomicAdd(&model.height[find], transfer / part.Q / Z);
+  part.mass -= transfer;
+
 //    // Multi-Material
 //    if(transfer > 0.0f){ // Add Material to Map
 //    
@@ -226,28 +276,6 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& p
 //  
 //  }
 
-  // Single Material
-  if(transfer > 0.0f){
-      
-    const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * part.Q;
-    transfer = glm::min(transfer, maxtransfer);
-    transfer = glm::min(transfer, part.mass);
-    
-    atomicAdd(&model.height[find], transfer / part.Q / Z);
-    part.mass -= transfer;
-    
-  }
-    
-  else if(transfer < 0.0f){
-      
-    const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * part.Q;
-    transfer = -glm::min(-transfer, maxtransfer);
-    
-    atomicAdd(&model.height[find], transfer / part.Q / Z);
-    part.mass -= transfer;
-
-  }
-
 }
 
 __global__ void solve_debris(model_t model, const size_t N, const param_t param) {
@@ -269,12 +297,11 @@ __global__ void solve_debris(model_t model, const size_t N, const param_t param)
   // Note: Parameterize
   for(size_t age = 0; age < 256; ++age) {
 
-    __move(model, part);              //!< Move Trajectory
+    __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
+    __move(model, part);                //!< Move Trajectory
     if(model.index.oob(part.pos))
       break;
 
-    // integrate mass-transfer
-    __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
     __integrate(model, param, part);    //!< Integrate Trajectory
     __track(model, part);
 
