@@ -11,109 +11,6 @@
 
 namespace soil {
 
-//! Fluvial Erosion Mass-Transfer System
-//! Single-Material
-//!
-// __device__ void __mt1(model_t& model, particle_t& part, const param_t& param, const size_t N){
-// 
-//   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-//   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-//   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-//   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-// 
-//   const float dt = param.timeStep;        // Geological Timestep [y]
-//   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
-//   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
-// 
-//   float discharge = model.discharge[part.ind];  // Discharge Function
-//   float slope = __slope(model, part, param);    // Slope Function
-//   float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
-//   float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
-//   float deposit = dt * kd * part.sed;                                        // [kg]
-// 
-//   // Single Material, Implicit Euler Scheme
-//   //  This use an activation function which lowers the amount transferred
-//   //  which scales with the amount of equilibriation force. Note that this
-//   //  tends to over-damp, which is why we don't use it.
-// 
-// //    float kq = ks * part.vol * alpha * pow(discharge, 0.4f) / glm::length(cl);
-// //    float transfer = 1.0f / (1.0f + dt * kq) * (suspend + deposit);
-// //    atomicAdd(&model.height[part.ind], transfer / Z / Q);
-// //    part.sed -= transfer;
-// 
-//   // Single Material, Explicit Euler Scheme
-//   //  This use an activation function (maxtransfer), which limits the
-//   //  total amount of mass that can be moved based on the slope.
-//   //  Similar to the implicit scheme, which uses a similar construction
-//   //  but that scales with the rate.
-// 
-//   // Note: Maxtransfer here is damped for stability. This should be
-//   //  attempted to be removed using alternative stabilizing methods.
-//   float transfer = (deposit + suspend);
-//   const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * part.Q;
-//   const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-//   const float tmax = part.sed;
-//   transfer = glm::clamp(transfer, tmin, tmax);
-// 
-//   atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
-//   part.sed -= transfer;
-// 
-// }
-
-//! Fluvial Erosion Mass-Transfer System
-//! Multi-Material
-//!
-// __device__ void __mt2(model_t& model, particle_t& part, const param_t& param, const size_t N){
-// 
-//   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-//   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-//   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-//   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-// 
-//   const float dt = param.timeStep;        // Geological Timestep [y]
-//   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
-//   const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
-// 
-//   //
-//   // Mass-Transfer
-//   //  Compute Equilibrium Mass from Slope and Discharge
-//   //  Transfer Mass and Scale by Sampling Probability
-//   
-//   float discharge = model.discharge[part.ind];  // Discharge Function
-//   float slope = __slope(model, part, param);    // Slope Function
-//   float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
-//   float suspend = dt * ks * part.vol * slope * alpha * pow(discharge, 0.4f); // [kg]
-//   float deposit = dt * kd * part.sed;                                        // [kg]
-// 
-//   // Multi-Material Mass Transfer
-//   float transfer = (deposit + suspend);
-//   const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z * part.Q;
-//   const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/suspend));
-//   const float tmax = part.sed;
-//   transfer = glm::clamp(transfer, tmin, tmax);
-// 
-//   if(transfer > 0.0f){  // Add Material to Map (Note: Single Material Model)
-// 
-//     atomicAdd(&model.sediment[part.ind], transfer / Z / part.Q);
-//     part.sed -= transfer;
-// 
-//   }
-// 
-//   else if(transfer < 0.0f){ // Remove Sediment from Map
-// 
-//     const float maxtransfer = 0.1f * model.sediment[part.ind] * Z * part.Q;
-//     float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-//     atomicAdd(&model.sediment[part.ind], t1 / Z / part.Q);
-//     part.sed -= t1;
-// 
-//     transfer -= t1;
-//     atomicAdd(&model.height[part.ind], transfer / Z / part.Q);
-//     part.sed -= transfer;
-// 
-//   }
-// 
-// }
-
 //! Thermal Erosion / Debris Flow Algorithm
 //!
 //! Bank-Stability Function Based Debris Flow Method:
@@ -280,8 +177,7 @@ __global__ void debris_flow(model_t model, const size_t N, const param_t param){
   
 }
 */
-    
-    
+
     // Multi-Material
     if(transfer > 0.0f){ // Add Material to Map
 

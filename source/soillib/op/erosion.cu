@@ -18,20 +18,6 @@
 namespace soil {
 
 //
-// Local Particle State
-//
-
-struct particle_t {
-  vec2 pos;
-  vec2 speed;
-  float Q;
-  int ind;
-  vec2 dspeed;
-  float vol;
-  float sed;
-};
-
-//
 // Model Geometry and Lookup Procedures
 //
 
@@ -73,7 +59,7 @@ __device__ float __slope_dir(const model_t& model, const param_t& param, const i
   if(model.index.oob(npos)){
     return -param.exitSlope;
   }
-
+  
   const int nind = model.index.flatten(npos);
   float h0 = (model.height[ind] + model.sediment[ind])*scale.z;
   float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
@@ -169,12 +155,29 @@ __global__ void mass_transfer(model_t model, const param_t param){
   const float discharge = model.discharge[n];       // Discharge Function
   const float slope = __slope_dir(model, param, n); // Local Slope Function
 
-  float transfer = __transfer(model, param, mass, discharge, slope, discharge);
-
   const float dt = param.timeStep;        // Geological Timestep [y]
+  float transfer = __transfer(model, param, mass, discharge, slope, discharge);
   transfer = __limit(dt * transfer, mass, slope, scale);
-  model.height[n] += transfer / Z;
 
+  // Single-Material Mass-Transfer
+  // model.height[n] += transfer / Z;
+
+  // Multi-Material Mass-Transfer
+  if(transfer >= 0.0f){
+
+    model.sediment[n] += transfer / Z;
+
+  } else {
+
+    const float maxtransfer = model.sediment[n] * Z;
+    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+    model.sediment[n] += t1 / Z;
+
+    transfer -= t1;
+    model.height[n] += transfer / Z;
+
+  }
+  
 }
 
 //! Fluvial Erosion Mass-Transfer System
@@ -191,10 +194,10 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
   const float discharge = model.discharge[part.ind];        // Discharge Function
   const float slope = __slope_dir(model, param, part.ind);  // Slope Function
   
-  float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
-
   const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
+  float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
   transfer = __limit(ds * transfer, mass, slope, scale);
+
   part.sed -= transfer;
 
 }

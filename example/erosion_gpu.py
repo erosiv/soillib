@@ -18,7 +18,7 @@ def main():
   4. Simulate
   '''
 
-  simres = np.array([128, 128])         # Resolution [px]
+  simres = np.array([512, 512])         # Resolution [px]
   wscale = np.array([40.0, 40.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
   pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
@@ -69,7 +69,7 @@ def main():
 
   param.depositionRate = 0.0005  # Fluvial Deposition Rate
   param.suspensionRate = 0.0007  # Fluvial Suspension Rate
-  param.exitSlope = 0.01         # Boundary Slope [m/m]
+  param.exitSlope = 0.1         # Boundary Slope [m/m]
 
   timer = soil.timer()
   for i in range(1024):

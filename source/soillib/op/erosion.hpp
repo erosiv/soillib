@@ -37,6 +37,24 @@ struct param_t {
   float exitSlope = 0.0075f;
 };
 
+//
+// Local Particle State
+//
+
+struct particle_t {
+
+  vec2 pos;   //!< World Position [pix]
+  vec2 speed; //!< World Velocity [m/s]
+
+  float Q;  //!< Weighted Sampling Probability
+  int ind;  //!< Nearest Support Index
+
+  vec2 dspeed;  //!< Characteristic Speed Rate
+  float vol;    //!< Characteristic Volume Rate
+  float sed;    //!< Characteristic Mass Rate
+
+};
+
 struct model_t {
 
   model_t(soil::index index, soil::vec3 scale): index(index.as<soil::flat_t<2>>()),
