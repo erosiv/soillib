@@ -140,7 +140,7 @@ __device__ float __limit(float transfer, const float mass, const float slope, co
 
 }
 
-__global__ void mass_transfer(model_t model, const param_t param){
+__global__ void mt_fluvial(model_t model, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= model.height.elem())
@@ -160,23 +160,23 @@ __global__ void mass_transfer(model_t model, const param_t param){
   transfer = __limit(dt * transfer, mass, slope, scale);
 
   // Single-Material Mass-Transfer
-  // model.height[n] += transfer / Z;
+  model.height[n] += transfer / Z;
 
   // Multi-Material Mass-Transfer
-  if(transfer >= 0.0f){
-
-    model.sediment[n] += transfer / Z;
-
-  } else {
-
-    const float maxtransfer = model.sediment[n] * Z;
-    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-    model.sediment[n] += t1 / Z;
-
-    transfer -= t1;
-    model.height[n] += transfer / Z;
-
-  }
+//  if(transfer >= 0.0f){
+//
+//    model.sediment[n] += transfer / Z;
+//
+//  } else {
+//
+//    const float maxtransfer = model.sediment[n] * Z;
+//    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+//    model.sediment[n] += t1 / Z;
+//
+//    transfer -= t1;
+//    model.height[n] += transfer / Z;
+//
+//  }
   
 }
 
@@ -280,42 +280,30 @@ __device__ void __move(const model_t& model, particle_t& part){
 
 }
 
-//! Implicit Euler Forward Integration for Gravity
-//! 
-//! Shear-Stress and Viscosity Terms:
-//!  The viscosity and shear-stress are some combination
-//!  of bed shear-stress from friction, and mixing with the
-//!  bulk stream from viscosity. These two terms are linearly
-//!  related to the velocity and bulk velocity deviation
-//!  by some constants k1 and k2 respectively.
-//!
-//!  The only key question is how these parameters scale with
-//!  the space and time resolution of the simulation.
-//!
-//! Integrate Sub-Solution Quantities
-//!  Note: Integrated in Quasi-Static Time
-//!    using an Implicit Forward Scheme
-//!
+//! Integrate Sub-Solution Quantities in Quasi-Static Time
 __device__ void __integrate(const model_t& model, const param_t& param, particle_t& part){
-
+  
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
+  
   const float g = param.gravity;          // Specific Gravity [m/s^2]
   const float k1 = param.bedShear;        // Shear-Stress Bed-Shear
   const float k2 = param.viscosity;       // Shear-Stress Viscosity
-
+  
   // Dynamic Time-Step [s]
   const float ds = glm::length(cl)/glm::length(part.speed);
-
+  
   const vec3 normal = __normal(model, part.pos, scale);
   const vec2 average_speed = __avespeed(model, part);
   
+  //! Explicit Euler Forward Integration for Gravity
   part.speed = part.speed + ds * g * vec2(normal.x, normal.y);
-  
+
+  //! Implicit Euiler Forward Integration for Bed Shear-Stress and Viscosity
   part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
   part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
-  
+
+  //! Implicit Euler Forward Integration for Volume Evaporation
   part.vol = 1.0f/(1.0f + ds*param.evapRate)*part.vol;
 
 }
@@ -326,7 +314,7 @@ __device__ void __integrate(const model_t& model, const param_t& param, particle
 //! which involves sampling the path-space, initializing the
 //! transport systems and integrating them along the paths.
 //!
-__global__ void solve(model_t model, const size_t N, const param_t param){
+__global__ void solve_fluvial(model_t model, const size_t N, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) 
@@ -421,16 +409,14 @@ void erode(model_t& model, const param_t param, const size_t steps){
     cudaDeviceSynchronize();
 
     // Solve Estimates
-    solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    solve_fluvial<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
 
     //
     // Debris Flow Kernel
     //
 
-//    debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-//    cudaDeviceSynchronize();
- 
     // Filter Estimates
     filter(model.momentum, model.momentum_track, param.lrate);
     filter(model.discharge, model.discharge_track, param.lrate);
@@ -438,7 +424,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
-    mass_transfer<<<block(model.height.elem(), 1024), 1024>>>(model, param);
+    mt_fluvial<<<block(model.height.elem(), 1024), 1024>>>(model, param);
 
     // Increment Model Age for Rand-State Initialization
     model.age++;

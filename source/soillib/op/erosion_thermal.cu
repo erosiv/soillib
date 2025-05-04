@@ -11,6 +11,21 @@
 
 namespace soil {
 
+//! Debris Flow Kernel Implementation
+//!
+//! Utilizes a stable bank height to compute the eroded material.
+//! This can use a more complex expression if desired, for instance
+//! incorporating the discharge function / agitation / lift vs gravity
+//! vs friction coefficient per material, etc.
+//!
+//! The computation occurs in scale-free dimensions.
+//!
+//! Currently, this uses a simple explicit integration which requires
+//! limiting the parameters to a maximum value. At high resolutions,
+//! this causes some stability issues due to the sampling scaling.
+//! Using an implicit method would solve this problem directly.
+//!
+
 //! Thermal Erosion / Debris Flow Algorithm
 //!
 //! Bank-Stability Function Based Debris Flow Method:
@@ -37,7 +52,7 @@ namespace soil {
 //!   particle frictions though (e.g. for multi-material interfaces), then the
 //!   term does NOT becomes normalized away and becomes relevant again.
 //! 
-__device__ vec2 steepest_speed(model_t& model, const param_t param, const ivec2 pos) {
+__device__ vec2 steepest_speed(const model_t& model, const param_t param, const ivec2 pos) {
 
   const vec3 scale = model.scale;
   const float g = param.gravity;
@@ -59,156 +74,221 @@ __device__ float _transfer(float* buf, float val, const float max){
   return val;                               // Return Value
 }
 
-//! Debris Flow Kernel Implementation
-//!
-//! Utilizes a stable bank height to compute the eroded material.
-//! This can use a more complex expression if desired, for instance
-//! incorporating the discharge function / agitation / lift vs gravity
-//! vs friction coefficient per material, etc.
-//!
-//! The computation occurs in scale-free dimensions.
-//!
-//! Currently, this uses a simple explicit integration which requires
-//! limiting the parameters to a maximum value. At high resolutions,
-//! this causes some stability issues due to the sampling scaling.
-//! Using an implicit method would solve this problem directly.
-//!
-__global__ void debris_flow(model_t model, const size_t N, const param_t param){
+struct debris_t {
 
-  const unsigned int ind = blockIdx.x * blockDim.x + threadIdx.x;
-  if(ind >= model.elem) return;
+  vec2 pos;   //!< World Position [pix]
+  vec2 speed; //!< World Velocity [m/s]
 
-  // Parameters
+  float Q;    //!< Weighted Sampling Probability
+  int ind;    //!< Nearest Support Index
 
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m]
+  float mass; //!< Debris Mass
+
+};
+
+__device__ void __sample(debris_t& part, model_t& model, const size_t n, const size_t N){
+
+  part.pos = vec2 {
+    curand_uniform(&model.rand[n])*float(model.index[0]),
+    curand_uniform(&model.rand[n])*float(model.index[1])
+  };
+  part.ind = model.index.flatten(part.pos);
+
+  const float P = 1.0f / float(model.index.elem()); // Sampling Probability
+  part.Q = P * float(N);                            // Sampling Weight
+
+}
+
+//! Initialize Particle Data from Model
+//!
+__device__ void __init(debris_t& part, model_t& model, const param_t& param){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float g = param.gravity;
+  const float& R = param.rainfall;        // Rainfall Amount  [m/y]
+  const float& g = param.gravity;         // Specific Gravity [m/s^2]
+  const float& nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
+
+  part.speed = steepest_speed(model, param, part.pos);
+  part.mass = 0.0f;
+
+}
+
+__device__ void __track(model_t& model, const debris_t& part){
+
+  // Note: Place the debris-flow mass tracking here...
+
+//  atomicAdd(&model.mass_track[part.ind], (part.sed)/part.Q);
+//  atomicAdd(&model.discharge_track[part.ind], (part.vol)/part.Q);
+//  atomicAdd(&model.momentum_track[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
+//  atomicAdd(&model.momentum_track[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
+
+}
+
+__device__ void __move(const model_t& model, debris_t& part){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+
+  const float ds = glm::length(cl)/glm::length(part.speed);
+  part.pos = part.pos + ds * (part.speed / cl);
+  part.ind = model.index.flatten(part.pos);
+
+}
+
+//! Integrate Sub-Solution Quantities in Quasi-Static Time
+__device__ void __integrate(const model_t& model, const param_t& param, debris_t& part){
+
+  part.speed = steepest_speed(model, param, part.pos);
+
+}
+
+__device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& part){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+  
   const float dt = param.timeStep;
 
-  float mass = 0.0f;  // Currently Transported Mass
+  vec2 npos = part.pos + glm::normalize(part.speed);
+  if(model.index.oob(npos)){
+    return;
+  }
 
-  // Spawn Particle at Random Position
+  int find = part.ind;
+  int nind = model.index.flatten(npos);
 
-  curandState* randState = &model.rand[ind];
-  vec2 pos = vec2{
-    curand_uniform(randState)*float(model.index[0]),
-    curand_uniform(randState)*float(model.index[1])
-  };
-  const float P = 1.0f / float(model.index.elem());
-  const float Q = P * float(N); // Sampling Probability Scale
+  // Compute Equilibrium Mass Transfer
 
-  // Iterate over a Number of Steps
+  // Note: Because of the way the height-lookup works, we are
+  //  doing a floor of the position here. If the position was
+  //  sampled smoothly, this would not be necessary.
+  // const float dist = glm::length(cl*vec2(ivec2(npos) - ivec2(pos)));
+  const float dist = glm::length(cl*(npos-part.pos));
+  part.pos = npos;
 
-  // Note: Parameterize
-  for(size_t age = 0; age < 256; ++age){
+  // Stable Bank-Height Computation:
 
-    // Motion Along Characteristic
+  float hf_0 = scale.z * model.height[find];
+  float hn_0 = scale.z * model.height[nind];
 
-    vec2 npos = pos;
+  // for some reason, this is making the sediment buffer negative... not good.
+  //  this needs to be reconsidered in terms of overall stability.
+  float hf_1 = glm::max(0.0f, scale.z * model.sediment[find]);
+  float hn_1 = glm::max(0.0f, scale.z * model.sediment[nind]);
+  float hf = (hf_0 + hf_1);
+  float hn = (hn_0 + hn_1);
 
-    vec2 speed = steepest_speed(model, param, pos);
-    if(glm::length(speed) > 0.0f){
-      npos = pos + glm::normalize(speed);
-    }
+  const float kds =  param.settleRate;
+  const float kth1 = param.thermalRate;
+  const float kth0 = param.thermalRate;
 
-    if(model.index.oob(npos)){
-      return;
-    }
+  const float stable1 = (hn + param.critSlope*dist);  // [m]
+  const float stable0 = (hn + param.critSlope*dist);  // [m]
 
-    // Compute Equilibrium Mass Transfer
-
-    int find = model.index.flatten(pos);
-    int nind = model.index.flatten(npos);
-
-    // Note: Because of the way the height-lookup works, we are
-    //  doing a floor of the position here. If the position was
-    //  sampled smoothly, this would not be necessary.
-    // const float dist = glm::length(cl*vec2(ivec2(npos) - ivec2(pos)));
-    const float dist = glm::length(cl*(npos-pos));
-    pos = npos;
-
-    // Stable Bank-Height Computation:
-
-    float hf_0 = scale.z * model.height[find];
-    float hn_0 = scale.z * model.height[nind];
-
-    // for some reason, this is making the sediment buffer negative... not good.
-    //  this needs to be reconsidered in terms of overall stability.
-    float hf_1 = glm::max(0.0f, scale.z * model.sediment[find]);
-    float hn_1 = glm::max(0.0f, scale.z * model.sediment[nind]);
-    float hf = (hf_0 + hf_1);
-    float hn = (hn_0 + hn_1);
-
-    const float kds =  param.settleRate;
-    const float kth1 = param.thermalRate;
-    const float kth0 = param.thermalRate;
-
-    const float stable1 = (hn + param.critSlope*dist);  // [m]
-    const float stable0 = (hn + param.critSlope*dist);  // [m]
-
-    const float deposit =  dt * kds * mass;
-    const float suspend = -dt * kth1 * glm::max(0.0f, hf - stable1) * Ac;
-    float transfer = (deposit + suspend);
-    if(transfer == 0.0f)
-      continue;
-
-    /*
-    // Single Material
-    if(transfer > 0.0f){
-      
-    const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
-    transfer = glm::min(transfer, maxtransfer);
-    transfer = glm::min(transfer, mass);
+  const float deposit =  dt * kds * part.mass;
+  const float suspend = -dt * kth1 * glm::max(0.0f, hf - stable1) * Ac;
+  float transfer = (deposit + suspend);
+  if(transfer == 0.0f)
+    return;
     
-    atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
-    mass -= transfer;
+//    // Multi-Material
+//    if(transfer > 0.0f){ // Add Material to Map
+//    
+//    const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * part.Q;
+//    transfer = glm::min(transfer, maxtransfer);
+//    transfer = glm::min(transfer, part.mass);
+//    transfer = glm::max(0.0f, transfer);
+//    
+//    atomicAdd(&model.sediment[find], transfer / part.Q / Z);
+//    part.mass -= transfer;
+//    
+//  }
+//  
+//  else { // Remove Material from Map
+//  
+//  const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * part.Q;
+//  transfer = -glm::min(-transfer, maxtransfer);
+//  
+//  const float maxt1 = hf_1 * Ac * part.Q;
+//  float t1 = transfer * glm::min(1.0f, glm::abs(maxt1/transfer));
+//  
+//  atomicAdd(&model.sediment[find], t1 / part.Q / Z);
+//  part.mass -= t1;
+//  
+//  transfer -= t1;
+//  atomicAdd(&model.height[find], transfer / part.Q / Z );
+//  part.mass -= transfer;
+//  
+//  }
+
+  // Single Material
+  if(transfer > 0.0f){
+      
+    const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * part.Q;
+    transfer = glm::min(transfer, maxtransfer);
+    transfer = glm::min(transfer, part.mass);
+    
+    atomicAdd(&model.height[find], transfer / part.Q / Z);
+    part.mass -= transfer;
     
   }
-  
+    
   else if(transfer < 0.0f){
+      
+    const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * part.Q;
+    transfer = -glm::min(-transfer, maxtransfer);
     
-  const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * Q;
-  transfer = -glm::min(-transfer, maxtransfer);
-  
-  atomicAdd(&model.height[find], transfer / Q / scale.z / Ac);
-  mass -= transfer;
-  
+    atomicAdd(&model.height[find], transfer / part.Q / Z);
+    part.mass -= transfer;
+
+  }
+
 }
-*/
 
-    // Multi-Material
-    if(transfer > 0.0f){ // Add Material to Map
+__global__ void solve_debris(model_t model, const size_t N, const param_t param) {
 
-      const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * Q;
-      transfer = glm::min(transfer, maxtransfer);
-      transfer = glm::min(transfer, mass);
-      transfer = glm::max(0.0f, transfer);
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= N) 
+    return;
 
-      atomicAdd(&model.sediment[find], transfer / Q / scale.z / Ac);
-      mass -= transfer;
+  debris_t part;                //!< Data along Trajectory / Per-Particle
+  __sample(part, model, n, N);  //!< Sample the Trajectory
+  __init(part, model, param);   //!< Initialize Particle Properties
+  __track(model, part);
 
-    }
+  int past[2] = {-1, -1};
+  past[1] = part.ind;
+  const int maxloop = 1;
+  int nloop = 0;
 
-    else { // Remove Material from Map
+  // Note: Parameterize
+  for(size_t age = 0; age < 256; ++age) {
 
-      const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * Q;
-      transfer = -glm::min(-transfer, maxtransfer);
+    __move(model, part);              //!< Move Trajectory
+    if(model.index.oob(part.pos))
+      break;
 
-      const float maxt1 = hf_1 * Ac * Q;
-      float t1 = transfer * glm::min(1.0f, glm::abs(maxt1/transfer));
+    // integrate mass-transfer
+    __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
+    __integrate(model, param, part);    //!< Integrate Trajectory
+    __track(model, part);
 
-      atomicAdd(&model.sediment[find], t1 / Q / scale.z / Ac);
-      mass -= t1;
+    // Short Loop Detection...
+    if(part.ind == past[0]) ++nloop;
+    if(part.ind == past[1]) ++nloop;
+    if(nloop >= maxloop) break;
 
-      transfer -= t1;
-      atomicAdd(&model.height[find], transfer / Q / Ac / scale.z );
-      mass -= transfer;
+    past[0] = past[1];
+    past[1] = part.ind;
 
-    }
-    
-
+    if(glm::length(part.speed) == 0.0f)
+      break;
+  
   }
 
 }
