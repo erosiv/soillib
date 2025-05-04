@@ -67,7 +67,7 @@ def main():
   param.settleRate = 0.1      # Debris Settling Rate
   param.thermalRate = 0.0025  # Thermal Erosion Rate
 
-  param.depositionRate = 0.01    # Fluvial Deposition Rate
+  param.depositionRate = 0.00001    # Fluvial Deposition Rate
   param.suspensionRate = 0.0007  # Fluvial Suspension Rate
   param.exitSlope = 0.01          # Boundary Slope [m/m]
 
@@ -80,7 +80,7 @@ def main():
 #  tiff_out = soil.tiff(height.cpu(), index)
 #  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-#  show_mass(model.mass, index)
+  show_mass(model.mass, index)
   show_discharge(model.discharge, index)
 
   plt.show()

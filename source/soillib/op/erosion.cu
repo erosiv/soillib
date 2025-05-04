@@ -50,27 +50,29 @@ __device__ vec3 __normal(const model_t& model, const vec2 pos, const vec3 scale)
 
 }
 
+/*
 //! Local Slope Computation
 __device__ float __slope(const model_t& model, const param_t& param, const particle_t& part){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
+  
   const float ds = glm::length(cl)/glm::length(part.speed);
   const ivec2 ipos = part.pos;
-
-  const vec2 npos = vec2(ipos) + 1.414f*ds * (part.speed / cl);
-
+  
+  const vec2 npos = vec2(ipos) + ds * (part.speed / cl);
+  
   if(model.index.oob(npos)){
     return -param.exitSlope;
   }
-
+  
   const int nind = model.index.flatten(npos);
   float h0 = (model.height[part.ind] + model.sediment[part.ind])*scale.z;
   float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
   return (h1 - h0)/glm::length(cl);
-
+  
 }
+*/
 
 //! Directional Slope Computation
 __device__ float __slope_dir(const model_t& model, const param_t& param, const int ind){
@@ -147,22 +149,28 @@ __device__ float __suspend(const param_t& param, const float discharge, const fl
 //! Overall Mass-Transfer Rate
 __device__ float __transfer(const model_t& model, const param_t& param, const float mass, const float discharge, const float slope, const float vol){
 
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const float deposit = __deposit(param, mass);
+  const float suspend = __suspend(param, discharge, slope, vol);
+  float transfer = (deposit + suspend);
+  return transfer;
+
+}
+
+// Note: Maxtransfer here is damped for stability. This should be
+//  attempted to be removed using alternative stabilizing methods.
+__device__ float __limit(float transfer, const float mass, const float slope, const vec3 scale){
+
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const float dt = param.timeStep;        // Geological Timestep [y]
-  const float deposit = __deposit(param, mass);
-  const float suspend = __suspend(param, discharge, slope, vol);
-  float transfer = dt * (deposit + suspend);
+  if(transfer <= 0.0f){
+    const float maxtransfer = 0.05f * slope * glm::length(cl) / scale.z * Z;
+    const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+    transfer = glm::max(transfer, tmin);
+  }
 
-  // Note: Maxtransfer here is damped for stability. This should be
-  //  attempted to be removed using alternative stabilizing methods.
-  const float maxtransfer = 0.05f * slope * glm::length(cl) / scale.z * Z;
-  const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-  const float tmax = mass;
-  transfer = glm::clamp(transfer, tmin, tmax);
+  transfer = glm::min(transfer, mass);  // Limit by Mass
   return transfer;
 
 }
@@ -182,7 +190,10 @@ __global__ void mass_transfer(model_t model, const param_t param){
   const float discharge = model.discharge[n];       // Discharge Function
   const float slope = __slope_dir(model, param, n); // Local Slope Function
 
-  const float transfer = __transfer(model, param, mass, discharge, slope, discharge);
+  float transfer = __transfer(model, param, mass, discharge, slope, discharge);
+
+  const float dt = param.timeStep;        // Geological Timestep [y]
+  transfer = __limit(dt * transfer, mass, slope, scale);
   model.height[n] += transfer / Z;
 
 }
@@ -198,10 +209,13 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const float mass = part.sed;
-  const float discharge = model.discharge[part.ind];  // Discharge Function
-  const float slope = __slope(model, param, part);    // Slope Function
+  const float discharge = model.discharge[part.ind];        // Discharge Function
+  const float slope = __slope_dir(model, param, part.ind);  // Slope Function
   
-  const float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
+  float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
+
+  const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
+  transfer = __limit(ds * transfer, mass, slope, scale);
   part.sed -= transfer;
 
 }
@@ -227,7 +241,7 @@ __device__ void __sample(particle_t& part, model_t& model, const size_t n, const
 
 //! Initialize Particle Data from Model
 //!
-__device__ void __init(particle_t& part, const model_t& model, const param_t& param){
+__device__ void __init(particle_t& part, model_t& model, const param_t& param){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -245,8 +259,12 @@ __device__ void __init(particle_t& part, const model_t& model, const param_t& pa
   // Initial Tracking Values
   part.dspeed = part.speed;                 //!< Velocity Decay Value
   part.vol = Ac * R;                        //!< Particle Water Volume
-//  part.sed = __suspend(model, param, part); //!< Particle Sediment Mass
-  part.sed = 0.0f;
+
+  // Initial Sediment Value
+  const float discharge = model.discharge[part.ind];        // Discharge Function
+  const float slope = __slope_dir(model, param, part.ind);  // Local Slope Function
+  const float suspend = __suspend(param, discharge, slope, discharge);
+  part.sed = -1.0f * suspend;
 
 }
 
@@ -334,6 +352,14 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
   __init(part, model, param);   //!< Initialze Differential Quantities
   __track(model, part, N);      //!< Accumulate Estimate
 
+  // Loop Detection System:
+  //  We should think of something more sophisticated than this.
+  //  What does it mean for our transport to have a loop?
+  int past[2] = {-1, -1};
+  past[1] = part.ind;
+  const int maxloop = 1;
+  int nloop = 0;
+
   // Iteratively Integrate along Trajectory
   for(int age = 0; age < param.maxage; ++age){
 
@@ -344,6 +370,14 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
     __integrate(model, param, part);    //!< Integrate Differential Equation
     __track(model, part, N);            //!< Accumulate Estimate
+
+    // Short Loop Detection...
+    if(part.ind == past[0]) ++nloop;
+    if(part.ind == past[1]) ++nloop;
+    if(nloop >= maxloop) break;
+
+    past[0] = past[1];
+    past[1] = part.ind;
 
     if(glm::length(part.speed) == 0.0f)
       break;
