@@ -131,7 +131,7 @@ def show_discharge(array, index):
   im = ax.imshow(array, zorder=2,
     cmap='CMRmap',
     norm=colors.LogNorm(1, array.max()),
-    interpolation='bilinear')
+    interpolation='none')
 
 def show_mass(array, index):
 
@@ -140,7 +140,7 @@ def show_mass(array, index):
   im = ax.imshow(array, zorder=2,
     cmap='CMRmap',
     norm=colors.LogNorm(1, array.max()),
-    interpolation='bilinear')
+    interpolation='none')
 
 def show_layers(layers, index, scale):
 

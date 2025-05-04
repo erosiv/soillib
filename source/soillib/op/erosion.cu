@@ -50,30 +50,6 @@ __device__ vec3 __normal(const model_t& model, const vec2 pos, const vec3 scale)
 
 }
 
-/*
-//! Local Slope Computation
-__device__ float __slope(const model_t& model, const param_t& param, const particle_t& part){
-
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  
-  const float ds = glm::length(cl)/glm::length(part.speed);
-  const ivec2 ipos = part.pos;
-  
-  const vec2 npos = vec2(ipos) + ds * (part.speed / cl);
-  
-  if(model.index.oob(npos)){
-    return -param.exitSlope;
-  }
-  
-  const int nind = model.index.flatten(npos);
-  float h0 = (model.height[part.ind] + model.sediment[part.ind])*scale.z;
-  float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
-  return (h1 - h0)/glm::length(cl);
-  
-}
-*/
-
 //! Directional Slope Computation
 __device__ float __slope_dir(const model_t& model, const param_t& param, const int ind){
 
@@ -90,6 +66,9 @@ __device__ float __slope_dir(const model_t& model, const param_t& param, const i
   
   const vec2 dir = glm::normalize(mom);
   const vec2 npos = pos + dir;
+  
+  if(npos.x < 0.5f) return -param.exitSlope;
+  if(npos.y < 0.5f) return -param.exitSlope;
   
   if(model.index.oob(npos)){
     return -param.exitSlope;
@@ -231,7 +210,10 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
 //! determine the index of the closest support point.
 __device__ void __sample(particle_t& part, model_t& model, const size_t n, const size_t N){
 
-  part.pos = __sample_2D(&model.rand[n], model.index);
+  part.pos = vec2 {
+    curand_uniform(&model.rand[n])*float(model.index[0]),
+    curand_uniform(&model.rand[n])*float(model.index[1])
+  };
   part.ind = __nearest(model, part.pos);
 
   const float P = 1.0f / float(model.index.elem()); // Sampling Probability
@@ -374,7 +356,7 @@ __global__ void solve(model_t model, const size_t N, const param_t param){
     // Short Loop Detection...
     if(part.ind == past[0]) ++nloop;
     if(part.ind == past[1]) ++nloop;
-    if(nloop >= maxloop) break;
+    if(nloop >= maxloop) break; 
 
     past[0] = past[1];
     past[1] = part.ind;
@@ -443,8 +425,8 @@ void erode(model_t& model, const param_t param, const size_t steps){
     // Debris Flow Kernel
     //
 
-    //debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-    //cudaDeviceSynchronize();
+//    debris_flow<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+//    cudaDeviceSynchronize();
  
     // Filter Estimates
     filter(model.momentum, model.momentum_track, param.lrate);
