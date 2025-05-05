@@ -248,7 +248,7 @@ __device__ void __init(particle_t& part, model_t& model, const param_t& param){
   // Initial Sediment Value
   const float discharge = model.discharge[part.ind];        // Discharge Function
   const float slope = __slope_dir(model, param, part.ind);  // Local Slope Function
-  const float suspend = __suspend(param, discharge, slope, discharge);
+  const float suspend = __suspend(param, discharge, slope, part.vol);
   part.sed = -1.0f * suspend;
 
 }
@@ -412,7 +412,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
 
     // Solve Estimates
     solve_fluvial<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-    solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    // solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
 
     //
@@ -428,7 +428,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
 
     // Execute Height-Map Mass-Transfer
     mt_fluvial<<<block(model.height.elem(), 1024), 1024>>>(model, param);
-    mt_debris<<<block(model.height.elem(), 1024), 1024>>>(model, param);
+    // mt_debris<<<block(model.height.elem(), 1024), 1024>>>(model, param);
 
     // Increment Model Age for Rand-State Initialization
     model.age++;
