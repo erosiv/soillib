@@ -36,30 +36,24 @@ __device__ vec3 __normal(const model_t& model, const vec2 pos, const vec3 scale)
 
 }
 
-//! Directional Slope Computation
-__device__ float __slope_dir(const model_t& model, const param_t& param, const int ind){
+__device__ float __slope(const model_t& model, const param_t& param, const vec2 pos, const vec2 dir) {
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   
-  const vec2 mom = model.momentum[ind];
-  if(glm::length(mom) == 0.0f){
+  // if(npos.x < 0.5f) return -param.exitSlope;
+  // if(npos.y < 0.5f) return -param.exitSlope;
+  
+  if(glm::length(dir) == 0.0f){
     return 0.0f;
   }
 
-  vec2 pos = model.index.unflatten(ind);
-  pos = pos + vec2(0.5f);
-  
-  const vec2 dir = glm::normalize(mom);
-  const vec2 npos = pos + dir;
-  
-  if(npos.x < 0.5f) return -param.exitSlope;
-  if(npos.y < 0.5f) return -param.exitSlope;
-  
+  const vec2 npos = pos + glm::normalize(dir);
   if(model.index.oob(npos)){
     return -param.exitSlope;
   }
   
+  const int ind = model.index.flatten(pos);
   const int nind = model.index.flatten(npos);
   float h0 = (model.height[ind] + model.sediment[ind])*scale.z;
   float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
@@ -153,7 +147,9 @@ __global__ void mt_fluvial(model_t model, const param_t param){
 
   const float mass = model.mass[n];                 // Suspended Mass Function
   const float discharge = model.discharge[n];       // Discharge Function
-  const float slope = __slope_dir(model, param, n); // Local Slope Function
+  const vec2 momentum = model.momentum[n];
+  const vec2 pos = model.index.unflatten(n);
+  const float slope = __slope(model, param, pos + vec2(0.5), momentum); // Local Slope Function
 
   const float dt = param.timeStep;        // Geological Timestep [y]
   float transfer = __transfer(model, param, mass, discharge, slope, discharge);
@@ -191,8 +187,8 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const float mass = part.sed;
-  const float discharge = model.discharge[part.ind];        // Discharge Function
-  const float slope = __slope_dir(model, param, part.ind);  // Slope Function
+  const float discharge = model.discharge[part.ind];                    // Discharge Function
+  const float slope = __slope(model, param, part.pos, part.speed);  // Slope Function
   
   const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
   float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
@@ -246,8 +242,8 @@ __device__ void __init(particle_t& part, model_t& model, const param_t& param){
   part.vol = Ac * R;                        //!< Particle Water Volume
 
   // Initial Sediment Value
-  const float discharge = model.discharge[part.ind];        // Discharge Function
-  const float slope = __slope_dir(model, param, part.ind);  // Local Slope Function
+  const float discharge = model.discharge[part.ind];                    // Discharge Function
+  const float slope = __slope(model, param, part.pos, part.speed);      // Local Slope Function
   const float suspend = __suspend(param, discharge, slope, discharge);
   part.sed = -1.0f * suspend;
 
