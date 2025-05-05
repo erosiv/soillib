@@ -54,8 +54,6 @@ namespace soil {
 //! 
 __device__ vec2 steepest_speed(const model_t& model, const param_t param, const vec2 pos) {
 
-  /*
-  */
   const vec2 shift[8] = {
     vec2(-1.0, -1.0),
     vec2( 0.0, -1.0),
@@ -85,14 +83,14 @@ __device__ vec2 steepest_speed(const model_t& model, const param_t param, const 
   if(mini == -1)
     return vec2(0.0f);
   else return shift[mini];
-  
+
+    
   /*
   const vec3 scale = model.scale;
   const float g = param.gravity;
   
   lerp5_t<float> lerp;
   lerp.gather(model.height, model.sediment, model.index, pos);
-  //lerp.gather(model.height, model.index, pos);
   const vec2 grad = lerp.grad(model.scale);
   const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
   return g * vec2(normal.x, normal.y);
@@ -184,35 +182,28 @@ __device__ float __hdiff(const model_t& model, const param_t& param, const ivec2
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const vec2 dir = steepest_speed(model, param, pos);
-  vec2 npos = vec2(pos) + vec2(0.5) + dir;
-
-  if(npos.x < 0.5f) return 0.0f;
-  if(npos.y < 0.5f) return 0.0f;
+  vec2 npos = vec2(pos) + dir;
   if(model.index.oob(npos)){
     return 0.0f;
   }
-
-  int find = model.index.flatten(pos);
-  int nind = model.index.flatten(npos);
 
   const float dist = glm::length(cl*dir);
 
   // Stable Bank-Height Computation:
 
-  float hf_0 = scale.z * model.height[find];
-  float hn_0 = scale.z * model.height[nind];
+  int find = model.index.flatten(pos);
+  int nind = model.index.flatten(npos);
 
-  // for some reason, this is making the sediment buffer negative... not good.
-  //  this needs to be reconsidered in terms of overall stability.
-  float hf_1 = glm::max(0.0f, scale.z * model.sediment[find]);
-  float hn_1 = glm::max(0.0f, scale.z * model.sediment[nind]);
-  float hf = (hf_0 + hf_1);
-  float hn = (hn_0 + hn_1);
+  const float hf_0 = model.height[find];
+  const float hn_0 = model.height[nind];
+  const float hf_1 = model.sediment[find];
+  const float hn_1 = model.sediment[nind];
 
-  const float stable0 = (hn + param.critSlope*dist);  // [m]
+  const float hf = scale.z * (hf_0 + hf_1);
+  const float hn = scale.z * (hn_0 + hn_1);
 
-  // compute the height-difference??
-  const float hdiff = hf - stable0;
+  const float stable = (hn + param.critSlope*dist);  // [m]
+  const float hdiff = hf - stable;
   return hdiff;
 
 }
@@ -247,13 +238,13 @@ __device__ float __limit_debris(float transfer, const float mass, const float hd
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
   
-  //if(transfer > 0.0f){
-  //  const float maxtransfer = 0.05f * glm::max(0.0f, -hdiff) * Ac;
-  //  transfer = glm::min(transfer, maxtransfer);
-  //}
+  if(transfer > 0.0f){
+    const float maxtransfer = 0.5f * glm::max(0.0f, -hdiff) * Ac;
+    transfer = glm::min(transfer, maxtransfer);
+  }
     
   if(transfer < 0.0f){
-    const float maxtransfer = 0.15f * glm::max(0.0f, hdiff) * Ac;
+    const float maxtransfer = 0.5f * glm::max(0.0f, hdiff) * Ac;
     transfer = -glm::min(-transfer, maxtransfer);
   }
 
