@@ -37,11 +37,13 @@ def main():
   discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)
   momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
   mass = soil.buffer(soil.float32, index.elem(), soil.gpu)
+  debris = soil.buffer(soil.float32, index.elem(), soil.gpu)
   
   sediment[:] = 0.0
   discharge[:] = 0.0
   momentum[:] = [0.0, 0.0]
   mass[:] = 0.0
+  debris[:] = 0.0
 
   model = soil.model_t(index, pscale)
   model.height = height.gpu()
@@ -49,6 +51,7 @@ def main():
   model.discharge = discharge
   model.momentum = momentum
   model.mass = mass
+  model.debris = debris
 
   param = soil.param_t()
   param.samples = 8192  # Number of Samples

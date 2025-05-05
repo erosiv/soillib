@@ -224,6 +224,13 @@ model_t.def_prop_rw("mass",
     model.mass = buffer.as<float>();
 });
 
+model_t.def_prop_rw("debris",
+  [](soil::model_t& model){
+    return soil::buffer(model.debris);
+},[](soil::model_t& model, soil::buffer buffer){
+    model.debris = buffer.as<float>();
+});
+
 module.def("erode", soil::erode);
 
 // note: consider how to implement this deferred using the nodes

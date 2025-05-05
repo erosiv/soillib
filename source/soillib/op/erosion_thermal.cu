@@ -54,6 +54,8 @@ namespace soil {
 //! 
 __device__ vec2 steepest_speed(const model_t& model, const param_t param, const vec2 pos) {
 
+  /*
+  */
   const vec2 shift[8] = {
     vec2(-1.0, -1.0),
     vec2( 0.0, -1.0),
@@ -67,7 +69,7 @@ __device__ vec2 steepest_speed(const model_t& model, const param_t param, const 
 
   int mini = -1;
   float minh = model.height[model.index.flatten(pos)];
-
+  
   for(int i = 0; i < 8; ++i){
     vec2 npos = pos + shift[i];
     if(model.index.oob(npos)){
@@ -152,10 +154,7 @@ __device__ void __track(model_t& model, const debris_t& part){
 
   // Note: Place the debris-flow mass tracking here...
 
-//  atomicAdd(&model.mass_track[part.ind], (part.sed)/part.Q);
-//  atomicAdd(&model.discharge_track[part.ind], (part.vol)/part.Q);
-//  atomicAdd(&model.momentum_track[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
-//  atomicAdd(&model.momentum_track[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
+  atomicAdd(&model.debris_track[part.ind], (part.mass)/part.Q);
 
 }
 
@@ -177,35 +176,26 @@ __device__ void __integrate(const model_t& model, const param_t& param, debris_t
 
 }
 
-//! Note: This potentially removes a lot of mass at once.
-//! we need to make sure that we are limiting correctly!
-//!
-__device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& part){
+__device__ float __hdiff(const model_t& model, const param_t& param, const ivec2 pos) {
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  vec2 npos = part.pos + glm::normalize(part.speed);
+  const vec2 dir = steepest_speed(model, param, pos);
+  vec2 npos = vec2(pos) + vec2(0.5) + dir;
+
+  if(npos.x < 0.5f) return 0.0f;
+  if(npos.y < 0.5f) return 0.0f;
   if(model.index.oob(npos)){
-    return;
+    return 0.0f;
   }
 
-  int find = part.ind;
+  int find = model.index.flatten(pos);
   int nind = model.index.flatten(npos);
 
-  const float kds = param.settleRate;
-  const float deposit = kds * part.mass;
-
-  // Compute Equilibrium Mass Transfer
-
-  // Note: Because of the way the height-lookup works, we are
-  //  doing a floor of the position here. If the position was
-  //  sampled smoothly, this would not be necessary.
-  // const float dist = glm::length(cl*vec2(ivec2(npos) - ivec2(pos)));
-  const float dist = glm::length(cl*(npos-part.pos));
-  part.pos = npos;
+  const float dist = glm::length(cl*dir);
 
   // Stable Bank-Height Computation:
 
@@ -219,62 +209,103 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& p
   float hf = (hf_0 + hf_1);
   float hn = (hn_0 + hn_1);
 
-  const float stable1 = (hn + param.critSlope*dist);  // [m]
   const float stable0 = (hn + param.critSlope*dist);  // [m]
+
+  // compute the height-difference??
+  const float hdiff = hf - stable0;
+  return hdiff;
+
+}
+
+__device__ float __deposit_debris(const param_t& param, const float mass) {
+  const float kds = param.settleRate;
+  return kds * mass;
+}
+
+// Compute Equilibrium Mass Transfer
+
+// Note: Because of the way the height-lookup works, we are
+//  doing a floor of the position here. If the position was
+//  sampled smoothly, this would not be necessary.
+// const float dist = glm::length(cl*vec2(ivec2(npos) - ivec2(pos)));
+__device__ float __suspend_debris(const model_t& model, const param_t& param, const float hdiff) {
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
   
   const float kth0 = param.thermalRate;
-  const float suspend = - kth0 * glm::max(0.0f, hf - stable1) * Ac;
+  const float suspend = - kth0 * glm::max(0.0f, hdiff) * Ac;
+  return suspend;
 
-  const float dt = param.timeStep;
-  float transfer = dt * (deposit + suspend);
+}
 
-  // Limit
+__device__ float __limit_debris(float transfer, const float mass, const float hdiff, const vec3 scale){
 
-  if(transfer > 0.0f){
-    const float maxtransfer = 0.05f * glm::max(0.0f, stable1 - hf) * Ac * part.Q;
-    transfer = glm::min(transfer, maxtransfer);
-  }
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+  
+  //if(transfer > 0.0f){
+  //  const float maxtransfer = 0.05f * glm::max(0.0f, -hdiff) * Ac;
+  //  transfer = glm::min(transfer, maxtransfer);
+  //}
     
-  else if(transfer < 0.0f){
-    const float maxtransfer = 0.05f * glm::max(0.0f, hf - stable1) * Ac * part.Q;
+  if(transfer < 0.0f){
+    const float maxtransfer = 0.15f * glm::max(0.0f, hdiff) * Ac;
     transfer = -glm::min(-transfer, maxtransfer);
   }
 
-  transfer = glm::min(transfer, part.mass);
+  transfer = glm::min(transfer, mass);
+  return transfer;
 
-  // Single Material
-  atomicAdd(&model.height[find], transfer / part.Q / Z);
+}
+
+//! Note: This potentially removes a lot of mass at once.
+//! we need to make sure that we are limiting correctly!
+//!
+__device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& part){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+
+  const float hdiff = __hdiff(model, param, part.pos);
+
+  const float dt = param.timeStep;
+  const float deposit = __deposit_debris(param, part.mass);
+  const float suspend = __suspend_debris(model, param, hdiff);
+  float transfer = (deposit + suspend);
+  transfer = __limit_debris(transfer, part.mass, hdiff, scale);
+
   part.mass -= transfer;
 
-//    // Multi-Material
-//    if(transfer > 0.0f){ // Add Material to Map
-//    
-//    const float maxtransfer = glm::max(0.0f, stable1 - hf) * Ac * part.Q;
-//    transfer = glm::min(transfer, maxtransfer);
-//    transfer = glm::min(transfer, part.mass);
-//    transfer = glm::max(0.0f, transfer);
-//    
-//    atomicAdd(&model.sediment[find], transfer / part.Q / Z);
-//    part.mass -= transfer;
-//    
-//  }
-//  
-//  else { // Remove Material from Map
-//  
-//  const float maxtransfer = glm::max(0.0f, hf - stable1) * Ac * part.Q;
-//  transfer = -glm::min(-transfer, maxtransfer);
-//  
-//  const float maxt1 = hf_1 * Ac * part.Q;
-//  float t1 = transfer * glm::min(1.0f, glm::abs(maxt1/transfer));
-//  
-//  atomicAdd(&model.sediment[find], t1 / part.Q / Z);
-//  part.mass -= t1;
-//  
-//  transfer -= t1;
-//  atomicAdd(&model.height[find], transfer / part.Q / Z );
-//  part.mass -= transfer;
-//  
-//  }
+}
+
+__global__ void mt_debris(model_t model, const param_t param){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= model.height.elem())
+    return;
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+
+  const vec2 pos = model.index.unflatten(n);
+  const float mass = model.debris[n];                   // Suspended Mass Function
+  const float hdiff = __hdiff(model, param, pos);  // 
+
+  const float dt = param.timeStep;
+  const float deposit = __deposit_debris(param, mass);
+  const float suspend = __suspend_debris(model, param, hdiff);
+  float transfer = (deposit + suspend);
+  transfer = __limit_debris(dt* transfer, mass, hdiff, scale);
+
+  model.height[n] += transfer / Z;
 
 }
 
