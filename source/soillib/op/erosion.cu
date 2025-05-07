@@ -40,15 +40,14 @@ __device__ float __slope(const model_t& model, const param_t& param, const vec2 
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  
-  // if(npos.x < 0.5f) return -param.exitSlope;
-  // if(npos.y < 0.5f) return -param.exitSlope;
-  
+
   if(glm::length(dir) == 0.0f){
     return 0.0f;
   }
 
   const vec2 npos = pos + glm::normalize(dir);
+  if(npos.x < 0.5f) return -param.exitSlope;
+  if(npos.y < 0.5f) return -param.exitSlope;
   if(model.index.oob(npos)){
     return -param.exitSlope;
   }
@@ -94,22 +93,39 @@ __device__ float __deposit(const param_t& param, const float mass){
 }
 
 //! Mass Suspension Rate
-__device__ float __suspend(const param_t& param, const float discharge, const float slope, const float vol){
+__device__ float __suspend(const param_t& param, const vec2 momentum, const float discharge, const float slope, const float vol){
 
-  const float ks = param.suspensionRate;        // Fluvial Suspension Rate [(m^3/y)^-0.4]
-  
-  const float alpha = (slope < 0.0f)?1.0f:0.0f; // Activation Function
-  const float power = pow(discharge, 0.4f);     // Stream Power Function
-  const float suspend = ks * slope * power;     // Concentration
-  return suspend * alpha * vol;                 // [kg] (Activated)
+  const float ks = param.suspensionRate;              // Fluvial Suspension Rate [(m^3/y)^-0.4]
+  const float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
+  const float power = pow(discharge, 0.4f);           // Stream Power Function
+  const float suspend = ks * glm::abs(slope) * power; // Concentration
+  return -1.0f * suspend * alpha * vol;               // [kg] (Activated)
+
+  // no suspend if no discharge or momentum...
+
+//  if(glm::length(momentum) == 0.0f)
+//    return 0.0f;
+//
+//  if(discharge == 0.0f)
+//    return 0.0f;
+//
+//  const float velocity = glm::length(momentum / discharge);
+//
+//  const float ks = param.suspensionRate;              // Fluvial Suspension Rate [(m^3/y)^-0.4]
+//  const float shear = 0.125f * velocity * velocity;
+//  const float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
+//  const float power = pow(shear * velocity, 1.0f);           // Stream Power Function
+//  const float suspend = ks * glm::abs(slope) * power; // Concentration
+//  return -1.0f * suspend * alpha * vol;               // [kg] (Activated)
+
 
 }
 
 //! Overall Mass-Transfer Rate
-__device__ float __transfer(const model_t& model, const param_t& param, const float mass, const float discharge, const float slope, const float vol){
+__device__ float __transfer(const model_t& model, const param_t& param, const float mass, const vec2 momentum, const float discharge, const float slope, const float vol){
 
   const float deposit = __deposit(param, mass);
-  const float suspend = __suspend(param, discharge, slope, vol);
+  const float suspend = __suspend(param, momentum, discharge, slope, vol);
   float transfer = (deposit + suspend);
   return transfer;
 
@@ -124,7 +140,7 @@ __device__ float __limit(float transfer, const float mass, const float slope, co
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   if(transfer <= 0.0f){
-    const float maxtransfer = 0.05f * slope * glm::length(cl) / scale.z * Z;
+    const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z;
     const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
     transfer = glm::max(transfer, tmin);
   }
@@ -152,7 +168,7 @@ __global__ void mt_fluvial(model_t model, const param_t param){
   const float slope = __slope(model, param, pos + vec2(0.5), momentum); // Local Slope Function
 
   const float dt = param.timeStep;        // Geological Timestep [y]
-  float transfer = __transfer(model, param, mass, discharge, slope, discharge);
+  float transfer = __transfer(model, param, mass, momentum, discharge, slope, discharge);
   transfer = __limit(dt * transfer, mass, slope, scale);
 
   // Single-Material Mass-Transfer
@@ -191,10 +207,9 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
   const float slope = __slope(model, param, part.pos, part.speed);  // Slope Function
   
   const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
-  float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
-  transfer = __limit(ds * transfer, mass, slope, scale);
-
-  part.sed -= transfer;
+  float deposit = ds * param.depositionRate * part.sed;
+  deposit = glm::min(deposit, part.sed);
+  part.sed -= deposit;
 
 }
 
@@ -244,14 +259,14 @@ __device__ void __init(particle_t& part, model_t& model, const param_t& param){
   // Initial Sediment Value
   const float discharge = model.discharge[part.ind];                    // Discharge Function
   const float slope = __slope(model, param, part.pos, part.speed);      // Local Slope Function
-  const float suspend = __suspend(param, discharge, slope, discharge);
+  const float suspend = __suspend(param, part.speed, discharge, slope, part.vol);
   part.sed = -1.0f * suspend;
 
 }
 
 //! Track the Differential Quantities along Trajectories
 //!
-__device__ void __track(model_t& model, const particle_t& part, const size_t N){
+__device__ void __track(model_t& model, const particle_t& part){
 
   atomicAdd(&model.mass_track[part.ind], (part.sed)/part.Q);
   atomicAdd(&model.discharge_track[part.ind], (part.vol)/part.Q);
@@ -319,34 +334,17 @@ __global__ void solve_fluvial(model_t model, const size_t N, const param_t param
   particle_t part;              //!< Data along Trajectory / Per-Particle
   __sample(part, model, n, N);  //!< Sample the Trajectory
   __init(part, model, param);   //!< Initialze Differential Quantities
-  __track(model, part, N);      //!< Accumulate Estimate
-
-  // Loop Detection System:
-  //  We should think of something more sophisticated than this.
-  //  What does it mean for our transport to have a loop?
-  int past[2] = {-1, -1};
-  past[1] = part.ind;
-  const int maxloop = 1;
-  int nloop = 0;
 
   // Iteratively Integrate along Trajectory
   for(int age = 0; age < param.maxage; ++age){
 
-    __move(model, part);              //!< Move Trajectory
+    __track(model, part);         //!< Accumulate Estimate
+    __move(model, part);          //!< Move Trajectory
     if(model.index.oob(part.pos))
       break;
 
     __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
     __integrate(model, param, part);    //!< Integrate Differential Equation
-    __track(model, part, N);            //!< Accumulate Estimate
-
-    // Short Loop Detection...
-    if(part.ind == past[0]) ++nloop;
-    if(part.ind == past[1]) ++nloop;
-    if(nloop >= maxloop) break; 
-
-    past[0] = past[1];
-    past[1] = part.ind;
 
     if(glm::length(part.speed) == 0.0f)
       break;

@@ -296,7 +296,24 @@ __global__ void mt_debris(model_t model, const param_t param){
   float transfer = (deposit + suspend);
   transfer = __limit_debris(dt* transfer, mass, hdiff, scale);
 
+  // Single-Material Mass-Transfer
   model.height[n] += transfer / Z;
+
+  // Multi-Material Mass-Transfer
+//  if(transfer >= 0.0f){
+//
+//    model.sediment[n] += transfer / Z;
+//
+//  } else {
+//
+//    const float maxtransfer = model.sediment[n] * Z;
+//    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+//    model.sediment[n] += t1 / Z;
+//
+//    transfer -= t1;
+//    model.height[n] += transfer / Z;
+//
+//  }
 
 }
 
