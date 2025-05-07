@@ -207,7 +207,7 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
   const float slope = __slope(model, param, part.pos, part.speed);  // Slope Function
   
   const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
-  float deposit = ds * param.depositionRate * part.sed;
+  float deposit = param.depositionRate * part.sed;
   deposit = glm::min(deposit, part.sed);
   part.sed -= deposit;
 
