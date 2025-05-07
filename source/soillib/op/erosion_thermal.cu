@@ -66,14 +66,14 @@ __device__ vec2 steepest_speed(const model_t& model, const param_t param, const 
   };
 
   int mini = -1;
-  float minh = model.height[model.index.flatten(pos)];
+  float minh = model.height[model.index.flatten(pos)] + model.sediment[model.index.flatten(pos)];;
   
   for(int i = 0; i < 8; ++i){
     ivec2 npos = pos + shift[i];
     if(model.index.oob(npos)){
       continue;
     }
-    float h = model.height[model.index.flatten(npos)];
+    float h = model.height[model.index.flatten(npos)] + model.sediment[model.index.flatten(npos)];
     if(h <= minh){
       mini = i;
       minh = h;
@@ -297,23 +297,23 @@ __global__ void mt_debris(model_t model, const param_t param){
   transfer = __limit_debris(transfer, mass, hdiff, scale);
 
   // Single-Material Mass-Transfer
-  model.height[n] += transfer / Z;
+//  model.height[n] += transfer / Z;
 
   // Multi-Material Mass-Transfer
-//  if(transfer >= 0.0f){
-//
-//    model.sediment[n] += transfer / Z;
-//
-//  } else {
-//
-//    const float maxtransfer = model.sediment[n] * Z;
-//    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-//    model.sediment[n] += t1 / Z;
-//
-//    transfer -= t1;
-//    model.height[n] += transfer / Z;
-//
-//  }
+  if(transfer >= 0.0f){
+
+    model.sediment[n] += transfer / Z;
+
+  } else {
+
+    const float maxtransfer = model.sediment[n] * Z;
+    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+    model.sediment[n] += t1 / Z;
+
+    transfer -= t1;
+    model.height[n] += transfer / Z;
+
+  }
 
 }
 
