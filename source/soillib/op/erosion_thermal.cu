@@ -43,6 +43,7 @@ namespace soil {
 //!   Solved using the path-integral method, the scale of the equilibrium
 //!   constant also corresponds to the rate of thermal cracking events.
 
+
 //! Steepest Direction Computed by Surface Normal
 //!
 //! Note: Normally the normal vector would be computed instead of just the
@@ -51,18 +52,26 @@ namespace soil {
 //!   away. If we compute the acceleration and limiting slope based on inter-
 //!   particle frictions though (e.g. for multi-material interfaces), then the
 //!   term does NOT becomes normalized away and becomes relevant again.
-//! 
-__device__ vec2 steepest_speed(const model_t& model, const param_t param, const ivec2 pos) {
+//!
 
-  const ivec2 shift[8] = {
-    ivec2(-1.0, -1.0),
-    ivec2( 0.0, -1.0),
-    ivec2( 1.0, -1.0),
-    ivec2(-1.0,  0.0),
-    ivec2( 1.0,  0.0),
-    ivec2(-1.0,  1.0),
-    ivec2( 0.0,  1.0),
-    ivec2( 1.0,  1.0)
+__device__ vec2 __normal_debris(const model_t& model, const vec2 pos, const vec3 scale){
+
+  /*
+  lerp5_t<float> lerp;
+  lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
+  const vec2 grad = lerp.grad(scale);
+  return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  */
+
+  const vec2 shift[8] = {
+    vec2(-1.0, -1.0),
+    vec2( 0.0, -1.0),
+    vec2( 1.0, -1.0),
+    vec2(-1.0,  0.0),
+    vec2( 1.0,  0.0),
+    vec2(-1.0,  1.0),
+    vec2( 0.0,  1.0),
+    vec2( 1.0,  1.0)
   };
 
   int mini = -1;
@@ -84,18 +93,6 @@ __device__ vec2 steepest_speed(const model_t& model, const param_t param, const 
     return vec2(0.0f);
   else return shift[mini];
 
-    
-  /*
-  const vec3 scale = model.scale;
-  const float g = param.gravity;
-  
-  lerp5_t<float> lerp;
-  lerp.gather(model.height, model.sediment, model.index, pos);
-  const vec2 grad = lerp.grad(model.scale);
-  const vec3 normal = glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-  return g * vec2(normal.x, normal.y);
-  */
-  
 }
 
 struct debris_t {
@@ -115,14 +112,16 @@ struct debris_t {
 // Mass-Transfer Functions
 //
 
-__device__ float __hdiff(const model_t& model, const param_t& param, const ivec2 pos) {
+__device__ float __hdiff(const model_t& model, const param_t& param, const vec2 pos) {
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const vec2 dir = steepest_speed(model, param, pos);
+  // this should just use the momentum direction right?
+
+  const vec2 dir = __normal_debris(model, pos, scale);
   vec2 npos = vec2(pos) + dir;
   if(model.index.oob(npos)){
     return 0.0f;
@@ -179,10 +178,13 @@ __device__ float __limit_debris(float transfer, const float mass, const float hd
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
   
-  // if(transfer > 0.0f){
-  //   const float maxtransfer = 0.5f * glm::max(0.0f, -hdiff) * Ac;
-  //   transfer = glm::min(transfer, maxtransfer);
-  // }
+  // we can't put down more than the stable amount!
+
+//  if(transfer > 0.0f){
+//    const float maxtransfer = 0.1f * glm::max(0.0f, -hdiff) * Ac;
+//    transfer = glm::min(transfer, maxtransfer);
+//  }
+
   //   
   // if(transfer < 0.0f){
   //   const float maxtransfer = 0.15f * glm::max(0.0f, hdiff) * Ac;
@@ -224,7 +226,9 @@ __device__ void __init(debris_t& part, model_t& model, const param_t& param){
   const float& nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
 
   const float dt = param.timeStep;
-  part.speed = steepest_speed(model, param, part.pos);
+
+  const vec2 normal = __normal_debris(model, part.pos, scale);
+  part.speed = g * normal;
   part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
 
   float hdiff = __hdiff(model, param, part.pos);
@@ -259,8 +263,20 @@ __device__ void __move(const model_t& model, debris_t& part){
 //! Integrate Sub-Solution Quantities in Quasi-Static Time
 __device__ void __integrate(const model_t& model, const param_t& param, debris_t& part){
 
-  part.speed = steepest_speed(model, param, part.pos);
-  part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  
+  const float g = param.gravity;          // Specific Gravity [m/s^2]
+  const float k1 = param.bedShear;        // Shear-Stress Bed-Shear
+  const float k2 = 0.0f;//param.viscosity;       // Shear-Stress Viscosity
+
+  const float ds = glm::length(cl)/glm::length(part.speed);
+  
+  //! Explicit Euler Forward Integration for Gravity
+  const vec2 normal = __normal_debris(model, part.pos, scale);
+  part.speed = part.speed + ds * g * normal;
+  part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed;// + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
+  part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
 
 }
 
@@ -292,9 +308,9 @@ __global__ void mt_debris(model_t model, const param_t param){
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const vec2 pos = model.index.unflatten(n);
   const float mass = model.debris[n];               // Suspended Mass Function
-  const float hdiff = __hdiff(model, param, pos);
+  const vec2 pos = model.index.unflatten(n);
+  const float hdiff = __hdiff(model, param, pos + vec2(0.5f));
 
 //  const float dt = param.timeStep;
   const float deposit = __deposit_debris(param, mass);
@@ -303,23 +319,23 @@ __global__ void mt_debris(model_t model, const param_t param){
   transfer = __limit_debris(transfer, mass, hdiff, scale);
 
   // Single-Material Mass-Transfer
-//  model.height[n] += transfer / Z;
+  model.height[n] += transfer / Z;
 
   // Multi-Material Mass-Transfer
-  if(transfer >= 0.0f){
-
-    model.sediment[n] += transfer / Z;
-
-  } else {
-
-    const float maxtransfer = model.sediment[n] * Z;
-    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-    model.sediment[n] += t1 / Z;
-
-    transfer -= t1;
-    model.height[n] += transfer / Z;
-
-  }
+//  if(transfer >= 0.0f){
+//
+//    model.sediment[n] += transfer / Z;
+//
+//  } else {
+//
+//    const float maxtransfer = model.sediment[n] * Z;
+//    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+//    model.sediment[n] += t1 / Z;
+//
+//    transfer -= t1;
+//    model.height[n] += transfer / Z;
+//
+//  }
 
 }
 
