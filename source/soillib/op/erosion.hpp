@@ -88,6 +88,9 @@ struct model_t {
   soil::buffer_t<float> debris;
   soil::buffer_t<float> debris_track;
 
+  soil::buffer_t<vec2> debris_momentum;
+  soil::buffer_t<vec2> debris_momentum_track;
+
 };
 
 void erode(model_t &model, const param_t param, const size_t steps);

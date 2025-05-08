@@ -384,7 +384,9 @@ void erode(model_t& model, const param_t param, const size_t steps){
   model.mass_track = soil::buffer_t<float>(model.mass.elem(), soil::host_t::GPU);
   model.discharge_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
   model.momentum_track = soil::buffer_t<vec2>(model.momentum.elem(), soil::host_t::GPU);
+
   model.debris_track = soil::buffer_t<float>(model.debris.elem(), soil::host_t::GPU);
+  model.debris_momentum_track = soil::buffer_t<vec2>(model.debris_momentum.elem(), soil::host_t::GPU);
 
   //
   // Execute Solution
@@ -397,11 +399,12 @@ void erode(model_t& model, const param_t param, const size_t steps){
     set(model.momentum_track, vec2(0.0f));
     set(model.mass_track, 0.0f);
     set(model.debris_track, 0.0f);
+    set(model.debris_momentum_track, vec2(0.0f));
     cudaDeviceSynchronize();
 
     // Solve Estimates
     solve_fluvial<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-    // solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
 
     //
@@ -413,11 +416,12 @@ void erode(model_t& model, const param_t param, const size_t steps){
     filter(model.discharge, model.discharge_track, param.lrate);
     filter(model.mass, model.mass_track, param.lrate);
     filter(model.debris, model.debris_track, param.lrate);
+    filter(model.debris_momentum, model.debris_momentum_track, param.lrate);
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
     mt_fluvial<<<block(model.height.elem(), 1024), 1024>>>(model, param);
-    // mt_debris<<<block(model.height.elem(), 1024), 1024>>>(model, param);
+    mt_debris<<<block(model.height.elem(), 1024), 1024>>>(model, param);
 
     // Increment Model Age for Rand-State Initialization
     model.age++;
