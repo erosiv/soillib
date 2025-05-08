@@ -31,28 +31,11 @@ struct param_t {
   float critSlope = 0.57f;
   float settleRate = 0.005f;
   float thermalRate = 0.005f;
+  float debrisShear = 0.9f;
 
   float depositionRate = 0.01f;
   float suspensionRate = 0.0007f;
   float exitSlope = 0.0075f;
-};
-
-//
-// Local Particle State
-//
-
-struct particle_t {
-
-  vec2 pos;   //!< World Position [pix]
-  vec2 speed; //!< World Velocity [m/s]
-
-  float Q;  //!< Weighted Sampling Probability
-  int ind;  //!< Nearest Support Index
-
-  vec2 dspeed;  //!< Characteristic Speed Rate
-  float vol;    //!< Characteristic Volume Rate
-  float sed;    //!< Characteristic Mass Rate
-
 };
 
 struct model_t {

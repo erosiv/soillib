@@ -164,9 +164,12 @@ param_t.def(nb::init<>());
 param_t.def_rw("samples", &soil::param_t::samples);
 param_t.def_rw("maxage", &soil::param_t::maxage);
 param_t.def_rw("timeStep", &soil::param_t::timeStep);
+
 param_t.def_rw("critSlope", &soil::param_t::critSlope);
 param_t.def_rw("settleRate", &soil::param_t::settleRate);
 param_t.def_rw("thermalRate", &soil::param_t::thermalRate);
+param_t.def_rw("debrisShear", &soil::param_t::debrisShear);
+
 param_t.def_rw("rainfall", &soil::param_t::rainfall);
 param_t.def_rw("evapRate", &soil::param_t::evapRate);
 param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
