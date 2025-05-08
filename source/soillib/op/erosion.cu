@@ -36,30 +36,23 @@ __device__ vec3 __normal(const model_t& model, const vec2 pos, const vec3 scale)
 
 }
 
-//! Directional Slope Computation
-__device__ float __slope_dir(const model_t& model, const param_t& param, const int ind){
+__device__ float __slope(const model_t& model, const param_t& param, const vec2 pos, const vec2 dir) {
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  
-  const vec2 mom = model.momentum[ind];
-  if(glm::length(mom) == 0.0f){
+
+  if(glm::length(dir) == 0.0f){
     return 0.0f;
   }
 
-  vec2 pos = model.index.unflatten(ind);
-  pos = pos + vec2(0.5f);
-  
-  const vec2 dir = glm::normalize(mom);
-  const vec2 npos = pos + dir;
-  
+  const vec2 npos = pos + glm::normalize(dir);
   if(npos.x < 0.5f) return -param.exitSlope;
   if(npos.y < 0.5f) return -param.exitSlope;
-  
   if(model.index.oob(npos)){
     return -param.exitSlope;
   }
   
+  const int ind = model.index.flatten(pos);
   const int nind = model.index.flatten(npos);
   float h0 = (model.height[ind] + model.sediment[ind])*scale.z;
   float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
@@ -93,30 +86,42 @@ __device__ vec2 __avespeed(const model_t& model, const particle_t& part){
 __device__ float __deposit(const param_t& param, const float mass){
 
   const float kd = param.depositionRate;  // Fluvial Deposition Rate [1/y]
-
   const float deposit = kd * mass;        // Deposited Mass [kg]
   return deposit;
 
 }
 
 //! Mass Suspension Rate
-__device__ float __suspend(const param_t& param, const float discharge, const float slope, const float vol){
+__device__ float __suspend(const param_t& param, const vec2 momentum, const float discharge, const float slope, const float vol, const float Area){
 
-  const float ks = param.suspensionRate;        // Fluvial Suspension Rate [(m^3/y)^-0.4]
+  if(discharge < 1.0f)
+    return 0.0f;
   
-  const float alpha = (slope < 0.0f)?1.0f:0.0f; // Activation Function
-  const float power = pow(discharge, 0.4f);     // Stream Power Function
-  const float suspend = ks * slope * power;     // Concentration
-  return suspend * alpha * vol;                 // [kg] (Activated)
+  const float alpha = 0.1333f;
+  const float fD = 0.1f;                  //!< Darcy-Weisbach Friction Factor
+  const float rho = 1.0f;                 //!< Density of Fluid [kg/m^3]
+  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
+  
+  const float velocity = glm::length(momentum / discharge);
+  const float shear = 0.125f * fD * rho * velocity * velocity;
+  const float power = pow(shear * velocity, alpha); // Stream Power Function
+  const float suspend = ks * power * vol;           // Concentration
+  
+  const float mask = (slope < 0.0f)?1.0f:0.0f;  // Activation Function
+  return mask * suspend;                        // [kg/s] (Activated)
 
 }
 
 //! Overall Mass-Transfer Rate
-__device__ float __transfer(const model_t& model, const param_t& param, const float mass, const float discharge, const float slope, const float vol){
+__device__ float __transfer(const model_t& model, const param_t& param, const float mass, const vec2 momentum, const float discharge, const float slope, const float vol){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
   const float deposit = __deposit(param, mass);
-  const float suspend = __suspend(param, discharge, slope, vol);
-  float transfer = (deposit + suspend);
+  const float suspend = __suspend(param, momentum, discharge, slope, vol, Ac);
+  float transfer = (deposit - suspend);
   return transfer;
 
 }
@@ -130,7 +135,7 @@ __device__ float __limit(float transfer, const float mass, const float slope, co
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   if(transfer <= 0.0f){
-    const float maxtransfer = 0.05f * slope * glm::length(cl) / scale.z * Z;
+    const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z;
     const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
     transfer = glm::max(transfer, tmin);
   }
@@ -153,11 +158,13 @@ __global__ void mt_fluvial(model_t model, const param_t param){
 
   const float mass = model.mass[n];                 // Suspended Mass Function
   const float discharge = model.discharge[n];       // Discharge Function
-  const float slope = __slope_dir(model, param, n); // Local Slope Function
+  const vec2 momentum = model.momentum[n];
+  const vec2 pos = model.index.unflatten(n);
+  const float slope = __slope(model, param, pos + vec2(0.5), momentum); // Local Slope Function
 
-  const float dt = param.timeStep;        // Geological Timestep [y]
-  float transfer = __transfer(model, param, mass, discharge, slope, discharge);
-  transfer = __limit(dt * transfer, mass, slope, scale);
+//  const float dt = param.timeStep;        // Geological Timestep [y]
+  float transfer = __transfer(model, param, mass, momentum, discharge, slope, discharge);
+  transfer = __limit(transfer, mass, slope, scale);
 
   // Single-Material Mass-Transfer
   model.height[n] += transfer / Z;
@@ -190,15 +197,12 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, particle_t&
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const float mass = part.sed;
-  const float discharge = model.discharge[part.ind];        // Discharge Function
-  const float slope = __slope_dir(model, param, part.ind);  // Slope Function
-  
   const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
-  float transfer = __transfer(model, param, mass, discharge, slope, part.vol);
-  transfer = __limit(ds * transfer, mass, slope, scale);
-
-  part.sed -= transfer;
+  
+  const float mass = part.sed;
+  float deposit = param.depositionRate * mass;
+  deposit = glm::min(deposit, mass);
+  part.sed -= deposit;
 
 }
 
@@ -224,8 +228,17 @@ __device__ void __sample(particle_t& part, model_t& model, const size_t n, const
 
 }
 
+//! Track the Differential Quantities along Trajectories
+__device__ void __track(model_t& model, const particle_t& part){
+
+  atomicAdd(&model.mass_track[part.ind], (part.sed)/part.Q);
+  atomicAdd(&model.discharge_track[part.ind], (part.vol)/part.Q);
+  atomicAdd(&model.momentum_track[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
+  atomicAdd(&model.momentum_track[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
+
+}
+
 //! Initialize Particle Data from Model
-//!
 __device__ void __init(particle_t& part, model_t& model, const param_t& param){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
@@ -242,25 +255,18 @@ __device__ void __init(particle_t& part, model_t& model, const param_t& param){
   part.speed = g * vec2(normal.x, normal.y) + nu * average_speed;
 
   // Initial Tracking Values
-  part.dspeed = part.speed;                 //!< Velocity Decay Value
-  part.vol = Ac * R;                        //!< Particle Water Volume
 
-  // Initial Sediment Value
-  const float discharge = model.discharge[part.ind];        // Discharge Function
-  const float slope = __slope_dir(model, param, part.ind);  // Local Slope Function
-  const float suspend = __suspend(param, discharge, slope, part.vol);
-  part.sed = -1.0f * suspend;
+  part.vol = Ac * R;        //!< Volume Rate [m^3/s]
+  part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
 
-}
-
-//! Track the Differential Quantities along Trajectories
-//!
-__device__ void __track(model_t& model, const particle_t& part, const size_t N){
-
-  atomicAdd(&model.mass_track[part.ind], (part.sed)/part.Q);
-  atomicAdd(&model.discharge_track[part.ind], (part.vol)/part.Q);
-  atomicAdd(&model.momentum_track[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
-  atomicAdd(&model.momentum_track[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
+  // Initial Sediment Value:
+  // Note that there is a maximum amount that can theoretically
+  //  be suspended, which is when it is in balance with the amount
+  //  that would also be deposited. We can use this to cap the value.
+  const float discharge = model.discharge[part.ind];                // Discharge Function
+  const float slope = __slope(model, param, part.pos, part.speed);  // Local Slope Function
+  const float suspend = __suspend(param, part.speed*discharge, discharge, slope, part.vol, Ac);
+  part.sed = suspend;
 
 }
 
@@ -323,34 +329,17 @@ __global__ void solve_fluvial(model_t model, const size_t N, const param_t param
   particle_t part;              //!< Data along Trajectory / Per-Particle
   __sample(part, model, n, N);  //!< Sample the Trajectory
   __init(part, model, param);   //!< Initialze Differential Quantities
-  __track(model, part, N);      //!< Accumulate Estimate
-
-  // Loop Detection System:
-  //  We should think of something more sophisticated than this.
-  //  What does it mean for our transport to have a loop?
-  int past[2] = {-1, -1};
-  past[1] = part.ind;
-  const int maxloop = 1;
-  int nloop = 0;
 
   // Iteratively Integrate along Trajectory
   for(int age = 0; age < param.maxage; ++age){
 
-    __move(model, part);              //!< Move Trajectory
+    __track(model, part);         //!< Accumulate Estimate
+    __move(model, part);          //!< Move Trajectory
     if(model.index.oob(part.pos))
       break;
 
     __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
     __integrate(model, param, part);    //!< Integrate Differential Equation
-    __track(model, part, N);            //!< Accumulate Estimate
-
-    // Short Loop Detection...
-    if(part.ind == past[0]) ++nloop;
-    if(part.ind == past[1]) ++nloop;
-    if(nloop >= maxloop) break; 
-
-    past[0] = past[1];
-    past[1] = part.ind;
 
     if(glm::length(part.speed) == 0.0f)
       break;

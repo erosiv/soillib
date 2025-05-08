@@ -52,29 +52,29 @@ namespace soil {
 //!   particle frictions though (e.g. for multi-material interfaces), then the
 //!   term does NOT becomes normalized away and becomes relevant again.
 //! 
-__device__ vec2 steepest_speed(const model_t& model, const param_t param, const vec2 pos) {
+__device__ vec2 steepest_speed(const model_t& model, const param_t param, const ivec2 pos) {
 
-  const vec2 shift[8] = {
-    vec2(-1.0, -1.0),
-    vec2( 0.0, -1.0),
-    vec2( 1.0, -1.0),
-    vec2(-1.0,  0.0),
-    vec2( 1.0,  0.0),
-    vec2(-1.0,  1.0),
-    vec2( 0.0,  1.0),
-    vec2( 1.0,  1.0)
+  const ivec2 shift[8] = {
+    ivec2(-1.0, -1.0),
+    ivec2( 0.0, -1.0),
+    ivec2( 1.0, -1.0),
+    ivec2(-1.0,  0.0),
+    ivec2( 1.0,  0.0),
+    ivec2(-1.0,  1.0),
+    ivec2( 0.0,  1.0),
+    ivec2( 1.0,  1.0)
   };
 
   int mini = -1;
-  float minh = model.height[model.index.flatten(pos)];
+  float minh = model.height[model.index.flatten(pos)] + model.sediment[model.index.flatten(pos)];;
   
   for(int i = 0; i < 8; ++i){
-    vec2 npos = pos + shift[i];
+    ivec2 npos = pos + shift[i];
     if(model.index.oob(npos)){
       continue;
     }
-    float h = model.height[model.index.flatten(npos)];
-    if(h < minh){
+    float h = model.height[model.index.flatten(npos)] + model.sediment[model.index.flatten(npos)];
+    if(h <= minh){
       mini = i;
       minh = h;
     }
@@ -98,14 +98,6 @@ __device__ vec2 steepest_speed(const model_t& model, const param_t param, const 
   
 }
 
-__device__ float _transfer(float* buf, float val, const float max){
-  if(abs(val) > 1E-8){
-    val = val * glm::min(1.0f, max/abs(val)); // Cap Val at Max
-    atomicAdd(buf, val);                      // Transfer Val
-  }
-  return val;                               // Return Value
-}
-
 struct debris_t {
 
   vec2 pos;   //!< World Position [pix]
@@ -118,61 +110,9 @@ struct debris_t {
 
 };
 
-__device__ void __sample(debris_t& part, model_t& model, const size_t n, const size_t N){
-
-  part.pos = vec2 {
-    curand_uniform(&model.rand[n])*float(model.index[0]),
-    curand_uniform(&model.rand[n])*float(model.index[1])
-  };
-  part.ind = model.index.flatten(part.pos);
-
-  const float P = 1.0f / float(model.index.elem()); // Sampling Probability
-  part.Q = P * float(N);                            // Sampling Weight
-
-}
-
-//! Initialize Particle Data from Model
-//!
-__device__ void __init(debris_t& part, model_t& model, const param_t& param){
-
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-
-  const float& R = param.rainfall;        // Rainfall Amount  [m/y]
-  const float& g = param.gravity;         // Specific Gravity [m/s^2]
-  const float& nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
-
-  part.speed = steepest_speed(model, param, part.pos);
-  part.mass = 0.0f;
-
-}
-
-__device__ void __track(model_t& model, const debris_t& part){
-
-  // Note: Place the debris-flow mass tracking here...
-
-  atomicAdd(&model.debris_track[part.ind], (part.mass)/part.Q);
-
-}
-
-__device__ void __move(const model_t& model, debris_t& part){
-
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
-  const float ds = glm::length(cl)/glm::length(part.speed);
-  part.pos = part.pos + ds * (part.speed / cl);
-  part.ind = model.index.flatten(part.pos);
-
-}
-
-//! Integrate Sub-Solution Quantities in Quasi-Static Time
-__device__ void __integrate(const model_t& model, const param_t& param, debris_t& part){
-
-  part.speed = steepest_speed(model, param, part.pos);
-
-}
+//
+// Mass-Transfer Functions
+//
 
 __device__ float __hdiff(const model_t& model, const param_t& param, const ivec2 pos) {
 
@@ -227,7 +167,7 @@ __device__ float __suspend_debris(const model_t& model, const param_t& param, co
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
   
   const float kth0 = param.thermalRate;
-  const float suspend = - kth0 * glm::max(0.0f, hdiff) * Ac;
+  const float suspend = kth0 * glm::max(0.0f, hdiff) * Ac;
   return suspend;
 
 }
@@ -238,24 +178,90 @@ __device__ float __limit_debris(float transfer, const float mass, const float hd
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
   
-  if(transfer > 0.0f){
-    const float maxtransfer = 0.5f * glm::max(0.0f, -hdiff) * Ac;
-    transfer = glm::min(transfer, maxtransfer);
-  }
-    
-  if(transfer < 0.0f){
-    const float maxtransfer = 0.5f * glm::max(0.0f, hdiff) * Ac;
-    transfer = -glm::min(-transfer, maxtransfer);
-  }
+  // if(transfer > 0.0f){
+  //   const float maxtransfer = 0.5f * glm::max(0.0f, -hdiff) * Ac;
+  //   transfer = glm::min(transfer, maxtransfer);
+  // }
+  //   
+  // if(transfer < 0.0f){
+  //   const float maxtransfer = 0.15f * glm::max(0.0f, hdiff) * Ac;
+  //   transfer = -glm::min(-transfer, maxtransfer);
+  // }
 
   transfer = glm::min(transfer, mass);
   return transfer;
 
 }
 
-//! Note: This potentially removes a lot of mass at once.
-//! we need to make sure that we are limiting correctly!
+//
+// Core Functions
+//
+
+__device__ void __sample(debris_t& part, model_t& model, const size_t n, const size_t N){
+
+  part.pos = vec2 {
+    curand_uniform(&model.rand[n])*float(model.index[0]),
+    curand_uniform(&model.rand[n])*float(model.index[1])
+  };
+  part.ind = model.index.flatten(part.pos);
+
+  const float P = 1.0f / float(model.index.elem()); // Sampling Probability
+  part.Q = P * float(N);                            // Sampling Weight
+
+}
+
+//! Initialize Particle Data from Model
 //!
+__device__ void __init(debris_t& part, model_t& model, const param_t& param){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+
+  const float& R = param.rainfall;        // Rainfall Amount  [m/y]
+  const float& g = param.gravity;         // Specific Gravity [m/s^2]
+  const float& nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
+
+  const float dt = param.timeStep;
+  part.speed = steepest_speed(model, param, part.pos);
+  float hdiff = __hdiff(model, param, part.pos);
+  float suspend = __suspend_debris(model, param, hdiff);
+  part.mass = suspend;
+
+}
+
+//! Debris-Flow Estimate Accumulation
+__device__ void __track(model_t& model, const debris_t& part){
+
+  atomicAdd(&model.debris_track[part.ind], (part.mass)/part.Q);
+
+}
+
+__device__ void __move(const model_t& model, debris_t& part){
+
+  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+
+  if(glm::length(part.speed) == 0.0f)
+    return;
+
+  const float ds = glm::length(cl)/glm::length(part.speed);
+  part.pos = part.pos + ds * (part.speed / cl);
+  part.ind = model.index.flatten(part.pos);
+
+}
+
+//! Integrate Sub-Solution Quantities in Quasi-Static Time
+__device__ void __integrate(const model_t& model, const param_t& param, debris_t& part){
+
+  part.speed = steepest_speed(model, param, part.pos);
+
+}
+
+//! Mass-Transfer Characteristic Integration
+//!
+//! Note that the particle-mass is technically a mass-rate,
+//! 
 __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& part){
 
   const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
@@ -263,15 +269,9 @@ __device__ void __integrate_mt(model_t& model, const param_t& param, debris_t& p
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const float hdiff = __hdiff(model, param, part.pos);
-
-  const float dt = param.timeStep;
-  const float deposit = __deposit_debris(param, part.mass);
-  const float suspend = __suspend_debris(model, param, hdiff);
-  float transfer = (deposit + suspend);
-  transfer = __limit_debris(transfer, part.mass, hdiff, scale);
-
-  part.mass -= transfer;
+  float deposit = __deposit_debris(param, part.mass);
+  deposit = glm::min(deposit, part.mass);
+  part.mass -= deposit;
 
 }
 
@@ -287,16 +287,33 @@ __global__ void mt_debris(model_t model, const param_t param){
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const vec2 pos = model.index.unflatten(n);
-  const float mass = model.debris[n];                   // Suspended Mass Function
-  const float hdiff = __hdiff(model, param, pos);  // 
+  const float mass = model.debris[n];               // Suspended Mass Function
+  const float hdiff = __hdiff(model, param, pos);
 
-  const float dt = param.timeStep;
+//  const float dt = param.timeStep;
   const float deposit = __deposit_debris(param, mass);
   const float suspend = __suspend_debris(model, param, hdiff);
-  float transfer = (deposit + suspend);
-  transfer = __limit_debris(dt* transfer, mass, hdiff, scale);
+  float transfer = (deposit - suspend);
+  transfer = __limit_debris(transfer, mass, hdiff, scale);
 
-  model.height[n] += transfer / Z;
+  // Single-Material Mass-Transfer
+//  model.height[n] += transfer / Z;
+
+  // Multi-Material Mass-Transfer
+  if(transfer >= 0.0f){
+
+    model.sediment[n] += transfer / Z;
+
+  } else {
+
+    const float maxtransfer = model.sediment[n] * Z;
+    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+    model.sediment[n] += t1 / Z;
+
+    transfer -= t1;
+    model.height[n] += transfer / Z;
+
+  }
 
 }
 
@@ -309,34 +326,20 @@ __global__ void solve_debris(model_t model, const size_t N, const param_t param)
   debris_t part;                //!< Data along Trajectory / Per-Particle
   __sample(part, model, n, N);  //!< Sample the Trajectory
   __init(part, model, param);   //!< Initialize Particle Properties
-  __track(model, part);
-
-  int past[2] = {-1, -1};
-  past[1] = part.ind;
-  const int maxloop = 1;
-  int nloop = 0;
 
   // Note: Parameterize
   for(size_t age = 0; age < 256; ++age) {
 
-    __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
-    __move(model, part);                //!< Move Trajectory
+    __track(model, part);         //!< Accumulate Estimate
+    __move(model, part);          //!< Move Trajectory
     if(model.index.oob(part.pos))
       break;
-
+    
+    __integrate_mt(model, param, part); //!< Integrate Mass-Transfer
     __integrate(model, param, part);    //!< Integrate Trajectory
-    __track(model, part);
 
-    // Short Loop Detection...
-    if(part.ind == past[0]) ++nloop;
-    if(part.ind == past[1]) ++nloop;
-    if(nloop >= maxloop) break;
-
-    past[0] = past[1];
-    past[1] = part.ind;
-
-    if(glm::length(part.speed) == 0.0f)
-      break;
+//    if(glm::length(part.speed) == 0.0f)
+//      break;
   
   }
 
