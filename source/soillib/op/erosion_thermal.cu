@@ -102,6 +102,7 @@ struct debris_t {
 
   vec2 pos;   //!< World Position [pix]
   vec2 speed; //!< World Velocity [m/s]
+  vec2 dspeed;  //!< Velocity Rate
 
   float Q;    //!< Weighted Sampling Probability
   int ind;    //!< Nearest Support Index
@@ -224,6 +225,8 @@ __device__ void __init(debris_t& part, model_t& model, const param_t& param){
 
   const float dt = param.timeStep;
   part.speed = steepest_speed(model, param, part.pos);
+  part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
+
   float hdiff = __hdiff(model, param, part.pos);
   float suspend = __suspend_debris(model, param, hdiff);
   part.mass = suspend;
@@ -234,6 +237,8 @@ __device__ void __init(debris_t& part, model_t& model, const param_t& param){
 __device__ void __track(model_t& model, const debris_t& part){
 
   atomicAdd(&model.debris_track[part.ind], (part.mass)/part.Q);
+  atomicAdd(&model.debris_momentum_track[part.ind].x, (part.mass*part.dspeed.x)/part.Q);
+  atomicAdd(&model.debris_momentum_track[part.ind].y, (part.mass*part.dspeed.y)/part.Q);
 
 }
 
@@ -255,6 +260,7 @@ __device__ void __move(const model_t& model, debris_t& part){
 __device__ void __integrate(const model_t& model, const param_t& param, debris_t& part){
 
   part.speed = steepest_speed(model, param, part.pos);
+  part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
 
 }
 
