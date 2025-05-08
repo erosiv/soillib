@@ -94,13 +94,7 @@ __device__ float __deposit(const param_t& param, const float mass){
 //! Mass Suspension Rate
 __device__ float __suspend(const param_t& param, const vec2 momentum, const float discharge, const float slope, const float vol, const float Area){
 
-//  const float ks = param.suspensionRate;              // Fluvial Suspension Rate [(m^3/y)^-0.4]
-//  const float alpha = (slope < 0.0f)?1.0f:0.0f;       // Activation Function
-//  const float power = pow(discharge, 0.4f);           // Stream Power Function
-//  const float suspend = ks * glm::abs(slope) * power; // Concentration
-//  return suspend * alpha * vol;               // [kg] (Activated)
-
-  if(discharge == 0.0f)
+  if(discharge < 1.0f)
     return 0.0f;
   
   const float alpha = 0.1333f;
@@ -271,7 +265,7 @@ __device__ void __init(particle_t& part, model_t& model, const param_t& param){
   //  that would also be deposited. We can use this to cap the value.
   const float discharge = model.discharge[part.ind];                // Discharge Function
   const float slope = __slope(model, param, part.pos, part.speed);  // Local Slope Function
-  const float suspend = __suspend(param, part.speed, discharge, slope, part.vol, Ac);
+  const float suspend = __suspend(param, part.speed*discharge, discharge, slope, part.vol, Ac);
   part.sed = suspend;
 
 }
@@ -407,7 +401,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
 
     // Solve Estimates
     solve_fluvial<<<block(n_samples, 512), 512>>>(model, n_samples, param);
-//    solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    solve_debris<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
 
     //
@@ -423,7 +417,7 @@ void erode(model_t& model, const param_t param, const size_t steps){
 
     // Execute Height-Map Mass-Transfer
     mt_fluvial<<<block(model.height.elem(), 1024), 1024>>>(model, param);
-//    mt_debris<<<block(model.height.elem(), 1024), 1024>>>(model, param);
+    mt_debris<<<block(model.height.elem(), 1024), 1024>>>(model, param);
 
     // Increment Model Age for Rand-State Initialization
     model.age++;
