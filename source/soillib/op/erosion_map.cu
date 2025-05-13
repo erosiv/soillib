@@ -160,7 +160,11 @@ __device__ void __transfer(model_t& model, const size_t n, float transfer, const
   } else {
 
     const float maxtransfer = model.sediment[n] * Z;
-    float t1 = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+    float t1 = transfer;
+    if(t1 < -maxtransfer){
+      t1 = -maxtransfer;
+    }
+
     model.sediment[n] += t1 / Z;
 
     transfer -= t1;
