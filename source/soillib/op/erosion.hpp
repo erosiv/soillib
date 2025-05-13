@@ -38,9 +38,9 @@ struct param_t {
   float exitSlope = 0.0075f;
 };
 
-struct map_t {
+struct map_grid {
 
-  map_t(soil::index index, soil::vec3 scale):
+  map_grid(soil::index index, soil::vec3 scale):
     index(index.as<soil::flat_t<2>>()),
     scale(scale),
     elem(index.elem()){}
@@ -56,6 +56,29 @@ struct map_t {
   int age = 0;                  //!< Model Age
 
 };
+
+struct map_kdtree {
+
+  /*
+  map_grid(soil::index index, soil::vec3 scale):
+  index(index.as<soil::flat_t<2>>()),
+  scale(scale),
+  elem(index.elem()){}
+  
+  const size_t elem;            // Total Number of Elements
+  const soil::flat_t<2> index;  // Buffer Indexing Structure
+  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
+  
+  soil::buffer_t<float> height;
+  soil::buffer_t<float> sediment;
+  */
+
+  soil::buffer_t<curandState> rand;
+  int age = 0;                  //!< Model Age
+
+};
+
+using map_t = map_grid;
 
 //! data_t is a structure for storing the erosion model data
 //! Effectively, this struct is a collection of buffers.

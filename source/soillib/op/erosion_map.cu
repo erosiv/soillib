@@ -65,23 +65,21 @@ __device__ float __hdiff(const map_t& map, const param_t& param, const vec2 pos)
 
 __device__ float __slope(const map_t& map, const param_t& param, const vec2 pos, const vec2 dir) {
 
-  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
   if(glm::length(dir) == 0.0f){
     return 0.0f;
   }
-
+  
   const vec2 npos = pos + glm::normalize(dir);
   if(npos.x < 0.5f) return -param.exitSlope;
   if(npos.y < 0.5f) return -param.exitSlope;
+  
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-
   const float hf = __height(map, pos, scale);
   const float hn = __height(map, npos, scale);
   if(__isnanf(hf) || __isnanf(hn))
-    return -param.exitSlope;
-
+  return -param.exitSlope;
+  
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   return (hn - hf)/glm::length(cl);
 
 }
