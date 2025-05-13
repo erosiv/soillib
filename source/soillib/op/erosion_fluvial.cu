@@ -198,12 +198,12 @@ __device__ void integrate_mt(map_t& map, data_t& data, const param_t& param, par
 }
 
 //! Track the Differential Quantities along Trajectories
-__device__ void track(data_t& data, const particle_t& part){
+__device__ void track(data_t& track, const particle_t& part){
 
-  atomicAdd(&data.mass_track[part.ind], (part.sed)/part.Q);
-  atomicAdd(&data.discharge_track[part.ind], (part.vol)/part.Q);
-  atomicAdd(&data.momentum_track[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
-  atomicAdd(&data.momentum_track[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
+  atomicAdd(&track.mass[part.ind], (part.sed)/part.Q);
+  atomicAdd(&track.discharge[part.ind], (part.vol)/part.Q);
+  atomicAdd(&track.momentum[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
+  atomicAdd(&track.momentum[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
 
 }
 
@@ -212,7 +212,7 @@ __device__ void track(data_t& data, const particle_t& part){
 //
 
 //! Transport Estimate Solution Kernel
-__global__ void solve(map_t map, data_t data, const size_t N, const param_t param){
+__global__ void solve(map_t map, data_t data, data_t track, const size_t N, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) 
@@ -225,8 +225,8 @@ __global__ void solve(map_t map, data_t data, const size_t N, const param_t para
   // Iteratively Integrate along Trajectory
   for(int age = 0; age < param.maxage; ++age){
 
-    fluvial::track(data, part); //!< Accumulate Estimate
-    fluvial::move(map, part);   //!< Move Trajectory
+    fluvial::track(track, part);  //!< Accumulate Estimate
+    fluvial::move(map, part);     //!< Move Trajectory
     if(map.index.oob(part.pos))
       break;
 

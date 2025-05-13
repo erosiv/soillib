@@ -155,11 +155,11 @@ __device__ void integrate_mt(const map_t& map, const param_t& param, debris_t& p
 }
 
 //! Debris-Flow Estimate Accumulation
-__device__ void track(data_t& data, const debris_t& part){
+__device__ void track(data_t& track, const debris_t& part){
 
-  atomicAdd(&data.debris_track[part.ind], (part.mass)/part.Q);
-  atomicAdd(&data.debris_momentum_track[part.ind].x, (part.mass*part.dspeed.x)/part.Q);
-  atomicAdd(&data.debris_momentum_track[part.ind].y, (part.mass*part.dspeed.y)/part.Q);
+  atomicAdd(&track.debris[part.ind], (part.mass)/part.Q);
+  atomicAdd(&track.debris_momentum[part.ind].x, (part.mass*part.dspeed.x)/part.Q);
+  atomicAdd(&track.debris_momentum[part.ind].y, (part.mass*part.dspeed.y)/part.Q);
 
 }
 
@@ -168,7 +168,7 @@ __device__ void track(data_t& data, const debris_t& part){
 // Kernels
 //
 
-__global__ void solve(map_t map, data_t data, const size_t N, const param_t param) {
+__global__ void solve(map_t map, data_t data, data_t track, const size_t N, const param_t param) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) 
@@ -181,7 +181,7 @@ __global__ void solve(map_t map, data_t data, const size_t N, const param_t para
   // Note: Parameterize
   for(size_t age = 0; age < 256; ++age) {
 
-    debris::track(data, part);   //!< Accumulate Estimate
+    debris::track(track, part); //!< Accumulate Estimate
     debris::move(map, part);    //!< Move Trajectory
     if(map.index.oob(part.pos))
       break;

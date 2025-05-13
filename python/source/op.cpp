@@ -207,6 +207,7 @@ map_t.def_prop_rw("sediment",
 //
 
 auto data_t = nb::class_<soil::data_t>(module, "data_t");
+data_t.def(nb::init<>());
 data_t.def(nb::init<const size_t>());
 
 data_t.def_prop_rw("discharge",

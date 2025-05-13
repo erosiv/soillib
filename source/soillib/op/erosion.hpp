@@ -62,29 +62,27 @@ struct map_t {
 //! Note that this struct is agnostic to the map shape.
 struct data_t {
 
+  data_t():elem{0}{}
   data_t(const size_t elem):
-    elem{elem}{}
+    elem{elem}{
+    this->mass            = soil::buffer_t<float>(this->elem, soil::host_t::GPU);
+    this->discharge       = soil::buffer_t<float>(this->elem, soil::host_t::GPU);
+    this->momentum        = soil::buffer_t<vec2>(this->elem, soil::host_t::GPU);
+    this->debris          = soil::buffer_t<float>(this->elem, soil::host_t::GPU);
+    this->debris_momentum = soil::buffer_t<vec2>(this->elem, soil::host_t::GPU);
+  }
 
   const size_t elem;  //!< Total Buffer Elements
 
   soil::buffer_t<float> discharge;
-  soil::buffer_t<float> discharge_track;
-
   soil::buffer_t<vec2> momentum;
-  soil::buffer_t<vec2> momentum_track;
-
   soil::buffer_t<float> mass;
-  soil::buffer_t<float> mass_track;
-
   soil::buffer_t<float> debris;
-  soil::buffer_t<float> debris_track;
-
   soil::buffer_t<vec2> debris_momentum;
-  soil::buffer_t<vec2> debris_momentum_track;
 
 };
 
-void erode(map_t& map, data_t &data, const param_t param, const size_t steps);
+void erode(map_t& map, data_t &data, data_t &track, const param_t param, const size_t steps);
 
 } // end of namespace soil
 

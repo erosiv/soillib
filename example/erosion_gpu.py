@@ -45,24 +45,13 @@ def main():
   # Construct Data
 
   data = soil.data_t(index.elem())
+  track = soil.data_t(index.elem())
 
-  discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
-  mass = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  debris = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  debris_momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
-
-  discharge[:] = 0.0
-  momentum[:] = [0.0, 0.0]
-  mass[:] = 0.0
-  debris[:] = 0.0
-  debris_momentum[:] = [0.0, 0.0]
-
-  data.discharge = discharge
-  data.momentum = momentum
-  data.mass = mass
-  data.debris = debris
-  data.debris_momentum = debris_momentum
+  data.discharge[:] = 0.0
+  data.momentum[:] = [0.0, 0.0]
+  data.mass[:] = 0.0
+  data.debris[:] = 0.0
+  data.debris_momentum[:] = [0.0, 0.0]
 
   # Construct Parameters
 
@@ -89,9 +78,9 @@ def main():
   param.exitSlope = 0.025     # Boundary Slope [m/m]
 
   timer = soil.timer()
-  for i in range(2048):
+  for i in range(32):
     with timer:
-      soil.erode(model, data, param, 1)
+      soil.erode(model, data, track, param, 1)
     print(f"Execution Time: {timer.count}ms")
 
 #  tiff_out = soil.tiff(height.cpu(), index)
