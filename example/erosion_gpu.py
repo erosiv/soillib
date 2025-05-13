@@ -34,27 +34,37 @@ def main():
   soil.multiply(height, 1.0)
 
   sediment = soil.buffer(soil.float32, index.elem(), soil.gpu)
+  sediment[:] = 0.0
+
+  # Construct Model
+
+  model = soil.map_t(index, pscale)
+  model.height = height.gpu()
+  model.sediment = sediment.gpu()
+
+  # Construct Data
+
+  data = soil.data_t(index.elem())
+
   discharge = soil.buffer(soil.float32, index.elem(), soil.gpu)
   momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
   mass = soil.buffer(soil.float32, index.elem(), soil.gpu)
   debris = soil.buffer(soil.float32, index.elem(), soil.gpu)
   debris_momentum = soil.buffer(soil.vec2, index.elem(), soil.gpu)
 
-  sediment[:] = 0.0
   discharge[:] = 0.0
   momentum[:] = [0.0, 0.0]
   mass[:] = 0.0
   debris[:] = 0.0
   debris_momentum[:] = [0.0, 0.0]
 
-  model = soil.model_t(index, pscale)
-  model.height = height.gpu()
-  model.sediment = sediment
-  model.discharge = discharge
-  model.momentum = momentum
-  model.mass = mass
-  model.debris = debris
-  model.debris_momentum = debris_momentum
+  data.discharge = discharge
+  data.momentum = momentum
+  data.mass = mass
+  data.debris = debris
+  data.debris_momentum = debris_momentum
+
+  # Construct Parameters
 
   param = soil.param_t()
   param.samples = 8192  # Number of Samples
@@ -81,14 +91,14 @@ def main():
   timer = soil.timer()
   for i in range(32):
     with timer:
-      soil.erode(model, param, 1)
+      soil.erode(model, data, param, 1)
     print(f"Execution Time: {timer.count}ms")
 
 #  tiff_out = soil.tiff(height.cpu(), index)
 #  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-  show_mass(model.mass, index)
-  show_discharge(model.discharge, index)
+  show_mass(data.mass, index)
+  show_discharge(data.discharge, index)
 
   plt.show()
 

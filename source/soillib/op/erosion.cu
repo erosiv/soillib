@@ -15,7 +15,7 @@
 
 #include <soillib/op/erosion_map.cu>
 #include <soillib/op/erosion_fluvial.cu>
-#include <soillib/op/erosion_thermal.cu>
+//#include <soillib/op/erosion_thermal.cu>
 
 namespace soil {
 
@@ -23,7 +23,7 @@ namespace soil {
 // Erosion Function
 //
 
-void erode(model_t& model, const param_t param, const size_t steps) {
+void erode(map_t& map, data_t& data, const param_t param, const size_t steps) {
 
   //
   // Initialize Rand-State Buffer (One Per Sample)
@@ -33,18 +33,18 @@ void erode(model_t& model, const param_t param, const size_t steps) {
 
   const size_t n_samples = param.samples;
 
-  if(model.rand.elem() != n_samples){
-    model.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
-    seed(model.rand, 0, 2 * model.age);
+  if(data.rand.elem() != n_samples){
+    data.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
+    seed(data.rand, 0, 4 * data.age);
   }
   
   // Allocate Estimate Buffers for Transported Quantities
-  model.mass_track = soil::buffer_t<float>(model.mass.elem(), soil::host_t::GPU);
-  model.discharge_track = soil::buffer_t<float>(model.discharge.elem(), soil::host_t::GPU);
-  model.momentum_track = soil::buffer_t<vec2>(model.momentum.elem(), soil::host_t::GPU);
+  data.mass_track       = soil::buffer_t<float>(data.mass.elem(), soil::host_t::GPU);
+  data.discharge_track  = soil::buffer_t<float>(data.discharge.elem(), soil::host_t::GPU);
+  data.momentum_track   = soil::buffer_t<vec2>(data.momentum.elem(), soil::host_t::GPU);
 
-  model.debris_track = soil::buffer_t<float>(model.debris.elem(), soil::host_t::GPU);
-  model.debris_momentum_track = soil::buffer_t<vec2>(model.debris_momentum.elem(), soil::host_t::GPU);
+  data.debris_track           = soil::buffer_t<float>(data.debris.elem(), soil::host_t::GPU);
+  data.debris_momentum_track  = soil::buffer_t<vec2>(data.debris_momentum.elem(), soil::host_t::GPU);
 
   //
   // Execute Solution
@@ -53,15 +53,15 @@ void erode(model_t& model, const param_t param, const size_t steps) {
   for(size_t step = 0; step < steps; ++step){
 
     // Reset Estimates
-    set(model.discharge_track, 0.0f);
-    set(model.momentum_track, vec2(0.0f));
-    set(model.mass_track, 0.0f);
+    set(data.discharge_track, 0.0f);
+    set(data.momentum_track, vec2(0.0f));
+    set(data.mass_track, 0.0f);
     // set(model.debris_track, 0.0f);
     // set(model.debris_momentum_track, vec2(0.0f));
     cudaDeviceSynchronize();
 
     // Solve Estimates
-    fluvial::solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, n_samples, param);
     // debris::solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
     cudaDeviceSynchronize();
 
@@ -70,19 +70,19 @@ void erode(model_t& model, const param_t param, const size_t steps) {
     //
 
     // Filter Estimates
-    filter(model.momentum, model.momentum_track, param.lrate);
-    filter(model.discharge, model.discharge_track, param.lrate);
-    filter(model.mass, model.mass_track, param.lrate);
+    filter(data.momentum, data.momentum_track, param.lrate);
+    filter(data.discharge, data.discharge_track, param.lrate);
+    filter(data.mass, data.mass_track, param.lrate);
     // filter(model.debris, model.debris_track, param.lrate);
     // filter(model.debris_momentum, model.debris_momentum_track, param.lrate);
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
-    fluvial::mt<<<block(model.height.elem(), 512), 512>>>(model, param);
+    fluvial::mt<<<block(map.height.elem(), 512), 512>>>(map, data, param);
     // debris::mt<<<block(model.height.elem(), 512), 512>>>(model, param);
 
     // Increment Model Age for Rand-State Initialization
-    model.age++;
+    data.age++;
 
   }
 

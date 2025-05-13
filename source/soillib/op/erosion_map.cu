@@ -16,39 +16,39 @@
 namespace soil {
 
 //! Nearest Support Point
-__device__ int __nearest(const model_t& model, const vec2 pos){
+__device__ int __nearest(const map_t& map, const vec2 pos){
 
-  return model.index.flatten(pos);
+  return map.index.flatten(pos);
 
 }
 
 //! Sample a Position within the Domain
 //! associated with scaled probability
 template<typename T>
-__device__ void __sample(T& part, model_t& model, const size_t n, const size_t N){
+__device__ void __sample(T& part, map_t& map, curandState* rand, const size_t n, const size_t N){
 
   part.pos = vec2 {
-    curand_uniform(&model.rand[n])*float(model.index[0]),
-    curand_uniform(&model.rand[n])*float(model.index[1])
+    curand_uniform(rand)*float(map.index[0]),
+    curand_uniform(rand)*float(map.index[1])
   };
-  part.ind = __nearest(model, part.pos);
+  part.ind = __nearest(map, part.pos);
 
-  const float P = 1.0f / float(model.index.elem()); // Sampling Probability
+  const float P = 1.0f / float(map.index.elem()); // Sampling Probability
   part.Q = P * float(N);                            // Sampling Weight
 
 }
 
-__device__ vec3 __normal(const model_t& model, const vec2 pos, const vec3 scale){
+__device__ vec3 __normal(const map_t& map, const vec2 pos, const vec3 scale){
 
   lerp5_t<float> lerp;
-  lerp.gather(model.height, model.sediment, model.index, ivec2(pos));
+  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
   const vec2 grad = lerp.grad(scale);
   return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
 
 }
 
 //! Steepest Surface Direction
-__device__ vec2 __steepest(const model_t& model, const vec2 pos, const vec3 scale){
+__device__ vec2 __steepest(const map_t& map, const vec2 pos, const vec3 scale){
 
   //  lerp5_t<float> lerp;
   //  lerp.gather(model.height, model.sediment, model.index, pos);
@@ -67,14 +67,14 @@ __device__ vec2 __steepest(const model_t& model, const vec2 pos, const vec3 scal
   };
 
   int mini = -1;
-  float minh = model.height[model.index.flatten(pos)] + model.sediment[model.index.flatten(pos)];;
+  float minh = map.height[map.index.flatten(pos)] + map.sediment[map.index.flatten(pos)];;
   
   for(int i = 0; i < 8; ++i){
     ivec2 npos = pos + shift[i];
-    if(model.index.oob(npos)){
+    if(map.index.oob(npos)){
       continue;
     }
-    float h = model.height[model.index.flatten(npos)] + model.sediment[model.index.flatten(npos)];
+    float h = map.height[map.index.flatten(npos)] + map.sediment[map.index.flatten(npos)];
     if(h <= minh){
       mini = i;
       minh = h;
@@ -87,18 +87,18 @@ __device__ vec2 __steepest(const model_t& model, const vec2 pos, const vec3 scal
   
 }
 
-__device__ float __hdiff(const model_t& model, const param_t& param, const vec2 pos) {
+__device__ float __hdiff(const map_t& map, const param_t& param, const vec2 pos) {
 
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   // this should just use the momentum direction right?
 
-  const vec2 dir = __steepest(model, pos, scale);
+  const vec2 dir = __steepest(map, pos, scale);
   vec2 npos = vec2(pos) + dir;
-  if(model.index.oob(npos)){
+  if(map.index.oob(npos)){
     return 0.0f;
   }
 
@@ -106,13 +106,13 @@ __device__ float __hdiff(const model_t& model, const param_t& param, const vec2 
 
   // Stable Bank-Height Computation:
 
-  int find = model.index.flatten(pos);
-  int nind = model.index.flatten(npos);
+  int find = map.index.flatten(pos);
+  int nind = map.index.flatten(npos);
 
-  const float hf_0 = model.height[find];
-  const float hn_0 = model.height[nind];
-  const float hf_1 = model.sediment[find];
-  const float hn_1 = model.sediment[nind];
+  const float hf_0 = map.height[find];
+  const float hn_0 = map.height[nind];
+  const float hf_1 = map.sediment[find];
+  const float hn_1 = map.sediment[nind];
 
   const float hf = scale.z * (hf_0 + hf_1);
   const float hn = scale.z * (hn_0 + hn_1);
@@ -123,9 +123,9 @@ __device__ float __hdiff(const model_t& model, const param_t& param, const vec2 
 
 }
 
-__device__ float __slope(const model_t& model, const param_t& param, const vec2 pos, const vec2 dir) {
+__device__ float __slope(const map_t& map, const param_t& param, const vec2 pos, const vec2 dir) {
 
-  const vec3 scale = model.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
 
   if(glm::length(dir) == 0.0f){
@@ -135,19 +135,19 @@ __device__ float __slope(const model_t& model, const param_t& param, const vec2 
   const vec2 npos = pos + glm::normalize(dir);
   if(npos.x < 0.5f) return -param.exitSlope;
   if(npos.y < 0.5f) return -param.exitSlope;
-  if(model.index.oob(npos)){
+  if(map.index.oob(npos)){
     return -param.exitSlope;
   }
   
-  const int ind = model.index.flatten(pos);
-  const int nind = model.index.flatten(npos);
-  float h0 = (model.height[ind] + model.sediment[ind])*scale.z;
-  float h1 = (model.height[nind] + model.sediment[nind])*scale.z;
+  const int find = map.index.flatten(pos);
+  const int nind = map.index.flatten(npos);
+  float h0 = (map.height[find] + map.sediment[find])*scale.z;
+  float h1 = (map.height[nind] + map.sediment[nind])*scale.z;
   return (h1 - h0)/glm::length(cl);
 
 }
 
-__device__ void __transfer(model_t& model, const size_t n, float transfer, const float Z) {
+__device__ void __transfer(map_t& map, const size_t n, float transfer, const float Z) {
 
   // Single-Material Transfer
 //  model.height[n] += transfer / Z;
@@ -155,20 +155,20 @@ __device__ void __transfer(model_t& model, const size_t n, float transfer, const
   // Multi-Material Mass-Transfer
   if(transfer >= 0.0f){
 
-    model.sediment[n] += transfer / Z;
+    map.sediment[n] += transfer / Z;
 
   } else {
 
-    const float maxtransfer = model.sediment[n] * Z;
+    const float maxtransfer = map.sediment[n] * Z;
     float t1 = transfer;
     if(t1 < -maxtransfer){
       t1 = -maxtransfer;
     }
 
-    model.sediment[n] += t1 / Z;
+    map.sediment[n] += t1 / Z;
 
     transfer -= t1;
-    model.height[n] += transfer / Z;
+    map.height[n] += transfer / Z;
 
   }
 

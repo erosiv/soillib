@@ -38,26 +38,32 @@ struct param_t {
   float exitSlope = 0.0075f;
 };
 
-struct model_t {
+struct map_t {
 
-  model_t(soil::index index, soil::vec3 scale): index(index.as<soil::flat_t<2>>()),
-                                                scale(scale),
-                                                elem(index.elem()) {}
+  map_t(soil::index index, soil::vec3 scale):
+    index(index.as<soil::flat_t<2>>()),
+    scale(scale){}
 
-  const size_t elem;           // Total Buffer Elements
   const soil::flat_t<2> index; // Buffer Indexing Structure
   const soil::vec3 scale;      // Value Scaling Factor (Real Coordinates)
-
-  int age = 0;
-
+  
   soil::buffer_t<float> height;
   soil::buffer_t<float> sediment;
 
-  soil::buffer_t<curandState> rand;
+};
 
-  //
-  // Dynamic Integration Quantities
-  //
+//! data_t is a structure for storing the erosion model data
+//! Effectively, this struct is a collection of buffers.
+//! Note that this struct is agnostic to the map shape.
+struct data_t {
+
+  data_t(const size_t elem):
+    elem{elem}{}
+
+  const size_t elem;  //!< Total Buffer Elements
+  int age = 0;        //!< Model Age
+
+  soil::buffer_t<curandState> rand;
 
   soil::buffer_t<float> discharge;
   soil::buffer_t<float> discharge_track;
@@ -76,7 +82,7 @@ struct model_t {
 
 };
 
-void erode(model_t &model, const param_t param, const size_t steps);
+void erode(map_t& map, data_t &data, const param_t param, const size_t steps);
 
 } // end of namespace soil
 

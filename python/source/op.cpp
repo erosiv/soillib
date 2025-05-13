@@ -180,64 +180,67 @@ param_t.def_rw("bedShear", &soil::param_t::bedShear);
 param_t.def_rw("lrate", &soil::param_t::lrate);
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 
-auto model_t = nb::class_<soil::model_t>(module, "model_t");
-model_t.def(nb::init<soil::index, soil::vec3>());
-model_t.def_ro("scale", &soil::model_t::scale);
-
 //
-// Height Components
+// Map Data-Structure
 //
 
-model_t.def_prop_rw("height",
-  [](soil::model_t& model){
-    return soil::buffer(model.height);
-},[](soil::model_t& model, soil::buffer buffer){
-    model.height = buffer.as<float>();
+auto map_t = nb::class_<soil::map_t>(module, "map_t");
+map_t.def(nb::init<soil::index, soil::vec3>());
+map_t.def_ro("scale", &soil::map_t::scale);
+
+map_t.def_prop_rw("height",
+  [](soil::map_t& map){
+    return soil::buffer(map.height);
+},[](soil::map_t& map, soil::buffer buffer){
+    map.height = buffer.as<float>();
 });
 
-model_t.def_prop_rw("sediment",
-  [](soil::model_t& model){
-    return soil::buffer(model.sediment);
-},[](soil::model_t& model, soil::buffer buffer){
-    model.sediment = buffer.as<float>();
+map_t.def_prop_rw("sediment",
+  [](soil::map_t& map){
+    return soil::buffer(map.sediment);
+},[](soil::map_t& map, soil::buffer buffer){
+    map.sediment = buffer.as<float>();
 });
 
 //
 // Tracking Fields
 //
 
-model_t.def_prop_rw("discharge",
-  [](soil::model_t& model){
+auto data_t = nb::class_<soil::data_t>(module, "data_t");
+data_t.def(nb::init<const size_t>());
+
+data_t.def_prop_rw("discharge",
+  [](soil::data_t& model){
     return soil::buffer(model.discharge);
-},[](soil::model_t& model, soil::buffer buffer){
+},[](soil::data_t& model, soil::buffer buffer){
     model.discharge = buffer.as<float>();
 });
 
-model_t.def_prop_rw("momentum",
-  [](soil::model_t& model){
+data_t.def_prop_rw("momentum",
+  [](soil::data_t& model){
     return soil::buffer(model.momentum);
-},[](soil::model_t& model, soil::buffer buffer){
+},[](soil::data_t& model, soil::buffer buffer){
     model.momentum = buffer.as<soil::vec2>();
 });
 
-model_t.def_prop_rw("mass",
-  [](soil::model_t& model){
+data_t.def_prop_rw("mass",
+  [](soil::data_t& model){
     return soil::buffer(model.mass);
-},[](soil::model_t& model, soil::buffer buffer){
+},[](soil::data_t& model, soil::buffer buffer){
     model.mass = buffer.as<float>();
 });
 
-model_t.def_prop_rw("debris",
-  [](soil::model_t& model){
+data_t.def_prop_rw("debris",
+  [](soil::data_t& model){
     return soil::buffer(model.debris);
-},[](soil::model_t& model, soil::buffer buffer){
+},[](soil::data_t& model, soil::buffer buffer){
     model.debris = buffer.as<float>();
 });
 
-model_t.def_prop_rw("debris_momentum",
-  [](soil::model_t& model){
+data_t.def_prop_rw("debris_momentum",
+  [](soil::data_t& model){
     return soil::buffer(model.debris_momentum);
-},[](soil::model_t& model, soil::buffer buffer){
+},[](soil::data_t& model, soil::buffer buffer){
     model.debris_momentum = buffer.as<soil::vec2>();
 });
 
