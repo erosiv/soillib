@@ -52,7 +52,7 @@ __global__ void __set(buffer_t<T> buf, const T val){
 
 template<typename T>
 void set(buffer_t<T>& buf, const T val){
-  __set<<<block(buf.elem(), 1024), 1024>>>(buf, val);
+  __set<<<block(buf.elem(), 512), 512>>>(buf, val);
 }
 
 //
@@ -69,7 +69,7 @@ __global__ void __filter(buffer_t<T> buf_A, const buffer_t<T> buf_B, const float
 
 template<typename T>
 void filter(buffer_t<T>& buf_A, const buffer_t<T>& buf_B, const float w){
-  __filter<<<block(buf_A.elem(), 1024), 1024>>>(buf_A, buf_B, w);
+  __filter<<<block(buf_A.elem(), 512), 512>>>(buf_A, buf_B, w);
 }
 
 //
