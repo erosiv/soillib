@@ -42,13 +42,18 @@ struct map_t {
 
   map_t(soil::index index, soil::vec3 scale):
     index(index.as<soil::flat_t<2>>()),
-    scale(scale){}
+    scale(scale),
+    elem(index.elem()){}
 
-  const soil::flat_t<2> index; // Buffer Indexing Structure
-  const soil::vec3 scale;      // Value Scaling Factor (Real Coordinates)
-  
+  const size_t elem;            // Total Number of Elements
+  const soil::flat_t<2> index;  // Buffer Indexing Structure
+  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
+
   soil::buffer_t<float> height;
   soil::buffer_t<float> sediment;
+
+  soil::buffer_t<curandState> rand;
+  int age = 0;                  //!< Model Age
 
 };
 
@@ -61,9 +66,6 @@ struct data_t {
     elem{elem}{}
 
   const size_t elem;  //!< Total Buffer Elements
-  int age = 0;        //!< Model Age
-
-  soil::buffer_t<curandState> rand;
 
   soil::buffer_t<float> discharge;
   soil::buffer_t<float> discharge_track;

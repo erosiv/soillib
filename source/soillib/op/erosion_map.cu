@@ -25,11 +25,11 @@ __device__ int __nearest(const map_t& map, const vec2 pos){
 //! Sample a Position within the Domain
 //! associated with scaled probability
 template<typename T>
-__device__ void __sample(T& part, map_t& map, curandState* rand, const size_t n, const size_t N){
+__device__ void __sample(T& part, map_t& map, const size_t n, const size_t N){
 
   part.pos = vec2 {
-    curand_uniform(rand)*float(map.index[0]),
-    curand_uniform(rand)*float(map.index[1])
+    curand_uniform(&map.rand[n])*float(map.index[0]),
+    curand_uniform(&map.rand[n])*float(map.index[1])
   };
   part.ind = __nearest(map, part.pos);
 

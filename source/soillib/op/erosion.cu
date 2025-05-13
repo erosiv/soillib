@@ -15,7 +15,7 @@
 
 #include <soillib/op/erosion_map.cu>
 #include <soillib/op/erosion_fluvial.cu>
-//#include <soillib/op/erosion_thermal.cu>
+#include <soillib/op/erosion_thermal.cu>
 
 namespace soil {
 
@@ -32,10 +32,9 @@ void erode(map_t& map, data_t& data, const param_t param, const size_t steps) {
   // that way the sampling procedure becomes deterministic
 
   const size_t n_samples = param.samples;
-
-  if(data.rand.elem() != n_samples){
-    data.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
-    seed(data.rand, 0, 4 * data.age);
+  if(map.rand.elem() != n_samples){
+    map.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
+    seed(map.rand, 0, 4 * map.age);
   }
   
   // Allocate Estimate Buffers for Transported Quantities
@@ -56,13 +55,13 @@ void erode(map_t& map, data_t& data, const param_t param, const size_t steps) {
     set(data.discharge_track, 0.0f);
     set(data.momentum_track, vec2(0.0f));
     set(data.mass_track, 0.0f);
-    // set(model.debris_track, 0.0f);
-    // set(model.debris_momentum_track, vec2(0.0f));
+    set(data.debris_track, 0.0f);
+    set(data.debris_momentum_track, vec2(0.0f));
     cudaDeviceSynchronize();
 
     // Solve Estimates
     fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, n_samples, param);
-    // debris::solve<<<block(n_samples, 512), 512>>>(model, n_samples, param);
+    debris::solve<<<block(n_samples, 512), 512>>>(map, data, n_samples, param);
     cudaDeviceSynchronize();
 
     //
@@ -73,16 +72,16 @@ void erode(map_t& map, data_t& data, const param_t param, const size_t steps) {
     filter(data.momentum, data.momentum_track, param.lrate);
     filter(data.discharge, data.discharge_track, param.lrate);
     filter(data.mass, data.mass_track, param.lrate);
-    // filter(model.debris, model.debris_track, param.lrate);
-    // filter(model.debris_momentum, model.debris_momentum_track, param.lrate);
+    filter(data.debris, data.debris_track, param.lrate);
+    filter(data.debris_momentum, data.debris_momentum_track, param.lrate);
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
-    fluvial::mt<<<block(map.height.elem(), 512), 512>>>(map, data, param);
-    // debris::mt<<<block(model.height.elem(), 512), 512>>>(model, param);
+    fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
+    debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
 
     // Increment Model Age for Rand-State Initialization
-    data.age++;
+    map.age++;
 
   }
 

@@ -138,7 +138,7 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, particle_t&
 }
 
 //! Move the Particle along the Trajectory
-__device__ void move(const map_t& map, const data_t& data, particle_t& part){
+__device__ void move(const map_t& map, particle_t& part){
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -218,15 +218,15 @@ __global__ void solve(map_t map, data_t data, const size_t N, const param_t para
   if(n >= N) 
     return;
 
-  particle_t part;                    //!< Data along Trajectory / Per-Particle
-  __sample(part, map, &data.rand[n], n, N);        //!< Sample the Trajectory
+  particle_t part;                        //!< Data along Trajectory / Per-Particle
+  __sample(part, map, n, N);              //!< Sample the Trajectory
   fluvial::init(map, data, param, part);  //!< Initialze Differential Quantities
 
   // Iteratively Integrate along Trajectory
   for(int age = 0; age < param.maxage; ++age){
 
-    fluvial::track(data, part);  //!< Accumulate Estimate
-    fluvial::move(map, data, part);   //!< Move Trajectory
+    fluvial::track(data, part); //!< Accumulate Estimate
+    fluvial::move(map, part);   //!< Move Trajectory
     if(map.index.oob(part.pos))
       break;
 
