@@ -15,108 +15,48 @@
 
 namespace soil {
 
-//! Nearest Support Point
-__device__ int __nearest(const map_t& map, const vec2 pos){
+__device__ vec2 __grad(const map_t& map, const vec2 pos, const vec3 scale){
 
-  return map.index.flatten(pos);
-
-}
-
-//! Sample a Position within the Domain
-//! associated with scaled probability
-template<typename T>
-__device__ void __sample(T& part, map_t& map, const size_t n, const size_t N){
-
-  part.pos = vec2 {
-    curand_uniform(&map.rand[n])*float(map.index[0]),
-    curand_uniform(&map.rand[n])*float(map.index[1])
-  };
-  part.ind = __nearest(map, part.pos);
-
-  const float P = 1.0f / float(map.index.elem()); // Sampling Probability
-  part.Q = P * float(N);                            // Sampling Weight
+  lerp5_t<float> lerp;
+  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
+  return lerp.grad(scale);
 
 }
 
 __device__ vec3 __normal(const map_t& map, const vec2 pos, const vec3 scale){
 
-  lerp5_t<float> lerp;
-  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
-  const vec2 grad = lerp.grad(scale);
+  const vec2 grad = __grad(map, pos, scale);
   return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
 
 }
 
-//! Steepest Surface Direction
-__device__ vec2 __steepest(const map_t& map, const vec2 pos, const vec3 scale){
-
-  //  lerp5_t<float> lerp;
-  //  lerp.gather(model.height, model.sediment, model.index, pos);
-  //  const vec2 grad = lerp.grad(scale);
-  //  return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
-
-  const vec2 shift[8] = {
-    vec2(-1.0, -1.0),
-    vec2( 0.0, -1.0),
-    vec2( 1.0, -1.0),
-    vec2(-1.0,  0.0),
-    vec2( 1.0,  0.0),
-    vec2(-1.0,  1.0),
-    vec2( 0.0,  1.0),
-    vec2( 1.0,  1.0)
-  };
-
-  int mini = -1;
-  float minh = map.height[map.index.flatten(pos)] + map.sediment[map.index.flatten(pos)];;
+__device__ float __height(const map_t& map, const vec2 pos, const vec3 scale) {
   
-  for(int i = 0; i < 8; ++i){
-    ivec2 npos = pos + shift[i];
-    if(map.index.oob(npos)){
-      continue;
-    }
-    float h = map.height[map.index.flatten(npos)] + map.sediment[map.index.flatten(npos)];
-    if(h <= minh){
-      mini = i;
-      minh = h;
-    }
-  }
+  if(map.index.oob(pos))
+    return CUDART_NAN_F;
   
-  if(mini == -1)
-  return vec2(0.0f);
-  else return shift[mini];
-  
+  int find = map.index.flatten(pos);
+  const float hf_0 = map.height[find];
+  const float hf_1 = map.sediment[find];
+  return (hf_0 + hf_1) * scale.z;
+
 }
 
 __device__ float __hdiff(const map_t& map, const param_t& param, const vec2 pos) {
 
-  const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-  const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  // this should just use the momentum direction right?
+  vec2 dir = glm::normalize(__grad(map, pos, scale));
+  vec2 npos = vec2(pos) - dir;
 
-  const vec2 dir = __steepest(map, pos, scale);
-  vec2 npos = vec2(pos) + dir;
-  if(map.index.oob(npos)){
+  const float hf = __height(map, pos, scale);
+  const float hn = __height(map, npos, scale);
+  if(__isnanf(hf) || __isnanf(hn))
     return 0.0f;
-  }
-
-  const float dist = glm::length(cl*dir);
 
   // Stable Bank-Height Computation:
-
-  int find = map.index.flatten(pos);
-  int nind = map.index.flatten(npos);
-
-  const float hf_0 = map.height[find];
-  const float hn_0 = map.height[nind];
-  const float hf_1 = map.sediment[find];
-  const float hn_1 = map.sediment[nind];
-
-  const float hf = scale.z * (hf_0 + hf_1);
-  const float hn = scale.z * (hn_0 + hn_1);
-
+  const float dist = glm::length(cl*dir);
   const float stable = (hn + param.critSlope*dist);  // [m]
   const float hdiff = hf - stable;
   return hdiff;
@@ -135,15 +75,37 @@ __device__ float __slope(const map_t& map, const param_t& param, const vec2 pos,
   const vec2 npos = pos + glm::normalize(dir);
   if(npos.x < 0.5f) return -param.exitSlope;
   if(npos.y < 0.5f) return -param.exitSlope;
-  if(map.index.oob(npos)){
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+
+  const float hf = __height(map, pos, scale);
+  const float hn = __height(map, npos, scale);
+  if(__isnanf(hf) || __isnanf(hn))
     return -param.exitSlope;
-  }
-  
-  const int find = map.index.flatten(pos);
-  const int nind = map.index.flatten(npos);
-  float h0 = (map.height[find] + map.sediment[find])*scale.z;
-  float h1 = (map.height[nind] + map.sediment[nind])*scale.z;
-  return (h1 - h0)/glm::length(cl);
+
+  return (hn - hf)/glm::length(cl);
+
+}
+
+//! Nearest Support Point
+__device__ int __nearest(const map_t& map, const vec2 pos){
+
+  return map.index.flatten(pos);
+
+}
+
+//! Sample a Position within the Domain
+//! associated with scaled probability
+template<typename T>
+__device__ void __sample(T& part, map_t& map, const size_t n, const size_t N){
+
+  part.pos = vec2 {
+    curand_uniform(&map.rand[n])*float(map.index[0]),
+    curand_uniform(&map.rand[n])*float(map.index[1])
+  };
+  part.ind = __nearest(map, part.pos);
+
+  const float P = 1.0f / float(map.elem); // Sampling Probability
+  part.Q = P * float(N);                  // Sampling Weight
 
 }
 

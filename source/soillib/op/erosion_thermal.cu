@@ -96,7 +96,7 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& p
 
   const float dt = param.timeStep;
 
-  const vec2 normal = __steepest(map, part.pos, scale);
+  const vec2 normal = __normal(map, part.pos, scale);
   part.speed = g * normal;
   part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
 
@@ -133,7 +133,7 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
   const float ds = glm::length(cl)/glm::length(part.speed);
   
   //! Explicit Euler Forward Integration for Gravity
-  const vec2 normal = __steepest(map, part.pos, scale);
+  const vec2 normal = __normal(map, part.pos, scale);
   part.speed = part.speed + ds * g * normal;
   part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed;// + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
   part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
