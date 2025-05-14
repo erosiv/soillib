@@ -69,7 +69,7 @@ struct rbf {
 //  }
   
   //! Gaussian
-  __device__ static float func(const float r){
+  __device__ static float func(const float r) {
     return __expf(- r * r);
   }
 

@@ -105,7 +105,8 @@ __device__ vec2 __avespeed(const vec2 momentum, const float discharge){
 // 
 
 //! Initialize Particle Data from Model
-__device__ void init(map_t& map, data_t& data, const param_t& param, particle_t& part){
+template<typename Map>
+__device__ void init(Map& map, data_t& data, const param_t& param, particle_t& part){
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -138,9 +139,10 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, particle_t&
 }
 
 //! Move the Particle along the Trajectory
-__device__ void move(const map_t& map, particle_t& part){
+template<typename Map>
+__device__ void move(const Map& map, particle_t& part){
 
-  const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
 
   const float ds = glm::length(cl)/glm::length(part.speed);
@@ -151,7 +153,8 @@ __device__ void move(const map_t& map, particle_t& part){
 }
 
 //! Integrate Sub-Solution Quantities in Quasi-Static Time
-__device__ void integrate(const map_t& map, const data_t& data, const param_t& param, particle_t& part){
+template<typename Map>
+__device__ void integrate(const Map& map, const data_t& data, const param_t& param, particle_t& part){
   
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -181,7 +184,8 @@ __device__ void integrate(const map_t& map, const data_t& data, const param_t& p
 }
 
 //! Fluvial Erosion Mass-Transfer System
-__device__ void integrate_mt(map_t& map, data_t& data, const param_t& param, particle_t& part){
+template<typename Map>
+__device__ void integrate_mt(Map& map, data_t& data, const param_t& param, particle_t& part){
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -212,7 +216,8 @@ __device__ void track(data_t& track, const particle_t& part){
 //
 
 //! Transport Estimate Solution Kernel
-__global__ void solve(map_t map, data_t data, data_t track, const size_t N, const param_t param){
+template<typename Map>
+__global__ void solve(Map map, data_t data, data_t track, const size_t N, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= N) 
@@ -227,7 +232,7 @@ __global__ void solve(map_t map, data_t data, data_t track, const size_t N, cons
 
     fluvial::track(track, part);  //!< Accumulate Estimate
     fluvial::move(map, part);     //!< Move Trajectory
-    if(map.index.oob(part.pos))
+    if(__oob(map, part.pos))
       break;
 
     fluvial::integrate_mt(map, data, param, part); //!< Integrate Mass-Transfer
@@ -240,10 +245,11 @@ __global__ void solve(map_t map, data_t data, data_t track, const size_t N, cons
 }
 
 //! Mass-Transfer Application Kernel
-__global__ void mt(map_t map, data_t data, const param_t param){
+template<typename Map>
+__global__ void mt(Map map, data_t data, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= map.height.elem())
+  if(n >= map.elem)
     return;
 
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
@@ -254,7 +260,7 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const float mass = data.mass[n];                 // Suspended Mass Function
   const float discharge = data.discharge[n];       // Discharge Function
   const vec2 momentum = data.momentum[n];
-  const vec2 pos = map.index.unflatten(n);
+  const vec2 pos = __topos(map, n);
   const float slope = __slope(map, param, pos + vec2(0.5), momentum); // Local Slope Function
 
 //  const float dt = param.timeStep;        // Geological Timestep [y]

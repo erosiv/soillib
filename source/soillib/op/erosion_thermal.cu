@@ -183,7 +183,7 @@ __global__ void solve(map_t map, data_t data, data_t track, const size_t N, cons
 
     debris::track(track, part); //!< Accumulate Estimate
     debris::move(map, part);    //!< Move Trajectory
-    if(map.index.oob(part.pos))
+    if(__oob(map, part.pos))
       break;
     
     debris::integrate_mt(map, param, part); //!< Integrate Mass-Transfer
@@ -198,7 +198,7 @@ __global__ void solve(map_t map, data_t data, data_t track, const size_t N, cons
 __global__ void mt(map_t map, data_t data, const param_t param){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= map.height.elem())
+  if(n >= map.elem)
     return;
 
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
@@ -207,7 +207,7 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const float mass = data.debris[n];               // Suspended Mass Function
-  const vec2 pos = map.index.unflatten(n);
+  const vec2 pos = __topos(map, n);
   const float hdiff = __hdiff(map, param, pos + vec2(0.5f));
 
 //  const float dt = param.timeStep;

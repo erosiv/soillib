@@ -9,13 +9,50 @@
 #include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>
 
+#include <soillib/index/kdtree.hpp>
+#include <cukd/builder.h>
+#include <cukd/knn.h>
+
 //! Map-Based Geometric Functions
 //! Note that these should be dependent on the
 //! nature of the map / model.
 
 namespace soil {
 
-__device__ vec2 __grad(const map_t& map, const vec2 pos, const vec3 scale){
+namespace {
+
+struct payload_traits:
+  public cukd::default_data_traits<kdtree::pnt_t> {
+    
+  using point_t = kdtree::pnt_t;
+  
+  static inline __device__ __host__
+  point_t get_point(const payload_t &data)
+  { return data.p; }
+  
+  static inline __device__ __host__
+  float get_coord(const payload_t &data, int dim)
+  { return cukd::get_coord(get_point(data),dim); }
+  
+  enum { has_explicit_dim = false };
+  static inline __device__ int  get_dim(const payload_t &) { return -1; }
+  
+};
+
+template<size_t K>
+__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandidateList<K>& list) {
+
+  cukd::stackBased::knn<
+    cukd::HeapCandidateList<K>,
+    payload_t,
+    payload_traits
+  >(list, make_point(pos), kdtree.data.data(), kdtree.elem());
+
+}
+
+}
+
+__device__ vec2 __grad(const map_grid& map, const vec2 pos, const vec3 scale){
 
   lerp5_t<float> lerp;
   lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
@@ -23,14 +60,35 @@ __device__ vec2 __grad(const map_t& map, const vec2 pos, const vec3 scale){
 
 }
 
-__device__ vec3 __normal(const map_t& map, const vec2 pos, const vec3 scale){
+__device__ vec2 __grad(const map_rbf& map, const vec2 pos, const vec3 scale){
 
-  const vec2 grad = __grad(map, pos, scale);
-  return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  const size_t B = 64;
+  const float rad = map.rbf.shape * 10.0f;
+  cukd::HeapCandidateList<B> list(rad);
+  knn<B>(map.kdtree, pos, list);
+  
+  vec2 grad = vec2(0.0f);
+  for(int b = 0; b < B; ++b) {
+      
+    int k = list.get_pointID(b);
+    if(k >= 0){
+      k = map.kdtree.data[k].i;
+      const vec2 c = map.rbf.centers[k];
+      const float w = map.rbf.weights[k];
+      const float s = map.rbf.shape;
+      const float r = glm::length(c - pos);
+      const vec2 d = (pos - c)/s;
+      grad -= d * w * 2.0f * rbf::func(r / s) * r / s / s;
+      
+    }
+  
+  }
+
+  return grad;
 
 }
 
-__device__ float __height(const map_t& map, const vec2 pos, const vec3 scale) {
+__device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale) {
   
   if(map.index.oob(pos))
     return CUDART_NAN_F;
@@ -42,7 +100,69 @@ __device__ float __height(const map_t& map, const vec2 pos, const vec3 scale) {
 
 }
 
-__device__ float __hdiff(const map_t& map, const param_t& param, const vec2 pos) {
+__device__ float __height(const map_rbf& map, const vec2 pos, const vec3 scale) {
+  
+  if(map.index.oob(pos))
+    return CUDART_NAN_F;
+  
+  const size_t B = 64;
+  const float rad = map.rbf.shape * 10.0f;
+  cukd::HeapCandidateList<B> list(rad);
+  knn<B>(map.kdtree, pos, list);
+  
+  float val = 0.0f;
+  for(int b = 0; b < B; ++b) {
+      
+    int k = list.get_pointID(b);
+    if(k >= 0){
+      k = map.kdtree.data[k].i;
+      
+      // accumulate into val!
+      const vec2 c = map.rbf.centers[k];
+      const float w = map.rbf.weights[k];
+      const float s = map.rbf.shape;
+      const float r = glm::length(c - pos);
+      val += w * rbf::func(r / s);
+      
+    }
+  
+  }
+
+  return val;
+
+}
+
+//! Nearest Support Point
+__device__ int __nearest(const map_grid& map, const vec2 pos){
+  return map.index.flatten(pos);
+}
+
+__device__ int __nearest(const map_rbf& map, const vec2 pos){
+
+  int nearest = cukd::stackBased::fcp<
+    payload_t,
+    payload_traits
+  >(make_point(pos), map.kdtree.data.data(), map.kdtree.elem());
+  if(nearest >= 0)
+    return map.kdtree.data[nearest].i;
+  else return -1;
+
+}
+
+//
+// Derived Quantities
+//
+
+template<typename Map>
+__device__ vec3 __normal(const Map& map, const vec2 pos, const vec3 scale){
+
+  const vec2 grad = __grad(map, pos, scale);
+  return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+
+}
+
+template<typename Map>
+__device__ float __hdiff(const Map& map, const param_t& param, const vec2 pos) {
 
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -63,7 +183,8 @@ __device__ float __hdiff(const map_t& map, const param_t& param, const vec2 pos)
 
 }
 
-__device__ float __slope(const map_t& map, const param_t& param, const vec2 pos, const vec2 dir) {
+template<typename Map>
+__device__ float __slope(const Map& map, const param_t& param, const vec2 pos, const vec2 dir) {
 
   if(glm::length(dir) == 0.0f){
     return 0.0f;
@@ -84,17 +205,23 @@ __device__ float __slope(const map_t& map, const param_t& param, const vec2 pos,
 
 }
 
-//! Nearest Support Point
-__device__ int __nearest(const map_t& map, const vec2 pos){
+template<typename Map>
+__device__ bool __oob(const Map& map, const vec2 pos){
+  return map.index.oob(pos);
+}
 
-  return map.index.flatten(pos);
+__device__ vec2 __topos(const map_grid& map, const int nearest){
+  return map.index.unflatten(nearest);
+}
 
+__device__ vec2 __topos(const map_rbf& map, const int nearest){
+  return map.rbf.centers[nearest];
 }
 
 //! Sample a Position within the Domain
 //! associated with scaled probability
-template<typename T>
-__device__ void __sample(T& part, map_t& map, const size_t n, const size_t N){
+template<typename T, typename Map>
+__device__ void __sample(T& part, Map& map, const size_t n, const size_t N){
 
   part.pos = vec2 {
     curand_uniform(&map.rand[n])*float(map.index[0]),
@@ -107,30 +234,59 @@ __device__ void __sample(T& part, map_t& map, const size_t n, const size_t N){
 
 }
 
-__device__ void __transfer(map_t& map, const size_t n, float transfer, const float Z) {
+
+__device__ void __transfer(map_grid& map, const size_t n, float transfer, const float Z) {
 
   // Single-Material Transfer
-//  model.height[n] += transfer / Z;
+  map.height[n] += transfer / Z;
 
-  // Multi-Material Mass-Transfer
-  if(transfer >= 0.0f){
+//  // Multi-Material Mass-Transfer
+//  if(transfer >= 0.0f){
+//
+//    map.sediment[n] += transfer / Z;
+//
+//  } else {
+//
+//    const float maxtransfer = map.sediment[n] * Z;
+//    float t1 = transfer;
+//    if(t1 < -maxtransfer){
+//      t1 = -maxtransfer;
+//    }
+//
+//    map.sediment[n] += t1 / Z;
+//
+//    transfer -= t1;
+//    map.height[n] += transfer / Z;
+//
+//  }
 
-    map.sediment[n] += transfer / Z;
+}
 
-  } else {
+__device__ void __transfer(map_rbf& map, const size_t n, float transfer, const float Z) {
 
-    const float maxtransfer = map.sediment[n] * Z;
-    float t1 = transfer;
-    if(t1 < -maxtransfer){
-      t1 = -maxtransfer;
-    }
+  // Single-Material Transfer
+  map.rbf.weights[n] += 100.0f * transfer / Z;
+  // model.height[n] += transfer / Z;
 
-    map.sediment[n] += t1 / Z;
-
-    transfer -= t1;
-    map.height[n] += transfer / Z;
-
-  }
+//  // Multi-Material Mass-Transfer
+//  if(transfer >= 0.0f){
+//
+//    map.sediment[n] += transfer / Z;
+//
+//  } else {
+//
+//    const float maxtransfer = map.sediment[n] * Z;
+//    float t1 = transfer;
+//    if(t1 < -maxtransfer){
+//      t1 = -maxtransfer;
+//    }
+//
+//    map.sediment[n] += t1 / Z;
+//
+//    transfer -= t1;
+//    map.height[n] += transfer / Z;
+//
+//  }
 
 }
 

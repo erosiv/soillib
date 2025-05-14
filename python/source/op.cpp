@@ -189,18 +189,25 @@ map_t.def(nb::init<soil::index, soil::vec3>());
 map_t.def_ro("scale", &soil::map_t::scale);
 
 map_t.def_prop_rw("height",
-  [](soil::map_t& map){
-    return soil::buffer(map.height);
+[](soil::map_t& map){
+  return soil::buffer(map.height);
 },[](soil::map_t& map, soil::buffer buffer){
-    map.height = buffer.as<float>();
+  map.height = buffer.as<float>();
 });
 
 map_t.def_prop_rw("sediment",
-  [](soil::map_t& map){
-    return soil::buffer(map.sediment);
+[](soil::map_t& map){
+  return soil::buffer(map.sediment);
 },[](soil::map_t& map, soil::buffer buffer){
-    map.sediment = buffer.as<float>();
+  map.sediment = buffer.as<float>();
 });
+
+// RBF Map
+
+auto map_rbf = nb::class_<soil::map_rbf>(module, "map_rbf");
+map_rbf.def(nb::init<soil::rbf&, soil::index, soil::vec3>());
+map_rbf.def_ro("scale", &soil::map_rbf::scale);
+map_rbf.def_ro("rbf", &soil::map_rbf::rbf);
 
 //
 // Tracking Fields
@@ -246,6 +253,7 @@ data_t.def_prop_rw("debris_momentum",
 });
 
 module.def("erode", soil::erode);
+module.def("erode_rbf", soil::erode_rbf);
 
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
