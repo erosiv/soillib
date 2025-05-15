@@ -129,27 +129,27 @@ __device__ void __transfer(map_grid& map, const vec2 pos, float transfer, const 
 
   // Single-Material Transfer
   const int n = __nearest(map, pos);
-  map.height[n] += transfer / Z;
+  // map.height[n] += transfer / Z;
 
-//  // Multi-Material Mass-Transfer
-//  if(transfer >= 0.0f){
-//
-//    map.sediment[n] += transfer / Z;
-//
-//  } else {
-//
-//    const float maxtransfer = map.sediment[n] * Z;
-//    float t1 = transfer;
-//    if(t1 < -maxtransfer){
-//      t1 = -maxtransfer;
-//    }
-//
-//    map.sediment[n] += t1 / Z;
-//
-//    transfer -= t1;
-//    map.height[n] += transfer / Z;
-//
-//  }
+  // Multi-Material Mass-Transfer
+  if(transfer >= 0.0f){
+
+    map.sediment[n] += transfer / Z;
+
+  } else {
+
+    const float maxtransfer = map.sediment[n] * Z;
+    float t1 = transfer;
+    if(t1 < -maxtransfer){
+      t1 = -maxtransfer;
+    }
+
+    map.sediment[n] += t1 / Z;
+
+    transfer -= t1;
+    map.height[n] += transfer / Z;
+
+  }
 
 }
 

@@ -8,15 +8,15 @@ import numpy as np
 
 from __common__ import show_discharge, show_mass
 
-def main():
+'''
+Single Resolution GPU Erosion Example
+1. Define Physical Scale and Simulation Resolution
+2. Allocate Buffer and Construct Model Struct
+3. Define Physical Erosion Parameters
+4. Simulate
+'''
 
-  '''
-  Single Resolution GPU Erosion Example
-  1. Define Physical Scale and Simulation Resolution
-  2. Allocate Buffer and Construct Model Struct
-  3. Define Physical Erosion Parameters
-  4. Simulate
-  '''
+def main():
 
   simres = np.array([512, 512])         # Resolution [px]
   wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
