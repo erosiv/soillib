@@ -204,7 +204,7 @@ def main(input):
     pos, val = downsample(buffer, (128, 128))
     rbf.fit(pos, val, 4096)
 
-    buffer = image.buffer.gpu().torch(index)
+    buffer = image.buffer.gpu()(index)
     rbf = RBFInterpolator(layers)
     buffer = resize(buffer, (128, 128))
     height = buffer.cpu().numpy()

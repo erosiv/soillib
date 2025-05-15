@@ -139,8 +139,7 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
 }
 
 //! Move the Particle along the Trajectory
-template<typename Map>
-__device__ void move(const Map& map, particle_t& part){
+__device__ void move(const map_grid& map, particle_t& part){
 
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -148,6 +147,18 @@ __device__ void move(const Map& map, particle_t& part){
   const float ds = glm::length(cl)/glm::length(part.speed);
 
   part.pos = part.pos + ds * (part.speed / cl);
+  part.ind = __nearest(map, part.pos);
+
+}
+
+__device__ void move(const map_rbf& map, particle_t& part){
+
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+
+  const float ds = glm::length(cl)/glm::length(part.speed);
+
+  part.pos = part.pos + map.rbf.shape * ds * (part.speed / cl);
   part.ind = __nearest(map, part.pos);
 
 }
@@ -268,7 +279,7 @@ __global__ void mt(Map map, data_t data, const param_t param){
   const float suspend = fluvial::suspend(param, momentum, discharge, slope, discharge, Ac);
   float transfer = (deposit - suspend);
   transfer = fluvial::limit(transfer, mass, slope, scale);
-  __transfer(map, n, transfer, Z);
+  __transfer(map, pos, transfer, Z);
   
 }
 

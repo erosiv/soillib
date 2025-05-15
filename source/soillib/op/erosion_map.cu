@@ -198,7 +198,7 @@ __device__ float __slope(const Map& map, const param_t& param, const vec2 pos, c
   const float hf = __height(map, pos, scale);
   const float hn = __height(map, npos, scale);
   if(__isnanf(hf) || __isnanf(hn))
-  return -param.exitSlope;
+    return -param.exitSlope;
   
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   return (hn - hf)/glm::length(cl);
@@ -234,10 +234,10 @@ __device__ void __sample(T& part, Map& map, const size_t n, const size_t N){
 
 }
 
-
-__device__ void __transfer(map_grid& map, const size_t n, float transfer, const float Z) {
+__device__ void __transfer(map_grid& map, const vec2 pos, float transfer, const float Z) {
 
   // Single-Material Transfer
+  const int n = __nearest(map, pos);
   map.height[n] += transfer / Z;
 
 //  // Multi-Material Mass-Transfer
@@ -262,29 +262,38 @@ __device__ void __transfer(map_grid& map, const size_t n, float transfer, const 
 
 }
 
-__device__ void __transfer(map_rbf& map, const size_t n, float transfer, const float Z) {
+//! Note: We do a weighted transfer here...
+//! That means that we actually determine the relative
+//! contribution of the transfer to each guy by it's weight...
+//! so we compute the total height once... and then use that for
+//! scaling.
+__device__ void __transfer(map_rbf& map, const vec2 pos, float transfer, const float Z) {
 
   // Single-Material Transfer
-  map.rbf.weights[n] += 100.0f * transfer / Z;
-  // model.height[n] += transfer / Z;
+  const int n = __nearest(map, pos);
+  map.rbf.weights[n] += 10.0f * transfer / Z;
 
-//  // Multi-Material Mass-Transfer
-//  if(transfer >= 0.0f){
+//  const size_t B = 64;
+//  const float rad = map.rbf.shape * 10.0f;
+//  cukd::HeapCandidateList<B> list(rad);
+//  knn<B>(map.kdtree, pos, list);
 //
-//    map.sediment[n] += transfer / Z;
+//  // Add Back to Weights:
+//  for(int b = 0; b < B; ++b) {
 //
-//  } else {
+//    int k = list.get_pointID(b);
+//    if(k >= 0){
+//      k = map.kdtree.data[k].i;
+//      
+//      // accumulate into val!
+//      const vec2 c = map.rbf.centers[k];
+//      const float w = map.rbf.weights[k];
+//      const float s = map.rbf.shape;
+//      const float r = glm::length(c - pos);
+//      const float f = rbf::func(r / s);
+//      map.rbf.weights[k] += 200.0f * transfer / Z * f;
 //
-//    const float maxtransfer = map.sediment[n] * Z;
-//    float t1 = transfer;
-//    if(t1 < -maxtransfer){
-//      t1 = -maxtransfer;
 //    }
-//
-//    map.sediment[n] += t1 / Z;
-//
-//    transfer -= t1;
-//    map.height[n] += transfer / Z;
 //
 //  }
 

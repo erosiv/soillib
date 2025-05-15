@@ -34,93 +34,128 @@ especially with position optimization.
 
 def main(input):
 
-  print("Sampling Digital Elevation Model...")
+  for file, path in iter_tiff(input):
 
-  # Note: Replace with e.g. Halton Sampler
+    print("Loading Digital Elevation Model...")
 
-  K = 4096
-  index = soil.index([512, 512])
-  center = soil.sample_halton(index, K)
+    image = soil.geotiff(path)
+    print(f"File: {file}, {image.buffer.type}")
+    index = image.index
+    buffer = image.buffer.gpu()
 
-  print("Initializing Radial Basis Function Interpolator...")
+    print("Sampling Digital Elevation Model...")
 
-  rbf = soil.rbf()
-  rbf.init(center)
-  rbf.shape = 1.25 * np.sqrt(index.elem() / K)
-  rbf.P = 0
+    # Note: Replace with e.g. Halton Sampler
 
-  w = torch.randn((K + rbf.P,))
-  w = w.to(device='cuda')
+    K = 4096
+    N = 8 * K
 
-  rbf.set_w(soil.buffer.from_torch(w))
-  img = rbf.sample(index)
+    index = soil.index([512, 512])
+    center = soil.sample_halton(index, K)
+    sample = soil.sampleN(index, N)
+    values = soil.sample_lerp(buffer, index, sample)
 
-  '''
-  Erode RBF
-  '''
+    print("Initializing Radial Basis Function Interpolator...")
 
-  simres = np.array([512, 512])         # Resolution [px]
-  wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
-  nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
-  pscale = [rbf.shape,                  # Pixel Scale [km/px]
-            rbf.shape,
-            wscale[2]]                  # Value Scale [km/unit]
+    rbf = soil.rbf()
+    rbf.init(center)
+    rbf.shape = 1.25 * np.sqrt(index.elem() / K)
+    rbf.P = 0
 
-  model = soil.map_rbf(rbf, index, pscale)
-  data = soil.data_t(K)
-  track = soil.data_t(K)
+    print("Solving Least Squares Problem...")
 
-  data.discharge[:] = 0.0
-  data.momentum[:] = [0.0, 0.0]
-  data.mass[:] = 0.0
-  data.debris[:] = 0.0
-  data.debris_momentum[:] = [0.0, 0.0]
+    matrix = rbf.matrix(sample)
+    vector = rbf.vector(values)
 
-  param = soil.param_t()
-  param.samples = 8192  # Number of Samples
-  param.maxage = 512     # Maximum Particle Age
-  param.lrate = 0.1     # Filter Learning Rate
-  param.timeStep = 10.0 # 
+    tmatrix = matrix.torch(soil.index([N+rbf.P, K+rbf.P]))
+    tvector = vector.torch(soil.index([N+rbf.P]))
 
-  param.rainfall = 1.0      # Rainfall Rate [m/y]
-  param.evapRate = 0.0001   # Evaporation Rate [1/s]
+    w = torch.linalg.lstsq(tmatrix, tvector).solution
 
-  param.gravity = 9.81      # Specific Gravity [m/s^2]
-  param.viscosity = 0.125   # Kinematic Viscosity [m^2/s]
-  param.bedShear = 0.125    # River Bed Shear [m^2/s]
+    print(torch.mean(torch.abs(w)))
 
-  param.critSlope = 0.57      # Critical Slope [m/m]
-  param.settleRate = 0.1      # Debris Settling Rate
-  param.thermalRate = 0.0   # Thermal Erosion Rate
-  param.debrisShear = 0.9
+    rbf.set_w(soil.buffer.from_torch(w))
 
-  param.depositionRate = 0.1  # Fluvial Deposition Rate
-  param.suspensionRate = 1.0  # Fluvial Suspension Rate
-  param.exitSlope = 0.025     # Boundary Slope [m/m]
+    print("Exporting Initial Condition...")
 
-  timer = soil.timer()
-  for i in range(64):
-    with timer:
-      soil.erode_rbf(model, data, track, param, 1)
-    print(f"Execution Time: {timer.count}ms")
+    simres = np.array([512, 512])         # Resolution [px]
+    wscale = np.array([20.0, 20.0, 2.0])  # World Scale [km] (x, y, z)
+    nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
+#    pscale = [1, 1, 1]                    # Value Scale [km/unit]
+    pscale = [wscale[0]/rbf.shape,        # Pixel Scale [km/px]
+              wscale[1]/rbf.shape,
+              wscale[2]]                  # Value Scale [km/unit]
 
-  '''
-  Display RBF
-  '''
+    img = rbf.sample(index)
+    tiff_out = soil.geotiff(img.cpu(), index)
+    tiff_out.meta.scale = pscale
+    tiff_out.write("/home/nickmcdonald/Datasets/rbf_0.tiff")
 
-  eroded = model.rbf.sample(index)
+    print(np.min(img.numpy(index)))
+    print(np.max(img.numpy(index)))
 
-  plot_images([
-    img.cpu().numpy(index),
-    eroded.cpu().numpy(index),
-  ])
+    '''
+    Erode RBF
+    '''
+
+    model = soil.map_rbf(rbf, index, pscale)
+    data = soil.data_t(K)
+    track = soil.data_t(K)
+
+    data.discharge[:] = 0.0
+    data.momentum[:] = [0.0, 0.0]
+    data.mass[:] = 0.0
+    data.debris[:] = 0.0
+    data.debris_momentum[:] = [0.0, 0.0]
+
+    param = soil.param_t()
+    param.samples = 8192      # Number of Samples
+    param.maxage = 64         # Maximum Particle Age
+    param.lrate = 0.1         # Filter Learning Rate
+    param.timeStep = 10.0     # 
+
+    param.rainfall = 10.0      # Rainfall Rate [m/y]
+    param.evapRate = 0.0001   # Evaporation Rate [1/s]
+
+    param.gravity = 9.81      # Specific Gravity [m/s^2]
+    param.viscosity = 0.0   # Kinematic Viscosity [m^2/s]
+    param.bedShear = 0.9    # River Bed Shear [m^2/s]
+
+    param.critSlope = 0.57      # Critical Slope [m/m]
+    param.settleRate = 0.1      # Debris Settling Rate
+    param.thermalRate = 0.0     # Thermal Erosion Rate
+    param.debrisShear = 0.9
+
+    param.depositionRate = 0.1  # Fluvial Deposition Rate
+    param.suspensionRate = 1.0  # Fluvial Suspension Rate
+    param.exitSlope = 0.0       # Boundary Slope [m/m]
+
+    timer = soil.timer()
+    for i in range(128):
+      with timer:
+        soil.erode_rbf(model, data, track, param, 1)
+      print(f"Execution Time: {timer.count}ms")
+
+    '''
+    Display RBF
+    '''
+
+    eroded = model.rbf.sample(index)
+    tiff_out = soil.geotiff(eroded.cpu(), index)
+    tiff_out.meta.scale = pscale
+    tiff_out.write("/home/nickmcdonald/Datasets/rbf_1.tiff")
+
+  #  plot_images([
+  #    img.cpu().numpy(index),
+  #    eroded.cpu().numpy(index),
+  #  ])
 
 if __name__ == "__main__":
 
   #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
   #data = "/home/nickmcdonald/Datasets/large_flat_texas.tiff"
-  data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
-#  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
+  #data = "/home/nickmcdonald/Datasets/erosion_large.tiff"
+  data = "/home/nickmcdonald/Datasets/erosion_gpu.tiff"
 
   main(data)
