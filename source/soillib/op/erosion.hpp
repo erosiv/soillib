@@ -60,29 +60,6 @@ struct map_grid {
 
 };
 
-struct map_rbf {
-
-  map_rbf(rbf& rbf, soil::index index, soil::vec3 scale):
-    rbf(rbf),
-    index(index.as<soil::flat_t<2>>()),
-    scale(scale),
-    elem(rbf.elem()),
-    kdtree(rbf.centers)
-    {
-      
-    }
-
-  const size_t elem;            // Total Number of Elements
-  const soil::flat_t<2> index;  // Buffer Indexing Structure
-  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
-  soil::rbf rbf;
-  soil::kdtree kdtree;
-
-  soil::buffer_t<curandState> rand;
-  int age = 0;                  //!< Model Age
-
-};
-
 using map_t = map_grid;
 
 //! data_t is a structure for storing the erosion model data
@@ -111,7 +88,6 @@ struct data_t {
 };
 
 void erode(map_grid& map, data_t &data, data_t &track, const param_t param, const size_t steps);
-void erode_rbf(map_rbf& map, data_t &data, data_t &track, const param_t param, const size_t steps);
 
 } // end of namespace soil
 

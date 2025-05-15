@@ -19,72 +19,11 @@
 
 namespace soil {
 
-namespace {
-
-struct payload_traits:
-  public cukd::default_data_traits<kdtree::pnt_t> {
-    
-  using point_t = kdtree::pnt_t;
-  
-  static inline __device__ __host__
-  point_t get_point(const payload_t &data)
-  { return data.p; }
-  
-  static inline __device__ __host__
-  float get_coord(const payload_t &data, int dim)
-  { return cukd::get_coord(get_point(data),dim); }
-  
-  enum { has_explicit_dim = false };
-  static inline __device__ int  get_dim(const payload_t &) { return -1; }
-  
-};
-
-template<size_t K>
-__device__ void knn(const soil::kdtree& kdtree, const vec2 pos, cukd::HeapCandidateList<K>& list) {
-
-  cukd::stackBased::knn<
-    cukd::HeapCandidateList<K>,
-    payload_t,
-    payload_traits
-  >(list, make_point(pos), kdtree.data.data(), kdtree.elem());
-
-}
-
-}
-
 __device__ vec2 __grad(const map_grid& map, const vec2 pos, const vec3 scale){
 
   lerp5_t<float> lerp;
   lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
   return lerp.grad(scale);
-
-}
-
-__device__ vec2 __grad(const map_rbf& map, const vec2 pos, const vec3 scale){
-
-  const size_t B = 64;
-  const float rad = map.rbf.shape * 10.0f;
-  cukd::HeapCandidateList<B> list(rad);
-  knn<B>(map.kdtree, pos, list);
-  
-  vec2 grad = vec2(0.0f);
-  for(int b = 0; b < B; ++b) {
-      
-    int k = list.get_pointID(b);
-    if(k >= 0){
-      k = map.kdtree.data[k].i;
-      const vec2 c = map.rbf.centers[k];
-      const float w = map.rbf.weights[k];
-      const float s = map.rbf.shape;
-      const float r = glm::length(c - pos);
-      const vec2 d = (pos - c)/s;
-      grad -= d * w * 2.0f * rbf::func(r / s) * r / s / s;
-      
-    }
-  
-  }
-
-  return grad;
 
 }
 
@@ -100,53 +39,9 @@ __device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale)
 
 }
 
-__device__ float __height(const map_rbf& map, const vec2 pos, const vec3 scale) {
-  
-  if(map.index.oob(pos))
-    return CUDART_NAN_F;
-  
-  const size_t B = 64;
-  const float rad = map.rbf.shape * 10.0f;
-  cukd::HeapCandidateList<B> list(rad);
-  knn<B>(map.kdtree, pos, list);
-  
-  float val = 0.0f;
-  for(int b = 0; b < B; ++b) {
-      
-    int k = list.get_pointID(b);
-    if(k >= 0){
-      k = map.kdtree.data[k].i;
-      
-      // accumulate into val!
-      const vec2 c = map.rbf.centers[k];
-      const float w = map.rbf.weights[k];
-      const float s = map.rbf.shape;
-      const float r = glm::length(c - pos);
-      val += w * rbf::func(r / s);
-      
-    }
-  
-  }
-
-  return val;
-
-}
-
 //! Nearest Support Point
 __device__ int __nearest(const map_grid& map, const vec2 pos){
   return map.index.flatten(pos);
-}
-
-__device__ int __nearest(const map_rbf& map, const vec2 pos){
-
-  int nearest = cukd::stackBased::fcp<
-    payload_t,
-    payload_traits
-  >(make_point(pos), map.kdtree.data.data(), map.kdtree.elem());
-  if(nearest >= 0)
-    return map.kdtree.data[nearest].i;
-  else return -1;
-
 }
 
 //
@@ -214,10 +109,6 @@ __device__ vec2 __topos(const map_grid& map, const int nearest){
   return map.index.unflatten(nearest);
 }
 
-__device__ vec2 __topos(const map_rbf& map, const int nearest){
-  return map.rbf.centers[nearest];
-}
-
 //! Sample a Position within the Domain
 //! associated with scaled probability
 template<typename T, typename Map>
@@ -257,43 +148,6 @@ __device__ void __transfer(map_grid& map, const vec2 pos, float transfer, const 
 //
 //    transfer -= t1;
 //    map.height[n] += transfer / Z;
-//
-//  }
-
-}
-
-//! Note: We do a weighted transfer here...
-//! That means that we actually determine the relative
-//! contribution of the transfer to each guy by it's weight...
-//! so we compute the total height once... and then use that for
-//! scaling.
-__device__ void __transfer(map_rbf& map, const vec2 pos, float transfer, const float Z) {
-
-  // Single-Material Transfer
-  const int n = __nearest(map, pos);
-  map.rbf.weights[n] += 10.0f * transfer / Z;
-
-//  const size_t B = 64;
-//  const float rad = map.rbf.shape * 10.0f;
-//  cukd::HeapCandidateList<B> list(rad);
-//  knn<B>(map.kdtree, pos, list);
-//
-//  // Add Back to Weights:
-//  for(int b = 0; b < B; ++b) {
-//
-//    int k = list.get_pointID(b);
-//    if(k >= 0){
-//      k = map.kdtree.data[k].i;
-//      
-//      // accumulate into val!
-//      const vec2 c = map.rbf.centers[k];
-//      const float w = map.rbf.weights[k];
-//      const float s = map.rbf.shape;
-//      const float r = glm::length(c - pos);
-//      const float f = rbf::func(r / s);
-//      map.rbf.weights[k] += 200.0f * transfer / Z * f;
-//
-//    }
 //
 //  }
 

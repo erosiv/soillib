@@ -151,18 +151,6 @@ __device__ void move(const map_grid& map, particle_t& part){
 
 }
 
-__device__ void move(const map_rbf& map, particle_t& part){
-
-  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
-  const float ds = glm::length(cl)/glm::length(part.speed);
-
-  part.pos = part.pos + map.rbf.shape * ds * (part.speed / cl);
-  part.ind = __nearest(map, part.pos);
-
-}
-
 //! Integrate Sub-Solution Quantities in Quasi-Static Time
 template<typename Map>
 __device__ void integrate(const Map& map, const data_t& data, const param_t& param, particle_t& part){
