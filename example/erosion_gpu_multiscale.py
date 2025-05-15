@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
 
-from __common__ import show_height, show_relief, show_discharge, show_layers
+from __common__ import show_height, show_relief, show_discharge, show_layers, zip_save
 
 '''
 Multi Resolution GPU Erosion Example
@@ -26,7 +26,7 @@ Multi-Scale Erosion Procedure:
 def main():
 
   simres = np.array([256, 256])         # Resolution [px]
-  wscale = np.array([40.0, 40.0, 4.0])  # World Scale [km] (x, y, z)
+  wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
   pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
             wscale[1]/simres[1],
@@ -119,10 +119,10 @@ def main():
     return model, newtrack, newdata, index, simres, pscale
 
   ksteps = [
-    ([256, 256], 512),
-    ([512, 512], 256),
-    ([1024, 1024], 128),
-#    ([2048, 2048], 128)
+    ([256, 256], 128),
+    ([512, 512], 32),
+    ([1024, 1024], 32),
+    ([2048, 2048], 32)
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.
@@ -141,16 +141,11 @@ def main():
   # Geotiff so that pixel and value scale are respected,
   # and we must also add the height of all layers.
 
-  height = model.height
-  soil.add(height, model.sediment)
-
-  tiff_out = soil.geotiff(height.cpu(), index)
-  tiff_out.meta.scale = pscale  # Pixel Scale Important!
-  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu_multi.tiff")
-
-#  show_layers([model.height, model.sediment], index, pscale)
-  show_relief(height, index, pscale)
-#  show_discharge(model.discharge, index)
+  zip_save('/home/nickmcdonald/Datasets/erosion_multi.zip', {
+    "height": model.height,
+    "sediment": model.sediment,
+    "discharge": data.discharge
+  }, index, pscale)
 
 if __name__ == "__main__":
   main()

@@ -3,6 +3,7 @@ import soillib as soil
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
+from zipfile import ZipFile
 
 def iter_tiff(path, max_files = None):
 
@@ -175,3 +176,13 @@ def plot_images(images):
       interpolation='bilinear')
 
   plt.show()
+
+def zip_save(output, fields, index, pscale):
+  with ZipFile(output, 'w') as myzip:
+    for name, field in fields.items():
+      filename = f"{name}.tiff"
+      tiff_out = soil.geotiff(field.cpu(), index)
+      tiff_out.meta.scale = pscale  # Pixel Scale Important!
+      tiff_out.write(filename)
+      myzip.write(filename)
+      os.remove(filename)
