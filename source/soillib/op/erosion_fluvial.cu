@@ -116,16 +116,17 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float& R = param.rainfall;        // Rainfall Amount  [m/y]
-  const float& g = param.gravity;         // Specific Gravity [m/s^2]
-  const float& nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
+  const float& R = param.rainfall;    //!< Rainfall Amount  [m/y]
+  const float& g = param.gravity;     //!< Specific Gravity [m/s^2]
+  const float& nu = param.viscosity;  //!< Kinematic Viscosity [m^2/s]
 
   // Initial Velocity Estimate
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
   const vec2 average_speed = __avespeed(momentum, discharge);
-  const vec3 normal = __normal(map, part.pos, scale);
-  part.speed = g * vec2(normal.x, normal.y) + nu * average_speed / Ac;
+
+  const vec2 grad = __grad(map, part.pos, scale); //!< Scaled Direction
+  part.speed = -g * grad + nu * average_speed / Ac;
 
   // Initial Tracking Values
 
@@ -162,27 +163,44 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   
-  const float g = param.gravity;          // Specific Gravity [m/s^2]
-  const float k1 = param.bedShear;        // Shear-Stress Bed-Shear
-  const float k2 = param.viscosity;       // Shear-Stress Viscosity [m^2/s]
+  const float g = param.gravity;    //!< Specific Gravity [m/s^2]
+  const float k1 = param.bedShear;  //!< Shear-Stress Bed-Shear
+  const float k2 = param.viscosity; //!< Shear-Stress Viscosity [m^2/s]
+  const float ke = param.evapRate;  //!< Water Evaporation Rate [1/s]
   
   // Dynamic Time-Step [s]
   const float ds = glm::length(cl)/glm::length(part.speed);
+
+  // Apply Evaporation to Volume
+  part.vol *= __expf(-ds * param.evapRate);
   
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
   const vec2 average_speed = __avespeed(momentum, discharge);
-  const vec3 normal = __normal(map, part.pos, scale);
-  
+
+  part.speed = part.speed + ds * k2 * average_speed;
+  part.speed = part.speed - part.speed * __expf(-ds * k1);
+  part.dspeed = part.dspeed - part.dspeed * __expf(-ds * k1);
+
+  // part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
+
+//  if(discharge >= 1.0f){
+
+//    part.dspeed = part.dspeed - part.dspeed * ds * k1;// / (discharge);
+
+//    part.dspeed = 1.0f/(1.0f + ds * (k1))*part.dspeed;
+//  }
+
+  /*
+  // 
   //! Explicit Euler Forward Integration for Gravity
-  part.speed = part.speed + ds * g * vec2(normal.x, normal.y);
-
+  const vec2 grad = __grad(map, part.pos, scale);
+  part.speed = part.speed - ds * g * grad;
+  
   //! Implicit Euiler Forward Integration for Bed Shear-Stress and Viscosity
-  part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
-  part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
-
-  //! Implicit Euler Forward Integration for Volume Evaporation
-  part.vol = 1.0f/(1.0f + ds*param.evapRate)*part.vol;
+  
+  */
+  //part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
 
 }
 
