@@ -124,14 +124,14 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
   const vec2 average_speed = __avespeed(momentum, discharge);
-
   const vec2 grad = __grad(map, part.pos, scale); //!< Scaled Direction
-  part.speed = -g * grad + nu * average_speed / Ac;
 
   // Initial Tracking Values
+  
+  part.vol = Ac * R;                                  //!< Volume Rate [m^3/s]
+  part.dspeed = -g * grad + nu * average_speed / Ac;  //!< Velocity Rate [m/s^2]
 
-  part.vol = Ac * R;        //!< Volume Rate [m^3/s]
-  part.dspeed = part.speed; //!< Velocity Rate [m/s^2]
+  part.speed = part.dspeed; 
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
@@ -177,30 +177,12 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
   const vec2 average_speed = __avespeed(momentum, discharge);
+  const vec2 grad = __grad(map, part.pos, scale);
 
+  part.speed = part.speed - ds * g * grad;
   part.speed = part.speed + ds * k2 * average_speed;
   part.speed = part.speed - part.speed * __expf(-ds * k1);
   part.dspeed = part.dspeed - part.dspeed * __expf(-ds * k1);
-
-  // part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
-
-//  if(discharge >= 1.0f){
-
-//    part.dspeed = part.dspeed - part.dspeed * ds * k1;// / (discharge);
-
-//    part.dspeed = 1.0f/(1.0f + ds * (k1))*part.dspeed;
-//  }
-
-  /*
-  // 
-  //! Explicit Euler Forward Integration for Gravity
-  const vec2 grad = __grad(map, part.pos, scale);
-  part.speed = part.speed - ds * g * grad;
-  
-  //! Implicit Euiler Forward Integration for Bed Shear-Stress and Viscosity
-  
-  */
-  //part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
 
 }
 
