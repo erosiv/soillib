@@ -37,22 +37,22 @@ namespace debris {
 // Mass-Transfer Model
 //
 
+//! Deposition Rate [m^3/s]
 __device__ float deposit(const param_t& param, const float mass) {
 
-  const float kds = param.settleRate;
+  const float kds = param.settleRate; //!< Thermal Deposition Rate [1/s]
   return kds * mass;
 
 }
 
+//! Suspension Rate [m^3/s]
 __device__ float suspend(const map_t& map, const param_t& param, const float hdiff) {
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-  const float Z = Ac * scale.z;           // Height Conversion [m^3]
   
-  const float kth0 = param.thermalRate;
-  const float suspend = kth0 * glm::max(0.0f, hdiff) * Ac;
+  const float kth = param.thermalRate;  //!< Thermal Erosion Rate [1/s]
+  const float suspend = kth * glm::max(0.0f, hdiff) * Ac;
   return suspend;
 
 }
@@ -148,7 +148,8 @@ __device__ void integrate_mt(const map_t& map, const param_t& param, debris_t& p
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  float deposit = debris::deposit(param, part.mass);
+  const float ds = 1.0f;//glm::length(cl)/glm::length(part.speed);
+  float deposit = ds * debris::deposit(param, part.mass);
   deposit = glm::min(deposit, part.mass);
   part.mass -= deposit;
 
@@ -162,7 +163,6 @@ __device__ void track(data_t& track, const debris_t& part){
   atomicAdd(&track.debris_momentum[part.ind].y, (part.mass*part.dspeed.y)/part.Q);
 
 }
-
 
 //
 // Kernels
@@ -210,11 +210,11 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const vec2 pos = __topos(map, n);
   const float hdiff = __hdiff(map, param, pos + vec2(0.5f));
 
-//  const float dt = param.timeStep;
+  const float dt = param.timeStep;
   const float deposit = debris::deposit(param, mass);
   const float suspend = debris::suspend(map, param, hdiff);
   float transfer = (deposit - suspend);
-  transfer = debris::limit(transfer, mass, hdiff, scale);
+  transfer = debris::limit(dt * transfer, mass, hdiff, scale);
   __transfer(map, pos, transfer, Z);
 
 }

@@ -120,9 +120,9 @@ def main():
 
   ksteps = [
     ([256, 256], 128),
-    ([512, 512], 32),
-    ([1024, 1024], 32),
-    ([2048, 2048], 32)
+    ([512, 512], 64),
+    ([1024, 1024], 64),
+    ([2048, 2048], 64)
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.

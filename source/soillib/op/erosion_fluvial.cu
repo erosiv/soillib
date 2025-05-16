@@ -19,15 +19,15 @@ namespace soil {
 
 struct particle_t {
 
-  vec2 pos;   //!< World Position [pix]
-  vec2 speed; //!< World Velocity [m/s]
+  vec2 pos;     //!< Grid-Space Position [pix]
+  vec2 speed;   //!< World-Space Velocity [m/s]
 
-  float Q;  //!< Weighted Sampling Probability
-  int ind;  //!< Nearest Support Index
+  vec2 dspeed;  //!< Characteristic Speed Rate  [m/s^2]
+  float vol;    //!< Characteristic Volume Rate [m^3/s]
+  float sed;    //!< Characteristic Mass Rate   [kg/s]
 
-  vec2 dspeed;  //!< Characteristic Speed Rate
-  float vol;    //!< Characteristic Volume Rate
-  float sed;    //!< Characteristic Mass Rate
+  int ind;      //!< Nearest Support Index
+  float Q;      //!< Weighted Sampling Probability
 
 };
 
@@ -40,15 +40,15 @@ namespace fluvial {
 //  value-clamping and limiting only occurs in the composite sum.
 //
 
-//! Mass Deposition Rate
-__device__ float deposit(const param_t& param, const float mass, const float discharge){
+//! Mass Deposition Rate:
+__device__ float deposit(const param_t& param, const float dt, const float mass, const float discharge){
 
   if(discharge < 1.0f)
     return 0.0f;
 
-  const float kd = param.depositionRate;        // Fluvial Deposition Rate [1/y]
-  const float deposit = kd * mass;// / discharge;  // Deposited Mass [kg]
-  return deposit;
+  const float kd = param.depositionRate;      //!< Fluvial Deposition Rate [1/y]
+  const float decay = (1.0f-__expf(-dt*kd));  //!< Total Decay Factor []
+  return decay * mass / discharge;
 
 }
 
@@ -61,10 +61,10 @@ __device__ float suspend(const param_t& param, const vec2 momentum, const float 
   const float alpha = 0.1333f;
   const float fD = 0.1f;                  //!< Darcy-Weisbach Friction Factor
   const float rho = 1.0f;                 //!< Density of Fluid [kg/m^3]
-  const float ks = param.suspensionRate;  // Fluvial Suspension Rate [(m^3/y)^-0.4]
+  const float ks = param.suspensionRate;  //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
-  const float velocity = glm::length(momentum / discharge);
-  const float shear = 0.125f * fD * rho * velocity * velocity;
+  const float velocity = glm::length(momentum / discharge);     //!< [m/s]
+  const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
   const float power = pow(shear * velocity, alpha); // Stream Power Function
   const float suspend = ks * power * vol;           // Concentration
   
@@ -82,9 +82,13 @@ __device__ float limit(float transfer, const float mass, const float slope, cons
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   if(transfer <= 0.0f){
-    const float maxtransfer = 0.1f * slope * glm::length(cl) / scale.z * Z;
-    const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-    transfer = glm::max(transfer, tmin);
+    const float maxtransfer = 0.1f * slope * glm::length(cl) * Ac;
+    if(transfer < maxtransfer){
+      transfer = maxtransfer;
+    }
+
+//    const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
+//    transfer = glm::max(transfer, tmin);
   }
 
   transfer = glm::min(transfer, mass);  // Limit by Mass
@@ -121,12 +125,12 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const vec2 momentum = data.momentum[part.ind];
   const vec2 average_speed = __avespeed(momentum, discharge);
   const vec3 normal = __normal(map, part.pos, scale);
-  part.speed = g * vec2(normal.x, normal.y) + nu * average_speed;
+  part.speed = g * vec2(normal.x, normal.y) + nu * average_speed / Ac;
 
   // Initial Tracking Values
 
   part.vol = Ac * R;        //!< Volume Rate [m^3/s]
-  part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
+  part.dspeed = part.speed; //!< Velocity Rate [m/s^2]
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
@@ -160,7 +164,7 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   
   const float g = param.gravity;          // Specific Gravity [m/s^2]
   const float k1 = param.bedShear;        // Shear-Stress Bed-Shear
-  const float k2 = param.viscosity;       // Shear-Stress Viscosity
+  const float k2 = param.viscosity;       // Shear-Stress Viscosity [m^2/s]
   
   // Dynamic Time-Step [s]
   const float ds = glm::length(cl)/glm::length(part.speed);
@@ -182,26 +186,22 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
 
 }
 
-//! Fluvial Erosion Mass-Transfer System
+//! Fluvial Erosion Mass-Transfer System:
+//!   Exponentially Decay the Mass-Rate Value
 template<typename Map>
 __device__ void integrate_mt(Map& map, data_t& data, const param_t& param, particle_t& part){
 
-  const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+  const vec3 scale = map.scale * 1E3f;    //!< Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); //!< Cell Length [m, m]
 
-  const float ds = glm::length(cl)/glm::length(part.speed); // Dynamic Time-Step
-  
-  const float mass = part.sed;
-  float deposit = param.depositionRate * mass;// / part.vol;
-  deposit = glm::min(deposit, mass);
-  part.sed -= deposit;
+  const float kd = param.depositionRate;                    //!< Fluvial Deposition Rate [1/s]
+  const float ds = glm::length(cl)/glm::length(part.speed); //!< Dynamic Timestep [s]
+  part.sed *= __expf(-ds * param.depositionRate);           //!< Apply Decay
 
 }
 
 //! Track the Differential Quantities along Trajectories
-__device__ void track(data_t& track, const particle_t& part){
+__device__ void track(data_t& track, const particle_t& part) {
 
   atomicAdd(&track.mass[part.ind], (part.sed)/part.Q);
   atomicAdd(&track.discharge[part.ind], (part.vol)/part.Q);
@@ -262,9 +262,10 @@ __global__ void mt(Map map, data_t data, const param_t param){
   const vec2 pos = __topos(map, n);
   const float slope = __slope(map, param, pos + vec2(0.5), momentum); // Local Slope Function
 
-//  const float dt = param.timeStep;        // Geological Timestep [y]
-  const float deposit = fluvial::deposit(param, mass, discharge);
-  const float suspend = fluvial::suspend(param, momentum, discharge, slope, discharge, Ac);
+  const float dt = param.timeStep;        // Geological Timestep [y]
+
+  const float deposit = fluvial::deposit(param, dt, mass, discharge);
+  const float suspend = dt * fluvial::suspend(param, momentum, discharge, slope, discharge, Ac);
   float transfer = (deposit - suspend);
   transfer = fluvial::limit(transfer, mass, slope, scale);
   __transfer(map, pos, transfer, Z);
