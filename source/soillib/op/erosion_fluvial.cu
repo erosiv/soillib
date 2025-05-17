@@ -131,7 +131,7 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   part.vol = Ac * R;                                  //!< Volume Rate [m^3/s]
   part.dspeed = -g * grad + nu * average_speed / Ac;  //!< Velocity Rate [m/s^2]
 
-  part.speed = part.dspeed; 
+  part.speed = average_speed - g * grad; 
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
