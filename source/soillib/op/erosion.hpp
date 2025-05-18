@@ -19,25 +19,25 @@ namespace soil {
 struct param_t {
 
   size_t samples = 8192;
-  size_t maxage = 128;
-  float lrate = 0.2f;
+  size_t maxage = 512;
+  float lrate = 0.1f;
 
-  float timeStep = 10.0f; // [y]
+  float timeStep = 10.0f; //!< [y]
 
-  float rainfall = 1.5f;    // [m/y]
-  float evapRate = 0.0001f; // [m^3/s]
+  float rainfall = 1.0f;    //!< [m/y]
+  float evapRate = 0.0001f; //!< [m^3/s]
 
-  float gravity = 9.81f;   // [m/s]
-  float viscosity = 0.05f; // [m^2/s]
-  float bedShear = 0.025f; //
+  float gravity = 9.81f;        //!< [m/s^2]
+  float viscosity = 0.000001f;  //!< [m^2/s]
+  float bedShear = 0.00625f;    //!< []
 
   float critSlope = 0.57f;
-  float settleRate = 0.005f;
-  float thermalRate = 0.005f;
+  float settleRate = 0.1f;
+  float thermalRate = 0.0025f;
   float debrisShear = 0.9f;
 
-  float depositionRate = 0.01f;
-  float suspensionRate = 0.0007f;
+  float depositionRate = 0.1f;
+  float suspensionRate = 0.05f;
   float exitSlope = 0.0075f;
 };
 

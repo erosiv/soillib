@@ -66,14 +66,14 @@ def main():
   param.samples = 8192  # Number of Samples
   param.maxage = 512    # Maximum Particle Age
   param.lrate = 0.1     # Filter Learning Rate
-  param.timeStep = 10.0 # 
+  param.timeStep = 1.0  #
 
   param.rainfall = 1.0      # Rainfall Rate [m/y]
   param.evapRate = 0.0001   # Evaporation Rate [1/s]
 
   param.gravity = 9.81      # Specific Gravity [m/s^2]
-  param.viscosity = 0.125   # Kinematic Viscosity [m^2/s]
-  param.bedShear = 0.125    # River Bed Shear [m^2/s]
+  param.viscosity = 1000    # Kinematic Viscosity [m^2/s]
+  param.bedShear = 5      # River Bed Shear [m^2/s]
 
   param.critSlope = 0.57      # Critical Slope [m/m]
   param.settleRate = 0.1      # Debris Settling Rate
@@ -119,10 +119,9 @@ def main():
     return model, newtrack, newdata, index, simres, pscale
 
   ksteps = [
-    ([256, 256], 128),
-    ([512, 512], 64),
-    ([1024, 1024], 64),
-    ([2048, 2048], 64)
+    ([256, 256], 3*512),
+    ([512, 512], 512),
+    ([1024, 1024], 512),
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.

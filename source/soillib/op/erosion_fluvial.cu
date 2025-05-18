@@ -59,17 +59,15 @@ __device__ float suspend(const param_t& param, const vec2 momentum, const float 
     return 0.0f;
   
   const float alpha = 0.1333f;
-  const float fD = 0.1f;                  //!< Darcy-Weisbach Friction Factor
-  const float rho = 1.0f;                 //!< Density of Fluid [kg/m^3]
+  const float fD = 0.02f;                 //!< Darcy-Weisbach Friction Factor
+  const float rho = 1000.0f;              //!< Density of Fluid [kg/m^3]
   const float ks = param.suspensionRate;  //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
   const float velocity = glm::length(momentum / discharge);     //!< [m/s]
   const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
   const float power = pow(shear * velocity, alpha); // Stream Power Function
   const float suspend = ks * power * vol;           // Concentration
-  
-  const float mask = (slope < 0.0f)?1.0f:0.0f;  // Activation Function
-  return mask * suspend;                        // [kg/s] (Activated)
+  return glm::abs(suspend);
 
 }
 
@@ -130,15 +128,14 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   
   part.vol = Ac * R;                                  //!< Volume Rate [m^3/s]
   part.dspeed = -g * grad + nu * average_speed / Ac;  //!< Velocity Rate [m/s^2]
-
-  part.speed = average_speed - g * grad; 
+  part.speed = nu * average_speed - g * grad;
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
   //  be suspended, which is when it is in balance with the amount
-  //  that would also be deposited. We can use this to cap the value.
+  //  that would also be deposit1ed. We can use this to cap the value.
   const float slope = __slope(map, param, part.pos, part.speed);  // Local Slope Function
-  const float suspend = fluvial::suspend(param, part.speed*discharge, discharge, slope, part.vol, Ac);
+  const float suspend = fluvial::suspend(param, momentum, discharge, slope, part.vol, Ac);
   part.sed = suspend;
 
 }
@@ -162,7 +159,8 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+
   const float g = param.gravity;    //!< Specific Gravity [m/s^2]
   const float k1 = param.bedShear;  //!< Shear-Stress Bed-Shear
   const float k2 = param.viscosity; //!< Shear-Stress Viscosity [m^2/s]
@@ -180,9 +178,11 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   const vec2 grad = __grad(map, part.pos, scale);
 
   part.speed = part.speed - ds * g * grad;
-  part.speed = part.speed + ds * k2 * average_speed;
-  part.speed = part.speed - part.speed * __expf(-ds * k1);
-  part.dspeed = part.dspeed - part.dspeed * __expf(-ds * k1);
+  part.speed = part.speed + k2 * average_speed / Ac;
+
+  const float shear = k1 * glm::length(cl);
+  part.speed = part.speed * __expf(-shear);
+  part.dspeed = part.dspeed * __expf(-shear);
 
 }
 
