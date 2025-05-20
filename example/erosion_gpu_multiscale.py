@@ -75,7 +75,9 @@ def main():
   param.lrate = 1.0     # Filter Learning Rate
   param.timeStep = 10.0 # Geological Timestep
 
-  param.uplift = 0.1        # Uplift Rate [m/y]
+  # param.uplift = 0.05       # Uplift Rate [m/y]
+  # param.uplift = 0.01       # Uplift Rate [m/y]
+  param.uplift = 0.0
   param.rainfall = 1.0      # Rainfall Rate [m/y]
   param.evapRate = 0.0001   # Evaporation Rate [1/s]
 
@@ -88,7 +90,7 @@ def main():
   param.thermalRate = 0.005   # Thermal Erosion Rate
   param.debrisShear = 0.9
 
-  param.depositionRate = 0.00001  # Fluvial Deposition Rate
+  param.depositionRate = 0.000005  # Fluvial Deposition Rate
   param.suspensionRate = 0.01     # Fluvial Suspension Rate
   param.exitSlope = 0.025         # Boundary Slope [m/m]
 
@@ -137,7 +139,7 @@ def main():
   ksteps = [
     ([256, 256], 2048),
     ([512, 512], 512),
-    ([1024, 1024], 512),
+    ([1024, 1024], 256),
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.
