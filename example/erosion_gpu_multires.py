@@ -135,9 +135,9 @@ def main():
     return model, newtrack, newdata, index, simres, pscale
 
   ksteps = [
-    ([256, 256], 4096),
-    ([512, 512], 512),
-    ([1024, 1024], 512),
+    ([512, 512], 1024),
+#    ([512, 512], 512),
+#    ([1024, 1024], 512),
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.
@@ -156,7 +156,7 @@ def main():
   # Geotiff so that pixel and value scale are respected,
   # and we must also add the height of all layers.
 
-  zip_save('/home/nickmcdonald/Datasets/erosion_multi_uplift.zip', {
+  zip_save('/home/nickmcdonald/Datasets/erosion_multi_512.zip', {
     "height": model.height,
     "sediment": model.sediment,
     "discharge": data.discharge

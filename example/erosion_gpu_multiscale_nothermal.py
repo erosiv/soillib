@@ -75,7 +75,7 @@ def main():
   param.lrate = 1.0     # Filter Learning Rate
   param.timeStep = 10.0 # Geological Timestep
 
-  param.uplift = 0.05       # Uplift Rate [m/y]
+  param.uplift = 0.0     # Uplift Rate [m/y]
   param.rainfall = 1.0      # Rainfall Rate [m/y]
   param.evapRate = 0.0001   # Evaporation Rate [1/s]
 
@@ -85,7 +85,7 @@ def main():
 
   param.critSlope = 0.57      # Critical Slope [m/m]
   param.settleRate = 0.1      # Debris Settling Rate
-  param.thermalRate = 0.005   # Thermal Erosion Rate
+  param.thermalRate = 0.0001   # Thermal Erosion Rate
   param.debrisShear = 0.9
 
   param.depositionRate = 0.000005  # Fluvial Deposition Rate
@@ -156,7 +156,7 @@ def main():
   # Geotiff so that pixel and value scale are respected,
   # and we must also add the height of all layers.
 
-  zip_save('/home/nickmcdonald/Datasets/erosion_multi_uplift.zip', {
+  zip_save('/home/nickmcdonald/Datasets/erosion_multi_nothermal.zip', {
     "height": model.height,
     "sediment": model.sediment,
     "discharge": data.discharge
