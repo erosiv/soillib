@@ -21,7 +21,7 @@ namespace soil {
 
 //
 // Uplift Application
-//
+//  Note: Also applies erosion to map
 
 __global__ void uplift(map_t map, const param_t param) {
 
@@ -30,6 +30,14 @@ __global__ void uplift(map_t map, const param_t param) {
     return;
 
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const float Z = Ac * scale.z;           // Height Conversion [m^3]
+
+  const float transfer = map.transfer[n];
+  const vec2 pos = __topos(map, n);
+  __transfer(map, pos, transfer, Z);
+
   const float dt = param.timeStep;        //!< Geological Timestep [y] 
   const float uplift = param.uplift;      //!< Uplift Rate [m/y]
   const float mask = map.uplift[n];       //!< Uplift Mask
@@ -54,6 +62,10 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
   if(map.rand.elem() != n_samples){
     map.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
     seed(map.rand, 0, 4 * map.age);
+  }
+
+  if(map.transfer.elem() != map.elem){
+    map.transfer = soil::buffer_t<float>(map.elem, soil::host_t::GPU);
   }
 
   //
@@ -84,6 +96,7 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
+    set(map.transfer, 0.0f);
     fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     uplift<<<block(map.elem, 512), 512>>>(map, param);

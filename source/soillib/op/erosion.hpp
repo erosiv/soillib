@@ -60,6 +60,8 @@ struct map_grid {
   soil::buffer_t<float> uplift;   //!< Uplift Control Map
   soil::buffer_t<float> rainfall; //!< Rainfall Control Map
 
+  soil::buffer_t<float> transfer; //!< Transferred Material
+
   soil::buffer_t<curandState> rand;
   int age = 0;                  //!< Model Age
 

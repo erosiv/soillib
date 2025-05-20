@@ -270,7 +270,7 @@ __global__ void mt(Map map, data_t data, const param_t param){
   const float suspend = dt * fluvial::suspend(param, momentum, discharge, slope, discharge, Ac);
   float transfer = (deposit - suspend);
   transfer = fluvial::limit(transfer, mass, slope, scale);
-  __transfer(map, pos, transfer, Z);
+  map.transfer[n] += transfer;
   
 }
 

@@ -215,7 +215,7 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const float suspend = debris::suspend(map, param, hdiff);
   float transfer = (deposit - suspend);
   transfer = debris::limit(dt * transfer, mass, hdiff, scale);
-  __transfer(map, pos, transfer, Z);
+  map.transfer[n] += transfer;
 
 }
 
