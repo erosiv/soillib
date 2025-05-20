@@ -48,7 +48,7 @@ __device__ float deposit(const param_t& param, const float dt, const float mass,
 
   const float kd = param.depositionRate;      //!< Fluvial Deposition Rate [1/y]
   const float decay = (1.0f-__expf(-dt*kd));  //!< Total Decay Factor []
-  return decay * mass / discharge;
+  return decay * mass;// / discharge;
 
 }
 
@@ -114,19 +114,21 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float& R = param.rainfall;    //!< Rainfall Amount  [m/y]
   const float& g = param.gravity;     //!< Specific Gravity [m/s^2]
   const float& nu = param.viscosity;  //!< Kinematic Viscosity [m^2/s]
-
+  
   // Initial Velocity Estimate
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
   const vec2 average_speed = __avespeed(momentum, discharge);
   const vec2 grad = __grad(map, part.pos, scale); //!< Scaled Direction
-
+  
   // Initial Tracking Values
   
-  part.vol = Ac * R;                                  //!< Volume Rate [m^3/s]
+  const float& R = param.rainfall;            //!< Rainfall Rate  [m/y]
+  const float Rmask = map.rainfall[part.ind]; //!< Rainfall Mask
+  part.vol = Ac * R * Rmask;                  //!< Volume Rate [m^3/s]
+
   part.dspeed = -g * grad + nu * average_speed / Ac;  //!< Velocity Rate [m/s^2]
   part.speed = nu * average_speed - g * grad;
 
@@ -191,12 +193,12 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
 template<typename Map>
 __device__ void integrate_mt(Map& map, data_t& data, const param_t& param, particle_t& part){
 
-  const vec3 scale = map.scale * 1E3f;    //!< Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); //!< Cell Length [m, m]
-
-  const float kd = param.depositionRate;                    //!< Fluvial Deposition Rate [1/s]
-  const float ds = glm::length(cl)/glm::length(part.speed); //!< Dynamic Timestep [s]
-  part.sed *= __expf(-ds * param.depositionRate);           //!< Apply Decay
+//  const vec3 scale = map.scale * 1E3f;    //!< Cell Scale [m] (conv. from km)
+//  const vec2 cl = vec2(scale.x, scale.y); //!< Cell Length [m, m]
+//
+//  const float kd = param.depositionRate;                    //!< Fluvial Deposition Rate [1/s]
+//  const float ds = glm::length(cl)/glm::length(part.speed); //!< Dynamic Timestep [s]
+//  part.sed *= __expf(-ds * param.depositionRate);           //!< Apply Decay
 
 }
 
@@ -264,7 +266,7 @@ __global__ void mt(Map map, data_t data, const param_t param){
 
   const float dt = param.timeStep;        // Geological Timestep [y]
 
-  const float deposit = fluvial::deposit(param, dt, mass, discharge);
+  const float deposit = fluvial::deposit(param, dt * glm::length(cl), mass, discharge);
   const float suspend = dt * fluvial::suspend(param, momentum, discharge, slope, discharge, Ac);
   float transfer = (deposit - suspend);
   transfer = fluvial::limit(transfer, mass, slope, scale);

@@ -20,6 +20,25 @@
 namespace soil {
 
 //
+// Uplift Application
+//
+
+__global__ void uplift(map_t map, const param_t param) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= map.elem)
+    return;
+
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+  const float dt = param.timeStep;        //!< Geological Timestep [y] 
+  const float uplift = param.uplift;      //!< Uplift Rate [m/y]
+  const float mask = map.uplift[n];       //!< Uplift Mask
+
+  map.height[n] += dt * mask * uplift / scale.z; //!< Total Height Delta
+
+}
+
+//
 // Erosion Function
 //
 
@@ -67,6 +86,7 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
     // Execute Height-Map Mass-Transfer
     fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
+    uplift<<<block(map.elem, 512), 512>>>(map, param);
 
     // Increment Model Age for Rand-State Initialization
     map.age++;

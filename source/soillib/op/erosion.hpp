@@ -24,6 +24,7 @@ struct param_t {
 
   float timeStep = 10.0f; //!< [y]
 
+  float uplift = 0.1f;      //!< [m/y]
   float rainfall = 1.0f;    //!< [m/y]
   float evapRate = 0.0001f; //!< [m^3/s]
 
@@ -54,6 +55,10 @@ struct map_grid {
 
   soil::buffer_t<float> height;
   soil::buffer_t<float> sediment;
+
+  // User Control Fields
+  soil::buffer_t<float> uplift;   //!< Uplift Control Map
+  soil::buffer_t<float> rainfall; //!< Rainfall Control Map
 
   soil::buffer_t<curandState> rand;
   int age = 0;                  //!< Model Age

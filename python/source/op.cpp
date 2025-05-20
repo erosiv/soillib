@@ -56,6 +56,12 @@ module.def("max", [](const soil::buffer& buf){
   });
 });
 
+module.def("clamp", [](soil::buffer& buf, const float min, const float max){
+  soil::select(buf.type(), [&]<std::same_as<float> S>() -> void {
+    soil::clamp(buf.as<S>(), min, max);
+  });
+});
+
 //
 // Generic Buffer Functions
 //
@@ -170,6 +176,7 @@ param_t.def_rw("settleRate", &soil::param_t::settleRate);
 param_t.def_rw("thermalRate", &soil::param_t::thermalRate);
 param_t.def_rw("debrisShear", &soil::param_t::debrisShear);
 
+param_t.def_rw("uplift", &soil::param_t::uplift);
 param_t.def_rw("rainfall", &soil::param_t::rainfall);
 param_t.def_rw("evapRate", &soil::param_t::evapRate);
 param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
@@ -200,6 +207,20 @@ map_t.def_prop_rw("sediment",
   return soil::buffer(map.sediment);
 },[](soil::map_t& map, soil::buffer buffer){
   map.sediment = buffer.as<float>();
+});
+
+map_t.def_prop_rw("uplift",
+[](soil::map_t& map){
+  return soil::buffer(map.uplift);
+},[](soil::map_t& map, soil::buffer buffer){
+  map.uplift = buffer.as<float>();
+});
+
+map_t.def_prop_rw("rainfall",
+[](soil::map_t& map){
+  return soil::buffer(map.rainfall);
+},[](soil::map_t& map, soil::buffer buffer){
+  map.rainfall = buffer.as<float>();
 });
 
 //

@@ -49,6 +49,13 @@ def main():
   model.height = height.gpu()
   model.sediment = sediment.gpu()
 
+  model.rainfall = soil.buffer(soil.float32, index.elem(), soil.gpu)
+  soil.set(model.rainfall, 1.0)
+
+  uplift = soil.noise(index, noise_param)
+  soil.clamp(uplift, 0.0, 1.0)
+  model.uplift = uplift.gpu()
+
   # Construct Data
 
   data = soil.data_t(index.elem())
@@ -65,24 +72,25 @@ def main():
   param = soil.param_t()
   param.samples = 8192  # Number of Samples
   param.maxage = 512    # Maximum Particle Age
-  param.lrate = 0.1     # Filter Learning Rate
-  param.timeStep = 1.0  #
+  param.lrate = 1.0     # Filter Learning Rate
+  param.timeStep = 10.0 # Geological Timestep
 
+  param.uplift = 0.1        # Uplift Rate [m/y]
   param.rainfall = 1.0      # Rainfall Rate [m/y]
   param.evapRate = 0.0001   # Evaporation Rate [1/s]
 
   param.gravity = 9.81      # Specific Gravity [m/s^2]
-  param.viscosity = 1000    # Kinematic Viscosity [m^2/s]
-  param.bedShear = 5      # River Bed Shear [m^2/s]
+  param.viscosity = 0.000001
+  param.bedShear = 0.00625
 
   param.critSlope = 0.57      # Critical Slope [m/m]
   param.settleRate = 0.1      # Debris Settling Rate
-  param.thermalRate = 0.025   # Thermal Erosion Rate
+  param.thermalRate = 0.005   # Thermal Erosion Rate
   param.debrisShear = 0.9
 
-  param.depositionRate = 0.1  # Fluvial Deposition Rate
-  param.suspensionRate = 0.5  # Fluvial Suspension Rate
-  param.exitSlope = 0.025     # Boundary Slope [m/m]
+  param.depositionRate = 0.00001  # Fluvial Deposition Rate
+  param.suspensionRate = 0.01     # Fluvial Suspension Rate
+  param.exitSlope = 0.025         # Boundary Slope [m/m]
 
   timer = soil.timer()
 
@@ -101,9 +109,17 @@ def main():
     sediment = soil.buffer(soil.float32, index.elem(), soil.gpu)
     soil.resize(sediment, model.sediment, simres, oldres)
 
+    rainfall = soil.buffer(soil.float32, index.elem(), soil.gpu)
+    soil.resize(rainfall, model.rainfall, simres, oldres)
+
+    uplift = soil.buffer(soil.float32, index.elem(), soil.gpu)
+    soil.resize(uplift, model.uplift, simres, oldres)
+
     model = soil.map_t(index, pscale)
     model.height = height
     model.sediment = sediment
+    model.rainfall = rainfall
+    model.uplift = uplift
 
     # Update Tracking
 
@@ -119,7 +135,7 @@ def main():
     return model, newtrack, newdata, index, simres, pscale
 
   ksteps = [
-    ([256, 256], 3*512),
+    ([256, 256], 2048),
     ([512, 512], 512),
     ([1024, 1024], 512),
   ]
