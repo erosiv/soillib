@@ -186,8 +186,13 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
   //! Explicit Euler Forward Integration for Gravity
   const vec2 normal = __normal(map, part.pos, scale);
   part.speed = part.speed + ds * g * normal;
-  part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed;// + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
-  part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
+  
+  const float shear = k1 * glm::length(cl);
+  part.speed = part.speed * __expf(-shear);
+  part.dspeed = part.dspeed * __expf(-shear);
+
+  //part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed;// + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
+  //part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
 
 }
 

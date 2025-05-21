@@ -58,10 +58,10 @@ __device__ float suspend(const param_t& param, const vec2 momentum, const float 
   if(discharge < 1.0f)
     return 0.0f;
   
-  const float alpha = 0.1333f;
-  const float fD = 0.02f;                 //!< Darcy-Weisbach Friction Factor
-  const float rho = 1000.0f;              //!< Density of Fluid [kg/m^3]
-  const float ks = param.suspensionRate;  //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
+  const float alpha = param.fluvialExponent;  
+  const float fD = 0.02f;                     //!< Darcy-Weisbach Friction Factor
+  const float rho = 1000.0f;                  //!< Density of Fluid [kg/m^3]
+  const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
   const float velocity = glm::length(momentum / discharge);     //!< [m/s]
   const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]

@@ -41,8 +41,9 @@ struct param_t {
   float debrisViscosity = 0.001f;
   float debrisBedShear = 0.9f;
   float debrisDensity = 2.0f;
-
+  
   // Fluvial Erosion Parameters
+  float fluvialExponent = 0.1333f;
   float depositionRate = 0.1f;
   float suspensionRate = 0.05f;
   float exitSlope = 0.0075f;

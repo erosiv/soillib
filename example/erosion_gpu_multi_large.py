@@ -26,7 +26,7 @@ Multi-Scale Erosion Procedure:
 def main():
 
   simres = np.array([256, 256])         # Resolution [px]
-  wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
+  wscale = np.array([40.0, 40.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
   pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
             wscale[1]/simres[1],
@@ -70,27 +70,31 @@ def main():
   # Construct Parameters
 
   param = soil.param_t()
-  param.samples = 8192  # Number of Samples
-  param.maxage = 512    # Maximum Particle Age
-  param.lrate = 1.0     # Filter Learning Rate
-  param.timeStep = 10.0 # Geological Timestep
 
-  param.uplift = 0.05       # Uplift Rate [m/y]
-  param.rainfall = 1.0      # Rainfall Rate [m/y]
-  param.evapRate = 0.0001   # Evaporation Rate [1/s]
+  param.timeStep = 10.0           # Geological Timestep
+  param.samples = 8192            # Number of Samples
+  param.maxage = 512              # Maximum Particle Age
+  param.lrate = 1.0               # Filter Learning Rate
 
-  param.gravity = 9.81      # Specific Gravity [m/s^2]
-  param.viscosity = 0.000001
-  param.bedShear = 0.00625
-
-  param.critSlope = 0.57      # Critical Slope [m/m]
-  param.settleRate = 0.1      # Debris Settling Rate
-  param.thermalRate = 0.005   # Thermal Erosion Rate
-  param.debrisShear = 0.9
-
-  param.depositionRate = 0.000005  # Fluvial Deposition Rate
-  param.suspensionRate = 0.01     # Fluvial Suspension Rate
+  param.gravity = 9.81            # Specific Gravity [m/s^2]
+  param.uplift = 0.01              # Uplift Rate [m/y]
   param.exitSlope = 0.025         # Boundary Slope [m/m]
+  
+  param.rainfall = 1.0            # Rainfall Rate [m/y]
+  param.evapRate = 0.0001         # Evaporation Rate [1/s]
+  param.depositionRate = 0.00001  # Fluvial Deposition Rate
+  param.suspensionRate = 0.005    # Fluvial Suspension Rate
+  param.viscosity = 0.000001      # Fluvial Kinematic Viscosity [m^2/s]
+  param.bedShear = 0.00625        # Fluvial Bed Shear-Stress [Pa s]
+
+  param.critSlope = 0.75
+  param.debrisCreepRate = 0.00000005
+  param.debrisSuspensionRate = 0.0000001
+  param.debrisDepositionRate = 0.01
+  param.debrisBedShear = 0.1
+  param.debrisShear = 2E6       # Yield Stress [Pa]
+  param.debrisDensity = 2500.0  # Density [kg/m^3]
+  param.debrisViscosity = 0.0
 
   timer = soil.timer()
 
@@ -135,9 +139,10 @@ def main():
     return model, newtrack, newdata, index, simres, pscale
 
   ksteps = [
+    ([256, 256], 2048),
     ([512, 512], 1024),
-#    ([512, 512], 512),
-#    ([1024, 1024], 512),
+    ([1024, 1024], 1024),
+    ([2048, 2048], 512),
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.
@@ -156,7 +161,7 @@ def main():
   # Geotiff so that pixel and value scale are respected,
   # and we must also add the height of all layers.
 
-  zip_save('/home/nickmcdonald/Datasets/erosion_multi_512.zip', {
+  zip_save('/home/nickmcdonald/Datasets/erosion_multi_large.zip', {
     "height": model.height,
     "sediment": model.sediment,
     "discharge": data.discharge

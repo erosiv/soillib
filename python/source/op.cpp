@@ -185,6 +185,8 @@ param_t.def_rw("rainfall", &soil::param_t::rainfall);
 param_t.def_rw("evapRate", &soil::param_t::evapRate);
 param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
 param_t.def_rw("suspensionRate", &soil::param_t::suspensionRate);
+param_t.def_rw("fluvialExponent", &soil::param_t::fluvialExponent);
+
 param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("viscosity", &soil::param_t::viscosity);
 param_t.def_rw("bedShear", &soil::param_t::bedShear);
