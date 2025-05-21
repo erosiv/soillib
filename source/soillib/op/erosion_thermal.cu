@@ -37,24 +37,71 @@ namespace debris {
 // Mass-Transfer Model
 //
 
+// Old Deposition Model:
 //! Deposition Rate [m^3/s]
-__device__ float deposit(const param_t& param, const float mass) {
+// __device__ float landslide_deposit(const param_t& param, const float mass) {
+// 
+//   const float kds = param.settleRate; //!< Thermal Deposition Rate [1/s]
+//   return kds * mass;
+//   
+// }
 
-  const float kds = param.settleRate; //!< Thermal Deposition Rate [1/s]
-  return kds * mass;
+//! Suspension Rate [m^3/s]
+__device__ float landslide_suspend(const param_t& param, const float hdiff, const vec3 scale) {
+
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+
+  const float g = param.gravity;            //!< Specific Gravity [m/s^2]
+  const float kdl = param.debrisCreepRate;  //!< Landslide Erosion Rate [1/s]
+  const float rho = param.debrisDensity;    //!< Debris Density [kg / m^3]
+
+  const float landslide = kdl * rho * g * glm::max(0.0f, hdiff) * Ac;
+  return landslide;
+
+}
+
+//! Deposition Rate [m^3/s]
+__device__ float deposit(const param_t& param, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
+
+  const float kdd = param.debrisDepositionRate; //!< Thermal Deposition Rate [1/s]
+  return kdd * mass;
 
 }
 
 //! Suspension Rate [m^3/s]
-__device__ float suspend(const map_t& map, const param_t& param, const float hdiff) {
+__device__ float suspend(const param_t& param, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
 
-  const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
-  
-  const float kth = param.thermalRate;  //!< Thermal Erosion Rate [1/s]
-  const float suspend = kth * glm::max(0.0f, hdiff) * Ac;
-  return suspend;
 
+  const float kds = param.debrisSuspensionRate; //!< Thermal Deposition Rate [1/s]
+  const float rho = param.debrisDensity;        //!< Debris Density
+  const float g = param.gravity;                //!< Specific Gravity [m/s^2]
+  const float tau = param.debrisShear;    //!< Debris-Flow Bed Shear Pa s
+  const float mu = param.debrisViscosity; //!< Debris Flow Viscosity
+  
+  if(mass < 1.0f){
+    return 0.0;
+  }
+
+  const vec2 speed = momentum / mass;
+  if(glm::length(speed) < 1.0f){
+    return 0.0f;
+  }
+
+  const float sdiff = g * mass * (hdiff);// - param.critSlope);
+  const float stress_yield = tau / rho;
+//  const float stress_viscous =  mu * glm::length(speed) / height;
+  return kds * glm::max(0.0f, sdiff - stress_yield) * Ac;// / glm::length(speed);
+
+//  const float height = (glm::length(momentum) / glm::length(speed)) / Ac;
+//  const float abrade = rho * g * height * hdiff;
+//  const float stable = rho * g * height * param.critSlope;
+//  const float shear = tau + stable + mu * glm::length(speed) / height;
+//  
+//  return kds * glm::max(0.0f, shear - abrade) / rho;// / glm::length(speed);
+  
 }
 
 __device__ float limit(float transfer, const float mass, const float hdiff, const vec3 scale){
@@ -68,11 +115,11 @@ __device__ float limit(float transfer, const float mass, const float hdiff, cons
 //    transfer = transfer * glm::max(1.0f, maxtransfer / transfer);
 //  }
 
-  //   
-  // if(transfer < 0.0f){
-  //   const float maxtransfer = 0.15f * glm::max(0.0f, hdiff) * Ac;
-  //   transfer = -glm::min(-transfer, maxtransfer);
-  // }
+  if(transfer < 0.0f){
+    const float maxtransfer = glm::max(0.0f, hdiff) * Ac;
+    if(transfer < -maxtransfer)
+      transfer = -maxtransfer;
+  }
 
   transfer = glm::min(transfer, mass);
   return transfer;
@@ -100,8 +147,12 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& p
   part.speed = g * normal;
   part.dspeed = part.speed; //!< Velocity Rate [m^2/s^2]
 
+  const float mass = data.debris[part.ind];
+  const vec2 momentum = data.debris_momentum[part.ind];
+
   float hdiff = __hdiff(map, param, part.pos);
-  float suspend = debris::suspend(map, param, hdiff);
+  float suspend = debris::landslide_suspend(param, hdiff, scale);
+  suspend += debris::suspend(param, mass, hdiff, momentum, scale);
   part.mass = suspend;
 
 }
@@ -126,9 +177,9 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   
-  const float g = param.gravity;      // Specific Gravity [m/s^2]
-  const float k1 = param.debrisShear; // Shear-Stress Bed-Shear
-  const float k2 = 0.0f;              // Shear-Stress Viscosity
+  const float g = param.gravity;          // Specific Gravity [m/s^2]
+  const float k1 = param.debrisBedShear;  // Shear-Stress Bed-Shear
+  const float k2 = 0.0f;                  // Shear-Stress Viscosity
 
   const float ds = glm::length(cl)/glm::length(part.speed);
   
@@ -149,7 +200,7 @@ __device__ void integrate_mt(const map_t& map, const param_t& param, debris_t& p
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
   const float ds = 1.0f;//glm::length(cl)/glm::length(part.speed);
-  float deposit = ds * debris::deposit(param, part.mass);
+  float deposit = ds * debris::deposit(param, part.mass, 0.0f, vec2(0.0f), scale);
   deposit = glm::min(deposit, part.mass);
   part.mass -= deposit;
 
@@ -209,11 +260,14 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const float mass = data.debris[n];               // Suspended Mass Function
   const vec2 pos = __topos(map, n);
   const float hdiff = __hdiff(map, param, pos + vec2(0.5f));
+  const vec2 momentum = data.debris_momentum[n];
 
   const float dt = param.timeStep;
-  const float deposit = debris::deposit(param, mass);
-  const float suspend = debris::suspend(map, param, hdiff);
-  float transfer = (deposit - suspend);
+  const float landslide = debris::landslide_suspend(param, hdiff, scale);
+  const float deposit = debris::deposit(param, mass, hdiff, momentum, scale);
+  const float suspend = debris::suspend(param, mass, hdiff, momentum, scale);
+
+  float transfer = (deposit - suspend - landslide);
   transfer = debris::limit(dt * transfer, mass, hdiff, scale);
   map.transfer[n] += transfer;
 
