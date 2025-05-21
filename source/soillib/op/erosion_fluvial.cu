@@ -48,7 +48,7 @@ __device__ float deposit(const param_t& param, const float dt, const float mass,
 
   const float kd = param.depositionRate;      //!< Fluvial Deposition Rate [1/y]
   const float decay = (1.0f-__expf(-dt*kd));  //!< Total Decay Factor []
-  return decay * mass;// / discharge;
+  return decay * mass;
 
 }
 
@@ -65,8 +65,8 @@ __device__ float suspend(const param_t& param, const vec2 momentum, const float 
   
   const float velocity = glm::length(momentum / discharge);     //!< [m/s]
   const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-  const float power = pow(shear * velocity, alpha); // Stream Power Function
-  const float suspend = ks * power * vol;           // Concentration
+  const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
+  const float suspend = ks * power * vol * Area;                //!< Concentration
   return glm::abs(suspend);
 
 }
@@ -84,9 +84,6 @@ __device__ float limit(float transfer, const float mass, const float slope, cons
     if(transfer < maxtransfer){
       transfer = maxtransfer;
     }
-
-//    const float tmin = transfer * glm::min(1.0f, glm::abs(maxtransfer/transfer));
-//    transfer = glm::max(transfer, tmin);
   }
 
   transfer = glm::min(transfer, mass);  // Limit by Mass
@@ -114,8 +111,8 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float& g = param.gravity;     //!< Specific Gravity [m/s^2]
-  const float& nu = param.viscosity;  //!< Kinematic Viscosity [m^2/s]
+  const float g = param.gravity;     //!< Specific Gravity [m/s^2]
+  const float nu = param.viscosity;  //!< Kinematic Viscosity [m^2/s]
   
   // Initial Velocity Estimate
   const float discharge = data.discharge[part.ind];
@@ -129,8 +126,8 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const float Rmask = map.rainfall[part.ind]; //!< Rainfall Mask
   part.vol = Ac * R * Rmask;                  //!< Volume Rate [m^3/s]
 
-  part.dspeed = -g * grad + nu * average_speed / Ac;  //!< Velocity Rate [m/s^2]
-  part.speed = nu * average_speed - g * grad;
+  part.dspeed = nu * average_speed - g * grad;  //!< Velocity Rate [m/s^2]
+  part.speed = nu * average_speed - g * grad;   //!< Velocity [m/s]
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
@@ -179,8 +176,8 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   const vec2 average_speed = __avespeed(momentum, discharge);
   const vec2 grad = __grad(map, part.pos, scale);
 
-  part.speed = part.speed - ds * g * grad;
-  part.speed = part.speed + k2 * average_speed / Ac;
+  part.speed = part.speed - g * grad;
+  part.speed = part.speed + k2 * average_speed;
 
   const float shear = k1 * glm::length(cl);
   part.speed = part.speed * __expf(-shear);

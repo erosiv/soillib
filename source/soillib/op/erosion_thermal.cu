@@ -54,10 +54,10 @@ __device__ float landslide_suspend(const param_t& param, const float hdiff, cons
 }
 
 //! Deposition Rate [m^3/s]
-__device__ float deposit(const param_t& param, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
+__device__ float deposit(const param_t& param, const float dt, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
 
   const float kdd = param.debrisDepositionRate; //!< Thermal Deposition Rate [1/s]
-  const float decay = (1.0f-__expf(-kdd));      //!< Total Decay Factor []
+  const float decay = (1.0f-__expf(-dt * kdd));      //!< Total Decay Factor []
   return decay * mass;
 
 }
@@ -176,15 +176,12 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
   const float ds = glm::length(cl)/glm::length(part.speed);
   
   //! Explicit Euler Forward Integration for Gravity
-  const vec2 normal = __normal(map, part.pos, scale);
-  part.speed = part.speed + ds * g * normal;
+  const vec2 grad = __grad(map, part.pos, scale);
+  part.speed = part.speed - ds * g * grad;
   
   const float shear = k1 * glm::length(cl);
   part.speed = part.speed * __expf(-shear);
   part.dspeed = part.dspeed * __expf(-shear);
-
-  //part.speed =  1.0f/(1.0f + ds * (k1+k2))*part.speed;// + ds*k2/(1.0f + ds*(k1+k2))*average_speed;
-  //part.dspeed = 1.0f/(1.0f + ds * (k1+k2))*part.dspeed;
 
 }
 
@@ -196,10 +193,10 @@ __device__ void integrate_mt(const map_t& map, const param_t& param, debris_t& p
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const float ds = 1.0f;//glm::length(cl)/glm::length(part.speed);
-  float deposit = ds * debris::deposit(param, part.mass, 0.0f, vec2(0.0f), scale);
-  deposit = glm::min(deposit, part.mass);
-  part.mass -= deposit;
+//  const float ds = 10.0f;//glm::length(cl);///glm::length(part.speed);
+//  float deposit = debris::deposit(param, ds, part.mass, 0.0f, vec2(0.0f), scale);
+//  deposit = glm::min(deposit, part.mass);
+//  part.mass -= deposit;
 
 }
 
@@ -260,12 +257,12 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const vec2 momentum = data.debris_momentum[n];
 
   const float dt = param.timeStep;
-  const float landslide = debris::landslide_suspend(param, hdiff, scale);
-  const float deposit = debris::deposit(param, mass, hdiff, momentum, scale);
-  const float suspend = debris::suspend(param, mass, hdiff, momentum, scale);
+  const float landslide = dt * debris::landslide_suspend(param, hdiff, scale);
+  const float deposit = debris::deposit(param, dt, mass, hdiff, momentum, scale);
+  const float suspend = dt * debris::suspend(param, mass, hdiff, momentum, scale);
 
   float transfer = (deposit - suspend - landslide);
-  transfer = debris::limit(dt * transfer, mass, hdiff, scale);
+  transfer = debris::limit(transfer, mass, hdiff, scale);
   map.transfer[n] += transfer;
 
 }
