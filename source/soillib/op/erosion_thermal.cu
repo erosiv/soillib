@@ -37,15 +37,6 @@ namespace debris {
 // Mass-Transfer Model
 //
 
-// Old Deposition Model:
-//! Deposition Rate [m^3/s]
-// __device__ float landslide_deposit(const param_t& param, const float mass) {
-// 
-//   const float kds = param.settleRate; //!< Thermal Deposition Rate [1/s]
-//   return kds * mass;
-//   
-// }
-
 //! Suspension Rate [m^3/s]
 __device__ float landslide_suspend(const param_t& param, const float hdiff, const vec3 scale) {
 
@@ -56,7 +47,8 @@ __device__ float landslide_suspend(const param_t& param, const float hdiff, cons
   const float kdl = param.debrisCreepRate;  //!< Landslide Erosion Rate [1/s]
   const float rho = param.debrisDensity;    //!< Debris Density [kg / m^3]
 
-  const float landslide = kdl * rho * g * glm::max(0.0f, hdiff) * Ac;
+  const float slopediff = hdiff / glm::length(cl);
+  const float landslide = kdl * g * glm::max(0.0f, slopediff) * Ac ;
   return landslide;
 
 }
@@ -65,7 +57,8 @@ __device__ float landslide_suspend(const param_t& param, const float hdiff, cons
 __device__ float deposit(const param_t& param, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
 
   const float kdd = param.debrisDepositionRate; //!< Thermal Deposition Rate [1/s]
-  return kdd * mass;
+  const float decay = (1.0f-__expf(-kdd));      //!< Total Decay Factor []
+  return decay * mass;
 
 }
 
@@ -80,20 +73,12 @@ __device__ float suspend(const param_t& param, const float mass, const float hdi
   const float g = param.gravity;                //!< Specific Gravity [m/s^2]
   const float tau = param.debrisShear;    //!< Debris-Flow Bed Shear Pa s
   const float mu = param.debrisViscosity; //!< Debris Flow Viscosity
-  
-  if(mass < 1.0f){
-    return 0.0;
-  }
 
-  const vec2 speed = momentum / mass;
-  if(glm::length(speed) < 1.0f){
-    return 0.0f;
-  }
-
-  const float sdiff = g * mass * (hdiff);// - param.critSlope);
+  const float slopediff = hdiff / glm::length(cl);
+  const float sdiff = g * mass * slopediff;
   const float stress_yield = tau / rho;
 //  const float stress_viscous =  mu * glm::length(speed) / height;
-  return kds * glm::max(0.0f, sdiff - stress_yield) * Ac;// / glm::length(speed);
+  return kds * glm::max(0.0f, sdiff - stress_yield) * Ac;
 
 //  const float height = (glm::length(momentum) / glm::length(speed)) / Ac;
 //  const float abrade = rho * g * height * hdiff;
@@ -110,10 +95,17 @@ __device__ float limit(float transfer, const float mass, const float hdiff, cons
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-//  if(transfer > 0.0f){
-//    const float maxtransfer = 0.57f * glm::length(cl) * Ac;
-//    transfer = transfer * glm::max(1.0f, maxtransfer / transfer);
-//  }
+  if(transfer > 0.0f){
+    if(hdiff < 0.0f){
+      const float maxtransfer = 0.5f * glm::abs(hdiff) * Ac;
+      if(transfer > maxtransfer)
+        transfer = maxtransfer;
+    } else {
+      const float maxtransfer = 0.0f * glm::abs(hdiff) * Ac;
+      if(transfer > maxtransfer)
+      transfer = maxtransfer;
+    }
+  }
 
   if(transfer < 0.0f){
     const float maxtransfer = glm::max(0.0f, hdiff) * Ac;
