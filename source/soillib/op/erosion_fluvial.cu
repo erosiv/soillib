@@ -58,12 +58,12 @@ __device__ float suspend(const param_t& param, const vec2 momentum, const float 
   if(discharge < 1.0f)
     return 0.0f;
   
-  const float alpha = param.fluvialExponent;  
-  const float fD = 0.02f;                     //!< Darcy-Weisbach Friction Factor
-  const float rho = 1000.0f;                  //!< Density of Fluid [kg/m^3]
+  const float alpha = param.fluvialExponent; 
+  const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
+  const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
   const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
-  const float velocity = glm::length(momentum / discharge);     //!< [m/s]
+  const float velocity = glm::length(momentum  / rho / discharge);     //!< [m/s]
   const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
   const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
   const float suspend = ks * power * vol * Area;                //!< Concentration
@@ -95,7 +95,9 @@ __device__ vec2 __avespeed(const vec2 momentum, const float discharge){
   
   if(discharge < 1.0f)
     return vec2(0.0f);
-  return momentum / discharge;
+
+  const float rho = 1000.0f;  //!< Fluvial Density [kg/m^3]
+  return momentum / rho / discharge;
 
 }
 
@@ -156,32 +158,39 @@ __device__ void move(const map_grid& map, particle_t& part){
 template<typename Map>
 __device__ void integrate(const Map& map, const data_t& data, const param_t& param, particle_t& part){
   
-  const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float g = param.gravity;    //!< Specific Gravity [m/s^2]
-  const float k1 = param.bedShear;  //!< Shear-Stress Bed-Shear
-  const float k2 = param.viscosity; //!< Shear-Stress Viscosity [m^2/s]
-  const float ke = param.evapRate;  //!< Water Evaporation Rate [1/s]
+  const float g = param.gravity;          //!< Specific Gravity [m/s^2]
+  const float tau = param.bedShear;       //!< Shear-Stress Bed-Shear [kg/m/s^2]
+  const float nu = param.viscosity;       //!< Shear-Stress Viscosity [m^2/s]
+  const float ke = param.evapRate;        //!< Water Evaporation Rate [1/s]
+  const float rho = param.fluvialDensity; //!< Water Density [kg/m^3]
   
+  const float discharge = data.discharge[part.ind]; //!< [m^3/s]
+  const vec2 momentum = data.momentum[part.ind];    //!< [kg*m/s]
+  const vec2 average_speed = __avespeed(momentum, discharge);
+  const vec2 grad = __grad(map, part.pos, scale);
+
   // Dynamic Time-Step [s]
-  const float ds = glm::length(cl)/glm::length(part.speed);
+  
+  float ds = glm::length(cl);///glm::length(part.speed);
 
   // Apply Evaporation to Volume
   part.vol *= __expf(-ds * param.evapRate);
   
-  const float discharge = data.discharge[part.ind];
-  const vec2 momentum = data.momentum[part.ind];
-  const vec2 average_speed = __avespeed(momentum, discharge);
-  const vec2 grad = __grad(map, part.pos, scale);
+  // Velocity Update
+  
+  const float mu_t = ds * nu * glm::length(momentum/rho); //!< Momentum Transfer
+  const float mu_w = 1.0f / (1.0f + mu_t);                //!< Implicit Momentum Mix Factor
+  part.speed = mu_w * part.speed + (1.0f - mu_w) * average_speed;
 
-  part.speed = part.speed - g * grad;
-  part.speed = part.speed + k2 * average_speed;
-
-  const float shear = k1 * glm::length(cl);
-  part.speed = part.speed * __expf(-shear);
-  part.dspeed = part.dspeed * __expf(-shear);
+  part.speed = part.speed - ds * g * grad;
+  
+  const float tau_decay = ds * tau / rho;
+  part.speed = part.speed * __expf( -tau_decay );
+  part.dspeed = part.dspeed * __expf( -tau_decay );
 
 }
 
@@ -202,10 +211,11 @@ __device__ void integrate_mt(Map& map, data_t& data, const param_t& param, parti
 //! Track the Differential Quantities along Trajectories
 __device__ void track(data_t& track, const particle_t& part) {
 
+  const float rho = 1000.0f;  //!< Fluid Density
   atomicAdd(&track.mass[part.ind], (part.sed)/part.Q);
   atomicAdd(&track.discharge[part.ind], (part.vol)/part.Q);
-  atomicAdd(&track.momentum[part.ind].x, (part.vol*part.dspeed.x)/part.Q);
-  atomicAdd(&track.momentum[part.ind].y, (part.vol*part.dspeed.y)/part.Q);
+  atomicAdd(&track.momentum[part.ind].x, (part.vol*rho*part.dspeed.x)/part.Q);
+  atomicAdd(&track.momentum[part.ind].y, (part.vol*rho*part.dspeed.y)/part.Q);
 
 }
 

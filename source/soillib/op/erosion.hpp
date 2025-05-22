@@ -24,13 +24,20 @@ struct param_t {
 
   float timeStep = 10.0f; //!< [y]
 
+  float gravity = 9.81f;    //!< [m/s^2]
   float uplift = 0.1f;      //!< [m/y]
   float rainfall = 1.0f;    //!< [m/y]
   float evapRate = 0.0001f; //!< [m^3/s]
 
-  float gravity = 9.81f;        //!< [m/s^2]
-  float viscosity = 0.000001f;  //!< [m^2/s]
-  float bedShear = 0.00625f;    //!< []
+  // Fluvial Erosion Parameters
+  float viscosity = 0.000001f;      //!< [m^2/s]
+  float bedShear = 12.5;            //!< [Pa]
+  float fluvialDensity = 1000.0f;   //!< [kg/m^3]
+  float frictionFactor = 0.02f;       //!< 
+  float fluvialExponent = 0.01f;
+  float depositionRate = 0.1f;
+  float suspensionRate = 0.05f;
+  float exitSlope = 0.0075f;
 
   // Thermal Erosion Parameters
   float critSlope = 0.57f;
@@ -40,13 +47,9 @@ struct param_t {
   float debrisShear = 0.01f;
   float debrisViscosity = 0.001f;
   float debrisBedShear = 0.9f;
-  float debrisDensity = 2.0f;
+  float debrisDensity = 2.0f;  //!< [kg/m^3]
   
-  // Fluvial Erosion Parameters
-  float fluvialExponent = 0.1333f;
-  float depositionRate = 0.1f;
-  float suspensionRate = 0.05f;
-  float exitSlope = 0.0075f;
+
 };
 
 struct map_grid {
