@@ -74,11 +74,12 @@ __device__ float suspend(const param_t& param, const float mass, const float hdi
   const float tau = param.debrisYieldStress;    //!< Debris-Flow Bed Shear Pa s
   const float mu = param.debrisViscosity; //!< Debris Flow Viscosity
 
+  const vec2 speed = (mass > 1.0f)?momentum / mass : vec2(0.0f);
   const float slopediff = hdiff / glm::length(cl);
-  const float sdiff = g * mass * slopediff;
+  const float stress_gravity = g * mass * slopediff;
   const float stress_yield = tau / rho;
-//  const float stress_viscous =  mu * glm::length(speed) / height;
-  return kds * glm::max(0.0f, sdiff - stress_yield) * Ac;
+  const float stress_viscous =  mu * glm::length(speed);// / mass;
+  return kds * glm::max(0.0f, stress_gravity - stress_viscous - stress_yield) * Ac;
 
 //  const float height = (glm::length(momentum) / glm::length(speed)) / Ac;
 //  const float abrade = rho * g * height * hdiff;
@@ -170,7 +171,7 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   
   const float g = param.gravity;          // Specific Gravity [m/s^2]
-  const float k1 = param.debrisBedShear;  // Shear-Stress Bed-Shear
+  const float tau = param.debrisBedShear; // Shear-Stress Bed-Shear
   const float k2 = 0.0f;                  // Shear-Stress Viscosity
 
   const float ds = glm::length(cl)/glm::length(part.speed);
@@ -179,7 +180,7 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
   const vec2 grad = __grad(map, part.pos, scale);
   part.speed = part.speed - ds * g * grad;
   
-  const float shear = k1 * glm::length(cl);
+  const float shear = tau * glm::length(cl);
   part.speed = part.speed * __expf(-shear);
   part.dspeed = part.dspeed * __expf(-shear);
 

@@ -34,7 +34,7 @@ def main():
 
   noise_param = soil.noise_t()
   noise_param.ext = simres * nscale / wscale[0:2]
-  noise_param.seed = 0
+  noise_param.seed = 3
 
   index = soil.index(simres)  
   height = soil.noise(index, noise_param)
@@ -71,30 +71,31 @@ def main():
 
   param = soil.param_t()
 
-  param.timeStep = 10.0           # Geological Timestep
-  param.samples = 8192            # Number of Samples
-  param.maxage = 512              # Maximum Particle Age
-  param.lrate = 1.0               # Filter Learning Rate
+  param.timeStep = 10.0 # Geological Timestep [y]
+  param.samples = 8192  # Number of Patricle Samples
+  param.maxage = 512    # Maximum Particle Lifetime
+  param.lrate = 1.0     # Filter Learning Rate
 
-  param.gravity = 9.81            # Specific Gravity [m/s^2]
-  param.uplift = 0.1              # Uplift Rate [m/y]
-  param.exitSlope = 0.025         # Boundary Slope [m/m]
+  param.gravity = 9.81    # Specific Gravity [m/s^2]
+  param.uplift = 0.01     # Uplift Rate [m/y]
   
-  param.rainfall = 1.0            # Rainfall Rate [m/y]
-  param.evapRate = 0.0001         # Evaporation Rate [1/s]
-  param.depositionRate = 0.00001  # Fluvial Deposition Rate
-  param.suspensionRate = 0.005    # Fluvial Suspension Rate
-  param.viscosity = 0.000001      # Fluvial Kinematic Viscosity [m^2/s]
-  param.bedShear = 0.00625        # Fluvial Bed Shear-Stress [Pa s]
+  param.rainfall = 1.0              # Rainfall Rate [m/y]
+  param.evapRate = 0.0005           # Evapotranspiration Rate [1/s]
+  param.viscosity = 0.000001        # Water Viscosity [m^2/s]
+  param.bedShear = 12.5             # Turbulent Shear Stress [Pa = kg/m/s^2]
+  param.suspensionRate = 0.0000008  # Fluvial Suspension Rate
+  param.depositionRate = 0.00001    # Fluvial Deposition Rate
+  param.fluvialExponent = 0.01      # Fluvial Power Exponent
+  param.exitSlope = 0.025           # Slope Boundary Condition
 
-  param.critSlope = 0.75
-  param.debrisCreepRate = 0.00000005
-  param.debrisSuspensionRate = 0.0000001
-  param.debrisDepositionRate = 0.01
-  param.debrisBedShear = 0.1
-  param.debrisShear = 2E6       # Yield Stress [Pa]
-  param.debrisDensity = 2500.0  # Density [kg/m^3]
-  param.debrisViscosity = 0.0
+  param.critSlope = 0.57                # Critical Slope
+  param.debrisCreepRate = 0.0025        # Landslide Erosion Rate
+  param.debrisSuspensionRate = 0.00025  # Debris Suspension Rate
+  param.debrisDepositionRate = 0.0001   # Debris Deposition Rate
+  param.debrisYieldStress = 2E6         # Yield Stress [Pa]
+  param.debrisDensity = 2500.0          # Debris Density [kg/m^3]
+  param.debrisViscosity = 0.004         # Debris Viscosity [m^2/s]
+  param.debrisBedShear = 0.0125         # Debris Turbulent Shear Stress
 
   timer = soil.timer()
 
@@ -161,7 +162,7 @@ def main():
   # Geotiff so that pixel and value scale are respected,
   # and we must also add the height of all layers.
 
-  zip_save('/home/nickmcdonald/Datasets/erosion_multi_512.zip', {
+  zip_save('/home/nickmcdonald/Datasets/erosion_multi_base.zip', {
     "height": model.height,
     "sediment": model.sediment,
     "discharge": data.discharge
