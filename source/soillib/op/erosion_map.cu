@@ -100,6 +100,12 @@ __device__ float __slope(const Map& map, const param_t& param, const vec2 pos, c
 
 }
 
+__device__ vec2 __avespeed(const vec2 momentum, const float discharge){
+  if(discharge < 1.0f)
+    return vec2(0.0f);
+  return momentum / discharge;
+}
+
 template<typename Map>
 __device__ bool __oob(const Map& map, const vec2 pos){
   return map.index.oob(pos);

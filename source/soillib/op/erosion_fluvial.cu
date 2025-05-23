@@ -52,8 +52,8 @@ __device__ float deposit(const param_t& param, const float dt, const float mass,
 
 }
 
-//! Mass Suspension Rate
-__device__ float suspend(const param_t& param, const vec2 momentum, const float discharge, const float slope, const float vol, const float Area){
+//! Mass Suspension Rate [m/y]
+__device__ float suspend(const param_t& param, const vec2 momentum, const float discharge, const float slope, const float vol){
 
   if(discharge < 1.0f)
     return 0.0f;
@@ -63,10 +63,10 @@ __device__ float suspend(const param_t& param, const vec2 momentum, const float 
   const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
   const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
-  const float velocity = glm::length(momentum  / rho / discharge);     //!< [m/s]
-  const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-  const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
-  const float suspend = ks * power * vol * Area;                //!< Concentration
+  const float velocity = glm::length(momentum  / rho / discharge);  //!< [m/s]
+  const float shear = 0.125f * fD * rho * velocity * velocity;      //!< [kg/m/s^2]
+  const float power = pow(shear * velocity, alpha);                 //!< Stream Power Function
+  const float suspend = ks * power * vol;                           //!< Concentration
   return glm::abs(suspend);
 
 }
@@ -91,16 +91,6 @@ __device__ float limit(float transfer, const float mass, const float slope, cons
 
 }
 
-__device__ vec2 __avespeed(const vec2 momentum, const float discharge){
-  
-  if(discharge < 1.0f)
-    return vec2(0.0f);
-
-  const float rho = 1000.0f;  //!< Fluvial Density [kg/m^3]
-  return momentum / rho / discharge;
-
-}
-
 //
 // Core Procedures
 // 
@@ -113,13 +103,14 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float g = param.gravity;     //!< Specific Gravity [m/s^2]
-  const float nu = param.viscosity;  //!< Kinematic Viscosity [m^2/s]
-  
+  const float g = param.gravity;          //!< Specific Gravity [m/s^2]
+  const float nu = param.viscosity;       //!< Kinematic Viscosity [m^2/s]
+  const float rho = param.fluvialDensity; //!< Fluvial Density [kg/m^3]
+
   // Initial Velocity Estimate
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
-  const vec2 average_speed = __avespeed(momentum, discharge);
+  const vec2 average_speed = __avespeed(momentum / rho, discharge);
   const vec2 grad = __grad(map, part.pos, scale); //!< Scaled Direction
   
   // Initial Tracking Values
@@ -129,15 +120,15 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   part.vol = Ac * R * Rmask;                  //!< Volume Rate [m^3/s]
 
   part.dspeed = nu * average_speed - g * grad;  //!< Velocity Rate [m/s^2]
-  part.speed = nu * average_speed - g * grad;   //!< Velocity [m/s]
+  part.speed = part.dspeed;                     //!< Velocity [m/s]
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
   //  be suspended, which is when it is in balance with the amount
   //  that would also be deposit1ed. We can use this to cap the value.
   const float slope = __slope(map, param, part.pos, part.speed);  // Local Slope Function
-  const float suspend = fluvial::suspend(param, momentum, discharge, slope, part.vol, Ac);
-  part.sed = suspend;
+  const float suspend = fluvial::suspend(param, momentum, discharge, slope, part.vol);
+  part.sed = suspend * Ac;
 
 }
 
@@ -158,9 +149,9 @@ __device__ void move(const map_grid& map, particle_t& part){
 template<typename Map>
 __device__ void integrate(const Map& map, const data_t& data, const param_t& param, particle_t& part){
   
-  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+  const vec3 scale = map.scale * 1E3f;    //!< Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); //!< Cell Length [m, m]
+  const float Ac = scale.x*scale.y;       //!< Cell Area [m^2]
 
   const float g = param.gravity;          //!< Specific Gravity [m/s^2]
   const float tau = param.bedShear;       //!< Shear-Stress Bed-Shear [kg/m/s^2]
@@ -168,17 +159,15 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   const float ke = param.evapRate;        //!< Water Evaporation Rate [1/s]
   const float rho = param.fluvialDensity; //!< Water Density [kg/m^3]
   
-  const float discharge = data.discharge[part.ind]; //!< [m^3/s]
-  const vec2 momentum = data.momentum[part.ind];    //!< [kg*m/s]
-  const vec2 average_speed = __avespeed(momentum, discharge);
+  const float discharge = data.discharge[part.ind];           //!< [m^3/s]
+  const vec2 momentum = data.momentum[part.ind];              //!< [kg*m/s]
+  const vec2 average_speed = __avespeed(momentum / rho, discharge); //!< [m/s]
   const vec2 grad = __grad(map, part.pos, scale);
 
   // Dynamic Time-Step [s]
   
   float ds = glm::length(cl);///glm::length(part.speed);
-
-  // Apply Evaporation to Volume
-  part.vol *= __expf(-ds * param.evapRate);
+  part.vol *= __expf(-ds * param.evapRate); //!< Evaporate Volume
   
   // Velocity Update
   
@@ -231,6 +220,9 @@ __global__ void solve(Map map, data_t data, data_t track, const size_t N, const 
   if(n >= N) 
     return;
 
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+
   particle_t part;                        //!< Data along Trajectory / Per-Particle
   __sample(part, map, n, N);              //!< Sample the Trajectory
   fluvial::init(map, data, param, part);  //!< Initialze Differential Quantities
@@ -245,7 +237,7 @@ __global__ void solve(Map map, data_t data, data_t track, const size_t N, const 
 
     fluvial::integrate_mt(map, data, param, part); //!< Integrate Mass-Transfer
     fluvial::integrate(map, data, param, part);    //!< Integrate Differential Equation
-    if(glm::length(part.speed) == 0.0f)
+    if(glm::length(part.speed) < 1E-6*glm::length(cl))
       break;
 
   }
@@ -264,17 +256,16 @@ __global__ void mt(Map map, data_t data, const param_t param){
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
+  const float dt = param.timeStep;        // Geological Timestep [y]
 
   const float mass = data.mass[n];                 // Suspended Mass Function
   const float discharge = data.discharge[n];       // Discharge Function
   const vec2 momentum = data.momentum[n];
   const vec2 pos = __topos(map, n);
   const float slope = __slope(map, param, pos + vec2(0.5), momentum); // Local Slope Function
-
-  const float dt = param.timeStep;        // Geological Timestep [y]
-
   const float deposit = fluvial::deposit(param, dt * glm::length(cl), mass, discharge);
-  const float suspend = dt * fluvial::suspend(param, momentum, discharge, slope, discharge, Ac);
+  const float suspend = dt * fluvial::suspend(param, momentum, discharge, slope, discharge) * Ac;
+
   float transfer = (deposit - suspend);
   transfer = fluvial::limit(transfer, mass, slope, scale);
   map.transfer[n] += transfer;
