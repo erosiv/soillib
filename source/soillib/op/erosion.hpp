@@ -31,22 +31,22 @@ struct param_t {
 
   // Fluvial Erosion Parameters
   float viscosity = 0.000001f;      //!< [m^2/s]
-  float bedShear = 12.5;            //!< [Pa]
+  float bedShear = 12.5f;           //!< [Pa]
   float fluvialDensity = 1000.0f;   //!< [kg/m^3]
-  float frictionFactor = 0.02f;       //!< 
+  float frictionFactor = 0.02f;     //!< []
   float fluvialExponent = 0.01f;
-  float depositionRate = 0.1f;
-  float suspensionRate = 0.05f;
-  float exitSlope = 0.0075f;
+  float suspensionRate = 0.0000008f; //!<
+  float depositionRate = 0.00001f;
+  float exitSlope = 0.025f;
 
   // Thermal Erosion Parameters
   float critSlope = 0.57f;
-  float debrisCreepRate = 0.1f;
-  float debrisSuspensionRate = 0.1f;
-  float debrisDepositionRate = 0.0025f;
-  float debrisShear = 0.01f;
+  float debrisCreepRate = 0.0025f;
+  float debrisSuspensionRate = 0.00025f;
+  float debrisDepositionRate = 0.000025f;
+  float debrisYieldStress = 2E6;  //!< Pa*s
   float debrisViscosity = 0.001f;
-  float debrisBedShear = 0.9f;
+  float debrisBedShear = 0.0125f;
   float debrisDensity = 2.0f;  //!< [kg/m^3]
   
 

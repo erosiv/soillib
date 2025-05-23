@@ -175,10 +175,10 @@ param_t.def_rw("critSlope", &soil::param_t::critSlope);
 param_t.def_rw("debrisCreepRate", &soil::param_t::debrisCreepRate);
 param_t.def_rw("debrisDepositionRate", &soil::param_t::debrisDepositionRate);
 param_t.def_rw("debrisSuspensionRate", &soil::param_t::debrisSuspensionRate);
-param_t.def_rw("debrisViscosity", &soil::param_t::debrisViscosity);
-param_t.def_rw("debrisShear", &soil::param_t::debrisShear);
-param_t.def_rw("debrisBedShear", &soil::param_t::debrisBedShear);
+param_t.def_rw("debrisYieldStress", &soil::param_t::debrisYieldStress);
 param_t.def_rw("debrisDensity", &soil::param_t::debrisDensity);
+param_t.def_rw("debrisViscosity", &soil::param_t::debrisViscosity);
+param_t.def_rw("debrisBedShear", &soil::param_t::debrisBedShear);
 
 param_t.def_rw("uplift", &soil::param_t::uplift);
 param_t.def_rw("rainfall", &soil::param_t::rainfall);

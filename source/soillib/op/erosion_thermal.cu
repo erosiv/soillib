@@ -71,7 +71,7 @@ __device__ float suspend(const param_t& param, const float mass, const float hdi
   const float kds = param.debrisSuspensionRate; //!< Thermal Deposition Rate [1/s]
   const float rho = param.debrisDensity;        //!< Debris Density
   const float g = param.gravity;                //!< Specific Gravity [m/s^2]
-  const float tau = param.debrisShear;    //!< Debris-Flow Bed Shear Pa s
+  const float tau = param.debrisYieldStress;    //!< Debris-Flow Bed Shear Pa s
   const float mu = param.debrisViscosity; //!< Debris Flow Viscosity
 
   const float slopediff = hdiff / glm::length(cl);
