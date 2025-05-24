@@ -76,18 +76,11 @@ __device__ float suspend(const param_t& param, const float mass, const float hdi
 
   const vec2 speed = (mass > 1.0f)?momentum / mass : vec2(0.0f);
   const float slopediff = hdiff / glm::length(cl);
-  const float stress_gravity = g * mass * slopediff;
+  const float stress_gravity = g * mass * glm::max(slopediff, 0.0f);
   const float stress_yield = tau / rho;
   const float stress_viscous =  mu * glm::length(speed);// / mass;
   return kds * glm::max(0.0f, stress_gravity - stress_viscous - stress_yield) * Ac;
 
-//  const float height = (glm::length(momentum) / glm::length(speed)) / Ac;
-//  const float abrade = rho * g * height * hdiff;
-//  const float stable = rho * g * height * param.critSlope;
-//  const float shear = tau + stable + mu * glm::length(speed) / height;
-//  
-//  return kds * glm::max(0.0f, shear - abrade) / rho;// / glm::length(speed);
-  
 }
 
 __device__ float limit(float transfer, const float mass, const float hdiff, const vec3 scale){
@@ -108,8 +101,8 @@ __device__ float limit(float transfer, const float mass, const float hdiff, cons
     }
   }
 
-  if(transfer < 0.0f){
-    const float maxtransfer = glm::max(0.0f, hdiff) * Ac;
+  else if(transfer < 0.0f){
+    const float maxtransfer = hdiff * Ac;
     if(transfer < -maxtransfer)
       transfer = -maxtransfer;
   }
@@ -124,7 +117,7 @@ __device__ float limit(float transfer, const float mass, const float hdiff, cons
 //
 
 //! Initialize Particle Data from Model
-__device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& part){
+__device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& part, const size_t n){
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
@@ -222,7 +215,7 @@ __global__ void solve(map_t map, data_t data, data_t track, const size_t N, cons
 
   debris_t part;                        //!< Data along Trajectory / Per-Particle
   __sample(part, map, n, N);            //!< Sample the Trajectory
-  debris::init(map, data, param, part); //!< Initialize Particle Properties
+  debris::init(map, data, param, part, n); //!< Initialize Particle Properties
 
   // Note: Parameterize
   for(size_t age = 0; age < 256; ++age) {

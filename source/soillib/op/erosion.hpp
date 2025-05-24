@@ -49,6 +49,8 @@ struct param_t {
   float debrisBedShear = 0.0125f;
   float debrisDensity = 2.0f;  //!< [kg/m^3]
   
+  // Arbitrary Body Force
+  glm::vec2 force = glm::vec2(0.0f);
 
 };
 

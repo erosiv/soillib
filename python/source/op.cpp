@@ -193,6 +193,8 @@ param_t.def_rw("bedShear", &soil::param_t::bedShear);
 param_t.def_rw("lrate", &soil::param_t::lrate);
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 
+param_t.def_rw("force", &soil::param_t::force);
+
 //
 // Map Data-Structure
 //

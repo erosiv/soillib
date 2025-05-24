@@ -119,8 +119,9 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const float Rmask = map.rainfall[part.ind]; //!< Rainfall Mask
   part.vol = Ac * R * Rmask;                  //!< Volume Rate [m^3/s]
 
-  part.dspeed = nu * average_speed - g * grad;  //!< Velocity Rate [m/s^2]
-  part.speed = part.dspeed;                     //!< Velocity [m/s]
+  const vec2 force = param.force;
+  part.dspeed = nu * average_speed - g * grad + param.force;  //!< Velocity Rate [m/s^2]
+  part.speed = part.dspeed;                                   //!< Velocity [m/s]
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
@@ -158,7 +159,8 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   const float nu = param.viscosity;       //!< Shear-Stress Viscosity [m^2/s]
   const float ke = param.evapRate;        //!< Water Evaporation Rate [1/s]
   const float rho = param.fluvialDensity; //!< Water Density [kg/m^3]
-  
+  const vec2 force = param.force;         //!< Body Force [m/s^2]
+
   const float discharge = data.discharge[part.ind];           //!< [m^3/s]
   const vec2 momentum = data.momentum[part.ind];              //!< [kg*m/s]
   const vec2 average_speed = __avespeed(momentum / rho, discharge); //!< [m/s]
@@ -176,6 +178,7 @@ __device__ void integrate(const Map& map, const data_t& data, const param_t& par
   part.speed = mu_w * part.speed + (1.0f - mu_w) * average_speed;
 
   part.speed = part.speed - ds * g * grad;
+  part.speed = part.speed + ds * force;
   
   const float tau_decay = ds * tau / rho;
   part.speed = part.speed * __expf( -tau_decay );

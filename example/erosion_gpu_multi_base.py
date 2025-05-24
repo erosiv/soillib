@@ -95,7 +95,7 @@ def main():
   param.debrisYieldStress = 2E6         # Yield Stress [Pa]
   param.debrisDensity = 2500.0          # Debris Density [kg/m^3]
   param.debrisViscosity = 0.004         # Debris Viscosity [m^2/s]
-  param.debrisBedShear = 0.0125         # Debris Turbulent Shear Stress
+  param.debrisBedShear = 60/2500.0      # Debris Turbulent Shear Stress
 
   timer = soil.timer()
 
@@ -142,7 +142,7 @@ def main():
   ksteps = [
     ([256, 256], 1024),
     ([512, 512], 512),
-    ([1024, 1024], 512),
+    ([1000, 1000], 512),
     ([2048, 2048], 512),
   ]
 
