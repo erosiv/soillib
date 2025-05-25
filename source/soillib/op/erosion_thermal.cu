@@ -117,9 +117,10 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& p
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
 
-  const float& R = param.rainfall;        // Rainfall Amount  [m/y]
-  const float& g = param.gravity;         // Specific Gravity [m/s^2]
-  const float& nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
+  const float R = param.rainfall;        // Rainfall Amount  [m/y]
+  const float g = param.gravity;         // Specific Gravity [m/s^2]
+  const float nu = param.viscosity;      // Kinematic Viscosity [m^2/s]
+  const float rho = param.debrisDensity;
 
   const float dt = param.timeStep;
 
@@ -129,7 +130,9 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& p
 
   const float mass = data.debris[part.ind];
   const vec2 momentum = data.debris_momentum[part.ind];
-  const float slope = __hslope(map, param, part.pos);
+  const vec2 mspeed = __avespeed(momentum / rho, mass);
+  const vec2 grad = __grad(map, part.pos, scale);
+  const float slope = __hslope(map, param, part.pos, -grad);
 
   float suspend = debris::landslide_suspend(param, slope) * Ac;
   suspend += debris::suspend(param, mass, slope, momentum) * Ac;
@@ -238,11 +241,14 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
-
+  const float rho = param.debrisDensity;
+  
   const vec2 pos = __topos(map, n);
   const float mass = data.debris[n];               // Suspended Mass Function
   const vec2 momentum = data.debris_momentum[n];
-  const float slope = __hslope(map, param, pos + vec2(0.5f));
+  const vec2 mspeed = __avespeed(momentum / rho, mass);
+  const vec2 grad = __grad(map, pos, scale);
+  const float slope = __hslope(map, param, pos + vec2(0.5f), -grad);
 
   const float dt = param.timeStep;
   const float landslide = dt * debris::landslide_suspend(param, slope) * Ac;
