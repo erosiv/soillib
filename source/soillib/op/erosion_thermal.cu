@@ -37,24 +37,21 @@ namespace debris {
 // Mass-Transfer Model
 //
 
-//! Suspension Rate [m^3/s]
-__device__ float landslide_suspend(const param_t& param, const float hdiff, const vec3 scale) {
-
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+//! Suspension Rate [m/s]
+__device__ float landslide_suspend(const param_t& param, const float slope) {
 
   const float g = param.gravity;            //!< Specific Gravity [m/s^2]
   const float kdl = param.debrisCreepRate;  //!< Landslide Erosion Rate [1/s]
   const float rho = param.debrisDensity;    //!< Debris Density [kg / m^3]
+  const float theta = param.critSlope;
 
-  const float slopediff = hdiff / glm::length(cl);
-  const float landslide = kdl * g * glm::max(0.0f, slopediff) * Ac ;
-  return landslide;
+  const float diff = glm::max(0.0f, slope-theta);
+  return kdl * g * diff;
 
 }
 
 //! Deposition Rate [m^3/s]
-__device__ float deposit(const param_t& param, const float dt, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
+__device__ float deposit(const param_t& param, const float dt, const float mass, const vec2 momentum, const vec3 scale) {
 
   const float kdd = param.debrisDepositionRate; //!< Thermal Deposition Rate [1/s]
   const float decay = (1.0f-__expf(-dt * kdd));      //!< Total Decay Factor []
@@ -62,24 +59,21 @@ __device__ float deposit(const param_t& param, const float dt, const float mass,
 
 }
 
-//! Suspension Rate [m^3/s]
-__device__ float suspend(const param_t& param, const float mass, const float hdiff, const vec2 momentum, const vec3 scale) {
-
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-  const float Ac = scale.x*scale.y;       // Cell Area [m^2]
+//! Suspension Rate [m/s]
+__device__ float suspend(const param_t& param, const float mass, const float slope, const vec2 momentum) {
 
   const float kds = param.debrisSuspensionRate; //!< Thermal Deposition Rate [1/s]
   const float rho = param.debrisDensity;        //!< Debris Density
   const float g = param.gravity;                //!< Specific Gravity [m/s^2]
   const float tau = param.debrisYieldStress;    //!< Debris-Flow Bed Shear Pa s
-  const float mu = param.debrisViscosity; //!< Debris Flow Viscosity
+  const float mu = param.debrisViscosity;       //!< Debris Flow Viscosity
+  const float theta = param.critSlope;          //!< Debris Critical Slope
 
   const vec2 speed = (mass > 1.0f)?momentum / mass : vec2(0.0f);
-  const float slopediff = hdiff / glm::length(cl);
-  const float stress_gravity = g * mass * glm::max(slopediff, 0.0f);
+  const float stress_gravity = g * mass * glm::max(slope - theta, 0.0f);
   const float stress_yield = tau / rho;
   const float stress_viscous =  mu * glm::length(speed);// / mass;
-  return kds * glm::max(0.0f, stress_gravity - stress_viscous - stress_yield) * Ac;
+  return kds * glm::max(0.0f, stress_gravity - stress_viscous - stress_yield);
 
 }
 
@@ -135,10 +129,10 @@ __device__ void init(map_t& map, data_t& data, const param_t& param, debris_t& p
 
   const float mass = data.debris[part.ind];
   const vec2 momentum = data.debris_momentum[part.ind];
+  const float slope = __hslope(map, param, part.pos);
 
-  float hdiff = __hdiff(map, param, part.pos);
-  float suspend = debris::landslide_suspend(param, hdiff, scale);
-  suspend += debris::suspend(param, mass, hdiff, momentum, scale);
+  float suspend = debris::landslide_suspend(param, slope) * Ac;
+  suspend += debris::suspend(param, mass, slope, momentum) * Ac;
   part.mass = suspend;
 
 }
@@ -245,18 +239,18 @@ __global__ void mt(map_t map, data_t data, const param_t param){
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
 
-  const float mass = data.debris[n];               // Suspended Mass Function
   const vec2 pos = __topos(map, n);
-  const float hdiff = __hdiff(map, param, pos + vec2(0.5f));
+  const float mass = data.debris[n];               // Suspended Mass Function
   const vec2 momentum = data.debris_momentum[n];
+  const float slope = __hslope(map, param, pos + vec2(0.5f));
 
   const float dt = param.timeStep;
-  const float landslide = dt * debris::landslide_suspend(param, hdiff, scale);
-  const float deposit = debris::deposit(param, dt, mass, hdiff, momentum, scale);
-  const float suspend = dt * debris::suspend(param, mass, hdiff, momentum, scale);
+  const float landslide = dt * debris::landslide_suspend(param, slope) * Ac;
+  const float deposit = debris::deposit(param, dt, mass, momentum, scale);
+  const float suspend = dt * debris::suspend(param, mass, slope, momentum) * Ac;
 
   float transfer = (deposit - suspend - landslide);
-  transfer = debris::limit(transfer, mass, hdiff, scale);
+  transfer = debris::limit(transfer, mass, (slope - param.critSlope)*glm::length(cl), scale);
   map.transfer[n] += transfer;
 
 }

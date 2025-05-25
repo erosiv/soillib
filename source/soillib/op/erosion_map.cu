@@ -83,29 +83,27 @@ __device__ vec3 __normal(const Map& map, const vec2 pos, const vec3 scale){
 }
 
 template<typename Map>
-__device__ float __hdiff(const Map& map, const param_t& param, const vec2 pos) {
+__device__ float __hslope(const Map& map, const param_t& param, const vec2 pos) {
 
   const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
 
   vec2 dir = glm::normalize(__grad(map, pos, scale));
   vec2 npos = vec2(pos) - dir;
-
   const float hf = __height(map, pos, scale);
   const float hn = __height(map, npos, scale);
   if(__isnanf(hf) || __isnanf(hn))
-    return 0.0f;
+    return -param.exitSlope;
 
-  // Stable Bank-Height Computation:
-  const float dist = glm::length(cl*dir);
-  const float stable = (hn + param.critSlope*dist);  // [m]
-  const float hdiff = hf - stable;
-  return hdiff;
+  return (hf - hn)/ glm::length(cl);
 
 }
 
 template<typename Map>
 __device__ float __slope(const Map& map, const param_t& param, const vec2 pos, const vec2 dir) {
+
+  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
 
   if(glm::length(dir) == 0.0f){
     return 0.0f;
@@ -115,13 +113,11 @@ __device__ float __slope(const Map& map, const param_t& param, const vec2 pos, c
   if(npos.x < 0.5f) return -param.exitSlope;
   if(npos.y < 0.5f) return -param.exitSlope;
   
-  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
   const float hf = __height(map, pos, scale);
   const float hn = __height(map, npos, scale);
   if(__isnanf(hf) || __isnanf(hn))
     return -param.exitSlope;
   
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
   return (hn - hf)/glm::length(cl);
 
 }
