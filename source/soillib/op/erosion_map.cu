@@ -19,12 +19,9 @@
 
 namespace soil {
 
-__device__ vec2 __grad(const map_grid& map, const vec2 pos, const vec3 scale){
-
-  lerp5_t<float> lerp;
-  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
-  return lerp.grad(scale);
-
+//! Nearest Support Point
+__device__ int __nearest(const map_grid& map, const vec2 pos){
+  return map.index.flatten(pos);
 }
 
 __device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale) {
@@ -39,9 +36,38 @@ __device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale)
 
 }
 
-//! Nearest Support Point
-__device__ int __nearest(const map_grid& map, const vec2 pos){
-  return map.index.flatten(pos);
+__device__ vec2 __grad(const map_grid& map, const vec2 pos, const vec3 scale){
+
+//  lerp5_t<float> lerp;
+//  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
+//  return lerp.grad(scale);
+
+  const float h = __height(map, pos, scale);
+  const float hn0 = __height(map, pos + vec2(-1, 0), scale);
+  const float hp0 = __height(map, pos + vec2( 1, 0), scale);
+  const float h0n = __height(map, pos + vec2( 0,-1), scale);
+  const float h0p = __height(map, pos + vec2( 0, 1), scale);
+
+  float gx = 0.0f;
+  if(__isnanf(hn0)) gx = (hp0 - h)/scale.x;
+  if(__isnanf(hp0)) gx = (h - hn0)/scale.x;
+  if(!__isnanf(hp0) && !__isnanf(hn0)){
+    if(hn0 < hp0) gx = (h - hn0)/scale.x;
+    if(hp0 < hn0) gx = (hp0 - h)/scale.x;
+    // if they are the same, slope is zero
+  }
+
+  float gy = 0.0f;
+  if(__isnanf(h0n)) gy = (h0p - h)/scale.y;
+  if(__isnanf(h0p)) gy = (h - h0n)/scale.y;
+  if(!__isnanf(h0p) && !__isnanf(h0n)){
+    if(h0n < h0p) gy = (h - h0n)/scale.y;
+    if(h0p < h0n) gy = (h0p - h)/scale.y;
+    // if they are the same, slope is zero
+  }
+
+  return vec2(gx, gy);
+
 }
 
 //

@@ -53,17 +53,14 @@ __device__ float deposit(const param_t& param, const float dt, const float mass,
 }
 
 //! Mass Suspension Rate [m/y]
-__device__ float suspend(const param_t& param, const vec2 momentum, const float discharge, const float slope, const float vol){
+__device__ float suspend(const param_t& param, const vec2 speed, const float vol){
 
-  if(discharge < 1.0f)
-    return 0.0f;
-  
   const float alpha = param.fluvialExponent; 
   const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
   const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
   const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
-  const float velocity = glm::length(momentum  / rho / discharge);  //!< [m/s]
+  const float velocity = glm::length(speed);  //!< [m/s]
   const float shear = 0.125f * fD * rho * velocity * velocity;      //!< [kg/m/s^2]
   const float power = pow(shear * velocity, alpha);                 //!< Stream Power Function
   const float suspend = ks * power * vol;                           //!< Concentration
@@ -110,7 +107,7 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   // Initial Velocity Estimate
   const float discharge = data.discharge[part.ind];
   const vec2 momentum = data.momentum[part.ind];
-  const vec2 average_speed = __avespeed(momentum / rho, discharge);
+  const vec2 mspeed = __avespeed(momentum / rho, discharge);
   const vec2 grad = __grad(map, part.pos, scale); //!< Scaled Direction
   
   // Initial Tracking Values
@@ -120,15 +117,14 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   part.vol = Ac * R * Rmask;                  //!< Volume Rate [m^3/s]
 
   const vec2 force = param.force;
-  part.dspeed = nu * average_speed - g * grad + param.force;  //!< Velocity Rate [m/s^2]
+  part.dspeed = nu * mspeed - g * grad + param.force;  //!< Velocity Rate [m/s^2]
   part.speed = part.dspeed;                                   //!< Velocity [m/s]
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
   //  be suspended, which is when it is in balance with the amount
   //  that would also be deposit1ed. We can use this to cap the value.
-  const float slope = __slope(map, param, part.pos, part.speed);  // Local Slope Function
-  const float suspend = fluvial::suspend(param, momentum, discharge, slope, part.vol);
+  const float suspend = fluvial::suspend(param, mspeed, part.vol);
   part.sed = suspend * Ac;
 
 }
@@ -260,19 +256,25 @@ __global__ void mt(Map map, data_t data, const param_t param){
   const float Ac = scale.x*scale.y;       // Cell Area [m^2]
   const float Z = Ac * scale.z;           // Height Conversion [m^3]
   const float dt = param.timeStep;        // Geological Timestep [y]
+  const float rho = param.fluvialDensity;
 
   const float mass = data.mass[n];                 // Suspended Mass Function
   const float discharge = data.discharge[n];       // Discharge Function
   const vec2 momentum = data.momentum[n];
   const vec2 pos = __topos(map, n);
-  const float slope = __slope(map, param, pos + vec2(0.5), momentum); // Local Slope Function
+  const vec2 mspeed = __avespeed(momentum / rho, discharge);
+  
   const float deposit = fluvial::deposit(param, dt * glm::length(cl), mass, discharge);
-  const float suspend = dt * fluvial::suspend(param, momentum, discharge, slope, discharge) * Ac;
+  const float suspend = dt * fluvial::suspend(param, mspeed, discharge) * Ac;
+  
+//  const vec2 grad = __grad(map, pos, scale);
+//  const float slope = glm::dot(grad, glm::normalize(mspeed));
+  const float slope = __slope(map, param, pos + vec2(0.5), momentum); // Local Slope Function
 
   float transfer = (deposit - suspend);
   transfer = fluvial::limit(transfer, mass, slope, scale);
   map.transfer[n] += transfer;
-  
+
 }
 
 } // end of namespace fluvial
