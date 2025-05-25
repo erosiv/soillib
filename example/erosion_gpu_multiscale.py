@@ -25,7 +25,7 @@ Multi-Scale Erosion Procedure:
 
 def main():
 
-  simres = np.array([256, 256])         # Resolution [px]
+  simres = np.array([128, 128])         # Resolution [px]
   wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
   pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
@@ -72,7 +72,7 @@ def main():
   param = soil.param_t()
 
   param.timeStep = 10.0 # Geological Timestep [y]
-  param.samples = 8192  # Number of Patricle Samples
+  param.samples = 32768  # Number of Patricle Samples
   param.maxage = 512    # Maximum Particle Lifetime
   param.lrate = 1.0     # Filter Learning Rate
 
@@ -140,10 +140,11 @@ def main():
     return model, newtrack, newdata, index, simres, pscale
 
   ksteps = [
-    ([256, 256], 1024),
-    ([512, 512], 512),
-    ([1000, 1000], 512),
-    ([2048, 2048], 512),
+    ([128, 128], 2048),
+    ([256, 256], 4),
+#    ([512, 512], 512),
+    ([1000, 1000], 4),
+#    ([2048, 2048], 512),
   ]
 
   # Note: The first scale-up procedure here is redundant and can be removed.
