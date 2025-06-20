@@ -20,33 +20,31 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/ext/nanobind nanobind)
 
 set(MODULE_NAME soillib)
 nanobind_add_module(${MODULE_NAME}
-#   NB_STATIC STABLE_ABI
   source/_module.cpp
   source/buffer.cpp
   source/index.cpp
-#  source/io.cpp
+  source/io.cpp
   source/op.cpp
   source/util.cpp
 )
-
-# set_property(TARGET ${MODULE_NAME} APPEND PROPERTY BUILD_RPATH "$<TARGET_FILE_DIR:nanobind>")
-# set_property(TARGET ${MODULE_NAME} APPEND PROPERTY INSTALL_RPATH ".. ?? ..")
 
 target_compile_definitions(${MODULE_NAME} PRIVATE
 MODULE_NAME=${MODULE_NAME})
 
 # Internal Target Dependencies
 find_package(glm CONFIG REQUIRED)
-find_package(tiff CONFIG REQUIRED)
 
 target_link_libraries(${MODULE_NAME} PRIVATE soil)
 target_link_libraries(${MODULE_NAME} PRIVATE glm::glm)
-  
-# target_include_directories(${MODULE_NAME} PRIVATE
-#   "C:\\Program Files (x86)\\tiff\\include"
-# )
-# # target_link_libraries(${MODULE_NAME} PUBLIC tiffd)
-# target_link_libraries(${MODULE_NAME} PRIVATE "C:\\Program Files (x86)\\tiff\\lib\\tiffd.lib")
+
+# libtiff wrangling: there has to be a better way...
+find_package(tiff REQUIRED)
+target_include_directories(${MODULE_NAME} PUBLIC
+  "C:\\Program Files (x86)\\tiff\\include"
+)
+target_link_libraries(${MODULE_NAME} PUBLIC 
+  "C:\\Program Files (x86)\\tiff\\lib\\tiffd.lib"
+)
 
 # Install Directive for Scikit
 install(TARGETS ${MODULE_NAME} LIBRARY DESTINATION ${MODULE_NAME})

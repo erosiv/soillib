@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
 
-from __common__ import show_discharge
+from __common__ import show_discharge, show_height
 
 def main():
 
@@ -77,7 +77,8 @@ def main():
 #  tiff_out = soil.tiff(height.cpu(), index)
 #  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-  show_discharge(model.discharge, index)
+#  show_discharge(model.discharge, index)
+  show_height(model.height.cpu(), index)
 
 if __name__ == "__main__":
   main()

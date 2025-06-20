@@ -66,17 +66,6 @@ Make sure to instal the cuda toolkit so that you have the `nvcc` compiler, the c
 - Python3
 - 
 
-
-
-
-
-
-
-
-
-
-
-
 ##### Ubuntu
 
 ```bash
