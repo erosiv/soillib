@@ -44,12 +44,12 @@ struct hostdesc;
 
 template<>
 struct hostdesc<CPU> {
-  static constexpr std::string name = "CPU";
+  static constexpr const char* name = "CPU";
 };
 
 template<>
 struct hostdesc<GPU> {
-  static constexpr std::string name = "GPU";
+  static constexpr const char* name = "GPU";
 };
 
 template<typename F, typename... Args>
@@ -110,56 +110,56 @@ using vec4 = vec<4>;
 //!
 template<typename T>
 struct typedesc {
-  static constexpr std::string name = "none";
+  static constexpr const char* name = "none";
   static constexpr dtype type = NONE;
   typedef void value_t;
 };
 
 template<>
 struct typedesc<int> {
-  static constexpr std::string name = "int";
+  static constexpr const char* name = "int";
   static constexpr dtype type = INT;
   typedef int value_t;
 };
 
 template<>
 struct typedesc<float> {
-  static constexpr std::string name = "float";
+  static constexpr const char* name = "float";
   static constexpr dtype type = FLOAT32;
   typedef float value_t;
 };
 
 template<>
 struct typedesc<double> {
-  static constexpr std::string name = "double";
+  static constexpr const char* name = "double";
   static constexpr dtype type = FLOAT64;
   typedef double value_t;
 };
 
 template<>
 struct typedesc<vec2> {
-  static constexpr std::string name = "vec2";
+  static constexpr const char* name = "vec2";
   static constexpr dtype type = VEC2;
   typedef float value_t;
 };
 
 template<>
 struct typedesc<vec3> {
-  static constexpr std::string name = "vec3";
+  static constexpr const char* name = "vec3";
   static constexpr dtype type = VEC3;
   typedef float value_t;
 };
 
 template<>
 struct typedesc<ivec2> {
-  static constexpr std::string name = "ivec2";
+  static constexpr const char* name = "ivec2";
   static constexpr dtype type = IVEC2;
   typedef int value_t;
 };
 
 template<>
 struct typedesc<ivec3> {
-  static constexpr std::string name = "ivec3";
+  static constexpr const char* name = "ivec3";
   static constexpr dtype type = IVEC3;
   typedef int value_t;
 };

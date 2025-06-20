@@ -210,6 +210,7 @@ module.def("erode", soil::erode);
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
 
+/*
 module.def("flow", [](const soil::buffer& buffer, const soil::index& index){
   return soil::flow(buffer, index);
 });
@@ -241,6 +242,7 @@ module.def("upstream", [](const soil::buffer& buffer, const soil::index& index, 
 module.def("distance", [](const soil::buffer& buffer, const soil::index& index, const glm::ivec2 target){
   return soil::distance(buffer, index, target);
 });
+*/
 
 }
 

@@ -59,6 +59,24 @@ Note: Currently only Linux builds are supported. Other builds should come online
 
 Make sure to instal the cuda toolkit so that you have the `nvcc` compiler, the cuda runtime headers and the cuda library.
 
+- GLM
+- LibTIFF
+- CUDA Toolkit
+- CMake
+- Python3
+- 
+
+
+
+
+
+
+
+
+
+
+
+
 ##### Ubuntu
 
 ```bash
@@ -98,3 +116,8 @@ make python
 Note that this will install the headers, compile the python shared object, build a `.whl` file and install it with `pip`. Inspect the `Makefile` for more granular control.
 
 Note that the library is built with `nvcc`. Linking the library with your project does not require using `nvcc` and can be done with `g++`. 
+
+## Windows
+
+- Install CMake
+- Install CUDA Runtime and Toolkit 12.9

@@ -1,16 +1,22 @@
-# soillib CMake Build Configuration
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.20.0)
+
+#
+# Project Configuration
+#
+
+set(PROJECT_NAME soillib)
+set(PROJECT_VERSION 1.1.0)
+set(DEV_MODULE Development.Module)
+
+project(${PROJECT_NAME} VERSION ${PROJECT_VERSION} LANGUAGES C CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(CUDAToolkit REQUIRED)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_HOST_COMPILER "/usr/bin/gcc-13")
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
-set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CUDA_ARCHITECTURES "50;60;70;75;80") # Supports Maxwell (5.0), Pascal (6.0), Volta (7.0), Turing (7.5), Ampere (8.0)
+set(CMAKE_CUDA_ARCHITECTURES 80 86 87 89 90 100 101 120)
 
-project(soillib LANGUAGES CXX CUDA)
-
-add_subdirectory(ext)     # Build Nanobind
-add_subdirectory(source)  # Build Soillib
+add_subdirectory(source)  # Build Library
+add_subdirectory(python)  # Build Bindings

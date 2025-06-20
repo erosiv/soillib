@@ -14,32 +14,6 @@
 
 namespace {
 
-__device__ const glm::ivec2 coords[8] = {
-  glm::ivec2{-1, 0},
-  glm::ivec2{-1, 1},
-  glm::ivec2{ 0, 1},
-  glm::ivec2{ 1, 1},
-  glm::ivec2{ 1, 0},
-  glm::ivec2{ 1,-1},
-  glm::ivec2{ 0,-1},
-  glm::ivec2{-1,-1},
-};
-
-__device__ const double dist[8] = {
-  1.0,
-  CUDART_SQRT_TWO,
-  1.0,
-  CUDART_SQRT_TWO,
-  1.0,
-  CUDART_SQRT_TWO,
-  1.0,
-  CUDART_SQRT_TWO
-};
-
-__device__ const int dirmap[8] = {
-  7, 8, 1, 2, 3, 4, 5, 6,
-};
-
 //! \todo make this robust for non-regular tile shapes (test)
 __device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int w, const int h){
 
@@ -60,6 +34,32 @@ __device__ soil::ivec2 tile_unflatten(const unsigned int ind, const int w, const
   return soil::ivec2(x, y);
 
 }
+
+__constant__ constexpr glm::ivec2 coords[8] = {
+//  glm::ivec2{-1, 0},
+//  glm::ivec2{-1, 1},
+//  glm::ivec2{ 0, 1},
+//  glm::ivec2{ 1, 1},
+//  glm::ivec2{ 1, 0},
+//  glm::ivec2{ 1,-1},
+//  glm::ivec2{ 0,-1},
+//  glm::ivec2{-1,-1},
+};
+
+__constant__ constexpr double dist[8] = {
+  1.0,
+  CUDART_SQRT_TWO,
+  1.0,
+  CUDART_SQRT_TWO,
+  1.0,
+  CUDART_SQRT_TWO,
+  1.0,
+  CUDART_SQRT_TWO
+};
+
+__constant__ constexpr int dirmap[8] = {
+  7, 8, 1, 2, 3, 4, 5, 6,
+};
 
 }
 
@@ -146,6 +146,8 @@ soil::buffer soil::flow(const soil::buffer& buffer, const soil::index& index) {
 //
 // Direction Kernel Implementation
 //
+
+
 
 __device__ soil::ivec2 _get_dir(const int flow){
   for(size_t k = 0; k < 8; ++k){
@@ -255,7 +257,7 @@ __device__ sample_t sample_uniform(const size_t ind, soil::flat_t<2>& index, soi
 
   curandState* state = &randStates[ind];
   return {
-    curand_uniform(state)*index.elem(),
+    int(curand_uniform(state)*index.elem()),
     float(index.elem())
   };
 

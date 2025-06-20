@@ -137,7 +137,7 @@ bool tiff::read(const char *filename) {
       for (size_t i = 0; i < this->width(); ++i) {
 
         if (this->bits() == 16) {
-          ((float *)buf)[i] = ((std::float16_t *)nbuf)[i];
+//          ((float *)buf)[i] = ((std::float16_t *)nbuf)[i];
         }
         if (this->bits() == 32) {
           ((float *)buf)[i] = ((float *)nbuf)[i];
@@ -194,7 +194,7 @@ bool tiff::read(const char *filename) {
               continue;
 
             if (this->bits() == 16) {
-              ((float *)buf)[fpos.y * this->width() + fpos.x] = ((std::float16_t *)nbuf)[iy * this->_twidth + ix];
+//              ((float *)buf)[fpos.y * this->width() + fpos.x] = ((std::float16_t *)nbuf)[iy * this->_twidth + ix];
             }
             if (this->bits() == 32) {
               ((float *)buf)[fpos.y * this->width() + fpos.x] = ((float *)nbuf)[iy * this->_twidth + ix];

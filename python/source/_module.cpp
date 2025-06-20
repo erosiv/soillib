@@ -17,7 +17,7 @@ void bind_util(nb::module_& module);
 
 // Module Main Function
 
-NB_MODULE(soillib, module){
+NB_MODULE(MODULE_NAME, module){
 
 nb::set_leak_warnings(false);
 

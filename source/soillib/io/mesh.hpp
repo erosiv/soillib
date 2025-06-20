@@ -13,8 +13,9 @@ namespace io {
 namespace {
 
 constexpr bool isBigEndianArchitecture() {
-  constexpr uint32_t i = 0x01020304;
-  return reinterpret_cast<const uint8_t *>(&i)[0] == 1;
+  return false;
+//  constexpr uint32_t i = 0x01020304;
+//  return reinterpret_cast<const uint8_t *>(&i)[0] == 1;
 }
 
 } // namespace

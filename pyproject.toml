@@ -1,0 +1,29 @@
+[build-system]
+requires = ["scikit-build-core >=0.4.3"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "soillib"
+version = "1.1.0"
+description = "Numerical Geomorphology Package"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "LGPL-3.0"
+keywords = ["soillib", "erosiv", "geomorphology", "erosion", "simulation", "cuda", "gpu"]
+
+authors = [
+  {name = "Nicholas McDonald", email = "nick@erosiv.studio"},
+]
+maintainers = [
+  {name = "Nicholas McDonald", email = "nick@erosiv.studio"},
+]
+
+[project.urls]
+Homepage = "https://erosiv.studio"
+Documentation = "https://readthedocs.org"
+Repository = "https://github.com/erosiv/soillib"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"

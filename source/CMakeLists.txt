@@ -6,34 +6,30 @@ add_library(soil STATIC)
 set_target_properties(soil PROPERTIES 
   LINKER_LANGUAGE CUDA
 )
-set(CMAKE_CUDA_FLAGS "-diag-suppress 20012 -diag-suppress 20013 -diag-suppress 20015 -diag-suppress 445 -diag-suppress 177 -fPIC -c -O3")
 
-# Dependency Wrangling
-find_path(GLM_INCLUDE_DIR glm/glm.hpp)
-if(GLM_INCLUDE_DIR)
-  message(STATUS "GLM Install Location: ${GLM_INCLUDE_DIR}")
-  target_include_directories(soil PRIVATE ${GLM_INCLUDE_DIR})
-else()
-  message(FATAL_ERROR "glm is not installed. Please install glm.")
-endif(GLM_INCLUDE_DIR)
-
-# Install Header Files
-set(SOILLIB_DIR ${CMAKE_SOURCE_DIR}/source/soillib)
-install(DIRECTORY ${SOILLIB_DIR} DESTINATION include)
-
-# Build and Install Library
-target_include_directories(soil PRIVATE
-  ${CUDA_INCLUDE_DIRS}    # For cuda_runtime.h
+target_include_directories(soil PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/soillib>
+  .
 )
 
 target_sources(soil PUBLIC
-  ${CMAKE_SOURCE_DIR}/source/soillib/core/buffer.cu
-  ${CMAKE_SOURCE_DIR}/source/soillib/op/flow.cu
-  ${CMAKE_SOURCE_DIR}/source/soillib/op/erosion.cu
-  ${CMAKE_SOURCE_DIR}/source/soillib/op/math.cu
-  ${CMAKE_SOURCE_DIR}/source/soillib/op/common.cu
+  soillib/core/buffer.cu
+#  soillib/op/flow.cu
+  soillib/op/erosion.cu
+  soillib/op/math.cu
+  soillib/op/common.cu
 )
 
-install(
-  TARGETS soil
-)
+# Dependency Wrangling
+
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
+# target_compile_options(soil PUBLIC -diag-suppress 20013)
+# target_compile_options(soil PUBLIC --expt-relaxed-constexpr)
+
+# Build and Install Library
+# target_include_directories(soil PUBLIC
+#   ${CUDA_INCLUDE_DIRS}    # For cuda_runtime.h
+# )
+
+find_package(glm CONFIG REQUIRED)
+target_link_libraries(soil PRIVATE glm::glm)
