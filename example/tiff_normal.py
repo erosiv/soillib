@@ -12,8 +12,7 @@ def main(input):
 
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
-
-    normal = soil.normal(image.buffer, image.index)
+    normal = soil.normal(image.buffer, image.index, image.meta.scale)
     data = normal.numpy(image.index)
 
     data = 0.5 + 0.5*data

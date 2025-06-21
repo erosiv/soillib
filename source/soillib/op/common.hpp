@@ -136,6 +136,22 @@ T max(const soil::buffer_t<T> &buffer) {
   return val;
 }
 
+//
+// Value Clamping
+//
+
+template<typename T>
+void clamp(soil::buffer_t<T>& buffer, const T min, const T max) {
+
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+
+  for (size_t i = 0; i < buffer.elem(); ++i){
+    buffer[i] = glm::clamp(buffer[i], min, max);
+  }
+
+}
+
 } // end of namespace soil
 
 #endif

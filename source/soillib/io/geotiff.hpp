@@ -162,8 +162,11 @@ bool geotiff::peek(const char *filename) {
   if (TIFFGetField(tif, TIFFTAG_GEOASCIIPARAMS, &text_ptr))
     this->_meta.geoasciiparams = std::string(text_ptr);
 
-  if (TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values))
+  if (TIFFGetField(tif, TIFFTAG_GEOPIXELSCALE, &count, &values)){
     this->_meta.scale = std::vector<double>(values, values + count);
+    if(this->_meta.scale[2] == 0.0f)
+      this->_meta.scale[2] = 1.0f;
+  }
 
   if (TIFFGetField(tif, TIFFTAG_GEOTIEPOINTS, &count, &values))
     this->_meta.coords = std::vector<double>(values, values + count);

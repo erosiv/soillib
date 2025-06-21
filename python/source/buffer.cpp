@@ -195,6 +195,43 @@ buffer.def_static("from_numpy", [](const nb::object& object){
 
 });
 
+//
+// Construct Buffer from Pytorch
+//
+
+buffer.def_static("from_torch", [](nb::object& object){
+
+  auto array = nb::cast<nb::ndarray<nb::pytorch>>(object);
+
+  if(array.dtype() == nb::dtype<float>()){
+
+    const size_t size = array.size();
+    float* data = (float*)array.data();
+    auto buffer_t = soil::buffer_t<float>(size, soil::host_t::GPU);
+    const auto view_t = soil::buffer_t<float>(data, size, soil::host_t::GPU);
+
+    soil::set(buffer_t, view_t);
+    return soil::buffer(buffer_t);
+
+  }
+  
+  else if(array.dtype() == nb::dtype<double>()){
+
+    const size_t size = array.size();
+    double* data = (double*)array.data();
+    auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
+    const auto view_t = soil::buffer_t<double>(data, size, soil::host_t::GPU);
+
+    soil::set(buffer_t, view_t);
+    return soil::buffer(buffer_t);
+
+  }
+  else {
+    throw std::runtime_error("type not supported");
+  }
+
+});
+
 }
 
 //

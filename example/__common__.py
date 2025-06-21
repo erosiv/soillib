@@ -3,6 +3,7 @@ import soillib as soil
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
+from zipfile import ZipFile
 
 def iter_tiff(path, max_files = None):
 
@@ -126,9 +127,21 @@ def show_relief(array, index, scale):
 
 def show_discharge(array, index):
 
-  array = array.cpu().numpy(index)
-  plt.imshow(np.log(1.0 + array))
-  plt.show()
+  array = 1 + array.cpu().numpy(index)
+  fig, ax = plt.subplots(figsize=(8,6))
+  im = ax.imshow(array, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, array.max()),
+    interpolation='none')
+
+def show_mass(array, index):
+
+  array = 1 + array.cpu().numpy(index)
+  fig, ax = plt.subplots(figsize=(8,6))
+  im = ax.imshow(array, zorder=2,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, array.max()),
+    interpolation='none')
 
 def show_layers(layers, index, scale):
 
@@ -149,3 +162,27 @@ def show_layers(layers, index, scale):
   plt.imshow(shaded,
     interpolation='bilinear')
   plt.show()
+
+def plot_images(images):
+
+  K = len(images)
+  fig, ax = plt.subplots(1, K, figsize=(8, 4))
+  fig.patch.set_alpha(0)
+  plt.grid('on', zorder=0)
+  for k, img in enumerate(images):
+
+    im = ax[k].imshow(img, zorder=2,
+      cmap='CMRmap',
+      interpolation='bilinear')
+
+  plt.show()
+
+def zip_save(output, fields, index, pscale):
+  with ZipFile(output, 'w') as myzip:
+    for name, field in fields.items():
+      filename = f"{name}.tiff"
+      tiff_out = soil.geotiff(field.cpu(), index)
+      tiff_out.meta.scale = pscale  # Pixel Scale Important!
+      tiff_out.write(filename)
+      myzip.write(filename)
+      os.remove(filename)

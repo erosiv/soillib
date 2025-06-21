@@ -14,10 +14,12 @@ target_include_directories(soil PUBLIC
 
 target_sources(soil PUBLIC
   soillib/core/buffer.cu
-#  soillib/op/flow.cu
   soillib/op/erosion.cu
   soillib/op/math.cu
   soillib/op/common.cu
+# soillib/op/flow.cu
+# soillib/op/pointcloud.cu
+# soillib/op/rbf.cu
 )
 
 # Dependency Wrangling

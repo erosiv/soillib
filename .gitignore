@@ -51,3 +51,4 @@ source/build
 
 # Mesh Formats
 **/*.ply
+**/*.npy

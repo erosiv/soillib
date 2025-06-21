@@ -2,8 +2,10 @@
 #define SOILLIB_OP_FLOW
 #define HAS_CUDA
 
-#include <soillib/op/common.hpp>
+// #include <soillib/op/common.hpp>
 #include <soillib/op/flow.hpp>
+
+#include <soillib/op/cu_common.cu>
 
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
@@ -190,19 +192,6 @@ soil::buffer soil::direction(const soil::buffer& buffer, const soil::index& inde
 // Utility Kernels
 //
 
-template<typename T>
-__global__ void _fill(soil::buffer_t<T> buf, const T val){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index >= buf.elem()) return;
-  buf[index] = val;
-}
-
-__global__ void seed(soil::buffer_t<curandState> buffer, const size_t seed, const size_t offset) {
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= buffer.elem()) return;
-  curand_init(seed, n, offset, &buffer[n]);
-}
-
 __global__ void _graph(const soil::buffer_t<glm::ivec2> in, soil::buffer_t<int> graph, soil::flat_t<2> index){
 
   const int ind = blockIdx.x * blockDim.x + threadIdx.x;
@@ -382,10 +371,10 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::index
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+  set(out, 0.0f);
 
   soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
-  seed<<<block(samples, 512), 512>>>(randStates, 0, 0);
+  seed(randStates, 0, 0);
 
   const size_t N = iterations*samples;
   
@@ -427,10 +416,10 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffe
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+  set(out, 0.0f);
 
   soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
-  seed<<<block(samples, 512), 512>>>(randStates, 0, 0);
+  seed(randStates, 0, 0);
 
   const size_t N = iterations*samples;
   
@@ -501,7 +490,7 @@ soil::buffer soil::accumulation_exhaustive(const soil::buffer& direction, const 
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+  set(out, 0.0f);
 
   _accumulate_exhaustive<<<block(index.elem(), 512), 512>>>(graph_buf, out, index_t);
 
@@ -539,7 +528,7 @@ soil::buffer soil::accumulation_exhaustive(const soil::buffer& direction, const 
   _graph<<<block(elem, 512), 512>>>(buffer_t, graph_buf, index_t);
 
   auto out = soil::buffer_t<float>{elem, soil::GPU};
-  _fill<<<block(elem, 256), 256>>>(out, 0.0f);
+  set(out, 0.0f);
 
   _accumulate_exhaustive<<<block(index.elem(), 512), 512>>>(graph_buf, weight_t, out, index_t);
   
@@ -607,7 +596,7 @@ soil::buffer soil::upstream(const soil::buffer& buffer, const soil::index& index
       _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
 
       auto out = soil::buffer_t<int>{elem, soil::GPU};
-      _fill<<<block(elem, 256), 256>>>(out, 0);
+      set(out, 0);
 
       if(!index_t.oob(target)){
         _upstream<<<block(elem, 512), 512>>>(graph_buf_a, out, target_index, index_t, elem);
@@ -681,7 +670,7 @@ soil::buffer soil::distance(const soil::buffer& buffer, const soil::index& index
       _shift<<<block(elem, 512), 512>>>(graph_buf_a, graph_buf_b, target_index);
       _shift<<<block(elem, 512), 512>>>(graph_buf_b, graph_buf_a, target_index);
 
-      _fill<<<block(elem, 256), 256>>>(out, -1); // unknown state...
+      set(out, -1);
       if(!index_t.oob(target)){
         _distance<<<block(elem, 512), 512>>>(graph_buf_a, out, target_index, index_t, elem);
       }

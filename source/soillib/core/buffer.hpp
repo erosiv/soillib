@@ -46,6 +46,17 @@ struct buffer_t: typedbase {
     this->allocate(size, host);
   }
 
+  // note: refs is zero, meaning that this won't deallocate...
+  //! \todo validate that this "view" concept is correct -
+  //!   effectively this should imply that this can be copied,
+  //!   but the data itself is not owned and shouldn't be deleted.
+  buffer_t(T* data, const size_t elem, const host_t host = CPU){
+    this->_data = data;
+    this->_refs = NULL;
+    this->_size = elem;
+    this->_host = host;
+  }
+
   ~buffer_t() override {
     this->deallocate();
   }
@@ -58,7 +69,9 @@ struct buffer_t: typedbase {
     this->_size = other._size;
     this->_host = other._host;
     if (this->_data != NULL) {
-      ++(*this->_refs);
+      if (this->_refs != NULL){
+        ++(*this->_refs);
+      }
     }
   }
 
@@ -69,7 +82,9 @@ struct buffer_t: typedbase {
     this->_size = other._size;
     this->_host = other._host;
     if (this->_data != NULL) {
-      ++(*this->_refs);
+      if (this->_refs != NULL) {
+        ++(*this->_refs);
+      }
     }
     return *this;
   }
