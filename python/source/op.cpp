@@ -19,8 +19,6 @@ namespace nb = nanobind;
 #include <soillib/op/flow.hpp>
 #include <soillib/op/math.hpp>
 #include <soillib/op/erosion.hpp>
-#include <soillib/op/pointcloud.hpp>
-#include <soillib/op/rbf.hpp>
 
 #include <iostream>
 
@@ -317,6 +315,7 @@ module.def("distance", [](const soil::buffer& buffer, const soil::index& index, 
 // Point-Based Operations
 //
 
+/*
 module.def("sampleN", [](const soil::index& index, const size_t N){
   return soil::sample_N(index, N);
 });
@@ -340,68 +339,7 @@ module.def("concat", [](const soil::buffer& a, const soil::buffer& b){
 module.def("select_index", [](const soil::buffer& source, const soil::buffer& index){
   return soil::select_index(source, index);
 });
-
-module.def("sparseacc", [](const soil::rbf& rbf, const soil::kdtree& kdtree, const soil::index& index, const size_t niter){
-  return soil::sparseacc(rbf, kdtree, index, niter);
-});
-
-//
-// KDTree
-//
-
-auto kdtree_t = nb::class_<soil::kdtree>(module, "kdtree");
-kdtree_t.def(nb::init<soil::buffer&>());
-kdtree_t.def_prop_ro("elem", &soil::kdtree::elem);
-kdtree_t.def("knn", [](const soil::kdtree& kdtree, const soil::buffer& query, const size_t k){
-  return soil::buffer(kdtree.knn(query, k));
-});
-
-//
-// Radial Basis Functions
-//
-
-auto rbf_t = nb::class_<soil::rbf>(module, "rbf");
-rbf_t.def(nb::init<>());
-
-rbf_t.def("init", [](soil::rbf& rbf, const soil::buffer& centroids){
-  rbf.init(centroids.as<soil::vec2>());
-});
-
-rbf_t.def("matrix", [](soil::rbf& rbf, const soil::buffer& samples){
-  return soil::buffer(rbf.matrix(samples.as<soil::vec2>()));
-});
-
-rbf_t.def("vector", [](soil::rbf& rbf, const soil::buffer& values){
-  return soil::buffer(rbf.vector(values.as<float>()));
-});
-
-rbf_t.def("sample", [](soil::rbf& rbf, const soil::buffer& buffer){
-  const auto data_t = buffer.as<soil::vec2>();
-  return soil::buffer(rbf.sample(data_t));
-});
-
-rbf_t.def("sample", [](soil::rbf& rbf,const soil::index& index){
-  const auto index_t = index.as<soil::flat_t<2>>();
-  return soil::buffer(rbf.sample(index_t));
-});
-
-rbf_t.def("sample", [](soil::rbf& rbf, const soil::buffer& buffer, const soil::kdtree& kdtree){
-  const auto data_t = buffer.as<soil::vec2>();
-  return soil::buffer(rbf.sample(data_t, kdtree));
-});
-
-rbf_t.def("sample", [](soil::rbf& rbf, const soil::index& index, const soil::kdtree& kdtree){
-  const auto index_t = index.as<soil::flat_t<2>>();
-  return soil::buffer(rbf.sample(index_t, kdtree));
-});
-
-rbf_t.def_rw("shape", &soil::rbf::shape);
-rbf_t.def_rw("P", &soil::rbf::P);
-
-rbf_t.def("set_w", [](soil::rbf& rbf, const soil::buffer& weights){
-  rbf.weights = weights.as<float>();
-  rbf.weights.to_gpu();
-});
+*/
 
 }
 

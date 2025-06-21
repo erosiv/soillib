@@ -18,8 +18,6 @@ target_sources(soil PUBLIC
   soillib/op/math.cu
   soillib/op/common.cu
 # soillib/op/flow.cu
-# soillib/op/pointcloud.cu
-# soillib/op/rbf.cu
 )
 
 # Dependency Wrangling

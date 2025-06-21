@@ -46,5 +46,12 @@ target_link_libraries(${MODULE_NAME} PUBLIC
   "C:\\Program Files (x86)\\tiff\\lib\\tiffd.lib"
 )
 
+add_custom_command (
+  TARGET ${MODULE_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy -t "$<TARGET_FILE_DIR:${MODULE_NAME}>"
+  "C:\\Program Files (x86)\\glew-2.1.0\\bin\\Release\\x64\\glew32.dll"
+)
+
+
 # Install Directive for Scikit
 install(TARGETS ${MODULE_NAME} LIBRARY DESTINATION ${MODULE_NAME})

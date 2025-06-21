@@ -1,6 +1,3 @@
 [submodule "ext/nanobind"]
 	path = ext/nanobind
 	url = https://github.com/wjakob/nanobind
-[submodule "ext/cudaKDTree"]
-	path = ext/cudaKDTree
-	url = https://github.com/ingowald/cudaKDTree

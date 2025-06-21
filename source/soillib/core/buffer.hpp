@@ -5,8 +5,8 @@
 //! \todo add more detail about this file
 
 #include <cuda_runtime.h>
-#include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
+#include <soillib/core/types.hpp>
 #include <soillib/util/error.hpp>
 #include <soillib/util/yield.hpp>
 

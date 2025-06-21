@@ -1,12 +1,9 @@
 #ifndef SOILLIB_NODE_EROSION
 #define SOILLIB_NODE_EROSION
 
+#include <soillib/soillib.hpp>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
-#include <soillib/soillib.hpp>
-
-#include <soillib/op/rbf.hpp>
-#include <soillib/index/kdtree.hpp>
 
 #include <curand_kernel.h>
 

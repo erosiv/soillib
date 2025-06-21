@@ -187,8 +187,6 @@ struct typedesc<ivec3> {
 
 namespace {
 
-#pragma GCC diagnostic ignored "-Wsubobject-linkage"
-
 struct typedbase {
   virtual ~typedbase() {};
   constexpr virtual soil::dtype type() noexcept {

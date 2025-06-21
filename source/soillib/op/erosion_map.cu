@@ -9,9 +9,9 @@
 #include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>
 
-#include <soillib/index/kdtree.hpp>
-#include <cukd/builder.h>
-#include <cukd/knn.h>
+// #include <soillib/index/kdtree.hpp>
+// #include <cukd/builder.h>
+// #include <cukd/knn.h>
 
 //! Map-Based Geometric Functions
 //! Note that these should be dependent on the

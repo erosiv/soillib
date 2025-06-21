@@ -1,8 +1,8 @@
 #ifndef SOILLIB_ERROR
 #define SOILLIB_ERROR
 
-#include <soillib/core/types.hpp>
 #include <soillib/soillib.hpp>
+#include <soillib/core/types.hpp>
 #include <sstream>
 
 // Custom Soillib Exceptions
