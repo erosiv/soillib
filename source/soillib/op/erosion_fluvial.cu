@@ -22,9 +22,9 @@ struct particle_t {
   vec2 pos;     //!< Grid-Space Position [pix]
   vec2 speed;   //!< World-Space Velocity [m/s]
 
-  vec2 dspeed;  //!< Characteristic Speed Rate  [m/s^2]
-  float vol;    //!< Characteristic Volume Rate [m^3/s]
-  float sed;    //!< Characteristic Mass Rate   [kg/s]
+  vec2 dspeed;  //!< Speed Rate  [m/s^2]
+  float vol;    //!< Volume Rate [m^3/s]
+  float sed;    //!< Mass Rate   [kg/s]
 
   int ind;      //!< Nearest Support Index
   float Q;      //!< Weighted Sampling Probability
@@ -40,30 +40,29 @@ namespace fluvial {
 //  value-clamping and limiting only occurs in the composite sum.
 //
 
-//! Mass Deposition Rate:
+//! Mass Deposition Rate [m/y]
 __device__ float deposit(const param_t& param, const float dt, const float mass, const float discharge){
 
   if(discharge < 1.0f)
     return 0.0f;
 
-  const float kd = param.depositionRate;      //!< Fluvial Deposition Rate [1/y]
-  const float decay = (1.0f-__expf(-dt*kd));  //!< Total Decay Factor []
-  return decay * mass;
+  const float kd = param.depositionRate;  //!< Fluvial Deposition Rate [m/y]
+  return dt * kd * mass / discharge;
 
 }
 
 //! Mass Suspension Rate [m/y]
 __device__ float suspend(const param_t& param, const vec2 speed, const float vol){
 
-  const float alpha = param.fluvialExponent; 
+  const float alpha = param.fluvialExponent;
   const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
   const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
   const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
   
-  const float velocity = glm::length(speed);  //!< [m/s]
-  const float shear = 0.125f * fD * rho * velocity * velocity;      //!< [kg/m/s^2]
-  const float power = pow(shear * velocity, alpha);                 //!< Stream Power Function
-  const float suspend = ks * power * vol;                           //!< Concentration
+  const float velocity = glm::length(speed);                    //!< [m/s]
+  const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
+  const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
+  const float suspend = ks * power;
   return glm::abs(suspend);
 
 }
@@ -83,7 +82,7 @@ __device__ float limit(float transfer, const float mass, const float slope, cons
     }
   }
 
-  transfer = glm::min(transfer, mass);  // Limit by Mass
+//  transfer = glm::min(transfer, mass);  // Limit by Mass
   return transfer;
 
 }
@@ -93,6 +92,7 @@ __device__ float limit(float transfer, const float mass, const float slope, cons
 // 
 
 //! Initialize Particle Data from Model
+//!
 template<typename Map>
 __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& part){
 
@@ -111,14 +111,14 @@ __device__ void init(Map& map, data_t& data, const param_t& param, particle_t& p
   const vec2 grad = __grad(map, part.pos, scale); //!< Scaled Direction
   
   // Initial Tracking Values
-  
-  const float& R = param.rainfall;            //!< Rainfall Rate  [m/y]
+
+  const float R = param.rainfall;             //!< Rainfall Rate  [m/y]
   const float Rmask = map.rainfall[part.ind]; //!< Rainfall Mask
   part.vol = Ac * R * Rmask;                  //!< Volume Rate [m^3/s]
 
   const vec2 force = param.force;
   part.dspeed = nu * mspeed - g * grad + param.force;  //!< Velocity Rate [m/s^2]
-  part.speed = part.dspeed;                                   //!< Velocity [m/s]
+  part.speed = part.dspeed;                            //!< Velocity [m/s]
 
   // Initial Sediment Value:
   // Note that there is a maximum amount that can theoretically
@@ -142,7 +142,6 @@ __device__ void move(const map_grid& map, particle_t& part){
 
 }
 
-//! Integrate Sub-Solution Quantities in Quasi-Static Time
 template<typename Map>
 __device__ void integrate(const Map& map, const data_t& data, const param_t& param, particle_t& part){
   
@@ -189,17 +188,19 @@ __device__ void integrate_mt(Map& map, data_t& data, const param_t& param, parti
 
 //  const vec3 scale = map.scale * 1E3f;    //!< Cell Scale [m] (conv. from km)
 //  const vec2 cl = vec2(scale.x, scale.y); //!< Cell Length [m, m]
-//
-//  const float kd = param.depositionRate;                    //!< Fluvial Deposition Rate [1/s]
-//  const float ds = glm::length(cl)/glm::length(part.speed); //!< Dynamic Timestep [s]
-//  part.sed *= __expf(-ds * param.depositionRate);           //!< Apply Decay
+
+//  const float kd = 0.05f;//param.depositionRate;                //!< Fluvial Deposition Rate [1/s]
+//  const float ds = glm::length(cl);///glm::length(part.speed);  //!< Dynamic Timestep [s]
+//  part.sed *= __expf(-kd);                                      //!< Apply Decay
 
 }
 
 //! Track the Differential Quantities along Trajectories
 __device__ void track(data_t& track, const particle_t& part) {
 
-  const float rho = 1000.0f;  //!< Fluid Density
+  const float rho = 1000.0f;    //!< Fluid Density
+  const float rho_s = 2500.0f;  //!< Sediment Density
+
   atomicAdd(&track.mass[part.ind], (part.sed)/part.Q);
   atomicAdd(&track.discharge[part.ind], (part.vol)/part.Q);
   atomicAdd(&track.momentum[part.ind].x, (part.vol*rho*part.dspeed.x)/part.Q);
@@ -211,7 +212,7 @@ __device__ void track(data_t& track, const particle_t& part) {
 // Kernels
 //
 
-//! Transport Estimate Solution Kernel
+//! Transport Solution Kernel
 template<typename Map>
 __global__ void solve(Map map, data_t data, data_t track, const size_t N, const param_t param){
 

@@ -154,7 +154,6 @@ __device__ void move(const map_t& map, debris_t& part){
 
 }
 
-//! Integrate Sub-Solution Quantities in Quasi-Static Time
 __device__ void integrate(const map_t& map, const param_t& param, debris_t& part){
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
@@ -176,7 +175,7 @@ __device__ void integrate(const map_t& map, const param_t& param, debris_t& part
 
 }
 
-//! Mass-Transfer Characteristic Integration
+//! Mass-Transfer Integration
 __device__ void integrate_mt(const map_t& map, const param_t& param, debris_t& part){
 
   const vec3 scale = map.scale * 1E3f;  // Cell Scale [m] (conv. from km)
