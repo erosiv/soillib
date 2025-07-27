@@ -16,6 +16,9 @@ struct tensor_t: typedbase {
   tensor_t(const shape shape, const host_t host = CPU):
     _shape(shape),_buffer(shape.elem, host){}
 
+  tensor_t(const buffer_t<T> buffer, const shape shape):
+    _shape(shape),_buffer(buffer){}
+
   // Inspection Functions
 
   GPU_ENABLE shape shape()        const { return this->_shape; }
@@ -70,8 +73,15 @@ struct tensor {
   }
 
   template<typename T>
-  tensor(soil::buffer_t<T> &&ten) {
+  tensor(soil::tensor_t<T> &&ten) {
     impl = std::make_shared<soil::tensor_t<T>>(ten);
+  }
+
+  // Construct from Buffer
+
+  template<typename T>
+  tensor(const soil::buffer_t<T>& buffer, const soil::shape &shape){
+    impl = std::make_shared<soil::tensor_t<T>>(buffer, shape);
   }
 
   ~tensor() { this->impl = NULL; }

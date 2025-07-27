@@ -27,6 +27,12 @@ tensor.def(nb::init<>());
 tensor.def(nb::init<const soil::dtype, const soil::shape>());
 tensor.def(nb::init<const soil::dtype, const soil::shape, const soil::host_t>());
 
+tensor.def("__init__", [](soil::tensor* tensor, const soil::buffer& buffer, const soil::shape shape) {
+  soil::select(buffer.type(), [tensor, &buffer, &shape]<typename S>(){
+    new (tensor) soil::tensor(buffer.as<S>(), shape);
+  });
+});
+
 // Data Inspection
 
 tensor.def_prop_ro("type", &soil::tensor::type);

@@ -3,6 +3,7 @@
 
 #include <soillib/core/shape.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 #include <soillib/core/types.hpp>
 
 #include <math_constants.h>
@@ -22,67 +23,31 @@ struct lerp5_t {
   //  that performs a sum over multiple values somewhere. For now,
   //  we will just implement two separate functions.
 
-  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const shape shape, glm::ivec2 p) {
+  GPU_ENABLE void gather(const soil::tensor_t<T> &tensor, glm::ivec2 p) {
+
+    const soil::shape shape = tensor.shape();
 
     for (int i = 0; i < 5; ++i) {
       const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
       if (!shape.oob(pos_x)) {
         this->x[i].oob = false;
         const size_t ind = shape.flatten(pos_x);
-        this->x[i].value = buffer_t[ind];
+        this->x[i].value = tensor[ind];
       }
 
       const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
       if (!shape.oob(pos_y)) {
         this->y[i].oob = false;
         const size_t ind = shape.flatten(pos_y);
-        this->y[i].value = buffer_t[ind];
-      }
-    }
-  }
-  
-  /*
-  template<typename I>
-  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p) {
-
-    for (int i = 0; i < 5; ++i) {
-      const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
-      if (!index.oob(pos_x)) {
-        this->x[i].oob = false;
-        const size_t ind = index.flatten(pos_x);
-        this->x[i].value = buffer_t[ind];
-      }
-
-      const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
-      if (!index.oob(pos_y)) {
-        this->y[i].oob = false;
-        const size_t ind = index.flatten(pos_y);
-        this->y[i].value = buffer_t[ind];
+        this->y[i].value = tensor[ind];
       }
     }
   }
 
-  template<typename I>
-  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_0, const soil::buffer_t<T> &buffer_1, const I index, glm::ivec2 p) {
-
-    for (int i = 0; i < 5; ++i) {
-      const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
-      if (!index.oob(pos_x)) {
-        const size_t ind = index.flatten(pos_x);
-        this->x[i].value = buffer_0[ind] + buffer_1[ind];
-        this->x[i].oob = false;
-      }
-
-      const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
-      if (!index.oob(pos_y)) {
-        const size_t ind = index.flatten(pos_y);
-        this->y[i].value = buffer_0[ind] + buffer_1[ind];
-        this->y[i].oob = false;
-      }
-    }
-  } 
-  */
-
+  lerp5_t(){}
+  lerp5_t(const soil::tensor_t<T> &tensor, glm::ivec2 p){
+    this->gather(tensor, p);
+  }
 
   GPU_ENABLE vec2 grad(const vec3 scale = vec3(1.0f)) const {
 

@@ -185,8 +185,15 @@ module.def("noise", [](const soil::shape shape, const soil::noise_param_t param)
 // Normal Map ?
 //
 
-module.def("normal", [](const soil::buffer& buffer, const soil::shape& shape, const soil::vec3 scale){
-  return soil::normal::operator()(buffer, shape, scale);
+module.def("normal", [](const soil::tensor& tensor, const soil::vec3 scale){
+
+  if (tensor.host() != soil::CPU)
+    throw soil::error::mismatch_host(soil::CPU, tensor.host());
+
+  return soil::select(tensor.type(), [&]<std::floating_point T>(){
+    return soil::op::normal(tensor.as<T>(), scale);
+  });
+
 });
 
 }

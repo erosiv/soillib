@@ -10,20 +10,11 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    print(f"File: {file}, {image.buffer.type}")
+    tensor = soil.tensor(image.buffer, image.shape)
+    print(f"File: {file}, {tensor.type}")
 
-    shape = image.shape
-    height = image.buffer.numpy(shape)
-    normal = soil.normal(image.buffer, shape, image.meta.scale).numpy(soil.shape(shape[0], shape[1], 3))
-
-    a = soil.buffer(soil.float32, 8).gpu()
-    b = soil.buffer(soil.float32, 8).gpu()
-    soil.set(a, 1)
-    soil.set(b, 6)
-
-    soil.add(a, 6)
-    a = a.cpu().numpy(soil.shape(2, 4))
-    print(a)
+    height = tensor.numpy()
+    normal = soil.normal(tensor, image.meta.scale).numpy()
 
     # Compute Shading
     relief = relief_shade(height, normal)

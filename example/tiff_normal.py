@@ -11,10 +11,10 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    shape = image.shape
-    print(f"File: {file}, {image.buffer.type}")
-    normal = soil.normal(image.buffer, shape, image.meta.scale)
-    data = normal.numpy(soil.shape(shape[0], shape[1], 3))
+    tensor = soil.tensor(image.buffer, image.shape)
+    print(f"File: {file}, {tensor.type}")
+    normal = soil.normal(tensor, image.meta.scale)
+    data = normal.numpy()
 
     data = 0.5 + 0.5*data
     plt.imshow(data)
