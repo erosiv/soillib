@@ -8,9 +8,39 @@
 
 namespace soil {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
-}
+//
+// Common Operation Declarations
+//
+
+template<typename T>
+void set(buffer_t<T> lhs, const T value);
+
+template<typename T>
+void add(buffer_t<T> lhs, const T value);
+
+template<typename T>
+void multiply(buffer_t<T> lhs, const T value);
+
+template<typename T>
+void set(buffer_t<T> lhs, const buffer_t<T> rhs);
+
+template<typename T>
+void add(buffer_t<T> lhs, const buffer_t<T> rhs);
+
+template<typename T>
+void multiply(buffer_t<T> lhs, const buffer_t<T> rhs);
+
+template<typename T>
+void mix(buffer_t<T> lhs, const buffer_t<T> rhs, const float w);
+
+template<typename T>
+void clamp(buffer_t<T> lhs, const T min, const T max);
+
+void seed(buffer_t<curandState>& buf, const size_t seed, const size_t offset);
+
+//
+// Other Operations that need cleaning / deprecation...
+//
 
 //
 // Casting
@@ -30,6 +60,7 @@ soil::buffer_t<To> cast(const soil::buffer_t<From> &buffer) {
     // }
   }
   return buffer_to;
+
 }
 
 //
@@ -50,11 +81,6 @@ void set(soil::buffer_t<T> buffer, const T val, size_t start, size_t stop, size_
   else if (buffer.host() == soil::host_t::GPU) {
     set_impl(buffer, val, start, stop, step);
   }
-}
-
-template<typename T>
-void set(soil::buffer_t<T> &buffer, const T val) {
-  set(buffer, val, 0, buffer.elem(), 1);
 }
 
 //
@@ -79,6 +105,68 @@ void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 ou
     throw soil::error::mismatch_host(soil::host_t::GPU, rhs.host());
   }
 }
+
+
+//
+// Legacy Functions
+//! \todo get rid of this...
+
+template<typename To, typename From>
+void copy(soil::buffer_t<To> &out, const soil::buffer_t<From> &in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale) {
+
+  const ivec2 pmin = ivec2(pscale * (gmin - wmin) / wscale);
+  const ivec2 pmax = ivec2(pscale * (gmax - wmin) / wscale);
+  const ivec2 pext = ivec2(pscale * (wmax - wmin) / wscale);
+  const ivec2 gext = ivec2((gmax - gmin) / gscale);
+
+  for (int x = pmin[1]; x < pmax[1]; ++x) {
+    for (int y = pmin[0]; y < pmax[0]; ++y) {
+
+      const int ind_out = y + pext[0] * (pext[1] - x - 1);
+
+      const size_t px = size_t((pmax[1] - x - 1) / pscale);
+      const size_t py = size_t((y - pmin[0]) / pscale);
+      const size_t ind_in = py + px * gext[0];
+
+      out[ind_out] = To(From(pscale) * in[ind_in]);
+    }
+  }
+}
+
+//
+// Reductions
+//
+
+template<typename T>
+T min(const soil::buffer_t<T> &buffer) {
+
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+
+  T val = std::numeric_limits<T>::max();
+  for (auto [i, b] : buffer.const_iter()) {
+    if (!std::isnan(b)) {
+      val = std::min(val, b);
+    }
+  }
+  return val;
+}
+
+template<typename T>
+T max(const soil::buffer_t<T> &buffer) {
+
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+
+  T val = std::numeric_limits<T>::min();
+  for (auto [i, b] : buffer.const_iter()) {
+    if (!std::isnan(b)) {
+      val = std::max(val, b);
+    }
+  }
+  return val;
+}
+
 
 } // end of namespace soil
 

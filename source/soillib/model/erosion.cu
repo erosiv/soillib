@@ -9,7 +9,7 @@
 #include <iostream>
 
 #include <soillib/op/gather.hpp>
-#include <soillib/core/operation.hpp>
+#include <soillib/op/common.hpp>
 
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/erosion_map.cu>
@@ -68,7 +68,7 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
   const size_t n_samples = param.samples;
   if(map.rand.elem() != n_samples){
     map.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
-    op::seed(map.rand, 0, 4 * map.age);
+    soil::seed(map.rand, 0, 4 * map.age);
   }
 
   if(map.transfer.elem() != map.elem){
@@ -82,11 +82,11 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
   for(size_t step = 0; step < steps; ++step){
 
     // Reset Estimates
-    op::set(track.discharge, 0.0f);
-    op::set(track.momentum, vec2(0.0f));
-    op::set(track.mass, 0.0f);
-    op::set(track.debris, 0.0f);
-    op::set(track.debris_momentum, vec2(0.0f));
+    soil::set(track.discharge, 0.0f);
+    soil::set(track.momentum, vec2(0.0f));
+    soil::set(track.mass, 0.0f);
+    soil::set(track.debris, 0.0f);
+    soil::set(track.debris_momentum, vec2(0.0f));
     cudaDeviceSynchronize();
 
     // Solve Estimates
@@ -96,19 +96,19 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
 
     // Filter Estimates
 //    const float lrate = param.lrate;
-//    op::binop_inplace(data.mass, track.mass, [lrate] GPU_ENABLE (const float a, const float b){
+//    soil::binop_inplace(data.mass, track.mass, [lrate] GPU_ENABLE (const float a, const float b){
 //      return glm::mix(a, b, lrate);
 //    });
 
-    op::mix(data.momentum, track.momentum, param.lrate);
-    op::mix(data.discharge, track.discharge, param.lrate);
-    op::mix(data.mass, track.mass, param.lrate);
-    op::mix(data.debris, track.debris, param.lrate);
-    op::mix(data.debris_momentum, track.debris_momentum, param.lrate);
+    soil::mix(data.momentum, track.momentum, param.lrate);
+    soil::mix(data.discharge, track.discharge, param.lrate);
+    soil::mix(data.mass, track.mass, param.lrate);
+    soil::mix(data.debris, track.debris, param.lrate);
+    soil::mix(data.debris_momentum, track.debris_momentum, param.lrate);
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
-    op::set(map.transfer, 0.0f);
+    soil::set(map.transfer, 0.0f);
     fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     uplift<<<block(map.elem, 512), 512>>>(map, param);

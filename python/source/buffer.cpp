@@ -178,7 +178,7 @@ buffer.def_static("from_torch", [](nb::object& object){
     auto buffer_t = soil::buffer_t<float>(size, soil::host_t::GPU);
     const auto view_t = soil::buffer_t<float>(data, size, soil::host_t::GPU);
 
-    soil::op::set(buffer_t, view_t);
+    soil::set(buffer_t, view_t);
     return soil::buffer(buffer_t);
 
   }
@@ -190,7 +190,7 @@ buffer.def_static("from_torch", [](nb::object& object){
     auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
     const auto view_t = soil::buffer_t<double>(data, size, soil::host_t::GPU);
 
-    soil::op::set(buffer_t, view_t);
+    soil::set(buffer_t, view_t);
     return soil::buffer(buffer_t);
 
   }

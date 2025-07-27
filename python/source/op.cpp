@@ -42,19 +42,19 @@ module.def("cast", [](const soil::buffer& buf, const soil::dtype type){
 
 module.def("min", [](const soil::buffer& buf){
   return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
-    return nb::cast(soil::op::min(buf.as<S>()));
+    return nb::cast(soil::min(buf.as<S>()));
   });
 });
 
 module.def("max", [](const soil::buffer& buf){
   return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
-    return nb::cast(soil::op::max(buf.as<S>()));
+    return nb::cast(soil::max(buf.as<S>()));
   });
 });
 
 module.def("clamp", [](soil::buffer& buf, const float min, const float max){
   soil::select(buf.type(), [&]<std::same_as<float> S>() -> void {
-    soil::op::clamp(buf.as<S>(), min, max);
+    soil::clamp(buf.as<S>(), min, max);
   });
 });
 
@@ -70,7 +70,7 @@ module.def("copy", [](soil::buffer& lhs, const soil::buffer& rhs, soil::vec2 gmi
 
   soil::select(lhs.type(), [&]<typename To>(){
     soil::select(rhs.type(), [&]<std::convertible_to<To> From>(){
-      soil::op::copy<To, From>(lhs.as<To>(), rhs.as<From>(), gmin, gmax, gscale, wmin, wmax, wscale, pscale);
+      soil::copy<To, From>(lhs.as<To>(), rhs.as<From>(), gmin, gmax, gscale, wmin, wmax, wscale, pscale);
     });
   });
 });
@@ -103,7 +103,7 @@ module.def("set", [](soil::buffer& lhs, const soil::buffer& rhs){
     throw soil::error::mismatch_host(lhs.host(), rhs.host());
   
   soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
-    soil::op::set<S>(lhs.as<S>(), rhs.as<S>());
+    soil::set<S>(lhs.as<S>(), rhs.as<S>());
   });
 });
 
@@ -127,7 +127,7 @@ module.def("add", [](soil::buffer& lhs, const soil::buffer& rhs){
     throw soil::error::mismatch_host(lhs.host(), rhs.host());
 
   soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
-    soil::op::add<S>(lhs.as<S>(), rhs.as<S>());
+    soil::add<S>(lhs.as<S>(), rhs.as<S>());
   });
 });
 
@@ -135,7 +135,7 @@ module.def("add", [](soil::buffer& buffer, const nb::object value){
   soil::select(buffer.type(), [&buffer, &value]<typename S>(){
     auto buffer_t = buffer.as<S>();
     auto value_t = nb::cast<S>(value);
-    soil::op::add<S>(buffer_t, value_t);
+    soil::add<S>(buffer_t, value_t);
   });
 });
 
@@ -151,7 +151,7 @@ module.def("multiply", [](soil::buffer& lhs, const soil::buffer& rhs){
     throw soil::error::mismatch_host(lhs.host(), rhs.host());
 
   soil::select(lhs.type(), [&lhs, &rhs]<typename S>(){
-    soil::op::multiply<S>(lhs.as<S>(), rhs.as<S>());
+    soil::multiply<S>(lhs.as<S>(), rhs.as<S>());
   });
 });
 
@@ -159,7 +159,7 @@ module.def("multiply", [](soil::buffer& buffer, const nb::object value){
   soil::select(buffer.type(), [&buffer, &value]<typename S>(){
     auto buffer_t = buffer.as<S>();
     auto value_t = nb::cast<S>(value);
-    soil::op::multiply<S>(buffer_t, value_t);
+    soil::multiply<S>(buffer_t, value_t);
   });
 });
 

@@ -27,7 +27,7 @@ nb::object __make_numpy(const soil::tensor_t<T>& source){
   nb::capsule owner(target, [](void *p) noexcept {
     delete (soil::tensor_t<T>*)p;
   });
-  soil::op::set(target->buffer(), source.buffer());
+  soil::set(target->buffer(), source.buffer());
 
   switch(shape.dim){
     case 1: return __make_numpy<T, 1>(target->data(), shape, owner);
@@ -47,7 +47,7 @@ nb::object __make_numpy(const soil::buffer_t<T>& source, soil::shape& shape){
   nb::capsule owner(target, [](void *p) noexcept {
     delete (soil::buffer_t<T>*)p;
   });
-  soil::op::set(*target, source);
+  soil::set(*target, source);
 
   switch(shape.dim){
     case 1: return __make_numpy<T, 1>(target->data(), shape, owner);
@@ -113,7 +113,7 @@ nb::object __make_torch(const soil::tensor_t<T>& source){
   nb::capsule owner(target, [](void *p) noexcept {
     delete (soil::tensor_t<T>*)p;
   });
-  soil::op::set(target->buffer(), source.buffer());
+  soil::set(target->buffer(), source.buffer());
 
   switch(shape.dim){
     case 1: return __make_torch<T, 1>(target->data(), shape, owner);
@@ -237,7 +237,7 @@ struct make_torch {
     nb::capsule owner(target, [](void *p) noexcept {
       delete (soil::buffer_t<T>*)p;
     });
-    soil::op::set(*target, source);
+    soil::set(*target, source);
 
     size_t _shape[4]{0};
     for(size_t d = 0; d < 4; ++d)
