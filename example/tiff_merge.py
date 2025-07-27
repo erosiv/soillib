@@ -27,7 +27,7 @@ def merge(input, pscale = 0.1):
     geotiff = soil.geotiff()
     geotiff.peek(path)
     _meta = geotiff.meta
-    if meta == None and _meta.gdal_metadata != "":
+    if meta == None:# and _meta.gdal_metadata != "":
       meta = _meta
 
     gmin = np.array(geotiff.min)
@@ -44,11 +44,11 @@ def merge(input, pscale = 0.1):
   # Create Merged Filling Array
 
   pixels = (pscale * ((wmax - wmin)/wscale)).astype(np.int64)
-  mshape = soil.index([pixels[1], pixels[0]])
+  mshape = soil.shape(pixels[1], pixels[0])
 
   print(f"Output Format: ({pixels[0]}, {pixels[1]})")
 
-  array = soil.buffer(soil.float32, mshape.elem())
+  array = soil.buffer(soil.float32, mshape.elem)
   soil.set(array, np.nan)
 
   for file, path in iter_tiff(input):
