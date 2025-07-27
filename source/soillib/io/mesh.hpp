@@ -2,8 +2,8 @@
 #define SOILLIB_IO_MESH
 
 #include <fstream>
+#include <soillib/core/shape.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 
 #include <unordered_map>
 
@@ -33,9 +33,9 @@ constexpr bool isBigEndianArchitecture() {
 struct mesh {
 
   mesh() {}
-  mesh(const soil::buffer &_buffer, const soil::index &_index, const vec3 scale) {
+  mesh(const soil::buffer &_buffer, const soil::shape &_shape, const vec3 scale) {
 
-    this->triangulate(_buffer, _index, scale);
+    this->triangulate(_buffer, _shape, scale);
 
     // Compute Min, Max
     this->min = vec3(std::numeric_limits<float>::max());
@@ -46,75 +46,71 @@ struct mesh {
     }
   }
 
-  void triangulate(const soil::buffer &buffer, const soil::index &index, const vec3 scale) {
+  void triangulate(const soil::buffer &buffer, const soil::shape &shape, const vec3 scale) {
 
     soil::select(buffer.type(), [&]<std::floating_point T>() {
       auto buffer_t = buffer.as<T>();
 
-      soil::select(index.type(), [&]<soil::index_2D I>() {
-        auto index_t = index.as<I>();
+      // Insert Vertices:
+      //  Construct Map from Buffer Index to Mesh Index
+      //  Insert Vertices
+      //  Use Map to Insert Face Triangles
 
-        // Insert Vertices:
-        //  Construct Map from Buffer Index to Mesh Index
-        //  Insert Vertices
-        //  Use Map to Insert Face Triangles
+      std::unordered_map<int, unsigned int> vertex_set;
 
-        std::unordered_map<int, unsigned int> vertex_set;
+      // Insert Vertices
+      unsigned int count = 0;
+      for (auto pos : shape.iter()) {
 
-        // Insert Vertices
-        unsigned int count = 0;
-        for (auto pos : index_t.iter()) {
+        int ind = shape.flatten(pos); // Buffer Position Index
+        T val = buffer_t[ind];          // Buffer Value
+        if (std::isnan(val))            // Non NaN Values!
+          continue;
 
-          int ind = index_t.flatten(pos); // Buffer Position Index
-          T val = buffer_t[ind];          // Buffer Value
-          if (std::isnan(val))            // Non NaN Values!
-            continue;
+        vertex_set.insert({ind, count}); // Map from Buffer to Mesh
+        vec3 p(pos[0], pos[1], val);
+        p *= scale; // Scale Position (Pixels -> Meters)
+        this->vertices.push_back(p);
+        ++count;
+      }
 
-          vertex_set.insert({ind, count}); // Map from Buffer to Mesh
-          vec3 p(pos[0], pos[1], val);
-          p *= scale; // Scale Position (Pixels -> Meters)
-          this->vertices.push_back(p);
-          ++count;
-        }
+      // Insert Faces
+      for (auto pos : shape.iter()) {
 
-        // Insert Faces
-        for (auto pos : index_t.iter()) {
+        if (shape.oob(pos + ivec2(0, 0)))
+          continue;
+        if (shape.oob(pos + ivec2(0, 1)))
+          continue;
+        if (shape.oob(pos + ivec2(1, 1)))
+          continue;
+        if (shape.oob(pos + ivec2(1, 1)))
+          continue;
 
-          if (index_t.oob(pos + ivec2(0, 0)))
-            continue;
-          if (index_t.oob(pos + ivec2(0, 1)))
-            continue;
-          if (index_t.oob(pos + ivec2(1, 1)))
-            continue;
-          if (index_t.oob(pos + ivec2(1, 1)))
-            continue;
+        int i00 = shape.flatten(pos + ivec2(0, 0));
+        int i01 = shape.flatten(pos + ivec2(0, 1));
+        int i10 = shape.flatten(pos + ivec2(1, 0));
+        int i11 = shape.flatten(pos + ivec2(1, 1));
 
-          int i00 = index_t.flatten(pos + ivec2(0, 0));
-          int i01 = index_t.flatten(pos + ivec2(0, 1));
-          int i10 = index_t.flatten(pos + ivec2(1, 0));
-          int i11 = index_t.flatten(pos + ivec2(1, 1));
+        T v00 = buffer_t[i00];
+        T v01 = buffer_t[i01];
+        T v10 = buffer_t[i10];
+        T v11 = buffer_t[i11];
 
-          T v00 = buffer_t[i00];
-          T v01 = buffer_t[i01];
-          T v10 = buffer_t[i10];
-          T v11 = buffer_t[i11];
+        if (std::isnan(v00))
+          continue;
+        if (std::isnan(v01))
+          continue;
+        if (std::isnan(v10))
+          continue;
+        if (std::isnan(v11))
+          continue;
 
-          if (std::isnan(v00))
-            continue;
-          if (std::isnan(v01))
-            continue;
-          if (std::isnan(v10))
-            continue;
-          if (std::isnan(v11))
-            continue;
+        uvec3 f0 = {vertex_set[i01], vertex_set[i00], vertex_set[i10]};
+        uvec3 f1 = {vertex_set[i01], vertex_set[i10], vertex_set[i11]};
 
-          uvec3 f0 = {vertex_set[i01], vertex_set[i00], vertex_set[i10]};
-          uvec3 f1 = {vertex_set[i01], vertex_set[i10], vertex_set[i11]};
-
-          this->faces.push_back(f0);
-          this->faces.push_back(f1);
-        }
-      });
+        this->faces.push_back(f0);
+        this->faces.push_back(f1);
+      }
     });
   }
 

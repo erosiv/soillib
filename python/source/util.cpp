@@ -26,14 +26,14 @@ namespace nb = nanobind;
 
 template<typename T>
 void bind_yield_t(nb::module_& module, const char* name){
-
-using yield_t = soil::yield<T>;
-auto yield = nb::class_<yield_t>(module, name);
-
-yield.def("__iter__", [](soil::yield<T>& iter){
-  return nb::make_iterator(nb::type<soil::yield<T>>(), "iterator",
-    iter.begin(), iter.end());
-}, nb::keep_alive<0, 1>());
+  
+  using yield_t = soil::yield<T>;
+  auto yield = nb::class_<yield_t>(module, name);
+  
+  yield.def("__iter__", [](soil::yield<T>& iter){
+    return nb::make_iterator(nb::type<soil::yield<T>>(), "iterator",
+      iter.begin(), iter.end());
+  }, nb::keep_alive<0, 1>());
 
 }
 
@@ -92,10 +92,9 @@ timer.def_prop_ro("count", [](const soil::timer& timer){
 // Yield Type Binding
 //
 
-bind_yield_t<soil::flat_t<1>::vec_t>(module, "yield_shape_t_arr_1");
-bind_yield_t<soil::flat_t<2>::vec_t>(module, "yield_shape_t_arr_2");
-bind_yield_t<soil::flat_t<3>::vec_t>(module, "yield_shape_t_arr_3");
-bind_yield_t<soil::flat_t<4>::vec_t>(module, "yield_shape_t_arr_4");
+bind_yield_t<soil::ivec2>(module, "yield_vec2");
+bind_yield_t<soil::ivec3>(module, "yield_vec3");
+bind_yield_t<soil::ivec4>(module, "yield_vec4");
 
 }
 

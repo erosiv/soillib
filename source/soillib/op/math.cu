@@ -4,12 +4,12 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 
 #include <soillib/op/common.hpp>
 
 namespace soil {
 
+/*
 //
 // Resample Kernels
 //
@@ -56,6 +56,7 @@ template soil::buffer_t<vec2>   resample_impl<vec2>  (const soil::buffer_t<vec2>
 template soil::buffer_t<vec3>   resample_impl<vec3>  (const soil::buffer_t<vec3>& buffer,   const soil::index& index);
 template soil::buffer_t<ivec2>  resample_impl<ivec2> (const soil::buffer_t<ivec2>& buffer,  const soil::index& index);
 template soil::buffer_t<ivec3>  resample_impl<ivec3> (const soil::buffer_t<ivec3>& buffer,  const soil::index& index);
+*/
 
 //
 // Addition Kernels
@@ -63,16 +64,16 @@ template soil::buffer_t<ivec3>  resample_impl<ivec3> (const soil::buffer_t<ivec3
 
 template<typename T>
 __global__ void _add(soil::buffer_t<T> buf, const T val){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.elem())
-    buf[index] += val;
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < buf.elem())
+    buf[n] += val;
 }
 
 template<typename T>
 __global__ void _add(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.elem())
-    lhs[index] += rhs[index];
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < lhs.elem())
+    lhs[n] += rhs[n];
 }
 
 template<typename T>
@@ -113,16 +114,16 @@ template void add_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t
 
 template<typename T>
 __global__ void _multiply(soil::buffer_t<T> buf, const T val){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < buf.elem())
-    buf[index] *= val;
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < buf.elem())
+    buf[n] *= val;
 }
 
 template<typename T>
 __global__ void _multiply(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.elem())
-    lhs[index] *= rhs[index];
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < lhs.elem())
+    lhs[n] *= rhs[n];
 }
 
 template<typename T>

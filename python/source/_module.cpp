@@ -10,10 +10,9 @@
 
 namespace nb = nanobind;
 void bind_shape(nb::module_& module);
-void bind_index(nb::module_& module);
 void bind_buffer(nb::module_& module);
 void bind_io(nb::module_& module);
-//void bind_op(nb::module_& module);
+void bind_op(nb::module_& module);
 void bind_util(nb::module_& module);
 
 // Module Main Function
@@ -26,9 +25,8 @@ module.doc() = "Soillib Python Module";
 
 bind_shape(module);
 bind_buffer(module);
-bind_index(module);
 bind_io(module);
-// bind_op(module);
+bind_op(module);
 bind_util(module);
 
 }

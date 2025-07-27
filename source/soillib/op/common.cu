@@ -64,7 +64,7 @@ template void set_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t
 //
 
 template<typename T>
-__global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, const flat_t<2> out, const flat_t<2> in){
+__global__ void _resize(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, const soil::shape out, const soil::shape in){
 
   const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
   if(index >= lhs.elem()){
@@ -106,8 +106,8 @@ void resize_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2
   int elem = lhs.elem();
   int block = (elem + thread - 1)/thread;
 
-  const flat_t<2> out_t({out.x, out.y});
-  const flat_t<2> in_t({in.x, in.y});
+  const soil::shape out_t(out.x, out.y);
+  const soil::shape in_t(in.x, in.y);
 
   _resize<<<block, thread>>>(lhs, rhs, out_t, in_t);
 }

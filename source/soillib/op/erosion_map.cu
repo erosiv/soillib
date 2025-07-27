@@ -4,7 +4,6 @@
 
 #include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 
 #include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>
@@ -21,15 +20,15 @@ namespace soil {
 
 //! Nearest Support Point
 __device__ int __nearest(const map_grid& map, const vec2 pos){
-  return map.index.flatten(pos);
+  return map.shape.flatten(pos);
 }
 
 __device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale) {
   
-  if(map.index.oob(pos))
+  if(map.shape.oob(pos))
     return CUDART_NAN_F;
   
-  int find = map.index.flatten(pos);
+  int find = map.shape.flatten(pos);
   const float hf_0 = map.height[find];
   const float hf_1 = map.sediment[find];
   return (hf_0 + hf_1) * scale.z;
@@ -129,19 +128,19 @@ __device__ vec2 __avespeed(const vec2 momentum, const float discharge){
 
 template<typename Map>
 __device__ bool __oob(const Map& map, const vec2 pos){
-  return map.index.oob(pos);
+  return map.shape.oob(pos);
 }
 
 __device__ vec2 __topos(const map_grid& map, const int nearest){
-  return map.index.unflatten(nearest);
+  return map.shape.unflatten(nearest);
 }
 
 template<typename T, typename Map>
 __device__ void __sample(T& part, Map& map, const size_t n, const size_t N){
 
   part.pos = vec2 {
-    curand_uniform(&map.rand[n])*float(map.index[0]),
-    curand_uniform(&map.rand[n])*float(map.index[1])
+    curand_uniform(&map.rand[n])*float(map.shape[0]),
+    curand_uniform(&map.rand[n])*float(map.shape[1])
   };
   part.ind = __nearest(map, part.pos);
 

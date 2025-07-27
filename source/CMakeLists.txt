@@ -13,7 +13,6 @@ target_include_directories(soil PUBLIC
 )
 
 target_sources(soil PUBLIC
-  soillib/core/buffer.cu
   soillib/op/erosion.cu
   soillib/op/math.cu
   soillib/op/common.cu

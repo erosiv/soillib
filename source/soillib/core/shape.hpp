@@ -99,6 +99,15 @@ struct shape {
     return false;
   }
 
+  // note: this should not necessarily be done like this...
+
+  GPU_ENABLE bool oob(const soil::ivec2 pos) const {
+    for (size_t d = 0; d < 2; ++d)
+      if (pos[d] < 0 || pos[d] >= this->ext[d])
+        return true;
+    return false;
+  }
+
   //
   // Question: What is the ideal way to initialize and flatten / unflatten?
   //  Do we accept vectors of different size and shape? What does a slice do?
@@ -107,8 +116,16 @@ struct shape {
   //  So if we return a slice, it generates every index... and then we can downcast
   //  a slice directly to a vector which populates it with the positions right?
   //  
+  
+  GPU_ENABLE int flatten(const soil::ivec2 pos) const {
+    int index{0};
+    for (size_t d = 0; d < 2; ++d) {
+      index *= this->ext[d];
+      index += pos[d];
+    }
+    return index;
+  }
 
-  /*
   //! Flattening Operator
   GPU_ENABLE int flatten(const vec_t pos) const {
     int index{0};
@@ -129,7 +146,6 @@ struct shape {
     }
     return value;
   }
-  */
 
   // Data-Members
 

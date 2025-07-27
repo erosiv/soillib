@@ -11,12 +11,10 @@ namespace nb = nanobind;
 
 #include <soillib/core/types.hpp>
 
-#include <soillib/index/kdtree.hpp>
-
 #include <soillib/op/common.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
-#include <soillib/op/flow.hpp>
+// #include <soillib/op/flow.hpp>
 #include <soillib/op/math.hpp>
 #include <soillib/op/erosion.hpp>
 
@@ -146,17 +144,17 @@ noise_t.def_rw("lacunarity", &soil::noise_param_t::lacunarity);
 noise_t.def_rw("seed", &soil::noise_param_t::seed);
 noise_t.def_rw("ext", &soil::noise_param_t::ext);
 
-module.def("noise", [](const soil::index index, const soil::noise_param_t param){
+module.def("noise", [](const soil::shape shape, const soil::noise_param_t param){
   // note: seed is considered state. how can this be reflected here?
-  return soil::noise::make_buffer(index, param);
+  return soil::noise::make_buffer(shape, param);
 });
 
 //
 // Normal Map ?
 //
 
-module.def("normal", [](const soil::buffer& buffer, const soil::index& index, const soil::vec3 scale){
-  return soil::normal::operator()(buffer, index, scale);
+module.def("normal", [](const soil::buffer& buffer, const soil::shape& shape, const soil::vec3 scale){
+  return soil::normal::operator()(buffer, shape, scale);
 });
 
 //
@@ -198,7 +196,7 @@ param_t.def_rw("force", &soil::param_t::force);
 //
 
 auto map_t = nb::class_<soil::map_t>(module, "map_t");
-map_t.def(nb::init<soil::index, soil::vec3>());
+map_t.def(nb::init<soil::shape, soil::vec3>());
 map_t.def_ro("scale", &soil::map_t::scale);
 
 map_t.def_prop_rw("height",

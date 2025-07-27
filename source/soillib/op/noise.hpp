@@ -1,8 +1,8 @@
 #ifndef SOILLIB_OP_NOISE
 #define SOILLIB_OP_NOISE
 
+#include <soillib/core/shape.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
@@ -41,47 +41,25 @@ struct noise_param_t {
 
 struct noise {
 
-  static soil::buffer make_buffer(const soil::index index, noise_param_t param) {
+  //!\todo make this available for 3D buffers as well...
+  static soil::buffer make_buffer(const soil::shape shape, noise_param_t param) {
 
-    return select(index.type(), [index, &param]<typename T>() -> soil::buffer {
-      if constexpr (std::same_as<typename T::vec_t, soil::ivec2>) {
+    if(shape.dim != 2)
+      throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+    
+    auto buffer_t = soil::buffer_t<float>(shape.elem, soil::CPU);
 
-        auto index_t = index.as<T>();
-        auto buffer_t = soil::buffer_t<float>(index_t.elem(), soil::CPU);
+    param.update();
+    for (size_t i = 0; i < shape.elem; ++i) {
+      soil::ivec2 position = shape.unflatten(i);
+      buffer_t[i] = param(position);
+    }
+    return soil::buffer(std::move(buffer_t));
 
-        param.update();
-        for (size_t i = 0; i < index_t.elem(); ++i) {
-          soil::ivec2 position = index_t.unflatten(i);
-          buffer_t[i] = param(position);
-        }
-        return soil::buffer(std::move(buffer_t));
-
-      } else
-        throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
-    });
   }
+
 };
 
 }; // end of namespace soil
 
-// Configuration Loading
-
-#ifdef SOILLIB_IO_YAML
-
-template<>
-struct soil::io::yaml::cast<soil::noise::sampler_t> {
-  static soil::noise::sampler_t As(soil::io::yaml &node) {
-    soil::noise::sampler_t sampler;
-    sampler.frequency = node["frequency"].As<float>();
-    sampler.octaves = node["octaves"].As<int>();
-    sampler.lacunarity = node["lacunarity"].As<float>();
-    sampler.min = node["min"].As<float>();
-    sampler.max = node["max"].As<float>();
-    sampler.bias = node["bias"].As<float>();
-    sampler.scale = node["scale"].As<float>();
-    return sampler;
-  }
-};
-
-#endif
 #endif

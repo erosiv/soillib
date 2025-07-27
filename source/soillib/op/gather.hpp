@@ -1,8 +1,8 @@
 #ifndef SOILLIB_OP_GATHER
 #define SOILLIB_OP_GATHER
 
+#include <soillib/core/shape.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>
 
 #include <math_constants.h>
@@ -21,6 +21,27 @@ struct lerp5_t {
   //  Note that we can replace this generally with some structure
   //  that performs a sum over multiple values somewhere. For now,
   //  we will just implement two separate functions.
+
+  GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const shape shape, glm::ivec2 p) {
+
+    for (int i = 0; i < 5; ++i) {
+      const glm::ivec2 pos_x = p + glm::ivec2(-2 + i, 0);
+      if (!shape.oob(pos_x)) {
+        this->x[i].oob = false;
+        const size_t ind = shape.flatten(pos_x);
+        this->x[i].value = buffer_t[ind];
+      }
+
+      const glm::ivec2 pos_y = p + glm::ivec2(0, -2 + i);
+      if (!shape.oob(pos_y)) {
+        this->y[i].oob = false;
+        const size_t ind = shape.flatten(pos_y);
+        this->y[i].value = buffer_t[ind];
+      }
+    }
+  }
+  
+  /*
   template<typename I>
   GPU_ENABLE void gather(const soil::buffer_t<T> &buffer_t, const I index, glm::ivec2 p) {
 
@@ -59,7 +80,9 @@ struct lerp5_t {
         this->y[i].oob = false;
       }
     }
-  }
+  } 
+  */
+
 
   GPU_ENABLE vec2 grad(const vec3 scale = vec3(1.0f)) const {
 
@@ -129,14 +152,14 @@ namespace {
 
 //! Note: For lerp oob, we have to reduce the bound
 //! by one so that we have lerp support on the other end.
-GPU_ENABLE bool oob(const vec2 pos, const flat_t<2> index) {
+GPU_ENABLE bool oob(const vec2 pos, const shape shape) {
   if (pos.x < 0)
     return true;
   if (pos.y < 0)
     return true;
-  if (pos.x >= index[0] - 1)
+  if (pos.x >= shape[0] - 1)
     return true;
-  if (pos.y >= index[1] - 1)
+  if (pos.y >= shape[1] - 1)
     return true;
   return false;
 }
@@ -189,7 +212,7 @@ private:
 };
 
 template<typename T>
-GPU_ENABLE lerp_t<T> gather(const soil::buffer_t<T> &buf, const soil::flat_t<2> index, vec2 pos) {
+GPU_ENABLE lerp_t<T> gather(const soil::buffer_t<T> &buf, const shape shape, vec2 pos) {
 
   ivec2 p00 = ivec2(pos) + ivec2(0, 0);
   ivec2 p01 = ivec2(pos) + ivec2(0, 1);
@@ -201,10 +224,10 @@ GPU_ENABLE lerp_t<T> gather(const soil::buffer_t<T> &buf, const soil::flat_t<2> 
   //  if(oob(p10, index)) return lerp_t<T>(T{CUDART_NAN_F});
   //  if(oob(p11, index)) return lerp_t<T>(T{CUDART_NAN_F});
 
-  int i00 = index.flatten(p00);
-  int i01 = index.flatten(p01);
-  int i10 = index.flatten(p10);
-  int i11 = index.flatten(p11);
+  int i00 = shape.flatten(p00);
+  int i01 = shape.flatten(p01);
+  int i10 = shape.flatten(p10);
+  int i11 = shape.flatten(p11);
 
   T v00 = buf[i00];
   T v01 = buf[i01];

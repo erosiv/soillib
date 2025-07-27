@@ -3,7 +3,6 @@
 
 #include <limits>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 
 namespace soil {
 
@@ -50,6 +49,7 @@ void copy(soil::buffer_t<To> &out, const soil::buffer_t<From> &in, vec2 gmin, ve
   }
 }
 
+/*
 //
 // Resample Buffer using Index
 //
@@ -90,6 +90,7 @@ soil::buffer_t<T> resample(const soil::buffer_t<T> &input, const soil::index &in
   else
     throw std::invalid_argument("HOST NOT RECOGNIZED");
 }
+*/
 
 //
 // Add Buffer from Buffer and Value In-Place

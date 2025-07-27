@@ -43,11 +43,6 @@ nb::enum_<soil::host_t>(module, "host")
   .value("gpu", soil::host_t::GPU)
   .export_values();
 
-// Memory Consumption Counters
-
-module.def("mem_cpu", [](){ return soil::buffer_track::mem_cpu; });
-module.def("mem_gpu", [](){ return soil::buffer_track::mem_gpu; });
-
 // Buffer Type
 
 auto buffer = nb::class_<soil::buffer>(module, "buffer");

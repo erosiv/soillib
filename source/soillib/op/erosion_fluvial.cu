@@ -4,7 +4,6 @@
 
 #include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 
 #include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>

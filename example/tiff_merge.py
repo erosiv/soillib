@@ -104,6 +104,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern/G-T4728-18.tif"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41234_DGM_tif_Waldzell"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41403_DGM_tif_Brunnenthal"
+  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
 
   file_out = "_dem_merged.tiff"
   main(data, file_out)

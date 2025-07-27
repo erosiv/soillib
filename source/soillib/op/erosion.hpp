@@ -3,7 +3,6 @@
 
 #include <soillib/soillib.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 
 #include <curand_kernel.h>
 
@@ -53,13 +52,13 @@ struct param_t {
 
 struct map_grid {
 
-  map_grid(soil::index index, soil::vec3 scale):
-    index(index.as<soil::flat_t<2>>()),
+  map_grid(soil::shape shape, soil::vec3 scale):
+    shape(shape),
     scale(scale),
-    elem(index.elem()){}
+    elem(shape.elem){}
 
   const size_t elem;            // Total Number of Elements
-  const soil::flat_t<2> index;  // Buffer Indexing Structure
+  const soil::shape shape;      // Buffer Indexing Structure
   const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
 
   soil::buffer_t<float> height;

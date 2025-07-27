@@ -3,7 +3,6 @@
 
 #include <limits>
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
 #include <soillib/core/types.hpp>
 
 namespace soil {

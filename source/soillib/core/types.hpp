@@ -305,28 +305,6 @@ auto select(const soil::dtype type, F lambda, Args &&...args) {
   }
 }
 
-template<class I>
-constexpr bool is_index_2D() { return I::n_dims == 2; }
-
-template<typename I>
-concept index_2D = is_index_2D<I>();
-
-enum dindex {
-  FLAT1,
-  FLAT2,
-  FLAT3,
-  FLAT4,
-  QUAD
-};
-
-// base class
-struct indexbase {
-  virtual ~indexbase() {};
-  constexpr virtual soil::dindex type() noexcept {
-    return {};
-  }
-};
-
 } // namespace soil
 
 #endif

@@ -14,11 +14,6 @@
 
 namespace soil {
 
-namespace buffer_track {
-extern size_t mem_cpu; //!< Allocated CPU Memory in Bytes
-extern size_t mem_gpu; //!< Allocated GPU Memory in Bytes
-} // namespace buffer_track
-
 //! \todo Make sure that buffers are "re-interpretable"!
 
 //! buffer_t<T> is a strict-typed, raw-data extent.
@@ -175,12 +170,10 @@ void soil::buffer_t<T>::allocate(const size_t size, const host_t host) {
 
   if (host == CPU) {
     this->_data = new T[size];
-    buffer_track::mem_cpu += this->size();
   }
 
   else if (host == GPU) {
     cudaMalloc(&this->_data, this->size());
-    buffer_track::mem_gpu += this->size();
   }
 
   else
@@ -208,7 +201,6 @@ void soil::buffer_t<T>::deallocate() {
   if (this->_data != NULL) {
     if (this->_host == CPU) {
       delete[] this->_data;
-      buffer_track::mem_cpu -= this->size();
       this->_data = NULL;
       this->_size = 0;
       this->_host = CPU;
@@ -217,7 +209,6 @@ void soil::buffer_t<T>::deallocate() {
     if (this->_host == GPU) {
 
       cudaFree(this->_data);
-      buffer_track::mem_gpu -= this->size();
       this->_data = NULL;
       this->_size = 0;
       this->_host = CPU;
@@ -243,9 +234,6 @@ void soil::buffer_t<T>::to_gpu() {
   cudaMalloc(&_data, this->size());
   cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
 
-  buffer_track::mem_gpu += this->size();
-  //  buffer_track::mem_cpu -= this->size();
-
   this->deallocate();
   this->_data = _data;
   this->_refs = new size_t(1);
@@ -268,9 +256,6 @@ void soil::buffer_t<T>::to_cpu() {
   size_t _size = this->_size;
   T *_data = new T[_size];
   cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyDeviceToHost);
-
-  buffer_track::mem_cpu += this->size();
-  //  buffer_track::mem_gpu -= this->size();
 
   this->deallocate();
   this->_data = _data;
