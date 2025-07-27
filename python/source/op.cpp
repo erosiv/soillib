@@ -75,6 +75,22 @@ module.def("copy", [](soil::buffer& lhs, const soil::buffer& rhs, soil::vec2 gmi
   });
 });
 
+module.def("resize", [](soil::buffer& lhs, const soil::buffer& rhs, soil::ivec2 out, soil::ivec2 in){
+  if(lhs.type() != rhs.type())
+    throw soil::error::mismatch_type(lhs.type(), rhs.type());
+  soil::select(lhs.type(), [&lhs, &rhs, in, out]<typename S>(){
+    soil::resize<S>(lhs.as<S>(), rhs.as<S>(), out, in);
+  });
+});
+
+
+
+
+
+
+
+
+
 module.def("set", [](soil::buffer& lhs, const soil::buffer& rhs){
   if(lhs.type() != rhs.type())
     throw soil::error::mismatch_type(lhs.type(), rhs.type());
@@ -123,13 +139,7 @@ module.def("multiply", [](soil::buffer& buffer, const nb::object value){
   });
 });
 
-module.def("resize", [](soil::buffer& lhs, const soil::buffer& rhs, soil::ivec2 out, soil::ivec2 in){
-  if(lhs.type() != rhs.type())
-    throw soil::error::mismatch_type(lhs.type(), rhs.type());
-  soil::select(lhs.type(), [&lhs, &rhs, in, out]<typename S>(){
-    soil::resize<S>(lhs.as<S>(), rhs.as<S>(), out, in);
-  });
-});
+
 
 //
 // Noise Sampler Type

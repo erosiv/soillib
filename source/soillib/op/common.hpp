@@ -74,6 +74,42 @@ void set(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
 
 }
 
+template<typename T>
+void add(soil::buffer_t<T> &lhs, const T rhs) {
+  soil::op::add(lhs, rhs);
+}
+
+template<typename T>
+void add(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
+
+  if (lhs.elem() != rhs.elem())
+    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
+
+  if (lhs.host() != rhs.host())
+    throw soil::error::mismatch_host(lhs.host(), rhs.host());
+
+  soil::op::add(lhs, rhs);
+
+}
+
+template<typename T>
+void multiply(soil::buffer_t<T> &lhs, const T rhs) {
+  soil::op::multiply(lhs, rhs);
+}
+
+template<typename T>
+void multiply(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
+
+  if (lhs.elem() != rhs.elem())
+    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
+
+  if (lhs.host() != rhs.host())
+    throw soil::error::mismatch_host(lhs.host(), rhs.host());
+
+  soil::op::multiply(lhs, rhs);
+
+}
+
 //
 // Resize Operation
 //  Note: Currently only Bilinear Interpolation

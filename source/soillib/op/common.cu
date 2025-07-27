@@ -54,6 +54,30 @@ template void soil::op::add<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buf
 template void soil::op::add<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
 template void soil::op::add<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
+template void op::add<int>   (soil::buffer_t<int> buffer,    const int val);
+template void op::add<float> (soil::buffer_t<float> buffer,  const float val);
+template void op::add<double>(soil::buffer_t<double> buffer, const double val);
+template void op::add<vec2>  (soil::buffer_t<vec2> buffer,   const vec2 val);
+template void op::add<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 val);
+template void op::add<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 val);
+template void op::add<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 val);
+
+template void op::multiply<int>   (soil::buffer_t<int> buffer,    const int val);
+template void op::multiply<float> (soil::buffer_t<float> buffer,  const float val);
+template void op::multiply<double>(soil::buffer_t<double> buffer, const double val);
+template void op::multiply<vec2>  (soil::buffer_t<vec2> buffer,   const vec2 val);
+template void op::multiply<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 val);
+template void op::multiply<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 val);
+template void op::multiply<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 val);
+
+template void op::multiply<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs);
+template void op::multiply<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs);
+template void op::multiply<double>(soil::buffer_t<double> lhs,  const soil::buffer_t<double> rhs);
+template void op::multiply<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t<vec2> rhs);
+template void op::multiply<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
+template void op::multiply<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
+template void op::multiply<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
+
 
 //
 // Resizing Kernels

@@ -26,6 +26,34 @@ Which means... ?
 namespace soil {
 namespace op {
 
+//
+// Forward Declarations
+//
+
+template<typename T>
+void set(buffer_t<T> lhs, const T value);
+
+template<typename T>
+void add(buffer_t<T> lhs, const T value);
+
+template<typename T>
+void multiply(buffer_t<T> lhs, const T value);
+
+template<typename T>
+void set(buffer_t<T> lhs, const buffer_t<T> rhs);
+
+template<typename T>
+void add(buffer_t<T> lhs, const buffer_t<T> rhs);
+
+template<typename T>
+void multiply(buffer_t<T> lhs, const buffer_t<T> rhs);
+
+//
+// Templated CUDA Implementations
+//
+
+#ifdef HAS_CUDA
+
 namespace {
 
 inline int block(const int elem, const int thread) {
@@ -34,16 +62,61 @@ inline int block(const int elem, const int thread) {
 
 }
 
-template<typename T>
-void set(buffer_t<T> target, const buffer_t<T> source);
+//
+// In-Place Binary Operation w. Value
+//
 
-template<typename T>
-void add(buffer_t<T> target, const buffer_t<T> source);
+template<typename T, typename F>
+__global__ void __binop_inplace(buffer_t<T> lhs, const T rhs, F func) {
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < lhs.elem()){
+    const T a = lhs[n];
+    lhs[n] = func(a, rhs);
+  }
+}
 
-#ifdef HAS_CUDA
+template<typename T, typename F>
+void binop_inplace(buffer_t<T> lhs, const T rhs, F func) {
+
+  if(lhs.host() == soil::host_t::GPU){
+    __binop_inplace<<<block(lhs.elem(), 512), 512>>>(lhs, rhs, func);
+  }
+
+  if(lhs.host() == soil::host_t::CPU){
+    for(size_t i = 0; i < lhs.elem(); ++i){
+      lhs[i] = func(lhs[i], rhs);
+    }
+  }
+
+}
 
 //
-// In-Place Binary Operation
+// Specific Instantiations
+//
+
+template<typename T>
+void set(buffer_t<T> lhs, const T rhs) {
+  binop_inplace(lhs, rhs, [] GPU_ENABLE (const T a, const T b){
+    return b;
+  });
+}
+
+template<typename T>
+void add(buffer_t<T> lhs, const T rhs) {
+  binop_inplace(lhs, rhs, [] GPU_ENABLE (const T a, const T b){
+    return a + b;
+  });
+}
+
+template<typename T>
+void multiply(buffer_t<T> lhs, const T rhs) {
+  binop_inplace(lhs, rhs, [] GPU_ENABLE (const T a, const T b){
+    return a * b;
+  });
+}
+
+//
+// In-Place Binary Operation w. Buffer
 //
 
 template<typename T, typename F>
@@ -89,6 +162,13 @@ template<typename T>
 void add(buffer_t<T> lhs, const buffer_t<T> rhs) {
   binop_inplace(lhs, rhs, [] GPU_ENABLE (const T a, const T b){
     return a + b;
+  });
+}
+
+template<typename T>
+void multiply(buffer_t<T> lhs, const buffer_t<T> rhs) {
+  binop_inplace(lhs, rhs, [] GPU_ENABLE (const T a, const T b){
+    return a * b;
   });
 }
 
