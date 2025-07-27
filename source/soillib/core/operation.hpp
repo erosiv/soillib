@@ -60,6 +60,9 @@ void multiply(buffer_t<T> lhs, const buffer_t<T> rhs);
 template<typename T>
 void mix(buffer_t<T> lhs, const buffer_t<T> rhs, const float w);
 
+template<typename T>
+void clamp(buffer_t<T> lhs, const T min, const T max);
+
 void seed(buffer_t<curandState>& buf, const size_t seed, const size_t offset);
 
 //
@@ -124,6 +127,8 @@ void binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
 // Specific Instantiations
 //
 
+// Unary Operations
+
 template<typename T>
 void set(buffer_t<T> lhs, const T rhs) {
   uniop_inplace(lhs, [rhs] GPU_ENABLE (const T a){
@@ -144,6 +149,15 @@ void multiply(buffer_t<T> lhs, const T rhs) {
     return a * rhs;
   });
 }
+
+template<typename T>
+void clamp(soil::buffer_t<T> lhs, const T min, const T max) {
+  uniop_inplace(lhs, [min, max] GPU_ENABLE (const T a){
+    return glm::clamp(a, min, max);
+  });
+}
+
+// Binary Operations
 
 template<typename T>
 void set(buffer_t<T> lhs, const buffer_t<T> rhs) {
@@ -199,6 +213,40 @@ void copy(soil::buffer_t<To> &out, const soil::buffer_t<From> &in, vec2 gmin, ve
       out[ind_out] = To(From(pscale) * in[ind_in]);
     }
   }
+}
+
+//
+// Reductions
+//
+
+template<typename T>
+T min(const soil::buffer_t<T> &buffer) {
+
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+
+  T val = std::numeric_limits<T>::max();
+  for (auto [i, b] : buffer.const_iter()) {
+    if (!std::isnan(b)) {
+      val = std::min(val, b);
+    }
+  }
+  return val;
+}
+
+template<typename T>
+T max(const soil::buffer_t<T> &buffer) {
+
+  if (buffer.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+
+  T val = std::numeric_limits<T>::min();
+  for (auto [i, b] : buffer.const_iter()) {
+    if (!std::isnan(b)) {
+      val = std::max(val, b);
+    }
+  }
+  return val;
 }
 
 }

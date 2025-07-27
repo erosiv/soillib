@@ -42,19 +42,19 @@ module.def("cast", [](const soil::buffer& buf, const soil::dtype type){
 
 module.def("min", [](const soil::buffer& buf){
   return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
-    return nb::cast(soil::min(buf.as<S>()));
+    return nb::cast(soil::op::min(buf.as<S>()));
   });
 });
 
 module.def("max", [](const soil::buffer& buf){
   return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
-    return nb::cast(soil::max(buf.as<S>()));
+    return nb::cast(soil::op::max(buf.as<S>()));
   });
 });
 
 module.def("clamp", [](soil::buffer& buf, const float min, const float max){
   soil::select(buf.type(), [&]<std::same_as<float> S>() -> void {
-    soil::clamp(buf.as<S>(), min, max);
+    soil::op::clamp(buf.as<S>(), min, max);
   });
 });
 

@@ -80,56 +80,6 @@ void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 ou
   }
 }
 
-//
-// Reductions
-//
-
-template<typename T>
-T min(const soil::buffer_t<T> &buffer) {
-
-  if (buffer.host() != soil::host_t::CPU)
-    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
-
-  T val = std::numeric_limits<T>::max();
-  for (auto [i, b] : buffer.const_iter()) {
-    if (!std::isnan(b)) {
-      val = std::min(val, b);
-    }
-  }
-  return val;
-}
-
-template<typename T>
-T max(const soil::buffer_t<T> &buffer) {
-
-  if (buffer.host() != soil::host_t::CPU)
-    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
-
-  T val = std::numeric_limits<T>::min();
-  for (auto [i, b] : buffer.const_iter()) {
-    if (!std::isnan(b)) {
-      val = std::max(val, b);
-    }
-  }
-  return val;
-}
-
-//
-// Value Clamping
-//
-
-template<typename T>
-void clamp(soil::buffer_t<T>& buffer, const T min, const T max) {
-
-  if (buffer.host() != soil::host_t::CPU)
-    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
-
-  for (size_t i = 0; i < buffer.elem(); ++i){
-    buffer[i] = glm::clamp(buffer[i], min, max);
-  }
-
-}
-
 } // end of namespace soil
 
 #endif

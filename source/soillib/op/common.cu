@@ -78,6 +78,14 @@ template void op::multiply<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buff
 template void op::multiply<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
 template void op::multiply<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
+// template void op::clamp<int>   (soil::buffer_t<int> buffer,    const int min, const int max);
+template void op::clamp<float> (soil::buffer_t<float> buffer,  const float min, const float max);
+//template void op::clamp<double>(soil::buffer_t<double> buffer, const double min, const double max);
+//template void op::clamp<vec2>  (soil::buffer_t<vec2> buffer,   const vec2 min, const vec2 max);
+//template void op::clamp<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 min, const vec3 max);
+//template void op::clamp<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 min, const ivec2 max);
+//template void op::clamp<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 min, const ivec3 max);
+
 __global__ void __seed(buffer_t<curandState> buf, const size_t seed, const size_t offset) {
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= buf.elem()) return;
