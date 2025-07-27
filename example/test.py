@@ -11,3 +11,6 @@ soil.set(t.buffer, 1)
 print(t.host)
 a = t.numpy()
 print(a)
+
+b = soil.tensor.from_numpy(a)
+print(b.shape)

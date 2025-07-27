@@ -59,6 +59,28 @@ nb::object __make_numpy(const soil::buffer_t<T>& source, soil::shape& shape){
 
 }
 
+template<typename T>
+soil::tensor __tensor_from_numpy(const nb::ndarray<nb::numpy>& array){
+
+  const size_t size = array.size();
+  const T* data = (T*)array.data();
+  
+  const size_t ndim = array.ndim();
+  const int d0 = (ndim >= 1) ? array.shape(0) : 1;
+  const int d1 = (ndim >= 2) ? array.shape(1) : 1;
+  const int d2 = (ndim >= 3) ? array.shape(2) : 1;
+  const int d3 = (ndim >= 4) ? array.shape(3) : 1;
+  auto shape = soil::shape(d0, d1, d2, d3);
+  shape.dim = ndim;
+
+  auto tensor_t = soil::tensor_t<T>(shape, soil::host_t::CPU);
+  for(size_t i = 0; i < size; ++i)
+    tensor_t[i] = data[i];
+
+  return std::move(soil::tensor(tensor_t));
+
+}
+
 //
 // PyTorch Tensor Generation
 //

@@ -87,84 +87,16 @@ tensor.def("torch", [](const soil::tensor& tensor){
   });
 });
 
-/*
-//
-// Construct Buffer from Numpy
-//
-
-//! \note this always performs a copy, it doesn't keep the object alive.
-buffer.def_static("from_numpy", [](const nb::object& object){
-
+tensor.def_static("from_numpy", [](const nb::object& object){
   auto array = nb::cast<nb::ndarray<nb::numpy>>(object);
-
   if(array.dtype() == nb::dtype<float>()){
-
-    const size_t size = array.size();
-    const float* data = (float*)array.data();
-    auto buffer_t = soil::buffer_t<float>(size, soil::host_t::CPU);
-
-    for(size_t i = 0; i < size; ++i)
-      buffer_t[i] = data[i];
-
-    return std::move(soil::buffer(std::move(buffer_t)));
-
-  }
-  
-  else if(array.dtype() == nb::dtype<double>()){
-
-    const size_t size = array.size();
-    const double* data = (double*)array.data();
-    auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
-
-    for(size_t i = 0; i < size; ++i)
-      buffer_t[i] = data[i];
-
-    return std::move(soil::buffer(std::move(buffer_t)));
-
-  }
-  else {
+    return __tensor_from_numpy<float>(array);
+  } else if(array.dtype() == nb::dtype<double>()){
+    return __tensor_from_numpy<double>(array);
+  } else {
     throw std::runtime_error("type not supported");
   }
-
 });
-
-//
-// Construct Buffer from Pytorch
-//
-
-buffer.def_static("from_torch", [](nb::object& object){
-
-  auto array = nb::cast<nb::ndarray<nb::pytorch>>(object);
-
-  if(array.dtype() == nb::dtype<float>()){
-
-    const size_t size = array.size();
-    float* data = (float*)array.data();
-    auto buffer_t = soil::buffer_t<float>(size, soil::host_t::GPU);
-    const auto view_t = soil::buffer_t<float>(data, size, soil::host_t::GPU);
-
-    soil::op::set(buffer_t, view_t);
-    return soil::buffer(buffer_t);
-
-  }
-  
-  else if(array.dtype() == nb::dtype<double>()){
-
-    const size_t size = array.size();
-    double* data = (double*)array.data();
-    auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
-    const auto view_t = soil::buffer_t<double>(data, size, soil::host_t::GPU);
-
-    soil::op::set(buffer_t, view_t);
-    return soil::buffer(buffer_t);
-
-  }
-  else {
-    throw std::runtime_error("type not supported");
-  }
-
-});
-*/
 
 }
 
