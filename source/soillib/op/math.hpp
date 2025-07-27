@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/operation.hpp>
 
 namespace soil {
 
@@ -113,9 +114,6 @@ void add(soil::buffer_t<T> &buffer, const T val) {
 }
 
 template<typename T>
-void add_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs);
-
-template<typename T>
 void add(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
 
   if (lhs.elem() != rhs.elem())
@@ -124,14 +122,8 @@ void add(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
   if (lhs.host() != rhs.host())
     throw soil::error::mismatch_host(lhs.host(), rhs.host());
 
-  if (lhs.host() == soil::host_t::CPU) {
-    for (size_t i = 0; i < lhs.elem(); ++i)
-      lhs[i] += rhs[i];
-  }
+  soil::op::add(lhs, rhs);
 
-  else if (lhs.host() == soil::host_t::GPU) {
-    add_impl(lhs, rhs);
-  }
 }
 
 //

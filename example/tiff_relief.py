@@ -16,6 +16,15 @@ def main(input):
     height = image.buffer.numpy(shape)
     normal = soil.normal(image.buffer, shape, image.meta.scale).numpy(soil.shape(shape[0], shape[1], 3))
 
+    a = soil.buffer(soil.float32, 8).gpu()
+    b = soil.buffer(soil.float32, 8).gpu()
+    soil.set(a, 1)
+    soil.set(b, 6)
+
+    soil.add(a, b)
+    a = a.cpu().numpy(soil.shape(2, 4))
+    print(a)
+
     # Compute Shading
     relief = relief_shade(height, normal)
     plt.imshow(relief, cmap='gray')

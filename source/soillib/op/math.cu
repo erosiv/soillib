@@ -70,26 +70,11 @@ __global__ void _add(soil::buffer_t<T> buf, const T val){
 }
 
 template<typename T>
-__global__ void _add(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n < lhs.elem())
-    lhs[n] += rhs[n];
-}
-
-template<typename T>
 void add_impl(soil::buffer_t<T> buf, const T val){
   int thread = 1024;
   int elem = buf.elem();
   int block = (elem + thread - 1)/thread;
   _add<<<block, thread>>>(buf, val);
-}
-
-template<typename T>
-void add_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
-  int thread = 1024;
-  int elem = lhs.elem();
-  int block = (elem + thread - 1)/thread;
-  _add<<<block, thread>>>(lhs, rhs);
 }
 
 template void add_impl<int>   (soil::buffer_t<int> buffer,    const int val);
@@ -99,14 +84,6 @@ template void add_impl<vec2>  (soil::buffer_t<vec2> buffer,   const vec2 val);
 template void add_impl<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 val);
 template void add_impl<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 val);
 template void add_impl<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 val);
-
-template void add_impl<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs);
-template void add_impl<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs);
-template void add_impl<double>(soil::buffer_t<double> lhs,  const soil::buffer_t<double> rhs);
-template void add_impl<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t<vec2> rhs);
-template void add_impl<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
-template void add_impl<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
-template void add_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
 //
 // Multiplication Kernels

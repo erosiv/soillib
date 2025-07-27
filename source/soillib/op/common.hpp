@@ -4,6 +4,7 @@
 #include <limits>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/types.hpp>
+#include <soillib/core/operation.hpp>
 
 namespace soil {
 
@@ -56,8 +57,9 @@ void set(soil::buffer_t<T> &buffer, const T val) {
   set(buffer, val, 0, buffer.elem(), 1);
 }
 
-template<typename T>
-void set_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs);
+
+
+
 
 template<typename T>
 void set(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
@@ -68,14 +70,8 @@ void set(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs) {
   if (lhs.host() != rhs.host())
     throw soil::error::mismatch_host(lhs.host(), rhs.host());
 
-  if (lhs.host() == soil::host_t::CPU) {
-    for (size_t i = 0; i < lhs.elem(); ++i)
-      lhs[i] = rhs[i];
-  }
+  soil::op::set(lhs, rhs);
 
-  else if (lhs.host() == soil::host_t::GPU) {
-    set_impl(lhs, rhs);
-  }
 }
 
 //

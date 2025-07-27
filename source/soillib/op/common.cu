@@ -36,28 +36,24 @@ template void set_impl<vec3>  (soil::buffer_t<vec3> buffer,   const vec3 val, si
 template void set_impl<ivec2> (soil::buffer_t<ivec2> buffer,  const ivec2 val, size_t start, size_t stop, size_t step);
 template void set_impl<ivec3> (soil::buffer_t<ivec3> buffer,  const ivec3 val, size_t start, size_t stop, size_t step);
 
-template<typename T>
-__global__ void _set(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index < lhs.elem())
-    lhs[index] = rhs[index];
-}
+// Explicit Template Instantiations
+template void soil::op::set<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs);
+template void soil::op::set<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs);
+template void soil::op::set<double>(soil::buffer_t<double> lhs,  const soil::buffer_t<double> rhs);
+template void soil::op::set<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t<vec2> rhs);
+template void soil::op::set<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
+template void soil::op::set<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
+template void soil::op::set<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
-template<typename T>
-void set_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs){
-  int thread = 1024;
-  int elem = lhs.elem();
-  int block = (elem + thread - 1)/thread;
-  _set<<<block, thread>>>(lhs, rhs);
-}
+// Explicit Template Instantiations
+template void soil::op::add<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs);
+template void soil::op::add<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs);
+template void soil::op::add<double>(soil::buffer_t<double> lhs,  const soil::buffer_t<double> rhs);
+template void soil::op::add<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t<vec2> rhs);
+template void soil::op::add<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
+template void soil::op::add<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
+template void soil::op::add<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
-template void set_impl<int>   (soil::buffer_t<int> lhs,     const soil::buffer_t<int> rhs);
-template void set_impl<float> (soil::buffer_t<float> lhs,   const soil::buffer_t<float> rhs);
-template void set_impl<double>(soil::buffer_t<double> lhs,  const soil::buffer_t<double> rhs);
-template void set_impl<vec2>  (soil::buffer_t<vec2> lhs,    const soil::buffer_t<vec2> rhs);
-template void set_impl<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buffer_t<vec3> rhs);
-template void set_impl<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
-template void set_impl<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
 //
 // Resizing Kernels
