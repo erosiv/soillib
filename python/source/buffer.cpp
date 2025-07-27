@@ -15,14 +15,13 @@ namespace nb = nanobind;
 #include <soillib/core/types.hpp>
 #include <soillib/core/shape.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 #include <soillib/util/error.hpp>
 
 #include <soillib/op/common.hpp>
 
 #include "glm.hpp"
-
-template<typename T> struct make_numpy; //!< Buffer to Numpy Exporter
-template<typename T> struct make_torch; //!< Buffer to PyTorch Exporter
+#include "interop.hpp"
 
 //
 //
@@ -30,17 +29,6 @@ template<typename T> struct make_torch; //!< Buffer to PyTorch Exporter
 
 //! General Util Binding Function
 void bind_buffer(nb::module_& module){
-
-//
-// Buffer Type Binding
-//
-
-// Device Enumerator
-
-nb::enum_<soil::host_t>(module, "host")
-  .value("cpu", soil::host_t::CPU)
-  .value("gpu", soil::host_t::GPU)
-  .export_values();
 
 // Buffer Type
 
@@ -106,12 +94,15 @@ buffer.def("numpy", [](soil::buffer& buffer){
 });
 
 buffer.def("numpy", [](soil::buffer& buffer, soil::shape& shape){
-  if(buffer.host() == soil::host_t::CPU){
-    return soil::select(buffer.type(), [&buffer, &shape]<typename T>() -> nb::object {
-      return make_numpy<T>::operator()(buffer, shape);
-    });
-  }
-  throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
+  if(buffer.host() != soil::host_t::CPU)
+    throw soil::error::unsupported_host(soil::host_t::CPU, buffer.host());
+  return soil::select(buffer.type(), [&buffer, &shape]<typename T>() -> nb::object {
+    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+      return __make_numpy<T>(buffer.as<T>(), shape);
+    } else {
+      throw std::invalid_argument("tensor type cannot be converted");
+    }
+  });
 });
 
 buffer.def("torch", [](soil::buffer& buffer){
@@ -210,236 +201,5 @@ buffer.def_static("from_torch", [](nb::object& object){
 });
 
 }
-
-//
-// Numpy Buffer from Type Buffer Generator
-//
-
-template<typename T>
-struct make_numpy {
-
-  static nb::object operator()(soil::buffer& buffer){
-
-  // buffer arrives as a python object. we tie the lifetime of the buffer to
-  // the numpy array, so that the memory is always accessible / not deleted.
-
-    soil::buffer_t<T> source = buffer.as<T>();
-
-    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
-
-      size_t shape[1] = { source.elem() };
-      nb::ndarray<nb::numpy, T, nb::ndim<1>> array(
-        source.data(),    // raw data pointer
-        1,                // number of dimensions
-        shape,            // shape of array
-        nb::find(buffer)  // lifetime guarantee
-      );
-      return nb::cast(std::move(array));
-
-    } else {
-      //! \todo add a concept to explicitly test for vector types
-      
-      constexpr int D = T::length();
-      using V = soil::typedesc<T>::value_t;
-
-      size_t shape[2] = { source.elem(), D };
-      nb::ndarray<nb::numpy, V, nb::ndim<D>> array(
-        source.data(),
-        2,
-        shape,
-        nb::find(buffer)
-      );
-      return nb::cast(std::move(array));
-
-    }
-
-  }
-
-  static nb::object operator()(soil::buffer& buffer, soil::shape& shape){
-
-    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
-
-    // Target Buffer (Heap)
-    soil::buffer_t<T> source = buffer.as<T>();
-    soil::buffer_t<T>* target  = new soil::buffer_t<T>(source.elem(), source.host()); 
-    nb::capsule owner(target, [](void *p) noexcept {
-      delete (soil::buffer_t<T>*)p;
-    });
-    soil::op::set(*target, source);
-
-    size_t _shape[4]{0};
-    for(size_t d = 0; d < 4; ++d)
-      _shape[d] = shape[d];
-
-    if(shape.dim == 1){
-      nb::ndarray<nb::numpy, T, nb::ndim<1>> array(
-        target->data(),
-        1,
-        _shape,
-        owner
-      );
-      return nb::cast(std::move(array));
-    }
-    else if(shape.dim == 2){
-      nb::ndarray<nb::numpy, T, nb::ndim<2>> array(
-        target->data(),
-        2,
-        _shape,
-        owner
-      );
-      return nb::cast(std::move(array));
-    }
-    else if(shape.dim == 3){
-      nb::ndarray<nb::numpy, T, nb::ndim<3>> array(
-        target->data(),
-        3,
-        _shape,
-        owner
-      );
-      return nb::cast(std::move(array));
-    }
-    else {
-      nb::ndarray<nb::numpy, T, nb::ndim<4>> array(
-        target->data(),
-        4,
-        _shape,
-        owner
-      );
-      return nb::cast(std::move(array));
-    }
-
-    } else {
-      throw std::invalid_argument("buffer type cannot be converted");
-    }
-
-  }
-
-};
-
-//
-// Torch Buffer Generator
-//
-
-template<typename T>
-struct make_torch {
-
-  static nb::object operator()(soil::buffer& buffer){
-
-  // buffer arrives as a python object. we tie the lifetime of the buffer to
-  // the numpy array, so that the memory is always accessible / not deleted.
-
-    soil::buffer_t<T> source = buffer.as<T>();
-
-    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
-
-      size_t shape[1] = { source.elem() };
-      nb::ndarray<nb::pytorch, nb::device::cuda, T, nb::ndim<1>> array(
-        source.data(),    // raw data pointer
-        1,                // number of dimensions
-        shape,            // shape of array
-        nb::find(buffer), // lifetime guarantee
-        nullptr,
-        nb::dtype<T>(),
-        nb::device::cuda::value
-      );
-      return nb::cast(std::move(array));
-
-    } else {
-      //! \todo add a concept to explicitly test for vector types
-      
-      constexpr int D = T::length();
-      using V = soil::typedesc<T>::value_t;
-      
-      size_t shape[2] = { source.elem(), D };
-      nb::ndarray<nb::pytorch, nb::device::cuda, V, nb::ndim<D>> array(
-        source.data(),
-        2,
-        shape,
-        nb::find(buffer),
-        nullptr,
-        nb::dtype<V>(),
-        nb::device::cuda::value
-      );
-      return nb::cast(std::move(array));
-
-    } // else throw std::invalid_argument("can't convert non-scalar buffer type (yet)");
-
-  }
-
-  // note: this is generally bad, because it basically says that re-sampling
-  //  can only happen with a CPU tensor type?
-  //  so we really have to implement a re-sample kernel first.
-  // ... so let's do that I guess???
-
-  static nb::object operator()(soil::buffer& buffer, soil::shape& shape){
-
-    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
-
-    soil::buffer_t<T> source = buffer.as<T>();
-    soil::buffer_t<T>* target = new soil::buffer_t<T>(source.elem(), source.host());
-    nb::capsule owner(target, [](void *p) noexcept {
-      delete (soil::buffer_t<T>*)p;
-    });
-    soil::op::set(*target, source);
-
-    size_t _shape[4]{0};
-    for(size_t d = 0; d < 4; ++d)
-      _shape[d] = shape[d];
-
-    if(shape.dim == 1){
-      nb::ndarray<nb::pytorch, T, nb::ndim<1>> array(
-        target->data(),
-        1,
-        _shape,
-        owner,
-        nullptr,
-        nb::dtype<T>(),
-        nb::device::cuda::value
-      );
-      return nb::cast(std::move(array));
-    }
-    else if(shape.dim == 2){
-      nb::ndarray<nb::pytorch, T, nb::ndim<2>> array(
-        target->data(),
-        2,
-        _shape,
-        owner,
-        nullptr,
-        nb::dtype<T>(),
-        nb::device::cuda::value
-      );
-      return nb::cast(std::move(array));
-    }
-    else if(shape.dim == 3){
-      nb::ndarray<nb::pytorch, T, nb::ndim<3>> array(
-        target->data(),
-        3,
-        _shape,
-        owner,
-        nullptr,
-        nb::dtype<T>(),
-        nb::device::cuda::value
-      );
-      return nb::cast(std::move(array));
-    }
-    else {
-      nb::ndarray<nb::pytorch, T, nb::ndim<4>> array(
-        target->data(),
-        4,
-        _shape,
-        owner,
-        nullptr,
-        nb::dtype<T>(),
-        nb::device::cuda::value
-      );
-      return nb::cast(std::move(array));
-    }
-
-    }
-    else throw std::invalid_argument("buffer type cannot be converted");
-
-  }
-
-};
 
 #endif

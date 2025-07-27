@@ -1,0 +1,171 @@
+#ifndef SOILLIB_PYTHON_UTIL
+#define SOILLIB_PYTHON_UTIL
+
+#include <nanobind/nanobind.h>
+namespace nb = nanobind;
+
+#include <nanobind/ndarray.h>
+#include <nanobind/make_iterator.h>
+
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/optional.h>
+#include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
+#include <soillib/op/common.hpp>
+#include "interop.hpp"
+
+//! General Util Binding Function
+void bind_tensor(nb::module_& module){
+
+//
+// Tensor Type Binding
+//
+
+auto tensor = nb::class_<soil::tensor>(module, "tensor");
+tensor.def(nb::init<>());
+tensor.def(nb::init<const soil::dtype, const soil::shape>());
+tensor.def(nb::init<const soil::dtype, const soil::shape, const soil::host_t>());
+
+// Data Inspection
+
+tensor.def_prop_ro("type", &soil::tensor::type);
+tensor.def_prop_ro("elem", &soil::tensor::elem);
+tensor.def_prop_ro("size", &soil::tensor::size);
+tensor.def_prop_ro("host", &soil::tensor::host);
+tensor.def_prop_ro("shape", &soil::tensor::shape);
+tensor.def_prop_ro("buffer", [](soil::tensor& tensor){
+  return soil::select(tensor.type(), [&tensor]<typename T>(){
+    return soil::buffer(tensor.as<T>().buffer());
+  });
+});
+
+// Device Switching
+
+tensor.def("cpu", [](soil::tensor& tensor){
+  soil::select(tensor.type(), [&tensor]<typename T>(){
+    tensor.as<T>().to_cpu();
+  });
+  return tensor;
+});
+
+tensor.def("gpu", [](soil::tensor& tensor){
+  soil::select(tensor.type(), [&tensor]<typename T>(){
+    tensor.as<T>().to_gpu();
+  });
+  return tensor;
+});
+
+//
+// External Library Interop Interface
+//  Note: Memory is shared, not copied.
+//  The lifetimes of the objects are managed
+//  so that the memory is not deleted.
+//
+
+tensor.def("numpy", [](const soil::tensor& tensor){
+  if(tensor.host() != soil::host_t::CPU)
+    throw soil::error::unsupported_host(soil::host_t::CPU, tensor.host());
+  return soil::select(tensor.type(), [&tensor]<typename T>() -> nb::object {
+    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+      return __make_numpy(tensor.as<T>());
+    } else {
+      throw std::invalid_argument("tensor type cannot be converted");
+    }
+  });
+});
+
+tensor.def("torch", [](const soil::tensor& tensor){
+  if(tensor.host() != soil::host_t::GPU)
+    throw soil::error::unsupported_host(soil::host_t::GPU, tensor.host());
+  return soil::select(tensor.type(), [&tensor]<typename T>() -> nb::object {
+    if constexpr(nb::detail::is_ndarray_scalar_v<T>){
+      return __make_torch(tensor.as<T>());
+    } else {
+      throw std::invalid_argument("tensor type cannot be converted");
+    }
+  });
+});
+
+/*
+//
+// Construct Buffer from Numpy
+//
+
+//! \note this always performs a copy, it doesn't keep the object alive.
+buffer.def_static("from_numpy", [](const nb::object& object){
+
+  auto array = nb::cast<nb::ndarray<nb::numpy>>(object);
+
+  if(array.dtype() == nb::dtype<float>()){
+
+    const size_t size = array.size();
+    const float* data = (float*)array.data();
+    auto buffer_t = soil::buffer_t<float>(size, soil::host_t::CPU);
+
+    for(size_t i = 0; i < size; ++i)
+      buffer_t[i] = data[i];
+
+    return std::move(soil::buffer(std::move(buffer_t)));
+
+  }
+  
+  else if(array.dtype() == nb::dtype<double>()){
+
+    const size_t size = array.size();
+    const double* data = (double*)array.data();
+    auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
+
+    for(size_t i = 0; i < size; ++i)
+      buffer_t[i] = data[i];
+
+    return std::move(soil::buffer(std::move(buffer_t)));
+
+  }
+  else {
+    throw std::runtime_error("type not supported");
+  }
+
+});
+
+//
+// Construct Buffer from Pytorch
+//
+
+buffer.def_static("from_torch", [](nb::object& object){
+
+  auto array = nb::cast<nb::ndarray<nb::pytorch>>(object);
+
+  if(array.dtype() == nb::dtype<float>()){
+
+    const size_t size = array.size();
+    float* data = (float*)array.data();
+    auto buffer_t = soil::buffer_t<float>(size, soil::host_t::GPU);
+    const auto view_t = soil::buffer_t<float>(data, size, soil::host_t::GPU);
+
+    soil::op::set(buffer_t, view_t);
+    return soil::buffer(buffer_t);
+
+  }
+  
+  else if(array.dtype() == nb::dtype<double>()){
+
+    const size_t size = array.size();
+    double* data = (double*)array.data();
+    auto buffer_t = soil::buffer_t<double>(size, soil::host_t::CPU);
+    const auto view_t = soil::buffer_t<double>(data, size, soil::host_t::GPU);
+
+    soil::op::set(buffer_t, view_t);
+    return soil::buffer(buffer_t);
+
+  }
+  else {
+    throw std::runtime_error("type not supported");
+  }
+
+});
+*/
+
+}
+
+#endif

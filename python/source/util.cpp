@@ -55,6 +55,15 @@ nb::enum_<soil::dtype>(module, "dtype")
   .export_values();
 
 //
+// Device Enumerator Binding
+//
+
+nb::enum_<soil::host_t>(module, "host")
+  .value("cpu", soil::host_t::CPU)
+  .value("gpu", soil::host_t::GPU)
+  .export_values();
+
+//
 // Timer Type Binding
 //
 
