@@ -78,6 +78,16 @@ template void op::multiply<vec3>  (soil::buffer_t<vec3> lhs,    const soil::buff
 template void op::multiply<ivec2> (soil::buffer_t<ivec2> lhs,   const soil::buffer_t<ivec2> rhs);
 template void op::multiply<ivec3> (soil::buffer_t<ivec3> lhs,   const soil::buffer_t<ivec3> rhs);
 
+__global__ void __seed(buffer_t<curandState> buf, const size_t seed, const size_t offset) {
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= buf.elem()) return;
+  curand_init(seed, n, offset, &buf[n]);
+}
+
+void op::seed(buffer_t<curandState>& buf, const size_t seed, const size_t offset){
+  __seed<<<block(buf.elem(), 512), 512>>>(buf, seed, offset);
+  cudaDeviceSynchronize();
+}
 
 //
 // Resizing Kernels

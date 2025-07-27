@@ -21,7 +21,7 @@ def main(input):
     soil.set(a, 1)
     soil.set(b, 6)
 
-    soil.add(a, b)
+    soil.add(a, 6)
     a = a.cpu().numpy(soil.shape(2, 4))
     print(a)
 

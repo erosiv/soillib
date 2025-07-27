@@ -5,8 +5,6 @@
 // #include <soillib/op/common.hpp>
 #include <soillib/op/flow.hpp>
 
-#include <soillib/op/cu_common.cu>
-
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include <math_constants.h>

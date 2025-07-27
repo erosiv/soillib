@@ -11,11 +11,11 @@ namespace nb = nanobind;
 
 #include <soillib/core/types.hpp>
 
+#include <soillib/core/operation.hpp>
 #include <soillib/op/common.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
 // #include <soillib/op/flow.hpp>
-#include <soillib/op/math.hpp>
 #include <soillib/op/erosion.hpp>
 
 #include <iostream>
@@ -70,7 +70,7 @@ module.def("copy", [](soil::buffer& lhs, const soil::buffer& rhs, soil::vec2 gmi
 
   soil::select(lhs.type(), [&]<typename To>(){
     soil::select(rhs.type(), [&]<std::convertible_to<To> From>(){
-      soil::copy<To, From>(lhs.as<To>(), rhs.as<From>(), gmin, gmax, gscale, wmin, wmax, wscale, pscale);
+      soil::op::copy<To, From>(lhs.as<To>(), rhs.as<From>(), gmin, gmax, gscale, wmin, wmax, wscale, pscale);
     });
   });
 });
