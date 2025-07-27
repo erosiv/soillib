@@ -68,9 +68,7 @@ void seed(buffer_t<curandState>& buf, const size_t seed, const size_t offset);
 
 #ifdef HAS_CUDA
 
-//
-// In-Place Binary Operation w. Value
-//
+// In-Place Operation Kernels
 
 template<typename T, typename F>
 __global__ void __uniop_inplace(buffer_t<T> lhs, F f){
@@ -81,16 +79,43 @@ __global__ void __uniop_inplace(buffer_t<T> lhs, F f){
 }
 
 template<typename T, typename F>
-void uniop_inplace(buffer_t<T> lhs, F func) {
-
-  if(lhs.host() == soil::host_t::GPU){
-    __uniop_inplace<<<block(lhs.elem(), 512), 512>>>(lhs, func);
+__global__ void __binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < lhs.elem()){
+    const T a = lhs[n];
+    const T b = rhs[n];
+    lhs[n] = func(a, b);
   }
+}
+
+// In-Place Operation Host Functions
+
+template<typename T, typename F>
+void uniop_inplace(buffer_t<T> lhs, F func) {
 
   if(lhs.host() == soil::host_t::CPU){
     for(size_t i = 0; i < lhs.elem(); ++i){
       lhs[i] = func(lhs[i]);
     }
+  }
+
+  else if(lhs.host() == soil::host_t::GPU){
+    __uniop_inplace<<<block(lhs.elem(), 512), 512>>>(lhs, func);
+  }
+
+}
+
+template<typename T, typename F>
+void binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
+
+  if(lhs.host() == soil::host_t::CPU){
+    for(size_t i = 0; i < lhs.elem(); ++i){
+      lhs[i] = func(lhs[i], rhs[i]);
+    }
+  }
+
+  else if(lhs.host() == soil::host_t::GPU){
+    __binop_inplace<<<block(lhs.elem(), 512), 512>>>(lhs, rhs, func);
   }
 
 }
@@ -119,39 +144,6 @@ void multiply(buffer_t<T> lhs, const T rhs) {
     return a * rhs;
   });
 }
-
-//
-// In-Place Binary Operation w. Buffer
-//
-
-template<typename T, typename F>
-__global__ void __binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n < lhs.elem()){
-    const T a = lhs[n];
-    const T b = rhs[n];
-    lhs[n] = func(a, b);
-  }
-}
-
-template<typename T, typename F>
-void binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
-
-  if(lhs.host() == soil::host_t::GPU){
-    __binop_inplace<<<block(lhs.elem(), 512), 512>>>(lhs, rhs, func);
-  }
-
-  if(lhs.host() == soil::host_t::CPU){
-    for(size_t i = 0; i < lhs.elem(); ++i){
-      lhs[i] = func(lhs[i], rhs[i]);
-    }
-  }
-
-}
-
-//
-// Specific Instantiations
-//
 
 template<typename T>
 void set(buffer_t<T> lhs, const buffer_t<T> rhs) {
