@@ -16,7 +16,7 @@ namespace nb = nanobind;
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
 // #include <soillib/op/flow.hpp>
-#include <soillib/op/erosion.hpp>
+#include <soillib/model/erosion.hpp>
 
 #include <iostream>
 

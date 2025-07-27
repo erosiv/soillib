@@ -4,9 +4,9 @@
 
 #include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
-
-#include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>
+
+#include <soillib/model/erosion.hpp>
 
 // #include <soillib/index/kdtree.hpp>
 // #include <cukd/builder.h>

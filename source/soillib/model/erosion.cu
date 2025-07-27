@@ -9,13 +9,12 @@
 #include <iostream>
 
 #include <soillib/op/gather.hpp>
-#include <soillib/op/erosion.hpp>
-
 #include <soillib/core/operation.hpp>
 
-#include <soillib/op/erosion_map.cu>
-#include <soillib/op/erosion_fluvial.cu>
-#include <soillib/op/erosion_thermal.cu>
+#include <soillib/model/erosion.hpp>
+#include <soillib/model/erosion_map.cu>
+#include <soillib/model/erosion_fluvial.cu>
+#include <soillib/model/erosion_thermal.cu>
 
 namespace soil {
 

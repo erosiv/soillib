@@ -4,10 +4,10 @@
 
 #include <soillib/core/types.hpp>
 #include <soillib/core/buffer.hpp>
-#include <soillib/op/erosion.hpp>
 #include <soillib/op/gather.hpp>
 
-#include <soillib/op/erosion_map.cu>
+#include <soillib/model/erosion.hpp>
+#include <soillib/model/erosion_map.cu>
 
 //! Thermal Erosion / Debris-Flow Particle
 //!
