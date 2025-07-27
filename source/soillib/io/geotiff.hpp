@@ -68,10 +68,10 @@ struct geotiff: soil::io::tiff {
   using soil::io::tiff::width;
 
   geotiff() {};
-  geotiff(const soil::buffer &_buffer, const soil::index &_index): tiff(_buffer, _index) {
+  geotiff(const soil::buffer &_buffer, const soil::shape &_shape): tiff(_buffer, _shape) {
     // do additional stuff to the metadata struct here?
-    this->_meta.coords[3] = _index[0];
-    this->_meta.coords[4] = _index[1];
+    this->_meta.coords[3] = _shape[0];
+    this->_meta.coords[4] = _shape[1];
   }
 
   geotiff(const char *filename) {

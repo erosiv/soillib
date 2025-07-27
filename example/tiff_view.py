@@ -13,7 +13,7 @@ def main(input):
     image = soil.geotiff(path)
     print(f"File: {file}, {image.buffer.type}")
 
-    data = image.buffer.numpy(image.index)
+    data = image.buffer.numpy(image.shape)
     plt.imshow(data)
     plt.show()
 
@@ -33,6 +33,7 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40706_DGM_tif_Gosau"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern"
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
 
   main(data)

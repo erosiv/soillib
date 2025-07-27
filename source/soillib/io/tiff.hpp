@@ -2,7 +2,7 @@
 #define SOILLIB_IO_TIFF
 
 #include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
+#include <soillib/core/shape.hpp>
 
 #include <iostream>
 #include <stdfloat>
@@ -22,12 +22,12 @@ struct tiff {
   tiff() {}
   tiff(const char *filename) { read(filename); };
 
-  tiff(const soil::buffer &_buffer, const soil::index &_index): _index{_index}, _buffer{_buffer} {
+  tiff(const soil::buffer &_buffer, const soil::shape &_shape): _shape{_shape}, _buffer{_buffer} {
 
     auto type = _buffer.type();
 
-    this->_height = _index.as<flat_t<2>>()[0];
-    this->_width = _index.as<flat_t<2>>()[1];
+    this->_height = _shape[0];
+    this->_width = _shape[1];
 
     if (type == soil::FLOAT32) {
       this->_bits = 32;
@@ -45,7 +45,7 @@ struct tiff {
   uint32_t height() const { return this->_height; }
 
   soil::buffer buffer() const { return this->_buffer; }
-  soil::index index() const { return this->_index; }
+  soil::shape shape() const { return this->_shape; }
 
 protected:
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
@@ -60,7 +60,7 @@ protected:
   uint32_t _twidth = 0;  //!< Tile Width
   uint32_t _theight = 0; //!< Tile Height
 
-  soil::index _index;   //!< Underlying Data Index
+  soil::shape _shape;   //!< Underlying Data Shape
   soil::buffer _buffer; //!< Underlying Data Buffer
 };
 
@@ -105,16 +105,16 @@ bool tiff::read(const char *filename) {
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
 
-  this->_index = soil::index(soil::ivec2{(int)this->height(), (int)this->width()});
+  this->_shape = soil::shape(this->height(), this->width());
 
   if (this->bits() == 16) { // Note: Internal Type is still Float32
-    this->_buffer = soil::buffer(soil::FLOAT32, _index.elem());
+    this->_buffer = soil::buffer(soil::FLOAT32, _shape.elem);
   }
   if (this->bits() == 32) {
-    this->_buffer = soil::buffer(soil::FLOAT32, _index.elem());
+    this->_buffer = soil::buffer(soil::FLOAT32, _shape.elem);
   }
   if (this->bits() == 64) {
-    this->_buffer = soil::buffer(soil::FLOAT64, _index.elem());
+    this->_buffer = soil::buffer(soil::FLOAT64, _shape.elem);
   }
 
   TIFF *tif = TIFFOpen(filename, "r");

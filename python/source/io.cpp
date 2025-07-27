@@ -9,7 +9,7 @@ namespace nb = nanobind;
 
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/geotiff.hpp>
-#include <soillib/io/mesh.hpp>
+// #include <soillib/io/mesh.hpp>
 
 #include "glm.hpp"
 
@@ -21,8 +21,8 @@ auto tiff = nb::class_<soil::io::tiff>(module, "tiff");
 
 tiff.def(nb::init<>());
 tiff.def(nb::init<const char*>());
-tiff.def("__init__", [](soil::io::tiff* tiff, const soil::buffer& buffer, const soil::index& index){
-  new (tiff) soil::io::tiff(buffer, index);
+tiff.def("__init__", [](soil::io::tiff* tiff, const soil::buffer& buffer, const soil::shape& shape){
+  new (tiff) soil::io::tiff(buffer, shape);
 });
 
 tiff.def("peek", &soil::io::tiff::peek);
@@ -33,7 +33,7 @@ tiff.def_prop_ro("width", &soil::io::tiff::width);
 tiff.def_prop_ro("height", &soil::io::tiff::height);
 
 tiff.def_prop_ro("buffer", &soil::io::tiff::buffer, nb::rv_policy::reference_internal);
-tiff.def_prop_ro("index", &soil::io::tiff::index);//, nb::rv_policy::reference);
+tiff.def_prop_ro("shape", &soil::io::tiff::shape);//, nb::rv_policy::reference);
 
 //! GeoTIFF Datatype
 
@@ -41,8 +41,8 @@ auto geotiff = nb::class_<soil::io::geotiff, soil::io::tiff>(module, "geotiff");
 
 geotiff.def(nb::init<>());
 geotiff.def(nb::init<const char*>());
-geotiff.def("__init__", [](soil::io::geotiff* geotiff, const soil::buffer& buffer, const soil::index& index){
-  new (geotiff) soil::io::geotiff(buffer, index);
+geotiff.def("__init__", [](soil::io::geotiff* geotiff, const soil::buffer& buffer, const soil::shape& shape){
+  new (geotiff) soil::io::geotiff(buffer, shape);
 });
 
 geotiff.def("peek", &soil::io::geotiff::peek);
@@ -97,6 +97,7 @@ geotiff_meta.def_prop_ro("max", [](soil::io::geotiff::meta_t& geotiff_meta){
   return geotiff_meta.max();
 });
 
+/*
 //
 // Mesh Export
 //
@@ -107,6 +108,7 @@ mesh.def(nb::init<const soil::buffer&, const soil::index&, const soil::vec3>());
 mesh.def("write", &soil::io::mesh::write);
 mesh.def("center", &soil::io::mesh::center);
 mesh.def("write_binary", &soil::io::mesh::write_binary);
+*/
 
 }
 

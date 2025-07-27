@@ -21,10 +21,10 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/ext/nanobind nanobind)
 set(MODULE_NAME soillib)
 nanobind_add_module(${MODULE_NAME}
   source/_module.cpp
+  source/shape.cpp
   source/buffer.cpp
   source/index.cpp
   source/io.cpp
-  source/op.cpp
   source/util.cpp
 )
 
