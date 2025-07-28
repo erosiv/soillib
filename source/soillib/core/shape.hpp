@@ -4,56 +4,17 @@
 #include <soillib/soillib.hpp>
 #include <soillib/core/types.hpp>
 
-// A shape should replace the multitude of flat indices,
-//  which only describe the spatial extent of a box tensor.
-//  More complicated shapes will not be represented here for now.
-//  We can later think about what a dynamic layering structure looks like,
-//  but for now we need to just implement shapes for efficiency.
-//  This will cover our majority use cases! Which we need for release!!!
-//  We can think in particular about what a quad map looks like later,
-//  or other irregular shapes. But that's not important ATM.
-//  something something bounding box hierarchies etc.
-
-// Beyond shape, we should introduce a tensor type that combines
-// the buffer with a shape. Certain operations then work on tensors,
-// not on buffers (shaped vs. shapeless operations).
-
 namespace soil {
 
-/*
-//! vector type is essential to operation...
-//! we note that we can have buffers of a type with a shape,
-//! so structured buffers are not the problem per se.
-//! what we want instead is to have buffers with vec2 or vec3
-//! types at the end without having to maintain those somehow
-//! as type multiplexes. That is super annoying. So instead,
-//! the last dimension of the buffer then constructs the vec type.
-//! we will have to see how we do that final part but it should be
-//! possible using slices somehow... something like a cast operator.
-template<typename T, size_t N>
-struct vector {
-
-  GPU_ENABLE inline int operator[](const size_t d) const {
-    return this->data[d];
-  }
-
-  // ... add a bunch of operators ...
-  // ... but this is basically the core function already ...
-
-private:
-  T data[N] = {T(0)};  // Zero Initialization
-};
-*/
-
-// ... slice type ...
-// ... cast to vector ...
-
-//! shape is a D-dimensional compact extent
-//! it is an indexing structure that allows for lookup
-//! into linearized data buffers.
+//! shape is a D-dimensional compact extent, with indexing
+//! procedures for lookup into linearized tensors and views.
 //!
-//! shape is primarily intended for 2D and 3D applications.
-//! D is maximally 4, which allows for 3D buffers of arbitrary depth.
+//! shape is intended for 2D and 3D applications, with a D of max 4,
+//! for 3D buffers of arbitrary depth.
+//! 
+//! \todo cleanup this type with cleaner constructors
+//! \todo add better flattening / unflattening procedures.
+//! \todo consider whether this type should have slice generators.
 //!
 struct shape {
 
@@ -107,15 +68,6 @@ struct shape {
         return true;
     return false;
   }
-
-  //
-  // Question: What is the ideal way to initialize and flatten / unflatten?
-  //  Do we accept vectors of different size and shape? What does a slice do?
-  //  Do we accept and return slices that allow for weird iteration patterns?
-  //  What kind of vector type do we accept? We basically have to replace glm...
-  //  So if we return a slice, it generates every index... and then we can downcast
-  //  a slice directly to a vector which populates it with the positions right?
-  //  
   
   GPU_ENABLE int flatten(const soil::ivec2 pos) const {
     int index{0};
