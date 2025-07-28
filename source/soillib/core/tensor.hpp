@@ -3,6 +3,7 @@
 
 #include <soillib/core/shape.hpp>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/view.hpp>
 
 namespace soil {
 
@@ -50,6 +51,15 @@ struct tensor_t: typedbase {
   GPU_ENABLE T &operator[](const size_t index) noexcept {
     return this->_buffer[index];
   }
+
+  template<typename S>
+  GPU_ENABLE view_t<S>&& view() noexcept {
+    return std::move(view_t<S>(
+      reinterpret_cast<S*>(this->data()),
+      this->size() / sizeof(S),
+      this->host()
+    ));
+  };
 
 private:
   soil::shape _shape;

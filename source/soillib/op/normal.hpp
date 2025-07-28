@@ -24,17 +24,13 @@ soil::tensor normal(const soil::tensor_t<T>& tensor, const vec3 scale = vec3(1.0
   
   const soil::shape shape_out = soil::shape(shape_in[0], shape_in[1], 3);
   soil::tensor_t<T> output(shape_out);
+  soil::view_t<soil::vec3> test = output.view<soil::vec3>();
 
   for(size_t i = 0; i < shape_in.elem; ++i) {
     
     const lerp5_t<T> lerp(tensor, shape_in.unflatten(i));
     const soil::vec2 g = lerp.grad(scale);
-    const soil::vec3 n = glm::normalize(glm::vec3(-g.x, -g.y, 1.0));
-    
-    //! \todo add mechanism to write vec3s into float output...
-    output[3*i + 0] = n.x;
-    output[3*i + 1] = n.y;
-    output[3*i + 2] = n.z;
+    test[i] = glm::normalize(glm::vec3(-g.x, -g.y, 1.0));
 
   }
 
