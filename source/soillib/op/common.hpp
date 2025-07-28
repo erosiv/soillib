@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 #include <soillib/core/types.hpp>
 #include <soillib/core/operation.hpp>
 
@@ -112,7 +113,7 @@ void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 ou
 //! \todo get rid of this...
 
 template<typename To, typename From>
-void copy(soil::buffer_t<To> &out, const soil::buffer_t<From> &in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale) {
+void copy(soil::tensor_t<To> &out, const soil::tensor_t<From> &in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale) {
 
   const ivec2 pmin = ivec2(pscale * (gmin - wmin) / wscale);
   const ivec2 pmax = ivec2(pscale * (gmax - wmin) / wscale);

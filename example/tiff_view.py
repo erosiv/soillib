@@ -11,9 +11,9 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    print(f"File: {file}, {image.buffer.type}")
+    print(f"File: {file}, {image.tensor.type}")
 
-    data = image.buffer.numpy(image.shape)
+    data = image.tensor.numpy()
     plt.imshow(data)
     plt.show()
 

@@ -2,7 +2,7 @@
 #define SOILLIB_OP_NOISE
 
 #include <soillib/core/shape.hpp>
-#include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 #include <soillib/core/types.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
@@ -39,26 +39,21 @@ struct noise_param_t {
   }
 };
 
-struct noise {
+soil::tensor noise(const soil::shape shape, noise_param_t param) {
 
-  //!\todo make this available for 3D buffers as well...
-  static soil::buffer make_buffer(const soil::shape shape, noise_param_t param) {
-
-    if(shape.dim != 2)
-      throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
-    
-    auto buffer_t = soil::buffer_t<float>(shape.elem, soil::CPU);
-
-    param.update();
-    for (size_t i = 0; i < shape.elem; ++i) {
-      soil::ivec2 position = shape.unflatten(i);
-      buffer_t[i] = param(position);
-    }
-    return soil::buffer(std::move(buffer_t));
-
+  if(shape.dim != 2)
+    throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
+  
+  soil::tensor_t<float> tensor_t(shape, soil::CPU);
+  param.update();
+  for (size_t i = 0; i < shape.elem; ++i) {
+    soil::ivec2 position = shape.unflatten(i);
+    tensor_t[i] = param(position);
   }
 
-};
+  return soil::tensor(std::move(tensor_t));
+
+}
 
 }; // end of namespace soil
 

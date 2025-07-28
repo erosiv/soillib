@@ -104,9 +104,9 @@ def plot_flow(model):
   plt.tight_layout()
   plt.show()
 
-def show_height(array, index):
+def show_height(tensor):
 
-  data = array.numpy(index)
+  data = tensor.numpy()
   plt.imshow(data)
   plt.show()
 

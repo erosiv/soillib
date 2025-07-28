@@ -62,7 +62,7 @@ module.def("clamp", [](soil::buffer& buf, const float min, const float max){
 // Generic Buffer Functions
 //
 
-module.def("copy", [](soil::buffer& lhs, const soil::buffer& rhs, soil::vec2 gmin, soil::vec2 gmax, soil::vec2 gscale, soil::vec2 wmin, soil::vec2 wmax, soil::vec2 wscale, float pscale){
+module.def("copy", [](soil::tensor& lhs, const soil::tensor& rhs, soil::vec2 gmin, soil::vec2 gmax, soil::vec2 gscale, soil::vec2 wmin, soil::vec2 wmax, soil::vec2 wscale, float pscale){
 
   // Note: This supports copy between different buffer types.
   // The interior template selection just requires that the source
@@ -107,11 +107,11 @@ module.def("set", [](soil::buffer& lhs, const soil::buffer& rhs){
   });
 });
 
-module.def("set", [](soil::buffer& buffer, const nb::object value){
-  soil::select(buffer.type(), [&buffer, &value]<typename S>(){
-    auto buffer_t = buffer.as<S>();
+module.def("set", [](soil::tensor& tensor, const nb::object value){
+  soil::select(tensor.type(), [&tensor, &value]<typename S>(){
+    auto tensor_t = tensor.as<S>();
     auto value_t = nb::cast<S>(value);
-    soil::set<S>(buffer_t, value_t);
+    soil::set<S>(tensor_t.buffer(), value_t);
   });
 });
 
@@ -178,7 +178,7 @@ noise_t.def_rw("ext", &soil::noise_param_t::ext);
 
 module.def("noise", [](const soil::shape shape, const soil::noise_param_t param){
   // note: seed is considered state. how can this be reflected here?
-  return soil::noise::make_buffer(shape, param);
+  return soil::noise(shape, param);
 });
 
 //

@@ -48,7 +48,7 @@ def merge(input, pscale = 0.1):
 
   print(f"Output Format: ({pixels[0]}, {pixels[1]})")
 
-  array = soil.buffer(soil.float32, mshape.elem)
+  array = soil.tensor(soil.float32, mshape)
   soil.set(array, np.nan)
 
   for file, path in iter_tiff(input):
@@ -66,7 +66,7 @@ def merge(input, pscale = 0.1):
       gmin = np.array(geotiff.min)
       gmax = np.array(geotiff.max)
       gscale = np.array(geotiff.scale)
-      soil.copy(array, geotiff.buffer, gmin, gmax, gscale, wmin, wmax, wscale, pscale)
+      soil.copy(array, geotiff.tensor, gmin, gmax, gscale, wmin, wmax, wscale, pscale)
 
   return array, mshape, meta
 
@@ -78,14 +78,14 @@ def main(input, file_out):
   Figure out how to export this is a valid GeoTIFF!
   '''
 
-  tiff_out = soil.geotiff(array, shape)
+  tiff_out = soil.geotiff(array)
   tiff_out.meta = meta
   tiff_out.unsetnan()
   tiff_out.write(file_out)
 
   #show_relief(array, shape)
   #show_normal(array, shape)
-  show_height(array, shape)
+  show_height(array)
 
 if __name__ == "__main__":
 

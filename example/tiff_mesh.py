@@ -11,11 +11,11 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    print(f"File: {file}, {image.buffer.type}")
+    print(f"File: {file}, {image.tensor.type}")
 
     scale = image.scale
     print(scale)
-    mesh = soil.mesh(image.buffer, image.index, [0.5, 0.5, 1])
+    mesh = soil.mesh(image.tensor, [0.5, 0.5, 1])
     mesh.center()
     #mesh.write("out.ply")
     mesh.write_binary("out_binary_min.ply")
@@ -39,7 +39,8 @@ if __name__ == "__main__":
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern"
 
   #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
-  data = "_dem_merged.tiff"
+  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
+  #data = "_dem_merged.tiff"
+  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
 
   main(data)

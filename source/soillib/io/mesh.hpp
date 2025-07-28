@@ -33,9 +33,9 @@ constexpr bool isBigEndianArchitecture() {
 struct mesh {
 
   mesh() {}
-  mesh(const soil::buffer &_buffer, const soil::shape &_shape, const vec3 scale) {
+  mesh(const soil::tensor& _tensor, const vec3 scale) {
 
-    this->triangulate(_buffer, _shape, scale);
+    this->triangulate(_tensor, scale);
 
     // Compute Min, Max
     this->min = vec3(std::numeric_limits<float>::max());
@@ -46,11 +46,11 @@ struct mesh {
     }
   }
 
-  void triangulate(const soil::buffer &buffer, const soil::shape &shape, const vec3 scale) {
+  void triangulate(const soil::tensor &tensor, const vec3 scale) {
 
-    soil::select(buffer.type(), [&]<std::floating_point T>() {
-      auto buffer_t = buffer.as<T>();
-
+    soil::select(tensor.type(), [&]<std::floating_point T>() {
+      auto tensor_t = tensor.as<T>();
+      auto shape = tensor_t.shape();
       // Insert Vertices:
       //  Construct Map from Buffer Index to Mesh Index
       //  Insert Vertices
@@ -59,11 +59,13 @@ struct mesh {
       std::unordered_map<int, unsigned int> vertex_set;
 
       // Insert Vertices
-      unsigned int count = 0;
-      for (auto pos : shape.iter()) {
 
-        int ind = shape.flatten(pos); // Buffer Position Index
-        T val = buffer_t[ind];          // Buffer Value
+      unsigned int count = 0;
+      for (size_t ind = 0; ind < shape.elem; ++ind) {
+        const soil::ivec2 pos = shape.unflatten(ind);
+
+//        int ind = shape.flatten(pos); // Buffer Position Index
+        T val = tensor_t[ind];          // Buffer Value
         if (std::isnan(val))            // Non NaN Values!
           continue;
 
@@ -75,7 +77,8 @@ struct mesh {
       }
 
       // Insert Faces
-      for (auto pos : shape.iter()) {
+      for (size_t ind = 0; ind < shape.elem; ++ind) {
+        const soil::ivec2 pos = shape.unflatten(ind);
 
         if (shape.oob(pos + ivec2(0, 0)))
           continue;
@@ -91,10 +94,10 @@ struct mesh {
         int i10 = shape.flatten(pos + ivec2(1, 0));
         int i11 = shape.flatten(pos + ivec2(1, 1));
 
-        T v00 = buffer_t[i00];
-        T v01 = buffer_t[i01];
-        T v10 = buffer_t[i10];
-        T v11 = buffer_t[i11];
+        T v00 = tensor_t[i00];
+        T v01 = tensor_t[i01];
+        T v10 = tensor_t[i10];
+        T v11 = tensor_t[i11];
 
         if (std::isnan(v00))
           continue;

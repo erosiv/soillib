@@ -13,7 +13,6 @@ namespace nb = nanobind;
 
 #include <soillib/core/operation.hpp>
 #include <soillib/op/common.hpp>
-#include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
 // #include <soillib/op/flow.hpp>
 #include <soillib/model/erosion.hpp>
