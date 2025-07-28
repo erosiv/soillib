@@ -19,17 +19,7 @@ enum dtype {
   INT64,
   FLOAT,
   FLOAT32,
-  FLOAT64,
-  //! \todo eliminate all vector types
-  VEC2,
-  VEC3,
-  VEC4,
-  IVEC2,
-  IVEC3,
-  IVEC4,
-  DVEC2,
-  DVEC3,
-  DVEC4
+  FLOAT64
 };
 
 // Compute Device Enumerator
@@ -134,34 +124,6 @@ struct typedesc<double> {
   static constexpr const char* name = "double";
   static constexpr dtype type = FLOAT64;
   typedef double value_t;
-};
-
-template<>
-struct typedesc<vec2> {
-  static constexpr const char* name = "vec2";
-  static constexpr dtype type = VEC2;
-  typedef float value_t;
-};
-
-template<>
-struct typedesc<vec3> {
-  static constexpr const char* name = "vec3";
-  static constexpr dtype type = VEC3;
-  typedef float value_t;
-};
-
-template<>
-struct typedesc<ivec2> {
-  static constexpr const char* name = "ivec2";
-  static constexpr dtype type = IVEC2;
-  typedef int value_t;
-};
-
-template<>
-struct typedesc<ivec3> {
-  static constexpr const char* name = "ivec3";
-  static constexpr dtype type = IVEC3;
-  typedef int value_t;
 };
 
 // Enum-Based Runtime Polymorphic Visitor Pattern:
@@ -270,34 +232,6 @@ auto select(const soil::dtype type, F lambda, Args &&...args) {
       return lambda.template operator()<double>(std::forward<Args>(args)...);
     } else {
       throw soil::type_op_error<double, F>(lambda);
-    }
-    break;
-  case soil::VEC2:
-    if constexpr (matches_lambda<vec2, F, Args...>) {
-      return lambda.template operator()<vec2>(std::forward<Args>(args)...);
-    } else {
-      throw soil::type_op_error<vec2, F>(lambda);
-    }
-    break;
-  case soil::VEC3:
-    if constexpr (matches_lambda<vec3, F, Args...>) {
-      return lambda.template operator()<vec3>(std::forward<Args>(args)...);
-    } else {
-      throw soil::type_op_error<vec3, F>(lambda);
-    }
-    break;
-  case soil::IVEC2:
-    if constexpr (matches_lambda<ivec2, F, Args...>) {
-      return lambda.template operator()<ivec2>(std::forward<Args>(args)...);
-    } else {
-      throw soil::type_op_error<ivec2, F>(lambda);
-    }
-    break;
-  case soil::IVEC3:
-    if constexpr (matches_lambda<ivec3, F, Args...>) {
-      return lambda.template operator()<ivec3>(std::forward<Args>(args)...);
-    } else {
-      throw soil::type_op_error<ivec3, F>(lambda);
     }
     break;
   default:
