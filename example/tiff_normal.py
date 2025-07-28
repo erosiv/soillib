@@ -11,7 +11,7 @@ def main(input):
   for file, path in iter_tiff(input):
 
     image = soil.geotiff(path)
-    tensor = soil.tensor(image.buffer, image.shape)
+    tensor = image.tensor
     print(f"File: {file}, {tensor.type}")
     normal = soil.normal(tensor, image.meta.scale)
     data = normal.numpy()

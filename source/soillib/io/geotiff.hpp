@@ -68,7 +68,7 @@ struct geotiff: soil::io::tiff {
   using soil::io::tiff::width;
 
   geotiff() {};
-  geotiff(const soil::buffer &_buffer, const soil::shape &_shape): tiff(_buffer, _shape) {
+  geotiff(const soil::tensor &_tensor): tiff(_tensor) {
     // do additional stuff to the metadata struct here?
     this->_meta.coords[3] = _shape[0];
     this->_meta.coords[4] = _shape[1];
@@ -227,7 +227,7 @@ bool geotiff::write(const char *filename) {
 
   // Output Data
 
-  auto data = this->_buffer.data();
+  auto data = this->_tensor.data();
   uint8_t *buf = (uint8_t *)data;
 
   for (uint32_t row = 0; row < this->height(); row++) {
@@ -247,7 +247,7 @@ void geotiff::setNaN() {
 
   if (this->bits() == 16) {
     auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto buffer = this->_buffer.as<float>();
+    auto buffer = this->_tensor.as<float>();
     const float _nodata = std::stof(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == _nodata)
@@ -257,7 +257,7 @@ void geotiff::setNaN() {
 
   if (this->bits() == 32) {
     auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto buffer = this->_buffer.as<float>();
+    auto buffer = this->_tensor.as<float>();
     const float _nodata = std::stof(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == _nodata)
@@ -267,7 +267,7 @@ void geotiff::setNaN() {
 
   if (this->bits() == 64) {
     auto nan = std::numeric_limits<double>::quiet_NaN();
-    auto buffer = this->_buffer.as<double>();
+    auto buffer = this->_tensor.as<double>();
     const double _nodata = std::stod(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == _nodata)
@@ -283,7 +283,7 @@ void geotiff::unsetNaN() {
 
   if (this->bits() == 16) {
     auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto buffer = this->_buffer.as<float>();
+    auto buffer = this->_tensor.as<float>();
     const float _nodata = std::stof(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == nan) {
@@ -294,7 +294,7 @@ void geotiff::unsetNaN() {
 
   if (this->bits() == 32) {
     auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto buffer = this->_buffer.as<float>();
+    auto buffer = this->_tensor.as<float>();
     const float _nodata = std::stof(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == nan)
@@ -304,7 +304,7 @@ void geotiff::unsetNaN() {
 
   if (this->bits() == 64) {
     auto nan = std::numeric_limits<double>::quiet_NaN();
-    auto buffer = this->_buffer.as<double>();
+    auto buffer = this->_tensor.as<double>();
     const double _nodata = std::stod(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
       if (buffer[i] == nan)

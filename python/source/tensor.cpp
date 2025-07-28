@@ -5,12 +5,6 @@
 namespace nb = nanobind;
 
 #include <nanobind/ndarray.h>
-#include <nanobind/make_iterator.h>
-
-#include <nanobind/stl/string.h>
-#include <nanobind/stl/vector.h>
-#include <nanobind/stl/optional.h>
-#include <soillib/core/buffer.hpp>
 #include <soillib/core/tensor.hpp>
 #include <soillib/op/common.hpp>
 #include "interop.hpp"
@@ -27,12 +21,6 @@ tensor.def(nb::init<>());
 tensor.def(nb::init<const soil::dtype, const soil::shape>());
 tensor.def(nb::init<const soil::dtype, const soil::shape, const soil::host_t>());
 
-tensor.def("__init__", [](soil::tensor* tensor, const soil::buffer& buffer, const soil::shape shape) {
-  soil::select(buffer.type(), [tensor, &buffer, &shape]<typename S>(){
-    new (tensor) soil::tensor(buffer.as<S>(), shape);
-  });
-});
-
 // Data Inspection
 
 tensor.def_prop_ro("type", &soil::tensor::type);
@@ -40,11 +28,6 @@ tensor.def_prop_ro("elem", &soil::tensor::elem);
 tensor.def_prop_ro("size", &soil::tensor::size);
 tensor.def_prop_ro("host", &soil::tensor::host);
 tensor.def_prop_ro("shape", &soil::tensor::shape);
-tensor.def_prop_ro("buffer", [](soil::tensor& tensor){
-  return soil::select(tensor.type(), [&tensor]<typename T>(){
-    return soil::buffer(tensor.as<T>().buffer());
-  });
-});
 
 // Device Switching
 
@@ -81,6 +64,17 @@ tensor.def("numpy", [](const soil::tensor& tensor){
   });
 });
 
+tensor.def_static("from_numpy", [](const nb::object& object){
+  auto array = nb::cast<nb::ndarray<nb::numpy>>(object);
+  if(array.dtype() == nb::dtype<float>()){
+    return __tensor_from_numpy<float>(array);
+  } else if(array.dtype() == nb::dtype<double>()){
+    return __tensor_from_numpy<double>(array);
+  } else {
+    throw std::runtime_error("type not supported");
+  }
+});
+
 tensor.def("torch", [](const soil::tensor& tensor){
   if(tensor.host() != soil::host_t::GPU)
     throw soil::error::unsupported_host(soil::host_t::GPU, tensor.host());
@@ -93,12 +87,12 @@ tensor.def("torch", [](const soil::tensor& tensor){
   });
 });
 
-tensor.def_static("from_numpy", [](const nb::object& object){
-  auto array = nb::cast<nb::ndarray<nb::numpy>>(object);
+tensor.def_static("from_torch", [](const nb::object& object){
+  auto array = nb::cast<nb::ndarray<nb::pytorch>>(object);
   if(array.dtype() == nb::dtype<float>()){
-    return __tensor_from_numpy<float>(array);
+    return __tensor_from_torch<float>(array);
   } else if(array.dtype() == nb::dtype<double>()){
-    return __tensor_from_numpy<double>(array);
+    return __tensor_from_torch<double>(array);
   } else {
     throw std::runtime_error("type not supported");
   }

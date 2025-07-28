@@ -22,7 +22,6 @@ set(MODULE_NAME soillib)
 nanobind_add_module(${MODULE_NAME}
   source/_module.cpp
   source/shape.cpp
-  source/buffer.cpp
   source/tensor.cpp
   source/io.cpp
   source/op.cpp

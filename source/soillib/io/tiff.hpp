@@ -1,8 +1,8 @@
 #ifndef SOILLIB_IO_TIFF
 #define SOILLIB_IO_TIFF
 
-#include <soillib/core/buffer.hpp>
 #include <soillib/core/shape.hpp>
+#include <soillib/core/tensor.hpp>
 
 #include <iostream>
 #include <stdfloat>
@@ -22,10 +22,11 @@ struct tiff {
   tiff() {}
   tiff(const char *filename) { read(filename); };
 
-  tiff(const soil::buffer &_buffer, const soil::shape &_shape): _shape{_shape}, _buffer{_buffer} {
+  tiff(const soil::tensor &_tensor): _tensor{_tensor} {
 
-    auto type = _buffer.type();
+    auto type = _tensor.type();
 
+    this->_shape = _tensor.shape();
     this->_height = _shape[0];
     this->_width = _shape[1];
 
@@ -44,7 +45,7 @@ struct tiff {
   uint32_t width() const { return this->_width; }
   uint32_t height() const { return this->_height; }
 
-  soil::buffer buffer() const { return this->_buffer; }
+  soil::tensor tensor() const { return this->_tensor; }
   soil::shape shape() const { return this->_shape; }
 
 protected:
@@ -61,7 +62,7 @@ protected:
   uint32_t _theight = 0; //!< Tile Height
 
   soil::shape _shape;   //!< Underlying Data Shape
-  soil::buffer _buffer; //!< Underlying Data Buffer
+  soil::tensor _tensor; //!< Underlying Data Tensor
 };
 
 //! Load TIFF Metadata
@@ -108,13 +109,13 @@ bool tiff::read(const char *filename) {
   this->_shape = soil::shape(this->height(), this->width());
 
   if (this->bits() == 16) { // Note: Internal Type is still Float32
-    this->_buffer = soil::buffer(soil::FLOAT32, _shape.elem);
+    this->_tensor = soil::tensor(soil::FLOAT32, this->_shape);
   }
   if (this->bits() == 32) {
-    this->_buffer = soil::buffer(soil::FLOAT32, _shape.elem);
+    this->_tensor = soil::tensor(soil::FLOAT32, this->_shape);
   }
   if (this->bits() == 64) {
-    this->_buffer = soil::buffer(soil::FLOAT64, _shape.elem);
+    this->_tensor = soil::tensor(soil::FLOAT64, this->_shape);
   }
 
   TIFF *tif = TIFFOpen(filename, "r");
@@ -126,7 +127,7 @@ bool tiff::read(const char *filename) {
   // Load Tiled / Non-Tiled Images
   if (!this->tiled_image) {
 
-    auto data = this->_buffer.data();
+    auto data = this->_tensor.data();
     uint8_t *buf = (uint8_t *)data;
 
     uint8_t *nbuf = new uint8_t[this->width() * (this->bits() / 8)];
@@ -167,7 +168,7 @@ bool tiff::read(const char *filename) {
     const size_t nwidth = (this->width() + this->_twidth - 1) / this->_twidth;
     const size_t nheight = (this->height() + this->_theight - 1) / this->_theight;
 
-    auto data = this->_buffer.data();
+    auto data = this->_tensor.data();
     uint8_t *buf = (uint8_t *)data;
 
     uint8_t *nbuf = new uint8_t[tsize * (this->bits() / 8)];
@@ -226,7 +227,7 @@ bool tiff::write(const char *filename) {
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
   TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
 
-  auto data = this->_buffer.data();
+  auto data = this->_tensor.data();
   uint8_t *buf = (uint8_t *)data;
 
   for (uint32_t row = 0; row < this->height(); row++) {
