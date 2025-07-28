@@ -2,9 +2,7 @@
 #define SOILLIB_OP_COMMON
 
 #include <limits>
-#include <soillib/core/buffer.hpp>
 #include <soillib/core/tensor.hpp>
-#include <soillib/core/types.hpp>
 #include <soillib/core/operation.hpp>
 
 namespace soil {
