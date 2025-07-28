@@ -68,10 +68,26 @@ struct shape {
         return true;
     return false;
   }
+
+  GPU_ENABLE bool oob(const soil::ivec3 pos) const {
+    for (size_t d = 0; d < 3; ++d)
+      if (pos[d] < 0 || pos[d] >= this->ext[d])
+        return true;
+    return false;
+  }
   
   GPU_ENABLE int flatten(const soil::ivec2 pos) const {
     int index{0};
     for (size_t d = 0; d < 2; ++d) {
+      index *= this->ext[d];
+      index += pos[d];
+    }
+    return index;
+  }
+
+  GPU_ENABLE int flatten(const soil::ivec3 pos) const {
+    int index{0};
+    for (size_t d = 0; d < 3; ++d) {
       index *= this->ext[d];
       index += pos[d];
     }
