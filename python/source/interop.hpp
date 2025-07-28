@@ -27,7 +27,7 @@ nb::object __make_numpy(const soil::tensor_t<T>& source){
   nb::capsule owner(target, [](void *p) noexcept {
     delete (soil::tensor_t<T>*)p;
   });
-  soil::set(target->buffer(), source.buffer());
+  soil::set(*target, source);
 
   // note: if the object comes in as a python object, we can tie the lifetime
   //  of the original object to the existence of the numpy object if the
@@ -99,7 +99,7 @@ nb::object __make_torch(const soil::tensor_t<T>& source){
   nb::capsule owner(target, [](void *p) noexcept {
     delete (soil::tensor_t<T>*)p;
   });
-  soil::set(target->buffer(), source.buffer());
+  soil::set(*target, source);
 
   switch(shape.dim){
     case 1: return __make_torch<T, 1>(target->data(), shape, owner);
@@ -128,7 +128,7 @@ soil::tensor __tensor_from_torch(const nb::ndarray<nb::pytorch>& array){
   // Copy Data into New Tensor
   const auto view_t = soil::buffer_t<T>(data, size, soil::host_t::GPU);
   auto tensor_t = soil::tensor_t<T>(shape, soil::host_t::GPU);
-  soil::set(tensor_t.buffer(), view_t);
+  soil::set(tensor_t, soil::tensor_t<T>(view_t, shape));
   return std::move(soil::tensor(tensor_t));
 
 }

@@ -61,16 +61,16 @@ struct map_grid {
   const soil::shape shape;      // Buffer Indexing Structure
   const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
 
-  soil::buffer_t<float> height;
-  soil::buffer_t<float> sediment;
+  soil::tensor_t<float> height;
+  soil::tensor_t<float> sediment;
 
   // User Control Fields
-  soil::buffer_t<float> uplift;   //!< Uplift Control Map
-  soil::buffer_t<float> rainfall; //!< Rainfall Control Map
+  soil::tensor_t<float> uplift;   //!< Uplift Control Map
+  soil::tensor_t<float> rainfall; //!< Rainfall Control Map
 
-  soil::buffer_t<float> transfer; //!< Transferred Material
+  soil::tensor_t<float> transfer; //!< Transferred Material
 
-  soil::buffer_t<curandState> rand;
+  soil::tensor_t<curandState> rand;
   int age = 0;                  //!< Model Age
 
 };
@@ -83,22 +83,24 @@ using map_t = map_grid;
 struct data_t {
 
   data_t():elem{0}{}
-  data_t(const size_t elem):
-    elem{elem}{
-    this->mass            = soil::buffer_t<float>(this->elem, soil::host_t::GPU);
-    this->discharge       = soil::buffer_t<float>(this->elem, soil::host_t::GPU);
-    this->momentum        = soil::buffer_t<vec2>(this->elem, soil::host_t::GPU);
-    this->debris          = soil::buffer_t<float>(this->elem, soil::host_t::GPU);
-    this->debris_momentum = soil::buffer_t<vec2>(this->elem, soil::host_t::GPU);
+  data_t(const soil::shape shape):
+    shape(shape),
+    elem{shape.elem}{
+    this->mass            = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
+    this->discharge       = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
+    this->momentum        = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
+    this->debris          = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
+    this->debris_momentum = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
   }
 
+  const soil::shape shape;
   const size_t elem;  //!< Total Buffer Elements
 
-  soil::buffer_t<float> discharge;
-  soil::buffer_t<vec2> momentum;
-  soil::buffer_t<float> mass;
-  soil::buffer_t<float> debris;
-  soil::buffer_t<vec2> debris_momentum;
+  soil::tensor_t<float> discharge;
+  soil::tensor_t<vec2> momentum;
+  soil::tensor_t<float> mass;
+  soil::tensor_t<float> debris;
+  soil::tensor_t<vec2> debris_momentum;
 
 };
 

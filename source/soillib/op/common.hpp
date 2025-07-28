@@ -14,30 +14,30 @@ namespace soil {
 //
 
 template<typename T>
-void set(buffer_t<T> lhs, const T value);
+void set(tensor_t<T> lhs, const T value);
 
 template<typename T>
-void add(buffer_t<T> lhs, const T value);
+void add(tensor_t<T> lhs, const T value);
 
 template<typename T>
-void multiply(buffer_t<T> lhs, const T value);
+void multiply(tensor_t<T> lhs, const T value);
 
 template<typename T>
-void set(buffer_t<T> lhs, const buffer_t<T> rhs);
+void set(tensor_t<T> lhs, const tensor_t<T> rhs);
 
 template<typename T>
-void add(buffer_t<T> lhs, const buffer_t<T> rhs);
+void add(tensor_t<T> lhs, const tensor_t<T> rhs);
 
 template<typename T>
-void multiply(buffer_t<T> lhs, const buffer_t<T> rhs);
+void multiply(tensor_t<T> lhs, const tensor_t<T> rhs);
 
 template<typename T>
-void mix(buffer_t<T> lhs, const buffer_t<T> rhs, const float w);
+void mix(tensor_t<T> lhs, const tensor_t<T> rhs, const float w);
 
 template<typename T>
-void clamp(buffer_t<T> lhs, const T min, const T max);
+void clamp(tensor_t<T> lhs, const T min, const T max);
 
-void seed(buffer_t<curandState>& buf, const size_t seed, const size_t offset);
+void seed(tensor_t<curandState>& buf, const size_t seed, const size_t offset);
 
 //
 // Other Operations that need cleaning / deprecation...
@@ -48,20 +48,15 @@ void seed(buffer_t<curandState>& buf, const size_t seed, const size_t offset);
 //
 
 template<typename To, typename From>
-soil::buffer_t<To> cast(const soil::buffer_t<From> &buffer) {
+soil::tensor_t<To> cast(const soil::tensor_t<From> &tensor) {
+  if (tensor.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, tensor.host());
 
-  if (buffer.host() != soil::host_t::CPU)
-    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
-
-  buffer_t<To> buffer_to(buffer.elem());
-  for (auto [i, b] : buffer.const_iter()) {
-    buffer_to[i] = (To)b;
-    // if(!std::isnan(b)){
-    //   val = std::min(val, b);
-    // }
+  tensor_t<To> tensor_to(tensor.shape(), soil::host_t::CPU);
+  for(int i = 0; i < tensor.elem(); ++i){
+    tensor_to[i] = (To)tensor[i];
   }
-  return buffer_to;
-
+  return tensor_to;
 }
 
 //
@@ -69,18 +64,18 @@ soil::buffer_t<To> cast(const soil::buffer_t<From> &buffer) {
 //
 
 template<typename T>
-void set_impl(soil::buffer_t<T> buffer, const T val, size_t start, size_t stop, size_t step);
+void set_impl(soil::tensor_t<T> tensor, const T val, size_t start, size_t stop, size_t step);
 
 template<typename T>
-void set(soil::buffer_t<T> buffer, const T val, size_t start, size_t stop, size_t step) {
+void set(soil::tensor_t<T> tensor, const T val, size_t start, size_t stop, size_t step) {
 
-  if (buffer.host() == soil::host_t::CPU) {
+  if (tensor.host() == soil::host_t::CPU) {
     for (int i = start; i < stop; i += step)
-      buffer[i] = val;
+      tensor[i] = val;
   }
 
-  else if (buffer.host() == soil::host_t::GPU) {
-    set_impl(buffer, val, start, stop, step);
+  else if (tensor.host() == soil::host_t::GPU) {
+    set_impl(tensor, val, start, stop, step);
   }
 }
 
@@ -89,10 +84,10 @@ void set(soil::buffer_t<T> buffer, const T val, size_t start, size_t stop, size_
 //  Note: Currently only Bilinear Interpolation
 
 template<typename T>
-void resize_impl(soil::buffer_t<T> lhs, const soil::buffer_t<T> rhs, soil::ivec2 out, soil::ivec2 in);
+void resize_impl(soil::tensor_t<T> lhs, const soil::tensor_t<T> rhs, soil::ivec2 out, soil::ivec2 in);
 
 template<typename T>
-void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 out, soil::ivec2 in) {
+void resize(soil::tensor_t<T> &lhs, const soil::tensor_t<T> &rhs, soil::ivec2 out, soil::ivec2 in) {
 
   //  if (lhs.elem() != rhs.elem())
   //    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
@@ -106,7 +101,6 @@ void resize(soil::buffer_t<T> &lhs, const soil::buffer_t<T> &rhs, soil::ivec2 ou
     throw soil::error::mismatch_host(soil::host_t::GPU, rhs.host());
   }
 }
-
 
 //
 // Legacy Functions
@@ -139,13 +133,14 @@ void copy(soil::tensor_t<To> &out, const soil::tensor_t<From> &in, vec2 gmin, ve
 //
 
 template<typename T>
-T min(const soil::buffer_t<T> &buffer) {
+T min(const soil::tensor_t<T> &tensor) {
 
-  if (buffer.host() != soil::host_t::CPU)
-    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+  if (tensor.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, tensor.host());
 
   T val = std::numeric_limits<T>::max();
-  for (auto [i, b] : buffer.const_iter()) {
+  for(int i = 0; i < tensor.elem(); ++i){
+    const T b = tensor[i];
     if (!std::isnan(b)) {
       val = std::min(val, b);
     }
@@ -154,13 +149,14 @@ T min(const soil::buffer_t<T> &buffer) {
 }
 
 template<typename T>
-T max(const soil::buffer_t<T> &buffer) {
+T max(const soil::tensor_t<T> &tensor) {
 
-  if (buffer.host() != soil::host_t::CPU)
-    throw soil::error::mismatch_host(soil::host_t::CPU, buffer.host());
+  if (tensor.host() != soil::host_t::CPU)
+    throw soil::error::mismatch_host(soil::host_t::CPU, tensor.host());
 
   T val = std::numeric_limits<T>::min();
-  for (auto [i, b] : buffer.const_iter()) {
+  for(int i = 0; i < tensor.elem(); ++i){
+    const T b = tensor[i];
     if (!std::isnan(b)) {
       val = std::max(val, b);
     }

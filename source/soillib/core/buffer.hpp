@@ -1,22 +1,16 @@
 #ifndef SOILLIB_BUFFER
 #define SOILLIB_BUFFER
 
-//! A buffer represents a raw data extent
-//! \todo add more detail about this file
-
-#include <cuda_runtime.h>
 #include <soillib/soillib.hpp>
-#include <soillib/core/types.hpp>
 #include <soillib/util/error.hpp>
 #include <soillib/util/yield.hpp>
+#include <cuda_runtime.h>
 
 #include <iostream>
 
 namespace soil {
 
-//! \todo Make sure that buffers are "re-interpretable"!
-
-//! buffer_t<T> is a strict-typed, raw-data extent.
+//! buffer_t<T> is a strict-typed, owning raw-data extent.
 //!
 //! buffer_t<T> is reference counting, meaning that
 //! copies of the buffer can be made without copying
@@ -24,9 +18,8 @@ namespace soil {
 //!
 //! buffer_t<T> data can be on the CPU or on the GPU.
 //! convenience iterators are also provided.
-//!
 template<typename T>
-struct buffer_t: typedbase {
+struct buffer_t {
 
   buffer_t() {
     this->_data = NULL;
@@ -52,7 +45,7 @@ struct buffer_t: typedbase {
     this->_host = host;
   }
 
-  ~buffer_t() override {
+  ~buffer_t() {
     this->deallocate();
   }
 
@@ -112,7 +105,7 @@ struct buffer_t: typedbase {
   void to_gpu(); //!< In-Place Copy Data to the GPU (if available)
 
   //! Type Enumerator Retrieval
-  constexpr soil::dtype type() noexcept override {
+  constexpr soil::dtype type() noexcept {
     return soil::typedesc<T>::type;
   }
 
@@ -263,117 +256,6 @@ void soil::buffer_t<T>::to_cpu() {
   this->_size = _size;
   this->_host = CPU;
 }
-
-//! buffer is a poylymorphic buffer_t wrapper type.
-//!
-//! A buffer holds a single strict-typed buffer_t through
-//! a shared pointer, making copy and move semantics for
-//! the underlying buffer work as expected.
-//!
-struct buffer {
-
-  buffer() = default;
-  // buffer(const buffer& buffer):impl{buffer.impl}{}
-
-  buffer(const soil::dtype type, const size_t size): impl{make(type, size)} {}
-
-  buffer(const soil::dtype type, const size_t size, const host_t host): impl{make(type, size, host)} {}
-
-  //! Note that since it holds a shared pointer to a buffer_t,
-  //! holding a shared pointer, if the copied or moved object
-  //! is destroyed, the underlying raw memory is not deleted.
-
-  template<typename T>
-  buffer(const soil::buffer_t<T> &buf) {
-    impl = std::make_shared<soil::buffer_t<T>>(buf);
-  }
-
-  template<typename T>
-  buffer(soil::buffer_t<T> &&buf) {
-    impl = std::make_shared<soil::buffer_t<T>>(buf);
-  }
-
-  ~buffer() { this->impl = NULL; }
-
-  //! retrieve the strict-typed type enumerator
-  inline soil::dtype type() const noexcept {
-    return this->impl->type();
-  }
-
-  //! unsafe cast to strict-type
-  template<typename T>
-  inline buffer_t<T> &as() noexcept {
-    return static_cast<buffer_t<T> &>(*(this->impl));
-  }
-
-  template<typename T>
-  inline const buffer_t<T> &as() const noexcept {
-    return static_cast<buffer_t<T> &>(*(this->impl));
-  }
-
-  //! Const Subscript Operator
-  template<typename T>
-  T operator[](const size_t index) const {
-    return select(this->type(), [self = this, index]<typename S>() -> T {
-      if constexpr (std::same_as<S, T>) {
-        return self->as<T>().operator[](index);
-      } else if constexpr (std::convertible_to<S, T>) {
-        return (T)self->as<S>().operator[](index);
-      } else {
-        throw soil::error::cast_error<S, T>();
-      }
-    });
-  }
-
-  //! Non-Const Subscript Operator
-  template<typename T>
-  T &operator[](const size_t index) {
-    return this->as<T>()[index];
-    //    return select(this->type(), [self = this, index]<typename S>() -> T& {
-    //      if constexpr (std::same_as<S, T>) {
-    //        return self->as<T>()[index];
-    //      } else {
-    //        throw soil::error::cast_error<S, T>();
-    //      }
-    //    });
-  }
-
-  // Data Inspection Operations (Type-Deducing)
-
-  size_t elem() const {
-    return select(this->type(), [self = this]<typename S>() {
-      return self->as<S>().elem();
-    });
-  }
-
-  size_t size() const {
-    return select(this->type(), [self = this]<typename S>() {
-      return self->as<S>().size();
-    });
-  }
-
-  void *data() {
-    return select(this->type(), [self = this]<typename S>() {
-      return (void *)self->as<S>().data();
-    });
-  }
-
-  soil::host_t host() const {
-    return select(this->type(), [self = this]<typename S>() {
-      return self->as<S>().host();
-    });
-  }
-
-private:
-  using ptr_t = std::shared_ptr<typedbase>;
-  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
-
-  static ptr_t make(const soil::dtype type, const size_t size, const host_t host = CPU) {
-    return select(type, [size, host]<typename S>() -> ptr_t {
-      return std::make_shared<soil::buffer_t<S>>(size, host);
-    });
-  }
-};
 
 } // end of namespace soil
 

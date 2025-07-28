@@ -15,8 +15,6 @@ namespace nb = nanobind;
 #include <soillib/op/common.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
-// #include <soillib/op/flow.hpp>
-#include <soillib/model/erosion.hpp>
 
 #include <iostream>
 
@@ -28,39 +26,39 @@ void bind_op(nb::module_& module) {
 // Generic Buffer Reductions
 //
 
-module.def("cast", [](const soil::buffer& buf, const soil::dtype type){
-  if(buf.type() == type){
-    return nb::cast(buf);
-  }
-  return soil::select(type, [&buf]<std::floating_point To>() -> nb::object {
-    return soil::select(buf.type(), [&buf]<std::floating_point From>() -> nb::object {
-      soil::buffer buffer = soil::cast<To, From>(buf.as<From>());
-      return nb::cast(buffer);
-    });
+module.def("min", [](const soil::tensor& tensor){
+  return soil::select(tensor.type(), [&tensor]<std::floating_point S>() -> nb::object {
+    return nb::cast(soil::min(tensor.as<S>()));
   });
 });
 
-module.def("min", [](const soil::buffer& buf){
-  return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
-    return nb::cast(soil::min(buf.as<S>()));
+module.def("max", [](const soil::tensor& tensor){
+  return soil::select(tensor.type(), [&tensor]<std::floating_point S>() -> nb::object {
+    return nb::cast(soil::max(tensor.as<S>()));
   });
 });
 
-module.def("max", [](const soil::buffer& buf){
-  return soil::select(buf.type(), [&buf]<std::floating_point S>() -> nb::object {
-    return nb::cast(soil::max(buf.as<S>()));
-  });
-});
-
-module.def("clamp", [](soil::buffer& buf, const float min, const float max){
-  soil::select(buf.type(), [&]<std::same_as<float> S>() -> void {
-    soil::clamp(buf.as<S>(), min, max);
+module.def("clamp", [](soil::tensor& tensor, const float min, const float max){
+  soil::select(tensor.type(), [&tensor, min, max]<std::same_as<float> S>() -> void {
+    soil::clamp(tensor.as<S>(), min, max);
   });
 });
 
 //
 // Generic Buffer Functions
 //
+
+module.def("cast", [](const soil::tensor& tensor, const soil::dtype type){
+  if(tensor.type() == type){
+    return nb::cast(tensor);
+  }
+  return soil::select(type, [&tensor]<std::floating_point To>() -> nb::object {
+    return soil::select(tensor.type(), [&tensor]<std::floating_point From>() -> nb::object {
+      soil::tensor tensor = soil::cast<To, From>(tensor.as<From>());
+      return nb::cast(tensor);
+    });
+  });
+});
 
 module.def("copy", [](soil::tensor& lhs, const soil::tensor& rhs, soil::vec2 gmin, soil::vec2 gmax, soil::vec2 gscale, soil::vec2 wmin, soil::vec2 wmax, soil::vec2 wscale, float pscale){
 
@@ -75,7 +73,7 @@ module.def("copy", [](soil::tensor& lhs, const soil::tensor& rhs, soil::vec2 gmi
   });
 });
 
-module.def("resize", [](soil::buffer& lhs, const soil::buffer& rhs, soil::ivec2 out, soil::ivec2 in){
+module.def("resize", [](soil::tensor& lhs, const soil::tensor& rhs, soil::ivec2 out, soil::ivec2 in){
   if(lhs.type() != rhs.type())
     throw soil::error::mismatch_type(lhs.type(), rhs.type());
   soil::select(lhs.type(), [&lhs, &rhs, in, out]<typename S>(){
@@ -91,7 +89,7 @@ module.def("resize", [](soil::buffer& lhs, const soil::buffer& rhs, soil::ivec2 
 
 
 
-module.def("set", [](soil::buffer& lhs, const soil::buffer& rhs){
+module.def("set", [](soil::tensor& lhs, const soil::tensor& rhs){
 
   if(lhs.type() != rhs.type())
     throw soil::error::mismatch_type(lhs.type(), rhs.type());
@@ -111,11 +109,11 @@ module.def("set", [](soil::tensor& tensor, const nb::object value){
   soil::select(tensor.type(), [&tensor, &value]<typename S>(){
     auto tensor_t = tensor.as<S>();
     auto value_t = nb::cast<S>(value);
-    soil::set<S>(tensor_t.buffer(), value_t);
+    soil::set<S>(tensor_t, value_t);
   });
 });
 
-module.def("add", [](soil::buffer& lhs, const soil::buffer& rhs){
+module.def("add", [](soil::tensor& lhs, const soil::tensor& rhs){
 
   if(lhs.type() != rhs.type())
     throw soil::error::mismatch_type(lhs.type(), rhs.type());
@@ -131,7 +129,7 @@ module.def("add", [](soil::buffer& lhs, const soil::buffer& rhs){
   });
 });
 
-module.def("add", [](soil::buffer& buffer, const nb::object value){
+module.def("add", [](soil::tensor& buffer, const nb::object value){
   soil::select(buffer.type(), [&buffer, &value]<typename S>(){
     auto buffer_t = buffer.as<S>();
     auto value_t = nb::cast<S>(value);
@@ -139,7 +137,7 @@ module.def("add", [](soil::buffer& buffer, const nb::object value){
   });
 });
 
-module.def("multiply", [](soil::buffer& lhs, const soil::buffer& rhs){
+module.def("multiply", [](soil::tensor& lhs, const soil::tensor& rhs){
   
   if(lhs.type() != rhs.type())
     throw soil::error::mismatch_type(lhs.type(), rhs.type());
@@ -155,7 +153,7 @@ module.def("multiply", [](soil::buffer& lhs, const soil::buffer& rhs){
   });
 });
 
-module.def("multiply", [](soil::buffer& buffer, const nb::object value){
+module.def("multiply", [](soil::tensor& buffer, const nb::object value){
   soil::select(buffer.type(), [&buffer, &value]<typename S>(){
     auto buffer_t = buffer.as<S>();
     auto value_t = nb::cast<S>(value);

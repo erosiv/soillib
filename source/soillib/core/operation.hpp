@@ -1,21 +1,17 @@
 #ifndef SOILLIB_OPERATION
 #define SOILLIB_OPERATION
 
-//
-// Generic Template Operations for Buffers and Tensors
-//  Written to function both on the GPU and the CPU.
-//
-
-#include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 #include <soillib/util/error.hpp>
 #include <curand_kernel.h>
 
 namespace soil {
 namespace op {
 
-//
-// Templated CUDA Implementations
-//
+// This file contains generic template operations for tensors.
+// These are written to function both on the GPU and the CPU,
+// and are intended to simplify the code structure for common
+// operation types between tensors.
 
 #ifdef HAS_CUDA
 
@@ -30,7 +26,7 @@ inline int block(const int elem, const int thread) {
 // In-Place Operation Kernels
 
 template<typename T, typename F>
-__global__ void __uniop_inplace(buffer_t<T> lhs, F f){
+__global__ void __uniop_inplace(tensor_t<T> lhs, F f){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n < lhs.elem()){
     lhs[n] = f(lhs[n]);
@@ -38,7 +34,7 @@ __global__ void __uniop_inplace(buffer_t<T> lhs, F f){
 }
 
 template<typename T, typename F>
-__global__ void __binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
+__global__ void __binop_inplace(tensor_t<T> lhs, const tensor_t<T> rhs, F func) {
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n < lhs.elem()){
     const T a = lhs[n];
@@ -50,7 +46,7 @@ __global__ void __binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) 
 // In-Place Operation Host Functions
 
 template<typename T, typename F>
-void uniop_inplace(buffer_t<T> lhs, F func) {
+void uniop_inplace(tensor_t<T> lhs, F func) {
 
   if(lhs.host() == soil::host_t::CPU){
     for(size_t i = 0; i < lhs.elem(); ++i){
@@ -65,7 +61,7 @@ void uniop_inplace(buffer_t<T> lhs, F func) {
 }
 
 template<typename T, typename F>
-void binop_inplace(buffer_t<T> lhs, const buffer_t<T> rhs, F func) {
+void binop_inplace(tensor_t<T> lhs, const tensor_t<T> rhs, F func) {
 
   if(lhs.host() == soil::host_t::CPU){
     for(size_t i = 0; i < lhs.elem(); ++i){

@@ -25,7 +25,7 @@ nanobind_add_module(${MODULE_NAME}
   source/tensor.cpp
   source/io.cpp
   source/op.cpp
-  source/model.cpp
+#  source/model.cpp
   source/util.cpp
 )
 

@@ -67,12 +67,12 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
 
   const size_t n_samples = param.samples;
   if(map.rand.elem() != n_samples){
-    map.rand = soil::buffer_t<curandState>(n_samples, soil::host_t::GPU);
+    map.rand = soil::tensor_t<curandState>(soil.shape(n_samples), soil::host_t::GPU);
     soil::seed(map.rand, 0, 4 * map.age);
   }
 
   if(map.transfer.elem() != map.elem){
-    map.transfer = soil::buffer_t<float>(map.elem, soil::host_t::GPU);
+    map.transfer = soil::tensor_t<float>(map.shape, soil::host_t::GPU);
   }
 
   //
