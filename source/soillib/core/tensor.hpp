@@ -5,6 +5,8 @@
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/view.hpp>
 
+// #include <nanobind/nb_defs.h>
+
 namespace soil {
 
 //! tensor_t is a strict-typed data extent with a shape
@@ -67,7 +69,7 @@ private:
 };
 
 //! tensor is a poylymorphic tensor_t wrapper type.
-struct tensor {
+struct EXPORT_SHARED tensor {
 
   tensor() = default;
   tensor(const soil::dtype type, const soil::shape shape): impl{make(type, shape)} {}

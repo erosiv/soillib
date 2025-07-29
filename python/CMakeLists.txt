@@ -27,6 +27,7 @@ nanobind_add_module(${MODULE_NAME}
   source/op.cpp
 #  source/model.cpp
   source/util.cpp
+  NB_SHARED
 )
 
 target_compile_definitions(${MODULE_NAME} PRIVATE
@@ -39,20 +40,19 @@ target_link_libraries(${MODULE_NAME} PRIVATE soil)
 target_link_libraries(${MODULE_NAME} PRIVATE glm::glm)
 
 # libtiff wrangling: there has to be a better way...
+set(LIBTIFF_DIR "C:/Program Files (x86)/tiff")
 find_package(tiff REQUIRED)
 target_include_directories(${MODULE_NAME} PUBLIC
-  "C:\\Program Files (x86)\\tiff\\include"
+  "${LIBTIFF_DIR}/include"
 )
 target_link_libraries(${MODULE_NAME} PUBLIC 
-  "C:\\Program Files (x86)\\tiff\\lib\\tiffd.lib"
+  "${LIBTIFF_DIR}/lib/tiffd.lib"
 )
-
-add_custom_command (
-  TARGET ${MODULE_NAME} POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy -t "$<TARGET_FILE_DIR:${MODULE_NAME}>"
-  "C:\\Program Files (x86)\\glew-2.1.0\\bin\\Release\\x64\\glew32.dll"
-)
-
 
 # Install Directive for Scikit
 install(TARGETS ${MODULE_NAME} LIBRARY DESTINATION ${MODULE_NAME})
+
+# Install Runtime Dependencies into Wheel File
+install(TARGETS nanobind RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/soillib)
+install(TARGETS soil RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/soillib)
+install(FILES "${LIBTIFF_DIR}/bin/tiffd.dll" DESTINATION ${SKBUILD_PLATLIB_DIR}/soillib)

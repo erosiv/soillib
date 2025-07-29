@@ -76,3 +76,9 @@ git submodule update --init --recursive
 cmake -S . -B build
 cmake --build build
 ```
+
+Build Wheel Distributable:
+
+```bash
+pip wheel .
+```
