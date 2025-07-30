@@ -126,9 +126,8 @@ soil::tensor __tensor_from_torch(const nb::ndarray<nb::pytorch>& array){
   shape.dim = ndim;
 
   // Copy Data into New Tensor
-  const auto view_t = soil::buffer_t<T>(data, size, soil::host_t::GPU);
-  auto tensor_t = soil::tensor_t<T>(shape, soil::host_t::GPU);
-  soil::set(tensor_t, soil::tensor_t<T>(view_t, shape));
-  return std::move(soil::tensor(tensor_t));
+  auto target_t = soil::tensor_t<T>(shape, soil::host_t::GPU);
+  soil::set(target_t, soil::tensor_t<T>(data, shape, soil::host_t::GPU));
+  return std::move(soil::tensor(target_t));
 
 }

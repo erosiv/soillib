@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <soillib/core/shape.hpp>
-#include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 
 #include <unordered_map>
 

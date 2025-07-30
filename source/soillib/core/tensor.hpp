@@ -1,55 +1,126 @@
 #ifndef SOILLIB_TENSOR
 #define SOILLIB_TENSOR
 
+#include <soillib/soillib.hpp>
+#include <soillib/core/error.hpp>
 #include <soillib/core/shape.hpp>
-#include <soillib/core/buffer.hpp>
 #include <soillib/core/view.hpp>
+#include <cuda_runtime.h>
 
 namespace soil {
 
-//! tensor_t is a strict-typed data extent with a shape
+//! tensor_t<T> is a strict-typed, owning raw-data extent.
+//!
+//! tensor_t<T> is reference counting with correct move semantics,
+//! making copying and moving tensor_t<T> values cheap and easy.
+//!
+//! tensor_t<T> data can be on the CPU or on the GPU.
 //!
 template<typename T>
 struct tensor_t: typedbase {
 
-  tensor_t(){}
+  //
+  // Construction and Assignment
+  //
 
-  tensor_t(const shape shape, const host_t host = CPU):
-    _shape(shape),_buffer(shape.elem, host){}
+  //! Default Empty Constructor
+  tensor_t() {
+    this->_shape = shape();
+    this->_data = NULL;
+    this->_refs = new size_t(0);
+    this->_host = CPU;
+  }
 
-  tensor_t(const buffer_t<T> buffer, const shape shape):
-    _shape(shape),_buffer(buffer){}
+  //! Allocating Constructor
+  tensor_t(const shape shape, const host_t host = CPU) {
+    this->allocate(shape, host);
+  }
 
-  // Inspection Functions
+  //! Non-Allocating Constructor
+  tensor_t(T* data, const shape shape, const host_t host = CPU){
+    this->_data = data;
+    this->_refs = NULL;
+    this->_shape = shape;
+    this->_host = host;
+  }
 
-  GPU_ENABLE shape shape()        const { return this->_shape; }
-  GPU_ENABLE buffer_t<T> buffer() const { return this->_buffer; }
+  ~tensor_t() { this->deallocate(); }
 
-  GPU_ENABLE inline size_t elem() const { return this->_shape.elem; }        //!< Number of Elements
-  GPU_ENABLE inline size_t size() const { return this->elem() * sizeof(T); } //!< Total Size in Bytes
-  GPU_ENABLE inline T *data() { return this->_buffer.data(); }               //!< Raw Data Pointer
-  GPU_ENABLE inline const T *data() const { return this->_buffer.data(); }   //!< Raw Data Pointer
+  //! Copy Constructor (Reference Increment)
+  tensor_t(const tensor_t<T> &other) {
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_shape = other._shape;
+    this->_host = other._host;
+    if (this->_data != NULL) {
+      if (this->_refs != NULL){
+        ++(*this->_refs);
+      }
+    }
+  }
+
+  //! Copy Assignment Operator (Reference Increment)
+  tensor_t &operator=(const tensor_t<T> &other) {
+    this->deallocate();
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_shape = other._shape;
+    this->_host = other._host;
+    if (this->_data != NULL) {
+      if (this->_refs != NULL) {
+        ++(*this->_refs);
+      }
+    }
+    return *this;
+  }
+
+  //! Move Constructor (Reference Steal)
+  tensor_t(tensor_t<T> &&other) {
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_shape = other._shape;
+    this->_host = other._host;
+    other._data = NULL;
+    other._refs = NULL;
+  }
+
+  //! Move Assginmment Operator (Reference Steal)
+  tensor_t &operator=(tensor_t<T> &&other) {
+    this->deallocate();
+    this->_data = other._data;
+    this->_refs = other._refs;
+    this->_shape = other._shape;
+    this->_host = other._host;
+    other._data = NULL;
+    other._refs = NULL;
+    return *this;
+  }
+
+  //
+  // Data Inspection
+  //
+
+  GPU_ENABLE inline shape shape()   const { return this->_shape; }
+  GPU_ENABLE inline size_t elem()   const { return this->_shape.elem; }         //!< Number of Elements
+  GPU_ENABLE inline size_t size()   const { return this->elem() * sizeof(T); }  //!< Total Size in Bytes
+  GPU_ENABLE inline size_t refs()   const { return *this->_refs; }              //!< Reference Count
+  GPU_ENABLE inline host_t host()   const { return this->_host; }               //!< Current Device (CPU / GPU)
+  GPU_ENABLE inline const T *data() const { return this->_data; }               //!< Raw Data Pointer (Const)
+  GPU_ENABLE inline T *data()             { return this->_data; }               //!< Raw Data Pointer (Mutable)
   
-  GPU_ENABLE inline size_t refs() const { return *this->_buffer.refs(); } //!< Internal Reference Count
-  GPU_ENABLE inline host_t host() const { return this->_buffer.host(); }  //!< Current Device (CPU / GPU)
-  
-  // Device Changing
-  void to_cpu() { this->_buffer.to_cpu(); } //!< Move Tensor Data to CPU
-  void to_gpu() { this->_buffer.to_gpu(); } //!< Move Tensor Data to GPU
-
   //! Type Enumerator Retrieval
-  constexpr soil::dtype type() noexcept override {
+  constexpr soil::dtype type() noexcept {
     return soil::typedesc<T>::type;
   }
 
-  //! Const Subscript Operator
+  //! Const Subscript Operator (Flat)
   GPU_ENABLE T operator[](const size_t index) const noexcept {
-    return this->_buffer[index];
+    return this->_data[index];
   }
-  
-  //! Non-Const Subscript Operator
+
+  //! Non-Const Subscript Operator (Float)
   GPU_ENABLE T &operator[](const size_t index) noexcept {
-    return this->_buffer[index];
+    return this->_data[index];
   }
 
   template<typename S>
@@ -61,19 +132,132 @@ struct tensor_t: typedbase {
     ));
   };
 
+  void to_cpu(); //!< In-Place Copy Data to the CPU
+  void to_gpu(); //!< In-Place Copy Data to the GPU (if available)
+
 private:
-  soil::shape _shape;
-  soil::buffer_t<T> _buffer;
+
+  //! Device-Aware Allocation and De-Allocation
+  void allocate(const soil::shape shape, const host_t host = CPU);
+  void deallocate();
+
+  soil::shape _shape;   //!< Shape of Data
+  host_t _host = CPU;   //!< Currently Active Device
+  T *_data = NULL;      //!< Raw Data Pointer (Device Agnostic)
+  size_t *_refs = NULL; //!< Pointer to Reference Count
 };
 
-//! tensor is a poylymorphic tensor_t wrapper type.
+//
+// Member Function Implementations
+//
+
+template<typename T>
+void soil::tensor_t<T>::allocate(const soil::shape shape, const host_t host) {
+
+  if (shape.elem == 0)
+    throw std::invalid_argument("size must be greater than 0");
+  this->_shape = shape;
+
+  if (host == CPU) {
+    this->_data = new T[shape.elem];
+  } else if (host == GPU) {
+    cudaMalloc(&this->_data, this->size());
+  } else {
+    throw std::invalid_argument("device not recognized");
+  }
+
+  this->_host = host;
+  this->_refs = new size_t(1);
+
+}
+
+template<typename T>
+void soil::tensor_t<T>::deallocate() {
+
+  if (this->_refs == NULL)
+    return;
+
+  if (*this->_refs == 0)
+    return;
+
+  (*this->_refs)--;
+  if (*this->_refs > 0)
+    return;
+
+  delete this->_refs;
+
+  if (this->_data != NULL) {
+    if (this->_host == CPU) {
+      delete[] this->_data;
+      this->_data = NULL;
+      this->_host = CPU;
+    }
+
+    if (this->_host == GPU) {
+
+      cudaFree(this->_data);
+      this->_data = NULL;
+      this->_host = CPU;
+    }
+  }
+}
+
+template<typename T>
+void soil::tensor_t<T>::to_gpu() {
+
+  if (this->_host == GPU)
+    return;
+
+  if (this->_data == NULL)
+    return;
+
+  if (this->elem() == 0)
+    return;
+
+  T *_data;
+
+  cudaMalloc(&_data, this->size());
+  cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyHostToDevice);
+
+  this->deallocate();
+  this->_data = _data;
+  this->_refs = new size_t(1);
+  this->_host = GPU;
+}
+
+template<typename T>
+void soil::tensor_t<T>::to_cpu() {
+
+  if (this->_host == CPU)
+    return;
+
+  if (this->_data == NULL)
+    return;
+
+  if (this->elem() == 0)
+    return;
+
+  T *_data = new T[this->elem()];
+  cudaMemcpy(_data, this->data(), this->size(), cudaMemcpyDeviceToHost);
+
+  this->deallocate();
+  this->_data = _data;
+  this->_refs = new size_t(1);
+  this->_host = CPU;
+}
+
+//! tensor is a tag-poylymorphic tensor_t wrapper type.
+//!
+//! This type stores a pointer to a tensor_t<T>, which it
+//! can cast to the appropriate type when required.
+//!
 struct EXPORT_SHARED tensor {
 
   tensor() = default;
   tensor(const soil::dtype type, const soil::shape shape): impl{make(type, shape)} {}
   tensor(const soil::dtype type, const soil::shape shape, const host_t host): impl{make(type, shape, host)} {}
 
-  //! Note that since it holds a shared pointer to a buffer_t,
+  //! Note that since it holds a shared pointer to a tensor_t,
   //! holding a shared pointer, if the copied or moved object
   //! is destroyed, the underlying raw memory is not deleted.
 
@@ -90,7 +274,7 @@ struct EXPORT_SHARED tensor {
   // Construct from Buffer
 
   template<typename T>
-  tensor(const soil::buffer_t<T>& buffer, const soil::shape &shape){
+  tensor(const soil::tensor_t<T>& buffer, const soil::shape &shape){
     impl = std::make_shared<soil::tensor_t<T>>(buffer, shape);
   }
 
@@ -110,33 +294,6 @@ struct EXPORT_SHARED tensor {
   template<typename T>
   inline const tensor_t<T> &as() const noexcept {
     return static_cast<tensor_t<T> &>(*(this->impl));
-  }
-
-  //! Const Subscript Operator
-  template<typename T>
-  T operator[](const size_t index) const {
-    return select(this->type(), [self = this, index]<typename S>() -> T {
-      if constexpr (std::same_as<S, T>) {
-        return self->as<T>().operator[](index);
-      } else if constexpr (std::convertible_to<S, T>) {
-        return (T)self->as<S>().operator[](index);
-      } else {
-        throw soil::error::cast_error<S, T>();
-      }
-    });
-  }
-
-  //! Non-Const Subscript Operator
-  template<typename T>
-  T &operator[](const size_t index) {
-    return this->as<T>()[index];
-    //    return select(this->type(), [self = this, index]<typename S>() -> T& {
-    //      if constexpr (std::same_as<S, T>) {
-    //        return self->as<T>()[index];
-    //      } else {
-    //        throw soil::error::cast_error<S, T>();
-    //      }
-    //    });
   }
 
   // Data Inspection Operations (Type-Deducing)

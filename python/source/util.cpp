@@ -11,10 +11,10 @@ namespace nb = nanobind;
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/optional.h>
 
-#include <soillib/util/timer.hpp>
 #include <soillib/core/types.hpp>
-#include <soillib/core/buffer.hpp>
 #include <soillib/core/error.hpp>
+#include <soillib/util/timer.hpp>
+#include <soillib/util/yield.hpp>
 
 #include "glm.hpp"
 

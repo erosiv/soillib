@@ -2,7 +2,6 @@
 #define SOILLIB_OP_GATHER
 
 #include <soillib/core/shape.hpp>
-#include <soillib/core/buffer.hpp>
 #include <soillib/core/tensor.hpp>
 #include <soillib/core/types.hpp>
 
@@ -176,32 +175,34 @@ private:
   vec2 w0, w1;
 };
 
+/*
 template<typename T>
-GPU_ENABLE lerp_t<T> gather(const soil::buffer_t<T> &buf, const shape shape, vec2 pos) {
+GPU_ENABLE lerp_t<T> gather(const soil::`fer_t<T> &buf, const shape shape, vec2 pos) {
 
-  ivec2 p00 = ivec2(pos) + ivec2(0, 0);
-  ivec2 p01 = ivec2(pos) + ivec2(0, 1);
-  ivec2 p10 = ivec2(pos) + ivec2(1, 0);
-  ivec2 p11 = ivec2(pos) + ivec2(1, 1);
+ivec2 p00 = ivec2(pos) + ivec2(0, 0);
+ivec2 p01 = ivec2(pos) + ivec2(0, 1);
+ivec2 p10 = ivec2(pos) + ivec2(1, 0);
+ivec2 p11 = ivec2(pos) + ivec2(1, 1);
 
-  //  if(oob(p00, index)) return lerp_t<T>(T{CUDART_NAN_F});
-  //  if(oob(p01, index)) return lerp_t<T>(T{CUDART_NAN_F});
-  //  if(oob(p10, index)) return lerp_t<T>(T{CUDART_NAN_F});
-  //  if(oob(p11, index)) return lerp_t<T>(T{CUDART_NAN_F});
+//  if(oob(p00, index)) return lerp_t<T>(T{CUDART_NAN_F});
+//  if(oob(p01, index)) return lerp_t<T>(T{CUDART_NAN_F});
+//  if(oob(p10, index)) return lerp_t<T>(T{CUDART_NAN_F});
+//  if(oob(p11, index)) return lerp_t<T>(T{CUDART_NAN_F});
 
-  int i00 = shape.flatten(p00);
-  int i01 = shape.flatten(p01);
-  int i10 = shape.flatten(p10);
-  int i11 = shape.flatten(p11);
+int i00 = shape.flatten(p00);
+int i01 = shape.flatten(p01);
+int i10 = shape.flatten(p10);
+int i11 = shape.flatten(p11);
 
-  T v00 = buf[i00];
-  T v01 = buf[i01];
-  T v10 = buf[i10];
-  T v11 = buf[i11];
+T v00 = buf[i00];
+T v01 = buf[i01];
+T v10 = buf[i10];
+T v11 = buf[i11];
 
-  const vec2 w = pos - glm::floor(pos); // vec2(pos.x - floor(pos.x), pos.y - floor(pos.y));
-  return lerp_t<T>{v00, v01, v10, v11, w};
+const vec2 w = pos - glm::floor(pos); // vec2(pos.x - floor(pos.x), pos.y - floor(pos.y));
+return lerp_t<T>{v00, v01, v10, v11, w};
 }
+*/
 
 } // end of namespace soil
 
