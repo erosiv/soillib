@@ -2,12 +2,12 @@
 #define SOILLIB_NODE_EROSION_CU
 #define HAS_CUDA
 
-#include <soillib/util/error.hpp>
 
 #include <cuda_runtime.h>
 #include <math_constants.h>
 #include <iostream>
 
+#include <soillib/core/error.hpp>
 #include <soillib/op/gather.hpp>
 #include <soillib/op/common.hpp>
 

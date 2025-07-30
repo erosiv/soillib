@@ -5,8 +5,6 @@
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/view.hpp>
 
-// #include <nanobind/nb_defs.h>
-
 namespace soil {
 
 //! tensor_t is a strict-typed data extent with a shape

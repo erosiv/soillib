@@ -4,7 +4,7 @@
 #include <soillib/soillib.hpp>
 #include <soillib/core/shape.hpp>
 #include <soillib/core/tensor.hpp>
-#include <soillib/util/error.hpp>
+#include <soillib/core/error.hpp>
 #include <soillib/op/gather.hpp>
 
 namespace soil {

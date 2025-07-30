@@ -2,7 +2,7 @@
 #define SOILLIB_BUFFER
 
 #include <soillib/soillib.hpp>
-#include <soillib/util/error.hpp>
+#include <soillib/core/error.hpp>
 #include <soillib/util/yield.hpp>
 #include <cuda_runtime.h>
 

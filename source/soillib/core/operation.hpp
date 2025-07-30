@@ -2,7 +2,7 @@
 #define SOILLIB_OPERATION
 
 #include <soillib/core/tensor.hpp>
-#include <soillib/util/error.hpp>
+#include <soillib/core/error.hpp>
 #include <curand_kernel.h>
 
 namespace soil {

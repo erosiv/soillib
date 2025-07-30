@@ -2,10 +2,10 @@
 #define SOILLIB_LAYER_FLOW
 
 #include <random>
+#include <soillib/soillib.hpp>
 #include <soillib/core/buffer.hpp>
 #include <soillib/core/index.hpp>
-#include <soillib/soillib.hpp>
-#include <soillib/util/error.hpp>
+#include <soillib/core/error.hpp>
 
 namespace soil {
 

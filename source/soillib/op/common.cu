@@ -4,7 +4,7 @@
 
 #include <soillib/op/common.hpp>
 #include <soillib/op/gather.hpp>
-#include <soillib/util/error.hpp>
+#include <soillib/core/error.hpp>
 #include <soillib/core/operation.hpp>
 
 namespace soil {

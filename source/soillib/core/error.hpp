@@ -91,7 +91,7 @@ private:
 struct unsupported_host: std::exception {
   unsupported_host(host_t lhs, host_t rhs) {
     std::stringstream ss;
-    ss << "operation not support for host. want <";
+    ss << "operation not supported for host. want <";
     ss << soil::select(lhs, []<host_t S>() { return hostdesc<S>::name; });
     ss << ">, have <";
     ss << soil::select(rhs, []<host_t S>() { return hostdesc<S>::name; });
