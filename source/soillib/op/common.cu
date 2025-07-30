@@ -155,57 +155,58 @@ void seed(tensor_t<curandState>& buf, const size_t seed, const size_t offset){
 //
 
 template<typename T>
-__global__ void _resize(soil::tensor_t<T> lhs, const soil::tensor_t<T> rhs, const soil::shape out, const soil::shape in){
+__global__ void __resize(soil::tensor_t<T> lhs, const soil::tensor_t<T> rhs){
 
-  const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if(index >= lhs.elem()){
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= lhs.elem()){
     return;
   }
 
-  const ivec2 ipos = out.unflatten(index);
+  // Normalize Coordinates in Target Frame
+  const shape out = lhs.shape();
+  const ivec2 ipos = out.unflatten(n);
   const vec2 fpos = vec2(ipos)/vec2(out[0]-1, out[1]-1);
+  
+  // Unnormalize in Source Frame
+  const shape in = rhs.shape();
   const vec2 npos = fpos * vec2(in[0]-1, in[1]-1);
-
-  const unsigned int index_in = in.flatten(npos);
-  if(index_in >= rhs.elem()){
-    lhs[index] = T(0);
-    return;
-  }
-
   const int i00 = in.flatten(npos + vec2(0, 0));
   const int i01 = in.flatten(npos + vec2(0, 1));
   const int i10 = in.flatten(npos + vec2(1, 0));
   const int i11 = in.flatten(npos + vec2(1, 1));
 
-  // Note: This should be part of the lerp type to control for
-  if(!in.oob(npos + vec2(1, 1))){
+  // Linear Interpolation w. Bounds Handling
+  if(in.oob(npos)){
+    lhs[n] = T(0);
+  } else if(in.oob(npos + vec2(1, 1))){
+    lhs[n] = rhs[i00]; 
+  } else {
     T v00 = rhs[i00];
     T v01 = rhs[i01];
     T v10 = rhs[i10];
     T v11 = rhs[i11];
     lerp_t lerp(v00, v01, v10, v11, npos - glm::floor(npos));
-    lhs[index] = lerp.val();
-  } else {
-    lhs[index] = rhs[index_in];
+    lhs[n] = lerp.val();
   }
 
 }
 
 template<typename T>
-void resize_impl(soil::tensor_t<T> lhs, const soil::tensor_t<T> rhs, soil::ivec2 out, soil::ivec2 in){
-  int thread = 1024;
-  int elem = lhs.elem();
-  int block = (elem + thread - 1)/thread;
+tensor_t<T> resize(const tensor_t<T> rhs, const shape shape){
 
-  const soil::shape out_t(out.x, out.y);
-  const soil::shape in_t(in.x, in.y);
+  if(rhs.host() != soil::host_t::GPU){
+    throw soil::error::mismatch_host(soil::host_t::GPU, rhs.host());
+  }
 
-  _resize<<<block, thread>>>(lhs, rhs, out_t, in_t);
+  auto lhs = soil::tensor_t<T>(shape, soil::host_t::GPU);
+  __resize<<<block(lhs.elem(), 1024), 1024>>>(lhs, rhs);
+  return lhs;
+
 }
 
-template void resize_impl<int>   (soil::tensor_t<int> lhs,     const soil::tensor_t<int> rhs,     soil::ivec2 out, soil::ivec2 in);
-template void resize_impl<float> (soil::tensor_t<float> lhs,   const soil::tensor_t<float> rhs,   soil::ivec2 out, soil::ivec2 in);
-template void resize_impl<double>(soil::tensor_t<double> lhs,  const soil::tensor_t<double> rhs,  soil::ivec2 out, soil::ivec2 in);
+template soil::tensor_t<int>    soil::resize<int>   (const soil::tensor_t<int> lhs,     const shape shape);
+template soil::tensor_t<float>  soil::resize<float> (const soil::tensor_t<float> lhs,   const shape shape);
+template soil::tensor_t<double> soil::resize<double>(const soil::tensor_t<double> lhs,  const shape shape);
 
 } // end of namespace soil
 

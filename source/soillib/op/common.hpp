@@ -37,6 +37,9 @@ void clamp(tensor_t<T> lhs, const T min, const T max);
 
 void seed(tensor_t<curandState>& buf, const size_t seed, const size_t offset);
 
+template<typename T>
+tensor_t<T> resize(const tensor_t<T> rhs, const shape shape);
+
 //
 // Other Operations that need cleaning / deprecation...
 //
@@ -74,29 +77,6 @@ void set(soil::tensor_t<T> tensor, const T val, size_t start, size_t stop, size_
 
   else if (tensor.host() == soil::host_t::GPU) {
     set_impl(tensor, val, start, stop, step);
-  }
-}
-
-//
-// Resize Operation
-//  Note: Currently only Bilinear Interpolation
-
-template<typename T>
-void resize_impl(soil::tensor_t<T> lhs, const soil::tensor_t<T> rhs, soil::ivec2 out, soil::ivec2 in);
-
-template<typename T>
-void resize(soil::tensor_t<T> &lhs, const soil::tensor_t<T> &rhs, soil::ivec2 out, soil::ivec2 in) {
-
-  //  if (lhs.elem() != rhs.elem())
-  //    throw soil::error::mismatch_size(lhs.elem(), rhs.elem());
-
-  if (lhs.host() != rhs.host())
-    throw soil::error::mismatch_host(lhs.host(), rhs.host());
-
-  if (lhs.host() == soil::host_t::GPU) {
-    resize_impl(lhs, rhs, out, in);
-  } else {
-    throw soil::error::mismatch_host(soil::host_t::GPU, rhs.host());
   }
 }
 

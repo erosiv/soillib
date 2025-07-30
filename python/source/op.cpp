@@ -73,11 +73,9 @@ module.def("copy", [](soil::tensor& lhs, const soil::tensor& rhs, soil::vec2 gmi
   });
 });
 
-module.def("resize", [](soil::tensor& lhs, const soil::tensor& rhs, soil::ivec2 out, soil::ivec2 in){
-  if(lhs.type() != rhs.type())
-    throw soil::error::mismatch_type(lhs.type(), rhs.type());
-  soil::select(lhs.type(), [&lhs, &rhs, in, out]<typename S>(){
-    soil::resize<S>(lhs.as<S>(), rhs.as<S>(), out, in);
+module.def("resize", [](const soil::tensor& rhs, const soil::shape shape){
+  return soil::select(rhs.type(), [&rhs, shape]<typename S>() -> soil::tensor {
+    return soil::tensor(soil::resize<S>(rhs.as<S>(), shape));
   });
 });
 
