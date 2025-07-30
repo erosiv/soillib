@@ -135,6 +135,7 @@ struct tensor_t: typedbase {
   void to_cpu(); //!< In-Place Copy Data to the CPU
   void to_gpu(); //!< In-Place Copy Data to the GPU (if available)
 
+  size_t *_refs = NULL; //!< Pointer to Reference Count
 private:
 
   //! Device-Aware Allocation and De-Allocation
@@ -144,7 +145,6 @@ private:
   soil::shape _shape;   //!< Shape of Data
   host_t _host = CPU;   //!< Currently Active Device
   T *_data = NULL;      //!< Raw Data Pointer (Device Agnostic)
-  size_t *_refs = NULL; //!< Pointer to Reference Count
 };
 
 //
@@ -185,6 +185,7 @@ void soil::tensor_t<T>::deallocate() {
     return;
 
   delete this->_refs;
+  this->_refs = NULL;
 
   if (this->_data != NULL) {
     if (this->_host == CPU) {
@@ -251,56 +252,82 @@ void soil::tensor_t<T>::to_cpu() {
 //! This type stores a pointer to a tensor_t<T>, which it
 //! can cast to the appropriate type when required.
 //!
+//! Because of the dll exported type, tensor cannot use
+//! std::shared pointer, which is why we do the funny
+//! business with the move and copy constructors:
 struct EXPORT_SHARED tensor {
 
   tensor() = default;
   tensor(const soil::dtype type, const soil::shape shape): impl{make(type, shape)} {}
   tensor(const soil::dtype type, const soil::shape shape, const host_t host): impl{make(type, shape, host)} {}
 
-  //! Note that since it holds a shared pointer to a tensor_t,
-  //! holding a shared pointer, if the copied or moved object
-  //! is destroyed, the underlying raw memory is not deleted.
+  //! Polymorphic Tensor Copy Constructor
+  tensor(const soil::tensor& rhs){
+    this->impl = rhs.clone();
+  }
 
+  //! Polymorphic Tensor Move Constructor
+  tensor(soil::tensor&& rhs){
+    this->impl = rhs.clone();
+  }
+
+  //! Strict-Typed Tensor Copy Constructor
   template<typename T>
   tensor(const soil::tensor_t<T> &ten) {
-    impl = std::make_shared<soil::tensor_t<T>>(ten);
+    this->impl = new soil::tensor_t<T>(ten);
   }
 
+  //! Strict-Typed Tensor Move Constructor
   template<typename T>
   tensor(soil::tensor_t<T> &&ten) {
-    impl = std::make_shared<soil::tensor_t<T>>(ten);
+    this->impl = new soil::tensor_t<T>(ten);
   }
 
-  // Construct from Buffer
+  ~tensor() { this->clear(); }
 
-  template<typename T>
-  tensor(const soil::tensor_t<T>& buffer, const soil::shape &shape){
-    impl = std::make_shared<soil::tensor_t<T>>(buffer, shape);
+  //! Copy Assignment Operator
+  tensor& operator=(const soil::tensor& rhs) {
+    this->clear();
+    this->impl = rhs.clone();
+    return *this;
   }
 
-  ~tensor() { this->impl = NULL; }
-
-  //! retrieve the strict-typed type enumerator
-  inline soil::dtype type() const noexcept {
-    return this->impl->type();
+  //! Move Assignment Operator
+  tensor& operator=(soil::tensor &&rhs) {
+    this->clear();
+    this->impl = rhs.clone();
+    return *this;
   }
 
-  //! unsafe cast to strict-type
-  template<typename T>
-  inline tensor_t<T> &as() noexcept {
-    return static_cast<tensor_t<T> &>(*(this->impl));
-  }
-
+  //! Polymorphic Strict-Type Cast (Const)
   template<typename T>
   inline const tensor_t<T> &as() const noexcept {
     return static_cast<tensor_t<T> &>(*(this->impl));
   }
 
+  //! Polymorphic Strict-Type Cast (Mutable)
+  template<typename T>
+  inline tensor_t<T> &as() noexcept {
+    return static_cast<tensor_t<T> &>(*(this->impl));
+  }
+
+  //
   // Data Inspection Operations (Type-Deducing)
+  //
+
+  inline soil::dtype type() const noexcept {
+    return this->impl->type();
+  }
 
   soil::shape shape() const {
     return select(this->type(), [self = this]<typename S>() {
       return self->as<S>().shape();
+    });
+  }
+
+  soil::host_t host() const {
+    return select(this->type(), [self = this]<typename S>() {
+      return self->as<S>().host();
     });
   }
 
@@ -322,21 +349,31 @@ struct EXPORT_SHARED tensor {
     });
   }
 
-  soil::host_t host() const {
-    return select(this->type(), [self = this]<typename S>() {
-      return self->as<S>().host();
-    });
-  }
-
 private:
-  using ptr_t = std::shared_ptr<typedbase>;
-  ptr_t impl; //!< Strict-Typed Implementation Base Pointer
 
-  static ptr_t make(const soil::dtype type, const soil::shape shape, const host_t host = CPU) {
-    return select(type, [shape, host]<typename S>() -> ptr_t {
-      return std::make_shared<soil::tensor_t<S>>(shape, host);
+  void clear() {
+    if(this->impl != NULL)
+      delete this->impl;
+    this->impl = NULL;
+  }
+
+  //! Make a new Strict-Typed Tensor 
+  static typedbase* make(const soil::dtype type, const soil::shape shape, const host_t host = CPU) {
+    return select(type, [shape, host]<typename S>() -> typedbase* {
+      return new soil::tensor_t<S>(shape, host);
     });
   }
+
+  //! Clone the implementation pointer with new
+  typedbase* clone() const {
+    if(this->impl == NULL) 
+      return NULL;
+    return select(this->type(), [self = this]<typename S>() -> typedbase* {
+      return new soil::tensor_t<S>(self->as<S>());
+    });
+  }
+
+  typedbase* impl = NULL; //!< Polymorphic Implementation Pointer
 };
 
 }
