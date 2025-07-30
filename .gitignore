@@ -52,3 +52,5 @@ source/build
 # Mesh Formats
 **/*.ply
 **/*.npy
+
+# !example/data/dem_1024.tiff

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __common__ import *
-
 import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,7 +18,7 @@ def merge(input, pscale = 0.1):
   wscale = None
   meta = None
 
-  for file, path in iter_tiff(input):
+  for file, path in soil.util.iter_tiff(input):
   
     # Get Geotiff / Metadata
 
@@ -51,7 +49,7 @@ def merge(input, pscale = 0.1):
   array = soil.tensor(soil.float32, mshape)
   soil.set(array, np.nan)
 
-  for file, path in iter_tiff(input):
+  for file, path in soil.util.iter_tiff(input):
 
     print(f"Merging: {file}")
     with soil.timer(soil.ms) as timer:
@@ -85,26 +83,9 @@ def main(input, file_out):
 
   #show_relief(array, shape)
   #show_normal(array, shape)
-  show_height(array)
+  soil.util.show_height(array)
 
 if __name__ == "__main__":
-
-  #data = "/home/nickmcdonald/Datasets/ViennaDGM/21_Floridsdorf"
-  #data = "/home/nickmcdonald/Datasets/elevation.tiff"
-
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40718_DGM_tif_Traunkirchen"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40701_DGM_tif_Altmuenster"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40705_DGM_tif_Gmunden"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40704_DGM_tif_Ebensee"
-
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41225_DGM_tif_Ried"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41709_DGM_tif_Frankenburg"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40706_DGM_tif_Gosau"
-  data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/40702_DGM_tif_Bad_Goisern/G-T4728-18.tif"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41234_DGM_tif_Waldzell"
-  #data = "/home/nickmcdonald/Datasets/UpperAustriaDGM/41403_DGM_tif_Brunnenthal"
-  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
-
-  file_out = "_dem_merged.tiff"
+  data = "data/dem_1024.tiff"
+  file_out = "data/merged.tiff"
   main(data, file_out)
