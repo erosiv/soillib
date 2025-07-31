@@ -6,14 +6,6 @@
 #include <curand_kernel.h>
 
 namespace soil {
-namespace op {
-
-// This file contains generic template operations for tensors.
-// These are written to function both on the GPU and the CPU,
-// and are intended to simplify the code structure for common
-// operation types between tensors.
-
-#ifdef HAS_CUDA
 
 namespace {
 
@@ -22,6 +14,15 @@ inline int block(const int elem, const int thread) {
 }
 
 }
+
+namespace op {
+
+// This file contains generic template operations for tensors.
+// These are written to function both on the GPU and the CPU,
+// and are intended to simplify the code structure for common
+// operation types between tensors.
+
+#ifdef HAS_CUDA
 
 // In-Place Operation Kernels
 

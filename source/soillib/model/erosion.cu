@@ -1,30 +1,22 @@
-#ifndef SOILLIB_NODE_EROSION_CU
-#define SOILLIB_NODE_EROSION_CU
+#ifndef SOILLIB_MODEL_EROSION_CU
+#define SOILLIB_MODEL_EROSION_CU
 #define HAS_CUDA
 
-
-#include <cuda_runtime.h>
-#include <math_constants.h>
-#include <iostream>
-
+#include <soillib/soillib.hpp>
 #include <soillib/core/error.hpp>
+#include <soillib/core/tensor.hpp>
+
 #include <soillib/op/gather.hpp>
 #include <soillib/op/common.hpp>
 
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/erosion_map.cu>
-#include <soillib/model/erosion_fluvial.cu>
-#include <soillib/model/erosion_thermal.cu>
+// #include <soillib/model/erosion_fluvial.cu>
+// #include <soillib/model/erosion_thermal.cu>
+
+#include <math_constants.h>
 
 namespace soil {
-
-namespace {
-
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
-}
-
-}
 
 //
 // Uplift Application
@@ -67,7 +59,7 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
 
   const size_t n_samples = param.samples;
   if(map.rand.elem() != n_samples){
-    map.rand = soil::tensor_t<curandState>(soil.shape(n_samples), soil::host_t::GPU);
+    map.rand = soil::tensor_t<curandState>(soil::shape(n_samples), soil::host_t::GPU);
     soil::seed(map.rand, 0, 4 * map.age);
   }
 
@@ -83,23 +75,18 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
 
     // Reset Estimates
     soil::set(track.discharge, 0.0f);
-    soil::set(track.momentum, vec2(0.0f));
+    soil::set(track.momentum, 0.0f);
     soil::set(track.mass, 0.0f);
     soil::set(track.debris, 0.0f);
-    soil::set(track.debris_momentum, vec2(0.0f));
+    soil::set(track.debris_momentum, 0.0f);
     cudaDeviceSynchronize();
 
-    // Solve Estimates
-    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
-    debris::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
-    cudaDeviceSynchronize();
+//    // Solve Estimates
+//    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
+//    debris::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
+//    cudaDeviceSynchronize();
 
     // Filter Estimates
-//    const float lrate = param.lrate;
-//    soil::binop_inplace(data.mass, track.mass, [lrate] GPU_ENABLE (const float a, const float b){
-//      return glm::mix(a, b, lrate);
-//    });
-
     soil::mix(data.momentum, track.momentum, param.lrate);
     soil::mix(data.discharge, track.discharge, param.lrate);
     soil::mix(data.mass, track.mass, param.lrate);
@@ -109,8 +96,8 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
 
     // Execute Height-Map Mass-Transfer
     soil::set(map.transfer, 0.0f);
-    fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
-    debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
+//    fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
+//    debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     uplift<<<block(map.elem, 512), 512>>>(map, param);
 
     // Increment Model Age for Rand-State Initialization

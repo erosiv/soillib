@@ -9,14 +9,6 @@
 
 namespace soil {
 
-namespace {
-
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
-}
-
-}
-
 //
 // Unary Operations
 //

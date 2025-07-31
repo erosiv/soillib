@@ -13,7 +13,7 @@ target_include_directories(soil PUBLIC
 )
 
 target_sources(soil PUBLIC
-#  soillib/model/erosion.cu
+  soillib/model/erosion.cu
   soillib/op/common.cu
 # soillib/op/flow.cu
 )

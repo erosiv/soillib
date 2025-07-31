@@ -1,9 +1,8 @@
-#ifndef SOILLIB_NODE_EROSION
-#define SOILLIB_NODE_EROSION
+#ifndef SOILLIB_MODEL_EROSION
+#define SOILLIB_MODEL_EROSION
 
 #include <soillib/soillib.hpp>
-#include <soillib/core/buffer.hpp>
-
+#include <soillib/core/tensor.hpp>
 #include <curand_kernel.h>
 
 namespace soil {
@@ -83,24 +82,24 @@ using map_t = map_grid;
 struct data_t {
 
   data_t():elem{0}{}
-  data_t(const soil::shape shape):
-    shape(shape),
-    elem{shape.elem}{
-    this->mass            = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
-    this->discharge       = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
-    this->momentum        = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
-    this->debris          = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
-    this->debris_momentum = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
+  data_t(const soil::shape _shape):
+    shape(_shape),
+    elem{_shape.elem}{
+//    this->mass            = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
+//    this->discharge       = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
+//    this->momentum        = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
+//    this->debris          = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
+//    this->debris_momentum = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
   }
 
   const soil::shape shape;
-  const size_t elem;  //!< Total Buffer Elements
+  const int elem;  //!< Total Buffer Elements
 
   soil::tensor_t<float> discharge;
-  soil::tensor_t<vec2> momentum;
+  soil::tensor_t<float> momentum;         //!< Note: Require different shape!
   soil::tensor_t<float> mass;
   soil::tensor_t<float> debris;
-  soil::tensor_t<vec2> debris_momentum;
+  soil::tensor_t<float> debris_momentum;
 
 };
 

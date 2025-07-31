@@ -1,55 +1,72 @@
 #!/usr/bin/env python
 
-import os
 import soillib as soil
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import numpy as np
+from PIL import Image
 
-from __common__ import show_discharge, show_height
+def noise(shape, scale):
+  noise_param = soil.noise_t()
+  noise_param.ext = np.array([shape[0], shape[1]]) * scale
+  noise_param.seed = 3
+  tensor = soil.noise(shape, noise_param)
+  soil.multiply(tensor, 1.0)
+  return tensor.gpu()
+
+def full(value, shape, dtype=soil.float32, host=soil.cpu):
+  tensor = soil.tensor(dtype, shape, host)
+  soil.set(tensor, value)
+  return tensor
+
+def load_png(filename):
+  im_frame = Image.open(filename)
+  uplift = np.array(im_frame.getdata()).reshape(1024, 1024, 3) / 255.0
+  uplift = uplift[:,:,0]
+  tensor = soil.tensor.from_numpy(uplift.astype(np.float32)).gpu()
+  return tensor
 
 def main():
 
-  simres = np.array([1000, 1000])         # Resolution [px]
+  '''
+  Simulation Resolution
+  '''
+
+  simres = np.array([1024, 1024])       # Resolution [px]
+  shape = soil.shape(*simres)           # Shape
   wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
   pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
             wscale[1]/simres[1],
             wscale[2]]                  # Value Scale [km/unit]
 
-  noise_param = soil.noise_t()
-  noise_param.ext = simres * nscale / wscale[0:2]
-  noise_param.seed = 3
+  '''
+  Simulation Model Setup
+  '''
 
-  index = soil.index(simres)  
-  height = soil.noise(index, noise_param)
-  soil.multiply(height, 1.0)
+  # Overall Model
+  model = soil.map_t(shape, pscale)
+  model.height = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  #model.height = noise(shape, nscale / wscale[0:2])
+  model.sediment = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  model.rainfall = full(1.0, shape, dtype=soil.float32, host=soil.gpu)
+  model.uplift = load_png('C:/Users/nicho/Datasets/uplift_maps/uplift_blur.png')
 
-  sediment = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  sediment[:] = 0.0
+#  model.uplift = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
 
-  # Construct Model
+  # Tranported Data
+  data = soil.data_t(shape)
+  data.discharge = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  data.mass      = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  data.debris    = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  data.momentum        = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
+  data.debris_momentum = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
 
-  model = soil.map_t(index, pscale)
-  model.height = height.gpu()
-  model.sediment = sediment.gpu()
-
-  model.rainfall = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  model.rainfall[:] = 1.0
-
-  model.uplift = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  model.uplift[:] = 0.0
-
-  # Construct Data
-
-  data = soil.data_t(index.elem())
-  track = soil.data_t(index.elem())
-
-  data.discharge[:] = 0.0
-  data.momentum[:] = [0.0, 0.0]
-  data.mass[:] = 0.0
-  data.debris[:] = 0.0
-  data.debris_momentum[:] = [0.0, 0.0]
+  track = soil.data_t(shape)
+  track.discharge = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  track.mass      = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  track.debris    = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  track.momentum        = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
+  track.debris_momentum = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
 
   # Construct Parameters
 
@@ -89,8 +106,9 @@ def main():
 #  tiff_out = soil.tiff(height.cpu(), index)
 #  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-#  show_discharge(model.discharge, index)
-  show_height(model.height.cpu(), index)
+#  soil.util.show_discharge(data.discharge.cpu())
+  soil.util.show_height(model.height.cpu())
+  plt.show()
 
 if __name__ == "__main__":
   main()

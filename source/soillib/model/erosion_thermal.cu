@@ -3,7 +3,7 @@
 #define HAS_CUDA
 
 #include <soillib/core/types.hpp>
-#include <soillib/core/buffer.hpp>
+#include <soillib/core/tensor.hpp>
 #include <soillib/op/gather.hpp>
 
 #include <soillib/model/erosion.hpp>
