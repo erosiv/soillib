@@ -2,6 +2,7 @@
 #define SOILLIB_OP_EROSION_MAP_CU
 #define HAS_CUDA
 
+#include <soillib/core/types.hpp>
 #include <soillib/core/tensor.hpp>
 #include <soillib/op/gather.hpp>
 
@@ -18,11 +19,11 @@
 namespace soil {
 
 //! Nearest Support Point
-__device__ int __nearest(const map_grid& map, const vec2 pos){
+__device__ int __nearest(const map_t& map, const vec2 pos){
   return map.shape.flatten(pos);
 }
 
-__device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale) {
+__device__ float __height(const map_t& map, const vec2 pos, const float scale_z) {
   
   if(map.shape.oob(pos))
     return CUDART_NAN_F;
@@ -30,21 +31,21 @@ __device__ float __height(const map_grid& map, const vec2 pos, const vec3 scale)
   int find = map.shape.flatten(pos);
   const float hf_0 = map.height[find];
   const float hf_1 = map.sediment[find];
-  return (hf_0 + hf_1) * scale.z;
+  return (hf_0 + hf_1) * scale_z;
 
 }
 
-__device__ vec2 __grad(const map_grid& map, const vec2 pos, const vec3 scale){
+__device__ vec2 __grad(const map_t& map, const vec2 pos, const scale_t& scale){
 
 //  lerp5_t<float> lerp;
 //  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
 //  return lerp.grad(scale);
 
-  const float h = __height(map, pos, scale);
-  const float hn0 = __height(map, pos + vec2(-1, 0), scale);
-  const float hp0 = __height(map, pos + vec2( 1, 0), scale);
-  const float h0n = __height(map, pos + vec2( 0,-1), scale);
-  const float h0p = __height(map, pos + vec2( 0, 1), scale);
+  const float h = __height(map, pos, scale.z);
+  const float hn0 = __height(map, pos + vec2(-1, 0), scale.z);
+  const float hp0 = __height(map, pos + vec2( 1, 0), scale.z);
+  const float h0n = __height(map, pos + vec2( 0,-1), scale.z);
+  const float h0p = __height(map, pos + vec2( 0, 1), scale.z);
 
   float gx = 0.0f;
   if(__isnanf(hn0)) gx = (hp0 - h)/scale.x;
@@ -97,10 +98,10 @@ __device__ float __hslope(const Map& map, const param_t& param, const vec2 pos, 
 }
 
 template<typename Map>
-__device__ float __slope(const Map& map, const param_t& param, const vec2 pos, const vec2 dir) {
+__device__ float __slope(const Map& map, const param_t& param, const vec2 pos, const vec2 dir, const scale_t& scale) {
 
-  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
+//  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
+//  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
 
   if(glm::length(dir) == 0.0f){
     return 0.0f;
@@ -110,12 +111,12 @@ __device__ float __slope(const Map& map, const param_t& param, const vec2 pos, c
   if(npos.x < 0.5f) return -param.exitSlope;
   if(npos.y < 0.5f) return -param.exitSlope;
   
-  const float hf = __height(map, pos, scale);
-  const float hn = __height(map, npos, scale);
+  const float hf = __height(map, pos, scale.z);
+  const float hn = __height(map, npos, scale.z);
   if(__isnanf(hf) || __isnanf(hn))
     return -param.exitSlope;
   
-  return (hn - hf)/glm::length(cl);
+  return (hn - hf)/glm::length(scale.cl);
 
 }
 
@@ -130,7 +131,7 @@ __device__ bool __oob(const Map& map, const vec2 pos){
   return map.shape.oob(pos);
 }
 
-__device__ vec2 __topos(const map_grid& map, const int nearest){
+__device__ vec2 __topos(const map_t& map, const int nearest){
   return map.shape.unflatten(nearest);
 }
 
@@ -141,14 +142,13 @@ __device__ void __sample(T& part, Map& map, const size_t n, const size_t N){
     curand_uniform(&map.rand[n])*float(map.shape[0]),
     curand_uniform(&map.rand[n])*float(map.shape[1])
   };
-  part.ind = __nearest(map, part.pos);
-
+  part.ind = map.shape.flatten(part.pos);
   const float P = 1.0f / float(map.elem); // Sampling Probability
   part.Q = P * float(N);                  // Sampling Weight
 
 }
 
-__device__ void __transfer(map_grid& map, const vec2 pos, float transfer, const float Z) {
+__device__ void __transfer(map_t& map, const vec2 pos, float transfer, const float Z) {
 
   // Single-Material Transfer
   const int n = __nearest(map, pos);

@@ -31,7 +31,7 @@ def main():
   Simulation Resolution
   '''
 
-  simres = np.array([1024, 1024])       # Resolution [px]
+  simres = np.array([256, 256])       # Resolution [px]
   shape = soil.shape(*simres)           # Shape
   wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
@@ -45,13 +45,14 @@ def main():
 
   # Overall Model
   model = soil.map_t(shape, pscale)
-  model.height = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  #model.height = noise(shape, nscale / wscale[0:2])
+#  model.height = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  model.height = noise(shape, nscale / wscale[0:2])
   model.sediment = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
   model.rainfall = full(1.0, shape, dtype=soil.float32, host=soil.gpu)
-  model.uplift = load_png('C:/Users/nicho/Datasets/uplift_maps/uplift_blur.png')
+#  model.rainfall = load_png('C:/Users/nicho/Datasets/rainfall.png')
+#  model.uplift = load_png('C:/Users/nicho/Datasets/uplift_maps/uplift_blur.png')
 
-#  model.uplift = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  model.uplift = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
 
   # Tranported Data
   data = soil.data_t(shape)
@@ -71,10 +72,10 @@ def main():
   # Construct Parameters
 
   param = soil.param_t()
-  param.timeStep = 10.0 # Geological Timestep [y]
+  param.timeStep = 1000.0 # Geological Timestep [y]
   param.samples = 8192  # Number of Patricle Samples
   param.maxage = 256    # Maximum Particle Lifetime
-  param.lrate = 1.0     # Filter Learning Rate
+  param.lrate = 1     # Filter Learning Rate
 
   param.gravity = 9.81    # Specific Gravity [m/s^2]
   param.uplift = 0.01     # Uplift Rate [m/y]
@@ -83,7 +84,7 @@ def main():
   param.evapRate = 0.0005           # Evapotranspiration Rate [1/s]
   param.viscosity = 0.000001        # Water Viscosity [m^2/s]
   param.bedShear = 12.5             # Turbulent Shear Stress [Pa = kg/m/s^2]
-  param.suspensionRate = 0.0000008  # Fluvial Suspension Rate
+  param.suspensionRate = 0.0008  # Fluvial Suspension Rate
   param.depositionRate = 0.00001    # Fluvial Deposition Rate
   param.fluvialExponent = 0.01      # Fluvial Power Exponent
   param.exitSlope = 0.025           # Slope Boundary Condition
@@ -98,7 +99,7 @@ def main():
   param.debrisBedShear = 60/2500.0      # Debris Turbulent Shear Stress
 
   timer = soil.timer()
-  for i in range(2048):
+  for i in range(512):
     with timer:
       soil.erode(model, data, track, param, 1)
     print(f"Execution Time: {timer.count}ms")
@@ -106,8 +107,9 @@ def main():
 #  tiff_out = soil.tiff(height.cpu(), index)
 #  tiff_out.write("/home/nickmcdonald/Datasets/erosion_gpu.tiff")
 
-#  soil.util.show_discharge(data.discharge.cpu())
-  soil.util.show_height(model.height.cpu())
+#  soil.util.show_discharge(data.mass.cpu())
+  soil.util.show_relief(model.height.cpu(), [1, 1, 1])
+#  soil.util.show_height(model.height.cpu())
   plt.show()
 
 if __name__ == "__main__":

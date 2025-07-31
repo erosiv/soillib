@@ -5,12 +5,15 @@
 #include <soillib/core/tensor.hpp>
 #include <curand_kernel.h>
 
+// Soillib Erosion Model
+//
+// This file contains the high-level data types.
+// ... description ...
+
 namespace soil {
 
-//
-// Model Summarization
-//
-
+//! param_t contains the full physical
+//! parameterization of the erosion model.
 struct param_t {
 
   size_t samples = 8192;
@@ -49,36 +52,7 @@ struct param_t {
 
 };
 
-struct map_grid {
-
-  map_grid(soil::shape shape, soil::vec3 scale):
-    shape(shape),
-    scale(scale),
-    elem(shape.elem){}
-
-  const size_t elem;            // Total Number of Elements
-  const soil::shape shape;      // Buffer Indexing Structure
-  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
-
-  soil::tensor_t<float> height;
-  soil::tensor_t<float> sediment;
-
-  // User Control Fields
-  soil::tensor_t<float> uplift;   //!< Uplift Control Map
-  soil::tensor_t<float> rainfall; //!< Rainfall Control Map
-
-  soil::tensor_t<float> transfer; //!< Transferred Material
-
-  soil::tensor_t<curandState> rand;
-  int age = 0;                  //!< Model Age
-
-};
-
-using map_t = map_grid;
-
-//! data_t is a structure for storing the erosion model data
-//! Effectively, this struct is a collection of buffers.
-//! Note that this struct is agnostic to the map shape.
+//! data_t stores the tensors of transported quantities.
 struct data_t {
 
   data_t():elem{0}{}
@@ -103,7 +77,51 @@ struct data_t {
 
 };
 
-void erode(map_grid& map, data_t &data, data_t &track, const param_t param, const size_t steps);
+struct scale_t {
+  scale_t(const soil::vec3 scale){
+    this->x = scale.x * 1E3f; //!< Scale to m <- km
+    this->y = scale.y * 1E3f; //!< Scale to m <- km
+    this->z = scale.z * 1E3f; //!< Scale to m <- km
+    this->Ac = x*y;
+    this->Vc = x*y*z;
+    this->cl = soil::vec2(x, y);
+    this->len = glm::length(cl);
+  };
+  float x;
+  float y;
+  float z;
+  float Ac;
+  float Vc;
+  soil::vec2 cl;
+  float len;
+};
+
+struct map_t {
+
+  map_t(soil::shape shape, soil::vec3 scale):
+    shape(shape),
+    scale(scale),
+    elem(shape.elem){}
+
+  const size_t elem;            // Total Number of Elements
+  const soil::shape shape;      // Buffer Indexing Structure
+  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
+
+  soil::tensor_t<float> height;
+  soil::tensor_t<float> sediment;
+
+  // User Control Fields
+  soil::tensor_t<float> uplift;   //!< Uplift Control Map
+  soil::tensor_t<float> rainfall; //!< Rainfall Control Map
+
+  soil::tensor_t<float> transfer; //!< Transferred Material
+
+  soil::tensor_t<curandState> rand;
+  int age = 0;                  //!< Model Age
+
+};
+
+void erode(map_t& map, data_t &data, data_t &track, const param_t param, const size_t steps);
 
 } // end of namespace soil
 

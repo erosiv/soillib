@@ -116,15 +116,22 @@ def show_normal(array, index, scale):
   plt.imshow(normal)
   plt.show()
 
-def show_relief(array, index, scale):
+def show_relief(tensor, scale):
 
+  height = tensor.numpy()
+  normal = soil.normal(tensor, scale).numpy()
+  relief = soil.util.relief_shade(height, normal)
+  plt.imshow(relief, cmap='gray')
+  plt.show()
+
+'''
   height = array.numpy(index)
   normal = soil.normal(array, index, scale).numpy(index)
   relief = relief_shade(height, normal) 
   plt.imshow(relief, cmap='gray',
     interpolation='bilinear')
   plt.show()
-
+'''
 def show_discharge(array):
 
   array = 1 + array.cpu().numpy()

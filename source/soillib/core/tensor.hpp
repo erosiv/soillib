@@ -124,12 +124,21 @@ struct tensor_t: typedbase {
   }
 
   template<typename S>
-  GPU_ENABLE view_t<S>&& view() noexcept {
-    return std::move(view_t<S>(
+  GPU_ENABLE view_t<S> view() noexcept {
+    return view_t<S>(
       reinterpret_cast<S*>(this->data()),
       this->size() / sizeof(S),
       this->host()
-    ));
+    );
+  };
+
+  template<typename S>
+  GPU_ENABLE const_view_t<S> view() const noexcept {
+    return const_view_t<S>(
+      reinterpret_cast<const S*>(this->data()),
+      this->size() / sizeof(S),
+      this->host()
+    );
   };
 
   void to_cpu(); //!< In-Place Copy Data to the CPU

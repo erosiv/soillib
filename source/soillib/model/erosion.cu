@@ -11,7 +11,7 @@
 
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/erosion_map.cu>
-// #include <soillib/model/erosion_fluvial.cu>
+#include <soillib/model/erosion_fluvial.cu>
 // #include <soillib/model/erosion_thermal.cu>
 
 #include <math_constants.h>
@@ -49,7 +49,7 @@ __global__ void uplift(map_t map, const param_t param) {
 // Erosion Function
 //
 
-void erode(map_grid& map, data_t& data, data_t& track, const param_t param, const size_t steps) {
+void erode(map_t& map, data_t& data, data_t& track, const param_t param, const size_t steps) {
 
   //
   // Initialize Rand-State Buffer (One Per Sample)
@@ -67,6 +67,8 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
     map.transfer = soil::tensor_t<float>(map.shape, soil::host_t::GPU);
   }
 
+  const scale_t scale(map.scale);
+
   //
   // Execute Solution
   //
@@ -82,9 +84,9 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
     cudaDeviceSynchronize();
 
 //    // Solve Estimates
-//    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
+    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param, scale);
 //    debris::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
-//    cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 
     // Filter Estimates
     soil::mix(data.momentum, track.momentum, param.lrate);
@@ -96,7 +98,7 @@ void erode(map_grid& map, data_t& data, data_t& track, const param_t param, cons
 
     // Execute Height-Map Mass-Transfer
     soil::set(map.transfer, 0.0f);
-//    fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param);
+    fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param, scale);
 //    debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     uplift<<<block(map.elem, 512), 512>>>(map, param);
 
