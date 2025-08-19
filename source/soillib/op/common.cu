@@ -6,6 +6,7 @@
 #include <soillib/op/gather.hpp>
 #include <soillib/core/error.hpp>
 #include <soillib/core/operation.hpp>
+#include <iostream>
 
 namespace soil {
 
@@ -218,6 +219,53 @@ void resample__(view_t<T> target, const const_view_t<T> source, F func) {
   __resample<<<block(target.elem, 512), 512>>>(target, source, func);
 }
 
+__device__ bool __isnanv(float val){
+  return __isnanf(val);
+}
+
+__device__ bool __isnanv(vec3 val){
+  return __isnanf(val.x) || __isnanf(val.y) || __isnanf(val.z);
+}
+
+template<typename T, typename S>
+void __resample_impl(
+  tensor_t<T>& target,       //!< Target Buffer
+  const tensor_t<T>& source, //!< Source Buffer
+  const vec3 t_scale,       //!< Target World-Space Scale (incl. z)
+  const vec3 s_scale,       //!< Source World-Space Scale (incl. z)
+  const vec2 pdiff          //!< World-Space Positional Difference
+){
+
+  const soil::shape shape_t = soil::shape(target.shape()[1], target.shape()[0]);
+  const soil::shape shape_s = soil::shape(source.shape()[1], source.shape()[0]);
+
+  const const_view_t source_v = source.template view<S>();
+  view_t target_v = target.template view<S>();
+
+  resample__(target_v, source_v,
+    [=] __device__ (view_t<S>& target, const const_view_t<S> source, const unsigned int n){
+      
+      vec2 t_pos = shape_t.unflatten(n);
+      t_pos.x = shape_t[0] - t_pos.x;
+      
+      t_pos = t_pos * vec2(t_scale.y, t_scale.x); //!< Target Position in World-Space
+      vec2 s_pos = (t_pos - vec2(pdiff.y, pdiff.x)) / vec2(s_scale.y, s_scale.x);          //!< Source Position in Pixel-Space
+      s_pos.x = shape_s[0] - s_pos.x;
+
+      if(shape_s.oob(s_pos))
+        return;
+    
+      int ind = shape_s.flatten(s_pos);
+      S val = source[ind];
+      if(__isnanv(val))
+        return;
+
+      target[n] = val;
+
+  });
+
+}
+
 template<typename T>
 void resample(
   tensor_t<T> target,       //!< Target Buffer
@@ -227,36 +275,19 @@ void resample(
   const vec2 pdiff          //!< World-Space Positional Difference
 ) {
 
-  const soil::shape shape_t = soil::shape(target.shape()[1], target.shape()[0]);
-  const soil::shape shape_s = soil::shape(source.shape()[1], source.shape()[0]);
-  
-  if(shape_t[2] == 1){
+  // Validate Identical Shape
+  if(target.shape()[2] != source.shape()[2]){
+    throw soil::error::mismatch_size(target.shape()[2], source.shape()[2]);
+  }
 
-    const const_view_t source_v = source.template view<float>();
-    view_t target_v = target.template view<float>();
+  // Note: These two scenarios should involve generic vector types instead.
 
-    resample__(target_v, source_v,
-      [=] __device__ (view_t<float>& target, const const_view_t<float> source, const unsigned int n){
-        
-        vec2 t_pos = shape_t.unflatten(n);
-        t_pos.x = shape_t[0] - t_pos.x;
-        
-        t_pos = t_pos * vec2(t_scale.y, t_scale.x); //!< Target Position in World-Space
-        vec2 s_pos = (t_pos - vec2(pdiff.y, pdiff.x)) / vec2(s_scale.y, s_scale.x);          //!< Source Position in Pixel-Space
-        s_pos.x = shape_s[0] - s_pos.x;
+  if(target.shape()[2] == 1) {
+    __resample_impl<T, float>(target, source, t_scale, s_scale, pdiff);
+  }
 
-        if(shape_s.oob(s_pos))
-          return;
-      
-        int ind = shape_s.flatten(s_pos);
-        float val = source[ind];
-        if(__isnanf(val))
-          return;
-
-        target[n] = val;
-
-    });
-
+  if(target.shape()[2] == 3) {
+    __resample_impl<T, vec3>(target, source, t_scale, s_scale, pdiff);
   }
 
 }
@@ -264,65 +295,6 @@ void resample(
 template void soil::resample<int>   (soil::tensor_t<int> lhs,     const soil::tensor_t<int> rhs,     const vec3 t_scale, const vec3 s_scale, const vec2 posdiff);
 template void soil::resample<float> (soil::tensor_t<float> lhs,   const soil::tensor_t<float> rhs,   const vec3 t_scale, const vec3 s_scale, const vec2 posdiff);
 template void soil::resample<double>(soil::tensor_t<double> lhs,  const soil::tensor_t<double> rhs,  const vec3 t_scale, const vec3 s_scale, const vec2 posdiff);
-
-//
-
-/*
-void tracer::render_2D(const soil::tensor_t<float>& data, const vec2 offset, const float scale, const float min, const float max, const vec2 tscale){
-
-  const int height = this->camera().height();
-  const soil::shape shape = soil::shape(data.shape()[1], data.shape()[0]);
-
-  if(shape[2] == 1){
-
-    const const_view_t<float> view = data.view<float>();
-    render_2D_(this->img_b, view, [=] __device__ (tensor_t<vec4>& img_b, const const_view_t<float> view, const unsigned int n){
-
-      vec2 spos = tile_unflatten(n, height);                //!< Screen-Space Position
-      vec2 wpos = (spos - offset) / scale;                  //!< World-Space Position [0, 1]
-      vec2 npos = wpos / tscale / vec2(shape[0], shape[1]);
-      vec2 rpos = npos * vec2(shape[0], shape[1]);
-      rpos = vec2(shape[0]-rpos.y, rpos.x);
-
-      if(rpos.x < 0.0f) return;
-      if(rpos.x > shape[0]) return;
-      if(rpos.y < 0.0f) return;
-      if(rpos.y > shape[1]) return;
-//
-      if(!shape.oob(rpos)){        
-        const int source = shape.flatten(rpos);
-        const float val = (view[source] - min) / (max - min);
-        const vec3 col = _turbo.map(val);
-        img_b[n] = vec4(col.x, col.y, col.z, 1.0);
-      }
-
-    });
-
-  } else if(shape[2] == 3) {
-
-    const const_view_t<vec3> view = data.view<vec3>();
-    render_2D_(this->img_b, view, [=] __device__ (tensor_t<vec4>& img_b, const const_view_t<vec3> view, const unsigned int n){
-
-      vec2 tpos = tile_unflatten(n, height);
-      tpos = vec2(tpos.x, tpos.y);
-
-      vec2 spos = (tpos - offset)/scale;
-      spos = vec2(shape[0] - 1 - spos.y, spos.x);
-
-      if(!shape.oob(spos)){        
-        const int source = shape.flatten(spos);
-        const vec3 col = (view[source] - min) / (max - min);
-        img_b[n] = vec4(col.x, col.y, col.z, 1.0);
-      }
-
-    });
-
-  }
-
-}
-*/
-
-
 
 } // end of namespace soil
 
