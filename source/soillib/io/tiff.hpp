@@ -27,8 +27,8 @@ struct tiff {
     auto type = _tensor.type();
 
     this->_shape = _tensor.shape();
-    this->_height = _shape[0];
-    this->_width = _shape[1];
+    this->_width = _shape[0];
+    this->_height = _shape[1];
 
     if (type == soil::FLOAT32) {
       this->_bits = 32;
@@ -106,7 +106,7 @@ bool tiff::read(const char *filename) {
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
 
-  this->_shape = soil::shape(this->height(), this->width());
+  this->_shape = soil::shape(this->width(), this->height());
 
   if (this->bits() == 16) { // Note: Internal Type is still Float32
     this->_tensor = soil::tensor(soil::FLOAT32, this->_shape);

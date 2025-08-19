@@ -79,13 +79,11 @@ module.def("resize", [](const soil::tensor& rhs, const soil::shape shape){
   });
 });
 
-
-
-
-
-
-
-
+module.def("resample", [](soil::tensor& target, const soil::tensor& source, const soil::vec3 t_scale, const soil::vec3 s_scale, const soil::vec2 pdiff){
+  soil::select(target.type(), [&]<typename S>() {
+    soil::resample<S>(target.as<S>(), source.as<S>(), t_scale, s_scale, pdiff);
+  });
+});
 
 module.def("set", [](soil::tensor& lhs, const soil::tensor& rhs){
 

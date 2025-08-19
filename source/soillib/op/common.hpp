@@ -40,6 +40,41 @@ void seed(tensor_t<curandState>& buf, const size_t seed, const size_t offset);
 template<typename T>
 tensor_t<T> resize(const tensor_t<T> rhs, const shape shape);
 
+template<typename T>
+void resample(
+  tensor_t<T> target,       //!< Target Buffer
+  const tensor_t<T> source, //!< Source Buffer
+  const vec3 t_scale,       //!< Target World-Space Scale (incl. z)
+  const vec3 s_scale,       //!< Source World-Space Scale (incl. z)
+  const vec2 posdiff        //!< World-Space Positional Difference
+);
+
+//
+// Legacy Functions
+//! \todo get rid of this...
+
+template<typename To, typename From>
+void copy(soil::tensor_t<To> &out, const soil::tensor_t<From> &in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale) {
+
+  const ivec2 pmin = ivec2(pscale * (gmin - wmin) / wscale);
+  const ivec2 pmax = ivec2(pscale * (gmax - wmin) / wscale);
+  const ivec2 pext = ivec2(pscale * (wmax - wmin) / wscale);
+  const ivec2 gext = ivec2((gmax - gmin) / gscale);
+
+  for (int x = pmin[1]; x < pmax[1]; ++x) {
+    for (int y = pmin[0]; y < pmax[0]; ++y) {
+
+      const int ind_out = y + pext[0] * (pext[1] - x - 1);
+
+      const size_t px = size_t((pmax[1] - x - 1) / pscale);
+      const size_t py = size_t((y - pmin[0]) / pscale);
+      const size_t ind_in = py + px * gext[0];
+
+      out[ind_out] = To(From(pscale) * in[ind_in]);
+    }
+  }
+}
+
 //
 // Other Operations that need cleaning / deprecation...
 //
@@ -77,32 +112,6 @@ void set(soil::tensor_t<T> tensor, const T val, size_t start, size_t stop, size_
 
   else if (tensor.host() == soil::host_t::GPU) {
     set_impl(tensor, val, start, stop, step);
-  }
-}
-
-//
-// Legacy Functions
-//! \todo get rid of this...
-
-template<typename To, typename From>
-void copy(soil::tensor_t<To> &out, const soil::tensor_t<From> &in, vec2 gmin, vec2 gmax, vec2 gscale, vec2 wmin, vec2 wmax, vec2 wscale, float pscale) {
-
-  const ivec2 pmin = ivec2(pscale * (gmin - wmin) / wscale);
-  const ivec2 pmax = ivec2(pscale * (gmax - wmin) / wscale);
-  const ivec2 pext = ivec2(pscale * (wmax - wmin) / wscale);
-  const ivec2 gext = ivec2((gmax - gmin) / gscale);
-
-  for (int x = pmin[1]; x < pmax[1]; ++x) {
-    for (int y = pmin[0]; y < pmax[0]; ++y) {
-
-      const int ind_out = y + pext[0] * (pext[1] - x - 1);
-
-      const size_t px = size_t((pmax[1] - x - 1) / pscale);
-      const size_t py = size_t((y - pmin[0]) / pscale);
-      const size_t ind_in = py + px * gext[0];
-
-      out[ind_out] = To(From(pscale) * in[ind_in]);
-    }
   }
 }
 

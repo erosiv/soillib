@@ -84,7 +84,7 @@ void erode(map_t& map, data_t& data, data_t& track, const param_t param, const s
     cudaDeviceSynchronize();
 
 //    // Solve Estimates
-    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param, scale);
+    fluvial::solve<<<block(n_samples, 512), 512>>>(map, data, track, param, scale, n_samples);
 //    debris::solve<<<block(n_samples, 512), 512>>>(map, data, track, n_samples, param);
     cudaDeviceSynchronize();
 

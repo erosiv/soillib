@@ -89,8 +89,11 @@ geotiff_meta.def_rw("gdal_ascii", &soil::io::geotiff::meta_t::geoasciiparams);
 geotiff_meta.def_rw("gdal_metadata", &soil::io::geotiff::meta_t::gdal_metadata);
 geotiff_meta.def_rw("gdal_nodata", &soil::io::geotiff::meta_t::gdal_nodata);
 
-geotiff_meta.def_prop_ro("min", [](soil::io::geotiff::meta_t& geotiff_meta){
+geotiff_meta.def_prop_rw("min", [](soil::io::geotiff::meta_t& geotiff_meta){
   return geotiff_meta.min();
+}, [](soil::io::geotiff::meta_t& geotiff_meta, const std::vector<double> min){
+  geotiff_meta.coords[3] = min[0];
+  geotiff_meta.coords[4] = min[1];
 });
 
 geotiff_meta.def_prop_ro("max", [](soil::io::geotiff::meta_t& geotiff_meta){

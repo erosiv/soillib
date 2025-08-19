@@ -205,17 +205,18 @@ __global__ void solve(
   map_t map,
   data_t data,
   data_t track,
-  const size_t N,
   const param_t param,
-  const scale_t scale
+  const scale_t scale,
+  const size_t n_samples
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= N)
+  if(n >= n_samples)
     return;
 
+  // Initialize the Particle
   particle_t part;                              //!< Data along Trajectory / Per-Particle
-  __sample(part, map, n, N);                    //!< Sample the Trajectory
+  __sample(part, map, n, n_samples);            //!< Sample the Trajectory
   fluvial::init(part, map, data, param, scale); //!< Initialze Differential Quantities
 
   // Iteratively Integrate along Trajectory
