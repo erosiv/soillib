@@ -227,6 +227,49 @@ __device__ bool __isnanv(vec3 val){
   return __isnanf(val.x) || __isnanf(val.y) || __isnanf(val.z);
 }
 
+
+
+
+
+
+
+
+
+template<typename T>
+__device__ lerp_t<T> __gather(const soil::const_view_t<T>& view, const soil::shape shape, const vec2 pos) {
+
+  const ivec2 p00 = ivec2(pos) + ivec2(0, 0);
+  const ivec2 p01 = ivec2(pos) + ivec2(0, 1);
+  const ivec2 p10 = ivec2(pos) + ivec2(1, 0);
+  const ivec2 p11 = ivec2(pos) + ivec2(1, 1);
+  vec2 w = pos - glm::floor(pos);
+
+  if(pos.x < 0) return lerp_t<T>(T{CUDART_NAN_F});
+  if(pos.y < 0) return lerp_t<T>(T{CUDART_NAN_F});
+  if(pos.x > shape[0] - 1) return lerp_t<T>(T{CUDART_NAN_F});
+  if(pos.y > shape[1] - 1) return lerp_t<T>(T{CUDART_NAN_F});
+  
+  int i00 = shape.flatten(p00);
+  int i01 = shape.flatten(p01);
+  int i10 = shape.flatten(p10);
+  int i11 = shape.flatten(p11);
+
+  if(pos.x + 1 > shape[0] - 1){ w.x = 0; i10 = 0; i11 = 0; }
+  if(pos.y + 1 > shape[1] - 1){ w.y = 0; i01 = 0; i11 = 0; }
+  
+  const T h00 = view[i00];
+  const T h01 = view[i01];
+  const T h10 = view[i10];
+  const T h11 = view[i11];
+
+  return lerp_t<T>{
+    h00, h01,
+    h10, h11,
+    w
+  };
+
+}
+
 template<typename T, typename S>
 void __resample_impl(
   tensor_t<T>& target,       //!< Target Buffer
@@ -244,22 +287,22 @@ void __resample_impl(
 
   resample__(target_v, source_v,
     [=] __device__ (view_t<S>& target, const const_view_t<S> source, const unsigned int n){
-      
+
       vec2 t_pos = shape_t.unflatten(n);
       t_pos.x = shape_t[0] - t_pos.x;
       
       t_pos = t_pos * vec2(t_scale.y, t_scale.x); //!< Target Position in World-Space
       vec2 s_pos = (t_pos - vec2(pdiff.y, pdiff.x)) / vec2(s_scale.y, s_scale.x);          //!< Source Position in Pixel-Space
       s_pos.x = shape_s[0] - s_pos.x;
+      
+      /*
+      Gather Step...
+      */
 
-      if(shape_s.oob(s_pos))
-        return;
-    
-      int ind = shape_s.flatten(s_pos);
-      S val = source[ind];
+      lerp_t<S> lerp = __gather(source, shape_s, s_pos);
+      const S val = lerp.val();
       if(__isnanv(val))
         return;
-
       target[n] = val;
 
   });
