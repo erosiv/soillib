@@ -2,9 +2,9 @@
 #define SOILLIB_OP_EROSION_THERMAL_CU
 #define HAS_CUDA
 
-#include <soillib/core/types.hpp>
-#include <soillib/core/tensor.hpp>
-#include <soillib/op/gather.hpp>
+#include <silt/core/types.hpp>
+#include <silt/core/tensor.hpp>
+#include <silt/op/gather.hpp>
 
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/erosion_map.cu>
@@ -15,6 +15,7 @@
 //! Based on Bank Stability, Abrasion and Transport
 
 namespace soil {
+using namespace silt;
 
 //! Debris-Flow Particle
 struct debris_t {

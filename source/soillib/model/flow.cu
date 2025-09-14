@@ -371,7 +371,7 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::index
   auto out = soil::buffer_t<float>{elem, soil::GPU};
   set(out, 0.0f);
 
-  soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
+  soil::buffer_t<curandState> randStates(samples, silt::host_t::GPU);
   seed(randStates, 0, 0);
 
   const size_t N = iterations*samples;
@@ -416,7 +416,7 @@ soil::buffer soil::accumulation(const soil::buffer& direction, const soil::buffe
   auto out = soil::buffer_t<float>{elem, soil::GPU};
   set(out, 0.0f);
 
-  soil::buffer_t<curandState> randStates(samples, soil::host_t::GPU);
+  soil::buffer_t<curandState> randStates(samples, silt::host_t::GPU);
   seed(randStates, 0, 0);
 
   const size_t N = iterations*samples;

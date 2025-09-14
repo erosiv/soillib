@@ -48,34 +48,34 @@ param_t.def_rw("force", &soil::param_t::force);
 //
 
 auto map_t = nb::class_<soil::map_t>(module, "map_t");
-map_t.def(nb::init<soil::shape, soil::vec3>());
+map_t.def(nb::init<silt::shape, silt::vec3>());
 map_t.def_ro("scale", &soil::map_t::scale);
 
 map_t.def_prop_rw("height",
 [](soil::map_t& map){
-  return soil::tensor(map.height);
-},[](soil::map_t& map, soil::tensor tensor){
+  return silt::tensor(map.height);
+},[](soil::map_t& map, silt::tensor tensor){
   map.height = tensor.as<float>();
 });
 
 map_t.def_prop_rw("sediment",
 [](soil::map_t& map){
-  return soil::tensor(map.sediment);
-},[](soil::map_t& map, soil::tensor tensor){
+  return silt::tensor(map.sediment);
+},[](soil::map_t& map, silt::tensor tensor){
   map.sediment = tensor.as<float>();
 });
 
 map_t.def_prop_rw("uplift",
 [](soil::map_t& map){
-  return soil::tensor(map.uplift);
-},[](soil::map_t& map, soil::tensor tensor){
+  return silt::tensor(map.uplift);
+},[](soil::map_t& map, silt::tensor tensor){
   map.uplift = tensor.as<float>();
 });
 
 map_t.def_prop_rw("rainfall",
 [](soil::map_t& map){
-  return soil::tensor(map.rainfall);
-},[](soil::map_t& map, soil::tensor tensor){
+  return silt::tensor(map.rainfall);
+},[](soil::map_t& map, silt::tensor tensor){
   map.rainfall = tensor.as<float>();
 });
 
@@ -85,40 +85,40 @@ map_t.def_prop_rw("rainfall",
 
 auto data_t = nb::class_<soil::data_t>(module, "data_t");
 data_t.def(nb::init<>());
-data_t.def(nb::init<const soil::shape>());
+data_t.def(nb::init<const silt::shape>());
 
 data_t.def_prop_rw("discharge",
   [](soil::data_t& model){
-    return soil::tensor(model.discharge);
-},[](soil::data_t& model, soil::tensor tensor){
+    return silt::tensor(model.discharge);
+},[](soil::data_t& model, silt::tensor tensor){
     model.discharge = tensor.as<float>();
 });
 
 data_t.def_prop_rw("momentum",
   [](soil::data_t& model){
-    return soil::tensor(model.momentum);
-},[](soil::data_t& model, soil::tensor tensor){
+    return silt::tensor(model.momentum);
+},[](soil::data_t& model, silt::tensor tensor){
     model.momentum = tensor.as<float>();
 });
 
 data_t.def_prop_rw("mass",
   [](soil::data_t& model){
-    return soil::tensor(model.mass);
-},[](soil::data_t& model, soil::tensor tensor){
+    return silt::tensor(model.mass);
+},[](soil::data_t& model, silt::tensor tensor){
     model.mass = tensor.as<float>();
 });
 
 data_t.def_prop_rw("debris",
   [](soil::data_t& model){
-    return soil::tensor(model.debris);
-},[](soil::data_t& model, soil::tensor tensor){
+    return silt::tensor(model.debris);
+},[](soil::data_t& model, silt::tensor tensor){
     model.debris = tensor.as<float>();
 });
 
 data_t.def_prop_rw("debris_momentum",
   [](soil::data_t& model){
-    return soil::tensor(model.debris_momentum);
-},[](soil::data_t& model, soil::tensor tensor){
+    return silt::tensor(model.debris_momentum);
+},[](soil::data_t& model, silt::tensor tensor){
     model.debris_momentum = tensor.as<float>();
 });
 
@@ -128,35 +128,35 @@ module.def("erode", soil::erode);
 // direct computation? immediate evaluation...
 
 /*
-module.def("flow", [](const soil::tensor& tensor, const soil::index& index){
+module.def("flow", [](const silt::tensor& tensor, const soil::index& index){
   return soil::flow(tensor, index);
 });
 
-module.def("direction", [](const soil::tensor& tensor, const soil::index& index){
+module.def("direction", [](const silt::tensor& tensor, const soil::index& index){
   return soil::direction(tensor, index);
 });
 
-module.def("accumulation", [](const soil::tensor& tensor, const soil::index& index, int iterations, int samples){
+module.def("accumulation", [](const silt::tensor& tensor, const soil::index& index, int iterations, int samples){
   return soil::accumulation(tensor, index, iterations, samples);
 });
 
-module.def("accumulation_weighted", [](const soil::tensor& tensor, const soil::tensor& weights, const soil::index& index, int iterations, int samples, bool reservoir){
+module.def("accumulation_weighted", [](const silt::tensor& tensor, const silt::tensor& weights, const soil::index& index, int iterations, int samples, bool reservoir){
   return soil::accumulation(tensor, weights, index, iterations, samples, reservoir);
 });
 
-module.def("accumulation_exhaustive", [](const soil::tensor& tensor, const soil::index& index){
+module.def("accumulation_exhaustive", [](const silt::tensor& tensor, const soil::index& index){
   return soil::accumulation_exhaustive(tensor, index);
 });
 
-module.def("accumulation_exhaustive_weighted", [](const soil::tensor& tensor, const soil::index& index, const soil::tensor& weights){
+module.def("accumulation_exhaustive_weighted", [](const silt::tensor& tensor, const soil::index& index, const silt::tensor& weights){
   return soil::accumulation_exhaustive(tensor, index, weights);
 });
 
-module.def("upstream", [](const soil::tensor& tensor, const soil::index& index, const glm::ivec2 target){
+module.def("upstream", [](const silt::tensor& tensor, const soil::index& index, const glm::ivec2 target){
   return soil::upstream(tensor, index, target);
 });
 
-module.def("distance", [](const soil::tensor& tensor, const soil::index& index, const glm::ivec2 target){
+module.def("distance", [](const silt::tensor& tensor, const soil::index& index, const glm::ivec2 target){
   return soil::distance(tensor, index, target);
 });
 */
@@ -174,19 +174,19 @@ module.def("sample_halton", [](const soil::index& index, const size_t N){
   return soil::sample_halton(index, N);
 });
 
-module.def("sample_lerp", [](const soil::tensor& field, const soil::index& index, const soil::tensor& pos){
+module.def("sample_lerp", [](const silt::tensor& field, const soil::index& index, const silt::tensor& pos){
   return soil::sample_lerp(field, index, pos);
 });
 
-module.def("sample_grad", [](const soil::tensor& field, const soil::index& index, const soil::tensor& pos){
+module.def("sample_grad", [](const silt::tensor& field, const soil::index& index, const silt::tensor& pos){
   return soil::sample_grad(field, index, pos);
 });
 
-module.def("concat", [](const soil::tensor& a, const soil::tensor& b){
+module.def("concat", [](const silt::tensor& a, const silt::tensor& b){
   return soil::concat(a, b);
 });
 
-module.def("select_index", [](const soil::tensor& source, const soil::tensor& index){
+module.def("select_index", [](const silt::tensor& source, const silt::tensor& index){
   return soil::select_index(source, index);
 });
 */

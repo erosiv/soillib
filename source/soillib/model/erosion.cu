@@ -3,11 +3,11 @@
 #define HAS_CUDA
 
 #include <soillib/soillib.hpp>
-#include <soillib/core/error.hpp>
-#include <soillib/core/tensor.hpp>
 
-#include <soillib/op/gather.hpp>
-#include <soillib/op/common.hpp>
+#include <silt/core/error.hpp>
+#include <silt/core/tensor.hpp>
+#include <silt/op/gather.hpp>
+#include <silt/op/common.hpp>
 
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/erosion_map.cu>
@@ -17,6 +17,7 @@
 #include <math_constants.h>
 
 namespace soil {
+using namespace silt;
 
 //
 // Uplift Application
@@ -59,12 +60,12 @@ void erode(map_t& map, data_t& data, data_t& track, const param_t param, const s
 
   const size_t n_samples = param.samples;
   if(map.rand.elem() != n_samples){
-    map.rand = soil::tensor_t<curandState>(soil::shape(n_samples), soil::host_t::GPU);
+    map.rand = silt::tensor_t<curandState>(silt::shape(n_samples), silt::host_t::GPU);
     soil::seed(map.rand, 0, 4 * map.age);
   }
 
   if(map.transfer.elem() != map.elem){
-    map.transfer = soil::tensor_t<float>(map.shape, soil::host_t::GPU);
+    map.transfer = silt::tensor_t<float>(map.shape, silt::host_t::GPU);
   }
 
   const scale_t scale(map.scale);
@@ -76,11 +77,11 @@ void erode(map_t& map, data_t& data, data_t& track, const param_t param, const s
   for(size_t step = 0; step < steps; ++step){
 
     // Reset Estimates
-    soil::set(track.discharge, 0.0f);
-    soil::set(track.momentum, 0.0f);
-    soil::set(track.mass, 0.0f);
-    soil::set(track.debris, 0.0f);
-    soil::set(track.debris_momentum, 0.0f);
+    silt::set(track.discharge, 0.0f);
+    silt::set(track.momentum, 0.0f);
+    silt::set(track.mass, 0.0f);
+    silt::set(track.debris, 0.0f);
+    silt::set(track.debris_momentum, 0.0f);
     cudaDeviceSynchronize();
 
 //    // Solve Estimates
@@ -89,15 +90,15 @@ void erode(map_t& map, data_t& data, data_t& track, const param_t param, const s
     cudaDeviceSynchronize();
 
     // Filter Estimates
-    soil::mix(data.momentum, track.momentum, param.lrate);
-    soil::mix(data.discharge, track.discharge, param.lrate);
-    soil::mix(data.mass, track.mass, param.lrate);
-    soil::mix(data.debris, track.debris, param.lrate);
-    soil::mix(data.debris_momentum, track.debris_momentum, param.lrate);
+    silt::mix(data.momentum, track.momentum, param.lrate);
+    silt::mix(data.discharge, track.discharge, param.lrate);
+    silt::mix(data.mass, track.mass, param.lrate);
+    silt::mix(data.debris, track.debris, param.lrate);
+    silt::mix(data.debris_momentum, track.debris_momentum, param.lrate);
     cudaDeviceSynchronize();
 
     // Execute Height-Map Mass-Transfer
-    soil::set(map.transfer, 0.0f);
+    silt::set(map.transfer, 0.0f);
     fluvial::mt<<<block(map.elem, 512), 512>>>(map, data, param, scale);
 //    debris::mt<<<block(map.elem, 512), 512>>>(map, data, param);
     uplift<<<block(map.elem, 512), 512>>>(map, param);

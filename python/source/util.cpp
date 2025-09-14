@@ -11,8 +11,6 @@ namespace nb = nanobind;
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/optional.h>
 
-#include <soillib/core/types.hpp>
-#include <soillib/core/error.hpp>
 #include <soillib/util/timer.hpp>
 #include <soillib/util/yield.hpp>
 
@@ -41,25 +39,6 @@ void bind_yield_t(nb::module_& module, const char* name){
 
 //! General Util Binding Function
 void bind_util(nb::module_& module){
-
-//
-// Type Enumerator Binding
-//
-
-nb::enum_<soil::dtype>(module, "dtype")
-  .value("int", soil::dtype::INT)
-  .value("float32", soil::dtype::FLOAT32)
-  .value("float64", soil::dtype::FLOAT64)
-  .export_values();
-
-//
-// Device Enumerator Binding
-//
-
-nb::enum_<soil::host_t>(module, "host")
-  .value("cpu", soil::host_t::CPU)
-  .value("gpu", soil::host_t::GPU)
-  .export_values();
 
 //
 // Timer Type Binding
@@ -97,9 +76,9 @@ timer.def_prop_ro("count", [](const soil::timer& timer){
 // Yield Type Binding
 //
 
-bind_yield_t<soil::ivec2>(module, "yield_vec2");
-bind_yield_t<soil::ivec3>(module, "yield_vec3");
-bind_yield_t<soil::ivec4>(module, "yield_vec4");
+// bind_yield_t<silt::ivec2>(module, "yield_vec2");
+// bind_yield_t<silt::ivec3>(module, "yield_vec3");
+// bind_yield_t<silt::ivec4>(module, "yield_vec4");
 
 }
 

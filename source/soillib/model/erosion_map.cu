@@ -2,9 +2,9 @@
 #define SOILLIB_OP_EROSION_MAP_CU
 #define HAS_CUDA
 
-#include <soillib/core/types.hpp>
-#include <soillib/core/tensor.hpp>
-#include <soillib/op/gather.hpp>
+#include <silt/core/types.hpp>
+#include <silt/core/tensor.hpp>
+#include <silt/op/gather.hpp>
 
 #include <soillib/model/erosion.hpp>
 
@@ -17,6 +17,7 @@
 //! nature of the map / model.
 
 namespace soil {
+using namespace silt;
 
 //! Nearest Support Point
 __device__ int __nearest(const map_t& map, const vec2 pos){

@@ -9,8 +9,7 @@ namespace nb = nanobind;
 
 #include <soillib/io/tiff.hpp>
 #include <soillib/io/geotiff.hpp>
-#include <soillib/io/mesh.hpp>
-#include <soillib/core/tensor.hpp>
+// #include <soillib/io/mesh.hpp>
 
 #include "glm.hpp"
 
@@ -22,7 +21,7 @@ auto tiff = nb::class_<soil::io::tiff>(module, "tiff");
 
 tiff.def(nb::init<>());
 tiff.def(nb::init<const char*>());
-tiff.def("__init__", [](soil::io::tiff* tiff, const soil::tensor& tensor){
+tiff.def("__init__", [](soil::io::tiff* tiff, const silt::tensor& tensor){
   new (tiff) soil::io::tiff(tensor);
 });
 
@@ -41,7 +40,7 @@ auto geotiff = nb::class_<soil::io::geotiff, soil::io::tiff>(module, "geotiff");
 
 geotiff.def(nb::init<>());
 geotiff.def(nb::init<const char*>());
-geotiff.def("__init__", [](soil::io::geotiff* geotiff, const soil::tensor& tensor){
+geotiff.def("__init__", [](soil::io::geotiff* geotiff, const silt::tensor& tensor){
   new (geotiff) soil::io::geotiff(tensor);
 });
 
@@ -105,12 +104,12 @@ geotiff_meta.def_prop_ro("max", [](soil::io::geotiff::meta_t& geotiff_meta){
 // Mesh Export
 //
 
-auto mesh = nb::class_<soil::io::mesh>(module, "mesh");
-mesh.def(nb::init<>());
-mesh.def(nb::init<const soil::tensor&, const soil::vec3>());
-mesh.def("write", &soil::io::mesh::write);
-mesh.def("center", &soil::io::mesh::center);
-mesh.def("write_binary", &soil::io::mesh::write_binary);
+// auto mesh = nb::class_<soil::io::mesh>(module, "mesh");
+// mesh.def(nb::init<>());
+// mesh.def(nb::init<const silt::tensor&, const silt::vec3>());
+// mesh.def("write", &soil::io::mesh::write);
+// mesh.def("center", &soil::io::mesh::center);
+// mesh.def("write_binary", &soil::io::mesh::write_binary);
 
 }
 

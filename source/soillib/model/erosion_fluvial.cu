@@ -2,10 +2,10 @@
 #define SOILLIB_MODEL_EROSION_FLUVIAL_CU
 #define HAS_CUDA
 
-#include <soillib/core/types.hpp>
-#include <soillib/core/tensor.hpp>
+#include <silt/core/types.hpp>
+#include <silt/core/tensor.hpp>
+#include <silt/op/gather.hpp>
 
-#include <soillib/op/gather.hpp>
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/erosion_map.cu>
 
@@ -30,6 +30,7 @@ struct particle_t {
 };
 
 namespace fluvial {
+using namespace silt;
 
 //
 // Mass-Transfer Functions

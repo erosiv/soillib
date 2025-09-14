@@ -2,7 +2,7 @@
 #define SOILLIB_MODEL_EROSION
 
 #include <soillib/soillib.hpp>
-#include <soillib/core/tensor.hpp>
+#include <silt/core/tensor.hpp>
 #include <curand_kernel.h>
 
 // Soillib Erosion Model
@@ -56,35 +56,35 @@ struct param_t {
 struct data_t {
 
   data_t():elem{0}{}
-  data_t(const soil::shape _shape):
+  data_t(const silt::shape _shape):
     shape(_shape),
     elem{_shape.elem}{
-//    this->mass            = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
-//    this->discharge       = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
-//    this->momentum        = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
-//    this->debris          = soil::tensor_t<float>(this->shape, soil::host_t::GPU);
-//    this->debris_momentum = soil::tensor_t<vec2>(this->shape, soil::host_t::GPU);
+//    this->mass            = silt::tensor_t<float>(this->shape, silt::host_t::GPU);
+//    this->discharge       = silt::tensor_t<float>(this->shape, silt::host_t::GPU);
+//    this->momentum        = silt::tensor_t<vec2>(this->shape, silt::host_t::GPU);
+//    this->debris          = silt::tensor_t<float>(this->shape, silt::host_t::GPU);
+//    this->debris_momentum = silt::tensor_t<vec2>(this->shape, silt::host_t::GPU);
   }
 
-  const soil::shape shape;
+  const silt::shape shape;
   const int elem;  //!< Total Buffer Elements
 
-  soil::tensor_t<float> discharge;
-  soil::tensor_t<float> momentum;         //!< Note: Require different shape!
-  soil::tensor_t<float> mass;
-  soil::tensor_t<float> debris;
-  soil::tensor_t<float> debris_momentum;
+  silt::tensor_t<float> discharge;
+  silt::tensor_t<float> momentum;         //!< Note: Require different shape!
+  silt::tensor_t<float> mass;
+  silt::tensor_t<float> debris;
+  silt::tensor_t<float> debris_momentum;
 
 };
 
 struct scale_t {
-  scale_t(const soil::vec3 scale){
+  scale_t(const silt::vec3 scale){
     this->x = scale.x * 1E3f; //!< Scale to m <- km
     this->y = scale.y * 1E3f; //!< Scale to m <- km
     this->z = scale.z * 1E3f; //!< Scale to m <- km
     this->Ac = x*y;
     this->Vc = x*y*z;
-    this->cl = soil::vec2(x, y);
+    this->cl = silt::vec2(x, y);
     this->len = glm::length(cl);
   };
   float x;
@@ -92,31 +92,31 @@ struct scale_t {
   float z;
   float Ac;
   float Vc;
-  soil::vec2 cl;
+  silt::vec2 cl;
   float len;
 };
 
 struct map_t {
 
-  map_t(soil::shape shape, soil::vec3 scale):
+  map_t(silt::shape shape, silt::vec3 scale):
     shape(shape),
     scale(scale),
     elem(shape.elem){}
 
   const size_t elem;            // Total Number of Elements
-  const soil::shape shape;      // Buffer Indexing Structure
-  const soil::vec3 scale;       // Value Scaling Factor (Real Coordinates)
+  const silt::shape shape;      // Buffer Indexing Structure
+  const silt::vec3 scale;       // Value Scaling Factor (Real Coordinates)
 
-  soil::tensor_t<float> height;
-  soil::tensor_t<float> sediment;
+  silt::tensor_t<float> height;
+  silt::tensor_t<float> sediment;
 
   // User Control Fields
-  soil::tensor_t<float> uplift;   //!< Uplift Control Map
-  soil::tensor_t<float> rainfall; //!< Rainfall Control Map
+  silt::tensor_t<float> uplift;   //!< Uplift Control Map
+  silt::tensor_t<float> rainfall; //!< Rainfall Control Map
 
-  soil::tensor_t<float> transfer; //!< Transferred Material
+  silt::tensor_t<float> transfer; //!< Transferred Material
 
-  soil::tensor_t<curandState> rand;
+  silt::tensor_t<curandState> rand;
   int age = 0;                  //!< Model Age
 
 };

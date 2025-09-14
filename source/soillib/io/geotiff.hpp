@@ -68,7 +68,7 @@ struct geotiff: soil::io::tiff {
   using soil::io::tiff::width;
 
   geotiff() {};
-  geotiff(const soil::tensor &_tensor): tiff(_tensor) {
+  geotiff(const silt::tensor &_tensor): tiff(_tensor) {
     // do additional stuff to the metadata struct here?
     this->_meta.coords[3] = _shape[0];
     this->_meta.coords[4] = _shape[1];
@@ -142,7 +142,7 @@ bool geotiff::peek(const char *filename) {
 
   TIFF *tif = TIFFOpen(filename, "r");
   if (tif == NULL) {
-    throw soil::error::missing_file(filename);
+    throw silt::error::missing_file(filename);
     return false;
   }
 

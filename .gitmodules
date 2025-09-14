@@ -4,3 +4,6 @@
 [submodule "ext/libtiff"]
 	path = ext/libtiff
 	url = https://gitlab.com/libtiff/libtiff
+[submodule "ext/silt"]
+	path = ext/silt
+	url = git@github.com:erosiv/silt.git

@@ -2,8 +2,8 @@
 #define SOILLIB_IO_MESH
 
 #include <fstream>
-#include <soillib/core/shape.hpp>
-#include <soillib/core/tensor.hpp>
+#include <silt/core/shape.hpp>
+#include <silt/core/tensor.hpp>
 
 #include <unordered_map>
 
@@ -33,7 +33,7 @@ constexpr bool isBigEndianArchitecture() {
 struct mesh {
 
   mesh() {}
-  mesh(const soil::tensor& _tensor, const vec3 scale) {
+  mesh(const silt::tensor& _tensor, const vec3 scale) {
 
     this->triangulate(_tensor, scale);
 
@@ -46,7 +46,7 @@ struct mesh {
     }
   }
 
-  void triangulate(const soil::tensor &tensor, const vec3 scale) {
+  void triangulate(const silt::tensor &tensor, const vec3 scale) {
 
     soil::select(tensor.type(), [&]<std::floating_point T>() {
       auto tensor_t = tensor.as<T>();

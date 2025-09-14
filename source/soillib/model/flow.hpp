@@ -3,9 +3,9 @@
 
 #include <random>
 #include <soillib/soillib.hpp>
-#include <soillib/core/buffer.hpp>
-#include <soillib/core/index.hpp>
-#include <soillib/core/error.hpp>
+#include <silt/core/buffer.hpp>
+#include <silt/core/index.hpp>
+#include <silt/core/error.hpp>
 
 namespace soil {
 

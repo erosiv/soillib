@@ -1,9 +1,9 @@
 #ifndef SOILLIB_OP_NOISE
 #define SOILLIB_OP_NOISE
 
-#include <soillib/core/shape.hpp>
-#include <soillib/core/tensor.hpp>
-#include <soillib/core/types.hpp>
+#include <silt/core/shape.hpp>
+#include <silt/core/tensor.hpp>
+#include <silt/core/types.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 #include <soillib/external/FastNoiseLite.h>
@@ -31,7 +31,7 @@ struct noise_param_t {
   float gain = 0.6f;       // Scale Multiplier
   float lacunarity = 2.0f; // Frequency Multiplier
   float seed = 0.0f;
-  soil::vec2 ext = {512, 512}; // Grid-Space Frequency
+  silt::vec2 ext = {512, 512}; // Grid-Space Frequency
 
   //! Single Sample Value
   float operator()(const soil::ivec2 pos) {
@@ -39,19 +39,19 @@ struct noise_param_t {
   }
 };
 
-soil::tensor noise(const soil::shape shape, noise_param_t param) {
+silt::tensor noise(const silt::shape shape, noise_param_t param) {
 
   if(shape.dim != 2)
     throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
   
-  soil::tensor_t<float> tensor_t(shape, soil::CPU);
+  silt::tensor_t<float> tensor_t(shape, soil::CPU);
   param.update();
   for (size_t i = 0; i < shape.elem; ++i) {
     soil::ivec2 position = shape.unflatten(i);
     tensor_t[i] = param(position);
   }
 
-  return soil::tensor(std::move(tensor_t));
+  return silt::tensor(std::move(tensor_t));
 
 }
 

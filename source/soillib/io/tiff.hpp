@@ -1,8 +1,8 @@
 #ifndef SOILLIB_IO_TIFF
 #define SOILLIB_IO_TIFF
 
-#include <soillib/core/shape.hpp>
-#include <soillib/core/tensor.hpp>
+#include <silt/core/shape.hpp>
+#include <silt/core/tensor.hpp>
 
 #include <iostream>
 #include <stdfloat>
@@ -22,7 +22,7 @@ struct tiff {
   tiff() {}
   tiff(const char *filename) { read(filename); };
 
-  tiff(const soil::tensor &_tensor): _tensor{_tensor} {
+  tiff(const silt::tensor &_tensor): _tensor{_tensor} {
 
     auto type = _tensor.type();
 
@@ -30,9 +30,9 @@ struct tiff {
     this->_width = _shape[0];
     this->_height = _shape[1];
 
-    if (type == soil::FLOAT32) {
+    if (type == silt::FLOAT32) {
       this->_bits = 32;
-    } else if (type == soil::FLOAT64) {
+    } else if (type == silt::FLOAT64) {
       this->_bits = 64;
     }
   }
@@ -45,8 +45,8 @@ struct tiff {
   uint32_t width() const { return this->_width; }
   uint32_t height() const { return this->_height; }
 
-  soil::tensor tensor() const { return this->_tensor; }
-  soil::shape shape() const { return this->_shape; }
+  silt::tensor tensor() const { return this->_tensor; }
+  silt::shape shape() const { return this->_shape; }
 
 protected:
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
@@ -61,8 +61,8 @@ protected:
   uint32_t _twidth = 0;  //!< Tile Width
   uint32_t _theight = 0; //!< Tile Height
 
-  soil::shape _shape;   //!< Underlying Data Shape
-  soil::tensor _tensor; //!< Underlying Data Tensor
+  silt::shape _shape;   //!< Underlying Data Shape
+  silt::tensor _tensor; //!< Underlying Data Tensor
 };
 
 //! Load TIFF Metadata
@@ -70,7 +70,7 @@ bool tiff::peek(const char *filename) {
 
   TIFF *tif = TIFFOpen(filename, "r");
   if (tif == NULL) {
-    throw soil::error::missing_file(filename);
+    throw silt::error::missing_file(filename);
     return false;
   }
 
@@ -106,21 +106,21 @@ bool tiff::read(const char *filename) {
   // Note: TIFF is Column Major (See Reading Function Below)
   //  Therefore,
 
-  this->_shape = soil::shape(this->width(), this->height());
+  this->_shape = silt::shape(this->width(), this->height());
 
   if (this->bits() == 16) { // Note: Internal Type is still Float32
-    this->_tensor = soil::tensor(soil::FLOAT32, this->_shape);
+    this->_tensor = silt::tensor(silt::FLOAT32, this->_shape);
   }
   if (this->bits() == 32) {
-    this->_tensor = soil::tensor(soil::FLOAT32, this->_shape);
+    this->_tensor = silt::tensor(silt::FLOAT32, this->_shape);
   }
   if (this->bits() == 64) {
-    this->_tensor = soil::tensor(soil::FLOAT64, this->_shape);
+    this->_tensor = silt::tensor(silt::FLOAT64, this->_shape);
   }
 
   TIFF *tif = TIFFOpen(filename, "r");
   if (tif == NULL) {
-    throw soil::error::missing_file(filename);
+    throw silt::error::missing_file(filename);
     return false;
   }
 
