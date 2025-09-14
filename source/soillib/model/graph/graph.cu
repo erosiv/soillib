@@ -278,11 +278,11 @@ __global__ void __rake_compress(
       k -= 1;                       // Repeat Iteration
     }
 
-//    // Donor has a Single Donor: Accmulate and Pointer Jump
-//    else if(dcount == 1){
-//      value += valueIn[donor];          // Add the Donor's Value
-//      donors[k] = donors[4*donor + 0];  // Pointer Jump the Donor
-//    }
+    // Donor has a Single Donor: Accmulate and Pointer Jump
+    else if(dcount == 1){
+      value += valueIn[donor];      // Add the Donor's Value
+      donors[k] = donorIn[4*donor]; // Pointer Jump the Donor
+    }
 
   }
 
@@ -295,7 +295,7 @@ __global__ void __rake_compress(
 }
 
 //! Compute the Upstream Accumulation of a Field
-silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const size_t iter){
+silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field){
 
   const silt::shape shape = graph.shape();
   const silt::shape dshape = silt::shape(shape[0], shape[1], D4::K);
@@ -314,7 +314,7 @@ silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::te
   __count<<<block(shape.elem, 512), 512>>>(countA, donorA, shape);
   silt::set(fieldA, field);
 
-//  const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
+  const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
   for(size_t i = 0; i < iter; ++i){
     __rake_compress<<<block(shape.elem, 256), 256>>>(donorB, countB, fieldB, donorA, countA, fieldA, shape);
     __rake_compress<<<block(shape.elem, 256), 256>>>(donorA, countA, fieldA, donorB, countB, fieldB, shape);
