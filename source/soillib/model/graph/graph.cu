@@ -237,25 +237,31 @@ __global__ void __count(
 
 }
 
+struct acc_t {
+  silt::tensor_t<int> donor;    // Donor Graph
+  silt::tensor_t<int> count;    // Donor Count
+  silt::tensor_t<float> value;  // Local Value
+};
+
 __global__ void __rake_compress(
-  silt::tensor_t<int> donorOut,         //!< Output Donor Count
-  silt::tensor_t<int> countOut,         //!< Output Donor Graph
-  silt::tensor_t<float> valueOut,       //!< Output Accumulated Value
-  const silt::tensor_t<int> donorIn,    //!< Output Donor Count
-  const silt::tensor_t<int> countIn,    //!< Output Donor Graph
-  const silt::tensor_t<float> valueIn,  //!< Output Accumulated Value
-  const silt::shape shape
+  acc_t accA, 
+  acc_t accB,
+  const silt::shape shape,
+  const bool flip
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= shape.elem)
     return;
+
+  const acc_t& accIn  = flip ? accB : accA;
+  acc_t& accOut = flip ? accA : accB;
   
-  int count = countIn[n];   //!< Number of Donors
-  float value = valueIn[n]; //!< Accumulation Value
+  int count = accIn.count[n];   //!< Number of Donors
+  float value = accIn.value[n]; //!< Accumulation Value
   int donors[4];            //!< Donor Indices
   for(int k = 0; k < 4; ++k){
-    donors[k] = donorIn[4*n + k];
+    donors[k] = accIn.donor[4*n + k];
   }
 
   // Iterate over the Set of Donors
@@ -263,11 +269,11 @@ __global__ void __rake_compress(
 
     // Retrieve Donor at Index
     const int donor = donors[k];
-    const int dcount = countIn[donor];
+    const int dcount = accIn.count[donor];
 
     // Donor is a Leaf-Node: Accumulate and Prune
     if(dcount == 0){
-      value += valueIn[donor];      // Add the Donor's Value
+      value += accIn.value[donor];  // Add the Donor's Value
       donors[k] = donors[count-1];  // Move Last Donor Forward
       donors[count-1] = -1;         // Prune Last Donor
       count -= 1;                   // Shorten List
@@ -276,49 +282,54 @@ __global__ void __rake_compress(
 
     // Donor has a Single Donor: Accmulate and Pointer Jump
     else if(dcount == 1){
-      value += valueIn[donor];      // Add the Donor's Value
-      donors[k] = donorIn[4*donor]; // Pointer Jump the Donor
+      value += accIn.value[donor];      // Add the Donor's Value
+      donors[k] = accIn.donor[4*donor]; // Pointer Jump the Donor
     }
 
   }
 
-  countOut[n] = count;  //!< Output Count
-  valueOut[n] = value;  //!< Output Value
+  accOut.count[n] = count;  //!< Output Count
+  accOut.value[n] = value;  //!< Output Value
   for(int k = 0; k < 4; ++k){
-    donorOut[4*n + k] = donors[k];
+    accOut.donor[4*n + k] = donors[k];
   }
 
 }
 
 //! Compute the Upstream Accumulation of a Field
 //!\todo Possible Optimization: Per-Cell Ping-Pong Scheme for fewer writes
-silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field){
+silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> value){
 
   const silt::shape shape = graph.shape();
   const silt::shape dshape = silt::shape(shape[0], shape[1], D4::K);
 
   // Construct the Donor Set and Count
-  silt::tensor_t<int> donorA = silt::tensor_t<int>(dshape, silt::host_t::GPU);
-  silt::tensor_t<int> countA = silt::tensor_t<int>(shape, silt::host_t::GPU);
-  silt::tensor_t<float> fieldA = silt::tensor_t<float>(shape, silt::host_t::GPU);
-  
-  silt::tensor_t<int> donorB = silt::tensor_t<int>(dshape, silt::host_t::GPU);
-  silt::tensor_t<int> countB = silt::tensor_t<int>(shape, silt::host_t::GPU);
-  silt::tensor_t<float> fieldB = silt::tensor_t<float>(shape, silt::host_t::GPU);
+  acc_t accA, accB;
 
-  silt::set(donorA, -1);
-  __donor<<<block(shape.elem, 512), 512>>>(donorA, graph, shape);
-  __count<<<block(shape.elem, 512), 512>>>(countA, donorA, shape);
-  silt::set(fieldA, field);
+  accA.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
+  accA.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
+  accA.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+  
+  accB.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
+  accB.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
+  accB.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+
+  silt::set(accA.donor, -1);
+  silt::set(accA.value, value);
+  __donor<<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
+  __count<<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
+  
+//  silt::tensor_t<unsigned char> flip;
+//  silt::set(flip, 0);
 
   const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
   for(size_t i = 0; i < iter; ++i){
-    __rake_compress<<<block(shape.elem, 256), 256>>>(donorB, countB, fieldB, donorA, countA, fieldA, shape);
-    __rake_compress<<<block(shape.elem, 256), 256>>>(donorA, countA, fieldA, donorB, countB, fieldB, shape);
+    __rake_compress<<<block(shape.elem, 256), 256>>>(accA, accB, shape, 0);
+    __rake_compress<<<block(shape.elem, 256), 256>>>(accA, accB, shape, 1);
   }
   cudaDeviceSynchronize();
 
-  return fieldA;
+  return accA.value;
 
 }
 

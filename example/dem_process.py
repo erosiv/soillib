@@ -37,7 +37,7 @@ def main(data):
     accumulation = soil.accumulate(flow, rain)
   print(f"Execution Time: {t.count} us")
 
-  return
+#  return
 
   accumulation = accumulation.cpu().numpy()  
   plt.imshow(accumulation,
