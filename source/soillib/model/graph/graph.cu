@@ -199,13 +199,9 @@ __global__ void __donor(
     if(shape.oob(npos))
       continue;
 
-    // Index of Neighbor Cell
-    const int nind = shape.flatten(npos);
-    if(nind == next){
-      donor[DIR::K*nind + k] = n;  //!< Next Index Receives Self
-    } else {
-      donor[DIR::K*nind + k] = -1; //!< Next Index Doesn't Receive from here... 
-    }
+    const int nind = shape.flatten(npos);   //!< Neighbors Global Index
+    if(nind == next)                        //!< If Neighobr is Receiver...
+      donor[DIR::K*nind + k] = n;           //!< Write to Neighbor's Donorset at k
   }
 
 }
