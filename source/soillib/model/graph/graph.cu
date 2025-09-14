@@ -295,6 +295,7 @@ __global__ void __rake_compress(
 }
 
 //! Compute the Upstream Accumulation of a Field
+//!\todo Possible Optimization: Per-Cell Ping-Pong Scheme for fewer writes
 silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field){
 
   const silt::shape shape = graph.shape();

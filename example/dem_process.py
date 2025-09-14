@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import soillib as soil
+import silt
+
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
@@ -18,52 +20,32 @@ def load(data):
 
 def main(data):
 
-  print("Loading Data")
-  buffer, index = load(data)
-  buffer.gpu()
+  # Load GeoTIFF Data
+  tiff = soil.geotiff(data)
+  tensor = tiff.tensor.gpu()
+  shape = tensor.shape
+  res = (shape[0], shape[1])
 
-#  pour = (3733, 2640) # elevation_conditioned
-#  pour = (4670, 5951) # elevation_conditioned
-#  pour = (1617, 973)  # gosau
-  pour = (1873, 692)  # bad goisern
+  # Compute Accumulation
+  rain = np.full(res, 1.0)
+  rain = silt.tensor.from_numpy(rain.astype(np.float32)).gpu()
 
-  timer = soil.timer()
+  t = soil.timer(soil.us)
+  with t:
+    dirn = soil.direction(tensor)
+    flow = soil.steepest(tensor)
+    accumulation = soil.accumulate(flow, rain)
+  print(f"Execution Time: {t.count} us")
 
-  print("Computing Flow Index")
-  with timer:
-    flow = soil.flow(buffer, index)
-  print(f"Execution Time: {timer.count}ms")
+  return
 
-  print("Computing Direction")
-  with timer:
-    direction = soil.direction(flow, index)
-  print(f"Execution Time: {timer.count}ms")
+  accumulation = accumulation.cpu().numpy()  
+  plt.imshow(accumulation,
+    cmap='CMRmap',
+    norm=colors.LogNorm(1, accumulation.max()),
+    interpolation='bilinear')
 
-  # Add a Weight Buffer
-  shape = (index[0], index[1])
-  weights = soil.buffer.from_numpy(np.random.ranf(shape).astype(np.float32))
-
-  print("Computing Area")
-  with timer:
-    area = soil.accumulation(direction, index, 64, 8192)
-    #area = soil.accumulation_weighted(direction, weights, index, 64, 8192)
-  print(f"Execution Time: {timer.count}ms")
-
-  print("Computing Upstream Mask...")
-  with timer:
-    catch = soil.upstream(direction, index, [pour[1], pour[0]])
-  print(f"Execution Time: {timer.count}ms")
-
-  print("Computing Upstream Distance...")
-  with timer:
-    distance = soil.distance(direction, index, [pour[1], pour[0]])
-  print(f"Execution Time: {timer.count}ms")
-
-  # Extract to Numpy
-  area = area.cpu().numpy(index)
-  catch = catch.cpu().numpy(index)
-  distance = distance.cpu().numpy(index)
-  flow = flow.cpu().numpy(index)
+  plt.show()
 
   '''
   area[catch == 0] = 1
@@ -77,7 +59,6 @@ def main(data):
   height[catch == 0] = np.nan
   tiff = soil.tiff(soil.buffer.from_numpy(height), index)
   tiff.write("height_masked.tiff")
-  '''
 
   print("Plotting Data...")
 
@@ -103,10 +84,11 @@ def main(data):
     interpolation='bilinear')
 
   plt.show()
+  '''
 
 if __name__ == "__main__":
 
-  data = "/home/nickmcdonald/Datasets/elevation_conditioned.tiff"
+  data = "C:\\Users\\nicho\\Workspace\\cu-fsm\\example\\out.tiff"
   #data = "_dem_conditioned.tiff"
 
   main(data)
