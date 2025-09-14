@@ -128,6 +128,10 @@ module.def("erode", soil::erode);
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
 
+module.def("direction", [](const silt::tensor& height){
+  return silt::tensor(soil::direction(height.as<float>()));
+});
+
 module.def("steepest", [](const silt::tensor& height){
   return silt::tensor(soil::steepest(height.as<float>()));
 });

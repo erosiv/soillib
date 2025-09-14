@@ -7,6 +7,9 @@
 
 namespace soil {
 
+//! Compute the Direction of the FLow
+silt::tensor_t<int> direction(const silt::tensor_t<float> height);
+
 //! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
 silt::tensor_t<int> steepest(const silt::tensor_t<float> height);
 
