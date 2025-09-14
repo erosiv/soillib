@@ -5,6 +5,7 @@
 namespace nb = nanobind;
 
 #include <soillib/model/erosion.hpp>
+#include <soillib/model/graph/graph.hpp>
 #include "glm.hpp"
 
 void bind_model(nb::module_& module){
@@ -126,6 +127,10 @@ module.def("erode", soil::erode);
 
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
+
+module.def("steepest", [](const silt::tensor& height){
+  return silt::tensor(soil::steepest(height.as<float>()));
+});
 
 /*
 module.def("flow", [](const silt::tensor& tensor, const soil::index& index){
