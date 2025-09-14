@@ -132,6 +132,10 @@ module.def("steepest", [](const silt::tensor& height){
   return silt::tensor(soil::steepest(height.as<float>()));
 });
 
+module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
+  return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>()));
+});
+
 /*
 module.def("flow", [](const silt::tensor& tensor, const soil::index& index){
   return soil::flow(tensor, index);

@@ -108,6 +108,19 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height) {
 
 }
 
+//
+// Accumulation Kernel
+//
+
+//! Compute the Upstream Accumulation of a Field
+silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field){
+
+  // ... do the magic ...
+
+  return field;
+
+}
+
 } // end of namespace soil
 
 #endif
