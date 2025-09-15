@@ -244,25 +244,26 @@ struct acc_t {
 };
 
 __global__ void __rake_compress(
-  acc_t accA, 
-  acc_t accB,
-  const silt::shape shape,
-  const bool flip
+  acc_t accOut,
+  const acc_t accIn, 
+  const silt::shape shape
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= shape.elem)
     return;
-
-  const acc_t& accIn  = flip ? accB : accA;
-  acc_t& accOut = flip ? accA : accB;
   
-  int count = accIn.count[n];   //!< Number of Donors
   float value = accIn.value[n]; //!< Accumulation Value
-  int donors[4];            //!< Donor Indices
-  for(int k = 0; k < 4; ++k){
-    donors[k] = accIn.donor[4*n + k];
-  }
+  int count = accIn.count[n];   //!< Number of Donors
+  int donors[4];                //!< Donor Indices
+  
+  // Developer Note: This lowers register pressure on
+  //  the GPU relative to a for loop, while doing
+  //  minimal work and thread stalling.
+  if(count >= 1) donors[0] = accIn.donor[4*n + 0];
+  if(count >= 2) donors[1] = accIn.donor[4*n + 1];
+  if(count >= 3) donors[2] = accIn.donor[4*n + 2];
+  if(count >= 4) donors[3] = accIn.donor[4*n + 3];
 
   // Iterate over the Set of Donors
   for(int k = 0; k < count; ++k){
@@ -288,11 +289,12 @@ __global__ void __rake_compress(
 
   }
 
-  accOut.count[n] = count;  //!< Output Count
   accOut.value[n] = value;  //!< Output Value
-  for(int k = 0; k < 4; ++k){
-    accOut.donor[4*n + k] = donors[k];
-  }
+  accOut.count[n] = count;  //!< Output Count
+  if(count >= 1) accOut.donor[4*n + 0] = donors[0];
+  if(count >= 2) accOut.donor[4*n + 1] = donors[1];
+  if(count >= 3) accOut.donor[4*n + 2] = donors[2];
+  if(count >= 4) accOut.donor[4*n + 3] = donors[3];
 
 }
 
@@ -318,14 +320,12 @@ silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::te
   silt::set(accA.value, value);
   __donor<<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
   __count<<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
-  
-//  silt::tensor_t<unsigned char> flip;
-//  silt::set(flip, 0);
 
+  // Execute Rake-Compression Iterations
   const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
   for(size_t i = 0; i < iter; ++i){
-    __rake_compress<<<block(shape.elem, 256), 256>>>(accA, accB, shape, 0);
-    __rake_compress<<<block(shape.elem, 256), 256>>>(accA, accB, shape, 1);
+    __rake_compress<<<block(shape.elem, 256), 256>>>(accB, accA, shape);
+    __rake_compress<<<block(shape.elem, 256), 256>>>(accA, accB, shape);
   }
   cudaDeviceSynchronize();
 
