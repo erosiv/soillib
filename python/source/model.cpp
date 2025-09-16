@@ -6,6 +6,7 @@ namespace nb = nanobind;
 
 #include <soillib/model/erosion.hpp>
 #include <soillib/model/graph/graph.hpp>
+#include <soillib/model/filter/filter.hpp>
 #include "glm.hpp"
 
 void bind_model(nb::module_& module){
@@ -138,6 +139,10 @@ module.def("steepest", [](const silt::tensor& height){
 
 module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
   return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>()));
+});
+
+module.def("gaussian_blur", [](const silt::tensor& tensor, const float sigma){
+    return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma));
 });
 
 /*

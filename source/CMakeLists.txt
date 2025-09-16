@@ -17,6 +17,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 target_sources(${TARGET_NAME} PUBLIC
   soillib/model/erosion.cu
   soillib/model/graph/graph.cu
+  soillib/model/filter/filter.cu
 # soillib/op/flow.cu
 )
 
