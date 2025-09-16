@@ -9,6 +9,8 @@ namespace nb = nanobind;
 #include <soillib/model/filter/filter.hpp>
 #include "glm.hpp"
 
+using namespace nb::literals;
+
 void bind_model(nb::module_& module){
 
 //
@@ -129,16 +131,33 @@ module.def("erode", soil::erode);
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
 
+nb::enum_<soil::edge_t>(module, "edge")
+  .value("d4",  soil::edge_t::D4)
+  .value("d8",  soil::edge_t::D8)
+  .export_values();
+
 module.def("direction", [](const silt::tensor& height){
   return silt::tensor(soil::direction(height.as<float>()));
+});
+
+module.def("direction", [](const silt::tensor& height, const soil::edge_t edge){
+  return silt::tensor(soil::direction(height.as<float>(), edge));
 });
 
 module.def("steepest", [](const silt::tensor& height){
   return silt::tensor(soil::steepest(height.as<float>()));
 });
 
+module.def("steepest", [](const silt::tensor& height, const soil::edge_t edge){
+  return silt::tensor(soil::steepest(height.as<float>(), edge));
+});
+
 module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
   return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>()));
+});
+
+module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field, const soil::edge_t edge){
+  return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>(), edge));
 });
 
 module.def("gaussian_blur", [](const silt::tensor& tensor, const float sigma){

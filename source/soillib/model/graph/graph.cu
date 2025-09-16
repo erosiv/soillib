@@ -17,42 +17,10 @@ inline int block(const int elem, const int thread) {
 }
 
 //
-// Neighbor Connectivity Structs
-//
-
-//! D4 Connectivity Static Struct
-struct D4 {
-  static constexpr const size_t K = 4;
-  __device__ D4():shift{
-    silt::ivec2(-1.0,  0.0),
-    silt::ivec2( 0.0, -1.0),
-    silt::ivec2( 0.0,  1.0),
-    silt::ivec2( 1.0,  0.0)
-  }{}
-  const silt::ivec2 shift[K];
-};
-
-//! D8 Connectivity Static Struct
-struct D8 {
-  static constexpr const size_t K = 8;
-  __device__ D8():shift{
-    silt::ivec2(-1.0, -1.0),
-    silt::ivec2(-1.0,  0.0),
-    silt::ivec2(-1.0,  1.0),
-    silt::ivec2( 0.0, -1.0),
-    silt::ivec2( 0.0,  1.0),
-    silt::ivec2( 1.0, -1.0),
-    silt::ivec2( 1.0,  0.0),
-    silt::ivec2( 1.0,  1.0)
-  }{}
-  const silt::ivec2 shift[K];
-};
-
-//
 // Steepest Graph Computation
 //
 
-template<typename DIR = D4>
+template<typename DIR = D4_t>
 __global__ void __steepest (
   silt::tensor_t<int> graph,          //!< Output Graph Tensor
   const silt::tensor_t<float> height, //!< Input Height Tensor
@@ -97,15 +65,23 @@ __global__ void __steepest (
 }
 
 //! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
-silt::tensor_t<int> steepest(const silt::tensor_t<float> height) {
+silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t edge) {
 
   if(height.host() != silt::host_t::GPU)
     throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
 
-  const silt::shape shape = height.shape();
-  silt::tensor_t<int> graph(shape, silt::host_t::GPU);
-  __steepest<<<block(shape.elem, 512), 512>>>(graph, height, shape);
-  return graph;
+  const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
+    const silt::shape shape = height.shape();
+    silt::tensor_t<int> graph(shape, silt::host_t::GPU);
+    __steepest<DIR><<<block(shape.elem, 512), 512>>>(graph, height, shape);
+    return graph;
+  };
+
+  switch(edge) {
+    case D4: return dispatch.template operator()<D4_t>();
+    case D8: return dispatch.template operator()<D8_t>();
+    default: throw std::invalid_argument("Fail");
+  }
 
 }
 
@@ -113,7 +89,7 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height) {
 // Flow Direction Kernel for Debugging
 //
 
-template<typename DIR = D4>
+template<typename DIR = D4_t>
 __global__ void __direction (
   silt::tensor_t<int> direction,      //!< Output Graph Tensor
   const silt::tensor_t<float> height, //!< Input Height Tensor
@@ -157,15 +133,23 @@ __global__ void __direction (
 }
 
 //! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
-silt::tensor_t<int> direction(const silt::tensor_t<float> height) {
+silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t edge) {
 
   if(height.host() != silt::host_t::GPU)
     throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
 
-  const silt::shape shape = height.shape();
-  silt::tensor_t<int> flow(shape, silt::host_t::GPU);
-  __direction<<<block(shape.elem, 512), 512>>>(flow, height, shape);
-  return flow;
+  const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
+    const silt::shape shape = height.shape();
+    silt::tensor_t<int> flow(shape, silt::host_t::GPU);
+    __direction<DIR><<<block(shape.elem, 512), 512>>>(flow, height, shape);
+    return flow;
+  };
+
+  switch(edge){
+    case D4: return dispatch.template operator()<D4_t>();
+    case D8: return dispatch.template operator()<D8_t>();
+    default: throw std::invalid_argument("Fail");
+  }
 
 }
 
@@ -177,7 +161,7 @@ silt::tensor_t<int> direction(const silt::tensor_t<float> height) {
 // Compute the Donor Set and Donor Count
 //
 
-template<typename DIR = D4>
+template<typename DIR = D4_t>
 __global__ void __donor(
   silt::tensor_t<int> donor,        //!< Output Donor Graph
   const silt::tensor_t<int> graph,  //!< Input Receiver Graph,
@@ -206,7 +190,7 @@ __global__ void __donor(
 
 }
 
-template<typename DIR = D4>
+template<typename DIR = D4_t>
 __global__ void __count(
   silt::tensor_t<int> count,  //!< Output Donor Graph
   silt::tensor_t<int> donor,  //!< Output Donor Graph
@@ -217,9 +201,8 @@ __global__ void __count(
   if(n >= shape.elem)
     return;
 
-  const DIR dir;                                //!< Direction Support
   int _count = 0;
-  int _donor[DIR::K]{-1, -1, -1, -1};
+  int _donor[DIR::K];
 
   for(int k = 0; k < DIR::K; ++k){
     
@@ -232,7 +215,9 @@ __global__ void __count(
 
   count[n] = _count;
   for(int k = 0; k < DIR::K; ++k){
-    donor[DIR::K*n + k] = _donor[k];
+    if(k < _count)
+      donor[DIR::K*n + k] = _donor[k];
+    else donor[DIR::K*n + k] = -1;
   }
 
 }
@@ -243,6 +228,7 @@ struct acc_t {
   silt::tensor_t<float> value;  // Local Value
 };
 
+template<typename DIR = D4_t>
 __global__ void __rake_compress(
   acc_t accOut,
   const acc_t accIn, 
@@ -255,15 +241,21 @@ __global__ void __rake_compress(
   
   float value = accIn.value[n]; //!< Accumulation Value
   int count = accIn.count[n];   //!< Number of Donors
-  int donors[4];                //!< Donor Indices
+  int donors[DIR::K];           //!< Donor Indices
   
   // Developer Note: This lowers register pressure on
   //  the GPU relative to a for loop, while doing
   //  minimal work and thread stalling.
-  if(count >= 1) donors[0] = accIn.donor[4*n + 0];
-  if(count >= 2) donors[1] = accIn.donor[4*n + 1];
-  if(count >= 3) donors[2] = accIn.donor[4*n + 2];
-  if(count >= 4) donors[3] = accIn.donor[4*n + 3];
+  if(count >= 1) donors[0] = accIn.donor[DIR::K*n + 0];
+  if(count >= 2) donors[1] = accIn.donor[DIR::K*n + 1];
+  if(count >= 3) donors[2] = accIn.donor[DIR::K*n + 2];
+  if(count >= 4) donors[3] = accIn.donor[DIR::K*n + 3];
+  if constexpr(std::is_same_v<DIR, D8_t>) {
+    if(count >= 5) donors[5] = accIn.donor[DIR::K*n + 4];
+    if(count >= 6) donors[6] = accIn.donor[DIR::K*n + 5];
+    if(count >= 7) donors[7] = accIn.donor[DIR::K*n + 6];
+    if(count >= 8) donors[8] = accIn.donor[DIR::K*n + 7];
+  }
 
   // Iterate over the Set of Donors
   for(int k = 0; k < count; ++k){
@@ -283,54 +275,72 @@ __global__ void __rake_compress(
 
     // Donor has a Single Donor: Accmulate and Pointer Jump
     else if(dcount == 1){
-      value += accIn.value[donor];      // Add the Donor's Value
-      donors[k] = accIn.donor[4*donor]; // Pointer Jump the Donor
+      value += accIn.value[donor];            // Add the Donor's Value
+      donors[k] = accIn.donor[DIR::K*donor];  // Pointer Jump the Donor
     }
 
   }
 
   accOut.value[n] = value;  //!< Output Value
   accOut.count[n] = count;  //!< Output Count
-  if(count >= 1) accOut.donor[4*n + 0] = donors[0];
-  if(count >= 2) accOut.donor[4*n + 1] = donors[1];
-  if(count >= 3) accOut.donor[4*n + 2] = donors[2];
-  if(count >= 4) accOut.donor[4*n + 3] = donors[3];
-
+  if(count >= 1) accOut.donor[DIR::K*n + 0] = donors[0];
+  if(count >= 2) accOut.donor[DIR::K*n + 1] = donors[1];
+  if(count >= 3) accOut.donor[DIR::K*n + 2] = donors[2];
+  if(count >= 4) accOut.donor[DIR::K*n + 3] = donors[3];
+  if constexpr(std::is_same_v<DIR, D8_t>) {
+    if(count >= 5) accOut.donor[DIR::K*n + 0] = donors[4];
+    if(count >= 6) accOut.donor[DIR::K*n + 1] = donors[5];
+    if(count >= 7) accOut.donor[DIR::K*n + 2] = donors[6];
+    if(count >= 8) accOut.donor[DIR::K*n + 3] = donors[7];
+  }
 }
 
 //! Compute the Upstream Accumulation of a Field
 //!\todo Possible Optimization: Per-Cell Ping-Pong Scheme for fewer writes
-silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> value){
+silt::tensor_t<float> accumulate (
+  const silt::tensor_t<int> graph,
+  const silt::tensor_t<float> value,
+  const edge_t edge
+){
 
-  const silt::shape shape = graph.shape();
-  const silt::shape dshape = silt::shape(shape[0], shape[1], D4::K);
+  const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<float> {
 
-  // Construct the Donor Set and Count
-  acc_t accA, accB;
+    const silt::shape shape = graph.shape();
+    const silt::shape dshape = silt::shape(shape[0], shape[1], DIR::K);
 
-  accA.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
-  accA.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
-  accA.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+    acc_t accA, accB;
+    accA.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
+    accA.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+    
+    accB.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
+    accB.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+
+    accA.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
+    accB.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
+
+    silt::set(accA.donor, -1);
+    silt::set(accA.value, value);
+    __donor<DIR><<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
+    __count<DIR><<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
+
+    // Execute Rake-Compression Iterations
+    const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
+    for(size_t i = 0; i <= iter; ++i){
+      __rake_compress<DIR><<<block(shape.elem, 256), 256>>>(accB, accA, shape);
+      __rake_compress<DIR><<<block(shape.elem, 256), 256>>>(accA, accB, shape);
+    }
+    cudaDeviceSynchronize();
+
+    return accA.value;
+
+  };
   
-  accB.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
-  accB.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
-  accB.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
-
-  silt::set(accA.donor, -1);
-  silt::set(accA.value, value);
-  __donor<<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
-  __count<<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
-
-  // Execute Rake-Compression Iterations
-  const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
-  for(size_t i = 0; i < iter; ++i){
-    __rake_compress<<<block(shape.elem, 256), 256>>>(accB, accA, shape);
-    __rake_compress<<<block(shape.elem, 256), 256>>>(accA, accB, shape);
+  switch(edge){
+    case D4: return dispatch.template operator()<D4_t>();
+    case D8: return dispatch.template operator()<D8_t>();
+    default: throw std::invalid_argument("fail");
   }
-  cudaDeviceSynchronize();
-
-  return accA.value;
-
+  
 }
 
 } // end of namespace soil

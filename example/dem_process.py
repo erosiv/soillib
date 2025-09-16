@@ -32,9 +32,9 @@ def main(data):
 
   t = soil.timer(soil.us)
   with t:
-    dirn = soil.direction(tensor)
-    flow = soil.steepest(tensor)
-    accumulation = soil.accumulate(flow, rain)
+    dirn = soil.direction(tensor, soil.d8)
+    flow = soil.steepest(tensor, soil.d8)
+    accumulation = soil.accumulate(flow, rain, soil.d8)
   print(f"Execution Time: {t.count} us")
 
 #  return
@@ -43,7 +43,7 @@ def main(data):
   plt.imshow(accumulation,
     cmap='CMRmap',
     norm=colors.LogNorm(1, accumulation.max()),
-    interpolation='bilinear')
+    interpolation='none')
 
   plt.show()
 
@@ -88,7 +88,7 @@ def main(data):
 
 if __name__ == "__main__":
 
-  data = "C:\\Users\\nicho\\Workspace\\cu-fsm\\example\\out.tiff"
+  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
   #data = "_dem_conditioned.tiff"
 
   main(data)
