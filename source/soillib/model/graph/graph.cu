@@ -20,6 +20,10 @@ inline int block(const int elem, const int thread) {
 // Steepest Graph Computation
 //
 
+__device__ float __length(const silt::vec2 d){
+  return sqrtf(d.x*d.x + d.y*d.y);
+}
+
 template<typename DIR = D4_t>
 __global__ void __steepest (
   silt::tensor_t<int> graph,          //!< Output Graph Tensor
@@ -33,9 +37,10 @@ __global__ void __steepest (
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
   const DIR dir;                                //!< Direction Support
+  const float hlocal = height[n];               //!< Current Lowest Height
 
-  float hmin = height[n]; //!< Current Lowest Height
-  int next = n;           //!< Current Parent Node
+  float smax = 0.0f;  //!< Current Steepest Slope
+  int next = -1;      //!< Current Parent Node
 
   // Iterate over Set of Neighbors
   for(int k = 0; k < DIR::K; ++k){
@@ -48,9 +53,9 @@ __global__ void __steepest (
 
     // Neighbor Index and Height Value
     const int nind = shape.flatten(npos);
-    const float hcur = height[nind];
-    if(hcur < hmin){
-      hmin = hcur;
+    const float scur = (hlocal - height[nind])/__length(shift);
+    if(scur > smax) {
+      smax = scur;
       next = nind;
     }
 
@@ -102,9 +107,10 @@ __global__ void __direction (
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
   const DIR dir;                                //!< Direction Support
+  const float hlocal = height[n];               //!< Current Lowest Height
 
-  float hmin = height[n]; //!< Current Lowest Height
-  int next = -1;           //!< Current Parent Node
+  float smax = 0.0f;  //!< Current Steepest Slope
+  int next = -1;      //!< Current Parent Node
 
   // Iterate over Set of Neighbors
   for(int k = 0; k < DIR::K; ++k){
@@ -116,9 +122,9 @@ __global__ void __direction (
       continue;
 
     const int nind = shape.flatten(npos);
-    const float hcur = height[nind];
-    if(hcur < hmin){
-      hmin = hcur;
+    const float scur = (hlocal - height[nind])/__length(shift);
+    if(scur > smax){
+      smax = scur;
       next = k;
     }
 
