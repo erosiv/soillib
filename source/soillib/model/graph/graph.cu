@@ -77,10 +77,10 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
     return graph;
   };
 
-  switch(edge) {
+  switch(edge){
     case D4: return dispatch.template operator()<D4_t>();
     case D8: return dispatch.template operator()<D8_t>();
-    default: throw std::invalid_argument("Fail");
+    default: throw std::invalid_argument("invalid edge enumerator");
   }
 
 }
@@ -148,7 +148,7 @@ silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t e
   switch(edge){
     case D4: return dispatch.template operator()<D4_t>();
     case D8: return dispatch.template operator()<D8_t>();
-    default: throw std::invalid_argument("Fail");
+    default: throw std::invalid_argument("invalid edge enumerator");
   }
 
 }
@@ -251,10 +251,10 @@ __global__ void __rake_compress(
   if(count >= 3) donors[2] = accIn.donor[DIR::K*n + 2];
   if(count >= 4) donors[3] = accIn.donor[DIR::K*n + 3];
   if constexpr(std::is_same_v<DIR, D8_t>) {
-    if(count >= 5) donors[5] = accIn.donor[DIR::K*n + 4];
-    if(count >= 6) donors[6] = accIn.donor[DIR::K*n + 5];
-    if(count >= 7) donors[7] = accIn.donor[DIR::K*n + 6];
-    if(count >= 8) donors[8] = accIn.donor[DIR::K*n + 7];
+    if(count >= 5) donors[4] = accIn.donor[DIR::K*n + 4];
+    if(count >= 6) donors[5] = accIn.donor[DIR::K*n + 5];
+    if(count >= 7) donors[6] = accIn.donor[DIR::K*n + 6];
+    if(count >= 8) donors[7] = accIn.donor[DIR::K*n + 7];
   }
 
   // Iterate over the Set of Donors
@@ -288,10 +288,10 @@ __global__ void __rake_compress(
   if(count >= 3) accOut.donor[DIR::K*n + 2] = donors[2];
   if(count >= 4) accOut.donor[DIR::K*n + 3] = donors[3];
   if constexpr(std::is_same_v<DIR, D8_t>) {
-    if(count >= 5) accOut.donor[DIR::K*n + 0] = donors[4];
-    if(count >= 6) accOut.donor[DIR::K*n + 1] = donors[5];
-    if(count >= 7) accOut.donor[DIR::K*n + 2] = donors[6];
-    if(count >= 8) accOut.donor[DIR::K*n + 3] = donors[7];
+    if(count >= 5) accOut.donor[DIR::K*n + 4] = donors[4];
+    if(count >= 6) accOut.donor[DIR::K*n + 5] = donors[5];
+    if(count >= 7) accOut.donor[DIR::K*n + 6] = donors[6];
+    if(count >= 8) accOut.donor[DIR::K*n + 7] = donors[7];
   }
 }
 
@@ -338,7 +338,7 @@ silt::tensor_t<float> accumulate (
   switch(edge){
     case D4: return dispatch.template operator()<D4_t>();
     case D8: return dispatch.template operator()<D8_t>();
-    default: throw std::invalid_argument("fail");
+    default: throw std::invalid_argument("invalid edge enumerator");
   }
   
 }

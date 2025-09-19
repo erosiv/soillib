@@ -46,13 +46,13 @@ struct D8_t {
 };
 
 //! Compute the Direction of the FLow
-silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t edge = D4);
+silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t edge);
 
 //! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
-silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t edge = D4);
+silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t edge);
 
 //! Compute the Upstream Accumulation of a Field
-silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const edge_t edge = D4);
+silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const edge_t edge);
 
 } // end of namespace soil
 

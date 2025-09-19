@@ -40,6 +40,9 @@ def main(data):
 #  return
 
   accumulation = accumulation.cpu().numpy()  
+
+#  plt.imshow(dirn.cpu().numpy())
+#  plt.imshow(flow.cpu().numpy())
   plt.imshow(accumulation,
     cmap='CMRmap',
     norm=colors.LogNorm(1, accumulation.max()),

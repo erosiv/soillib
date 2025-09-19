@@ -136,25 +136,25 @@ nb::enum_<soil::edge_t>(module, "edge")
   .value("d8",  soil::edge_t::D8)
   .export_values();
 
-module.def("direction", [](const silt::tensor& height){
-  return silt::tensor(soil::direction(height.as<float>()));
-});
+// module.def("direction", [](const silt::tensor& height){
+//   return silt::tensor(soil::direction(height.as<float>()));
+// });
 
 module.def("direction", [](const silt::tensor& height, const soil::edge_t edge){
   return silt::tensor(soil::direction(height.as<float>(), edge));
 });
 
-module.def("steepest", [](const silt::tensor& height){
-  return silt::tensor(soil::steepest(height.as<float>()));
-});
+// module.def("steepest", [](const silt::tensor& height){
+//   return silt::tensor(soil::steepest(height.as<float>()));
+// });
 
 module.def("steepest", [](const silt::tensor& height, const soil::edge_t edge){
   return silt::tensor(soil::steepest(height.as<float>(), edge));
 });
 
-module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
-  return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>()));
-});
+// module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
+//   return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>()));
+// });
 
 module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field, const soil::edge_t edge){
   return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>(), edge));
