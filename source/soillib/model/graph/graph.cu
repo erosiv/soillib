@@ -105,7 +105,8 @@ __global__ void __random_weighted (
   silt::tensor_t<int> graph,          //!< Output Graph Tensor
   silt::tensor_t<curandState> rand,   //!< Random Number Generator
   const silt::tensor_t<float> height, //!< Input Height Tensor
-  const silt::shape shape             //!< Shape of Tensors
+  const silt::shape shape,            //!< Shape of Tensors
+  const float T                       //!< Gibbs Distribution Temperature
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -116,24 +117,49 @@ __global__ void __random_weighted (
   const DIR dir;                                //!< Direction Support
   const float hlocal = height[n];               //!< Current Lowest Height
 
-  float smax = 0.0f;  //!< Current Steepest Slope
-  int next = -1;      //!< Current Parent Node
+  // Compute the Local State Energies
+  //  And the Probability Distribution
+  //  Note that we assume that the state energy is the potential energy,
+  //  meaning that the probability of transition is given by the height
+  //  difference. Dividing by the distance makes it a rate.
 
-  // Iterate over Set of Neighbors
-  for(int k = 0; k < DIR::K; ++k){
+  float CDF[DIR::K];        //!< Cumulative Distribution Function
+  float Z = 0.0f;           //!< Distribution Partition Function
 
-    // Neighbor Position and Bounds Check
+  for(int k = 0; k < DIR::K; ++k) {
+  
     const silt::ivec2 shift = dir.shift[k];
     const silt::ivec2 npos = ipos + shift;
     if(shape.oob(npos))
       continue;
-
-    // Neighbor Index and Height Value
     const int nind = shape.flatten(npos);
-    const float scur = (hlocal - height[nind])/__length(shift);
-    if(scur > smax) {
-      smax = scur;
+
+    // State Transition Energy
+    const float dE = (hlocal - height[nind])/__length(shift);
+    const float P = (dE <= 0.0f) ? 0.0f : __expf(dE / T);
+    CDF[k] = Z + P;
+    Z += P;
+
+  }
+
+  //
+  // Inverse Transform Sample the CDF
+  //
+
+  int next = -1;                                  //!< Current Parent Node
+  const float uniform = curand_uniform(&rand[n]); //!< Uniform Random Variable
+  for(int k = 0; k < DIR::K; ++k) {
+
+    const silt::ivec2 shift = dir.shift[k];
+    const silt::ivec2 npos = ipos + shift;
+    if(shape.oob(npos))
+      continue;
+    const int nind = shape.flatten(npos);
+
+    // Sample the 
+    if(uniform < (CDF[k] / Z)){
       next = nind;
+      break;
     }
 
   }
@@ -146,7 +172,7 @@ __global__ void __random_weighted (
 
 }
 
-silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset) {
+silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset, const float T) {
 
   if(height.host() != silt::host_t::GPU)
     throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
@@ -156,7 +182,7 @@ silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const ed
     silt::tensor_t<curandState> rand(shape, silt::host_t::GPU);
     silt::tensor_t<int> graph(shape, silt::host_t::GPU);
     __seed<<<block(shape.elem, 512), 512>>>(rand, seed, offset);
-    __random_weighted<DIR><<<block(shape.elem, 512), 512>>>(graph, rand, height, shape);
+    __random_weighted<DIR><<<block(shape.elem, 512), 512>>>(graph, rand, height, shape, T);
     return graph;
   };
 

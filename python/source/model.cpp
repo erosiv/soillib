@@ -152,8 +152,8 @@ module.def("steepest", [](const silt::tensor& height, const soil::edge_t edge){
   return silt::tensor(soil::steepest(height.as<float>(), edge));
 });
 
-module.def("random_weighted", [](const silt::tensor& height, const soil::edge_t edge, const size_t seed, const size_t offset){
-  return silt::tensor(soil::random_weighted(height.as<float>(), edge, seed, offset));
+module.def("random_weighted", [](const silt::tensor& height, const soil::edge_t edge, const size_t seed, const size_t offset, const float T){
+  return silt::tensor(soil::random_weighted(height.as<float>(), edge, seed, offset, T));
 });
 
 // module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
