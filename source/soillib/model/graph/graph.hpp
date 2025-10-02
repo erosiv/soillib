@@ -51,6 +51,8 @@ silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t e
 //! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
 silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t edge);
 
+silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset);
+
 //! Compute the Upstream Accumulation of a Field
 silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const edge_t edge);
 

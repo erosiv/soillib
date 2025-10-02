@@ -33,7 +33,8 @@ def main(data):
   t = soil.timer(soil.us)
   with t:
     dirn = soil.direction(tensor, soil.d8)
-    flow = soil.steepest(tensor, soil.d8)
+    # flow = soil.steepest(tensor, soil.d8)
+    flow = soil.random_weighted(tensor, soil.d8, 0, 0)
     accumulation = soil.accumulate(flow, rain, soil.d8)
   print(f"Execution Time: {t.count} us")
 
@@ -46,7 +47,7 @@ def main(data):
   plt.imshow(accumulation,
     cmap='CMRmap',
     norm=colors.LogNorm(1, accumulation.max()),
-    interpolation='none')
+    interpolation='bilinear')
 
   plt.show()
 

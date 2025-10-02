@@ -91,6 +91,84 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
 }
 
 //
+// Random Direction Flow
+//
+
+__global__ void __seed(silt::tensor_t<curandState> buf, const size_t seed, const size_t offset) {
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= buf.elem()) return;
+  curand_init(seed, n, offset, &buf[n]);
+}
+
+template<typename DIR = D4_t>
+__global__ void __random_weighted (
+  silt::tensor_t<int> graph,          //!< Output Graph Tensor
+  silt::tensor_t<curandState> rand,   //!< Random Number Generator
+  const silt::tensor_t<float> height, //!< Input Height Tensor
+  const silt::shape shape             //!< Shape of Tensors
+){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
+  const DIR dir;                                //!< Direction Support
+  const float hlocal = height[n];               //!< Current Lowest Height
+
+  float smax = 0.0f;  //!< Current Steepest Slope
+  int next = -1;      //!< Current Parent Node
+
+  // Iterate over Set of Neighbors
+  for(int k = 0; k < DIR::K; ++k){
+
+    // Neighbor Position and Bounds Check
+    const silt::ivec2 shift = dir.shift[k];
+    const silt::ivec2 npos = ipos + shift;
+    if(shape.oob(npos))
+      continue;
+
+    // Neighbor Index and Height Value
+    const int nind = shape.flatten(npos);
+    const float scur = (hlocal - height[nind])/__length(shift);
+    if(scur > smax) {
+      smax = scur;
+      next = nind;
+    }
+
+  }
+
+  // Write Steepest Node to Graph
+  //  Note that if no node has a height below
+  //  the local height, next points to self,
+  //  as it is initialized and never updated.
+  graph[n] = next;
+
+}
+
+silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset) {
+
+  if(height.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
+
+  const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
+    const silt::shape shape = height.shape();
+    silt::tensor_t<curandState> rand(shape, silt::host_t::GPU);
+    silt::tensor_t<int> graph(shape, silt::host_t::GPU);
+    __seed<<<block(shape.elem, 512), 512>>>(rand, seed, offset);
+    __random_weighted<DIR><<<block(shape.elem, 512), 512>>>(graph, rand, height, shape);
+    return graph;
+  };
+
+  switch(edge){
+    case D4: return dispatch.template operator()<D4_t>();
+    case D8: return dispatch.template operator()<D8_t>();
+    default: throw std::invalid_argument("invalid edge enumerator");
+  }
+
+}
+
+//
 // Flow Direction Kernel for Debugging
 //
 
