@@ -144,6 +144,10 @@ module.def("direction", [](const silt::tensor& height, const soil::edge_t edge){
   return silt::tensor(soil::direction(height.as<float>(), edge));
 });
 
+module.def("slope", [](const silt::tensor& tensor, const silt::tensor& flow, const silt::vec2 scale){
+  return silt::tensor(soil::slope(tensor.as<float>(), flow.as<int>(), scale));
+});
+
 // module.def("steepest", [](const silt::tensor& height){
 //   return silt::tensor(soil::steepest(height.as<float>()));
 // });

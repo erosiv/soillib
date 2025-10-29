@@ -264,6 +264,53 @@ silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t e
 }
 
 //
+// Slope Computation Kernel
+//
+
+__global__ void __slope (
+  silt::tensor_t<float> slope,        //!< Output Graph Tensor
+  const silt::tensor_t<float> tensor, //!< Input Height Tensor
+  const silt::tensor_t<int> flow,     //!< Flow Tensor
+  const silt::vec2 scale,             //!< Scale of Tensor Index
+  const silt::shape shape             //!< Shape of Tensors
+){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  const int next = flow[n];
+  if(next < 0 || next == n){
+    slope[n] = 0.0f;  // unknown gradient...
+    return;
+  }
+
+  const silt::vec2 ipos = shape.unflatten(n);
+  const silt::vec2 npos = shape.unflatten(next);
+
+  const float ival = tensor[n];
+  const float nval = tensor[next];
+  slope[n] = (nval - ival) / __length(scale*(npos - ipos));
+
+}
+
+silt::tensor_t<float> slope (
+  const silt::tensor_t<float> tensor,
+  const silt::tensor_t<int> flow,
+  const silt::vec2 scale
+) {
+
+  if(tensor.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, tensor.host());
+
+  const silt::shape shape = tensor.shape();
+  silt::tensor_t<float> slope(shape, silt::host_t::GPU);
+  __slope<<<block(shape.elem, 512), 512>>>(slope, tensor, flow, scale, shape);
+  return slope;
+
+}
+
+//
 // Accumulation Kernel
 //
 

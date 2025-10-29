@@ -56,6 +56,9 @@ silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const ed
 //! Compute the Upstream Accumulation of a Field
 silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const edge_t edge);
 
+//! Compute the Quadratic Slope of a Tensor (Gradient Norm)
+silt::tensor_t<float> slope(const silt::tensor_t<float> tensor, const silt::tensor_t<int> flow, const silt::vec2 scale);
+
 } // end of namespace soil
 
 #endif
