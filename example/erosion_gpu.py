@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import silt
 import soillib as soil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,16 +14,16 @@ def noise(shape, scale):
   soil.multiply(tensor, 1.0)
   return tensor.gpu()
 
-def full(value, shape, dtype=soil.float32, host=soil.cpu):
-  tensor = soil.tensor(dtype, shape, host)
-  soil.set(tensor, value)
+def full(value, shape, dtype=silt.float32, host=silt.cpu):
+  tensor = silt.tensor(dtype, shape, host)
+  silt.set(tensor, value)
   return tensor
 
 def load_png(filename):
   im_frame = Image.open(filename)
   uplift = np.array(im_frame.getdata()).reshape(1024, 1024, 3) / 255.0
   uplift = uplift[:,:,0]
-  tensor = soil.tensor.from_numpy(uplift.astype(np.float32)).gpu()
+  tensor = silt.tensor.from_numpy(uplift.astype(np.float32)).gpu()
   return tensor
 
 def main():
@@ -32,7 +33,7 @@ def main():
   '''
 
   simres = np.array([256, 256])       # Resolution [px]
-  shape = soil.shape(*simres)           # Shape
+  shape = silt.shape(*simres)           # Shape
   wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
   pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
@@ -45,29 +46,29 @@ def main():
 
   # Overall Model
   model = soil.map_t(shape, pscale)
-#  model.height = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+#  model.height = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
   model.height = noise(shape, nscale / wscale[0:2])
-  model.sediment = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  model.rainfall = full(1.0, shape, dtype=soil.float32, host=soil.gpu)
+  model.sediment = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  model.rainfall = full(1.0, shape, dtype=silt.float32, host=silt.gpu)
 #  model.rainfall = load_png('C:/Users/nicho/Datasets/rainfall.png')
 #  model.uplift = load_png('C:/Users/nicho/Datasets/uplift_maps/uplift_blur.png')
 
-  model.uplift = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
+  model.uplift = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
 
   # Tranported Data
   data = soil.data_t(shape)
-  data.discharge = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  data.mass      = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  data.debris    = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  data.momentum        = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
-  data.debris_momentum = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
+  data.discharge = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  data.mass      = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  data.debris    = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  data.momentum        = full(0.0, silt.shape(*simres, 2), dtype=silt.float32, host=silt.gpu)
+  data.debris_momentum = full(0.0, silt.shape(*simres, 2), dtype=silt.float32, host=silt.gpu)
 
   track = soil.data_t(shape)
-  track.discharge = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  track.mass      = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  track.debris    = full(0.0, shape, dtype=soil.float32, host=soil.gpu)
-  track.momentum        = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
-  track.debris_momentum = full(0.0, soil.shape(*simres, 2), dtype=soil.float32, host=soil.gpu)
+  track.discharge = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  track.mass      = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  track.debris    = full(0.0, shape, dtype=silt.float32, host=silt.gpu)
+  track.momentum        = full(0.0, silt.shape(*simres, 2), dtype=silt.float32, host=silt.gpu)
+  track.debris_momentum = full(0.0, silt.shape(*simres, 2), dtype=silt.float32, host=silt.gpu)
 
   # Construct Parameters
 
