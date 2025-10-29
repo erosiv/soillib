@@ -7,6 +7,7 @@ namespace nb = nanobind;
 #include <soillib/model/path/erosion.hpp>
 #include <soillib/model/graph/graph.hpp>
 #include <soillib/model/filter/filter.hpp>
+#include <soillib/model/path/path.hpp>
 #include "glm.hpp"
 
 using namespace nb::literals;
@@ -170,6 +171,30 @@ module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field
 
 module.def("gaussian_blur", [](const silt::tensor& tensor, const float sigma){
     return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma));
+});
+
+//
+// Path Integral Solution Functions
+//
+
+module.def("solve_uniform", [](
+  const silt::tensor flow,
+  const silt::tensor source,
+  const silt::tensor decay,
+  silt::tensor rng,
+  const silt::vec2 scale,
+  const size_t count
+){
+
+  return soil::solve_uniform (
+    flow.as<float>(),
+    source.as<float>(),
+    decay.as<float>(),
+    rng.as<silt::rng>(),
+    scale,
+    count
+  );
+
 });
 
 /*
