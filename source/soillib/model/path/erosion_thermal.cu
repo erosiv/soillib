@@ -6,8 +6,8 @@
 #include <silt/core/tensor.hpp>
 #include <silt/op/gather.hpp>
 
-#include <soillib/model/erosion.hpp>
-#include <soillib/model/erosion_map.cu>
+#include <soillib/model/path/erosion.hpp>
+#include <soillib/model/path/erosion_map.cu>
 
 //! Thermal Erosion / Debris-Flow Particle
 //!

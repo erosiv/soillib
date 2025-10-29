@@ -9,9 +9,9 @@
 #include <silt/op/gather.hpp>
 #include <silt/op/common.hpp>
 
-#include <soillib/model/erosion.hpp>
-#include <soillib/model/erosion_map.cu>
-#include <soillib/model/erosion_fluvial.cu>
+#include <soillib/model/path/erosion.hpp>
+#include <soillib/model/path/erosion_map.cu>
+#include <soillib/model/path/erosion_fluvial.cu>
 // #include <soillib/model/erosion_thermal.cu>
 
 #include <math_constants.h>

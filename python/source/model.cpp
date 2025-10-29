@@ -4,7 +4,7 @@
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
 
-#include <soillib/model/erosion.hpp>
+#include <soillib/model/path/erosion.hpp>
 #include <soillib/model/graph/graph.hpp>
 #include <soillib/model/filter/filter.hpp>
 #include "glm.hpp"
