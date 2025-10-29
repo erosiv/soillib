@@ -4,6 +4,7 @@
 
 #include <soillib/model/filter/filter.hpp>
 #include <math_constants.h>
+#include <soillib/model/graph/graph.hpp>
 
 namespace soil {
 

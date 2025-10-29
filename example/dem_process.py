@@ -51,9 +51,14 @@ def discharge_stochastic(tensor):
   rng = silt.tensor(silt.rng, silt.shape(k), silt.gpu)
   silt.seed(rng, 0, 0)
 
-  scale = [0.005, 0.005]
+  scale = [0.01, 0.01]
   grad = soil.gradient(tensor, scale)
-  silt.multiply(grad, -5.0)
+
+#  grad = grad.cpu().numpy()
+#  plt.imshow(grad[..., 1])
+#  plt.show()
+
+  silt.multiply(grad, -1)
 
   discharge = soil.solve_uniform(grad, rain, evap, rng, scale, k)
   return 1 + discharge.cpu().numpy()
@@ -64,8 +69,8 @@ def main(data):
   tiff = soil.geotiff(data)
   tensor = tiff.tensor.gpu()
 
-#  discharge = discharge_stochastic(tensor)
-  discharge = discharge_fastflow(tensor)
+  discharge = discharge_stochastic(tensor)
+#  discharge = discharge_fastflow(tensor)
 
   plt.imshow(discharge,
     cmap='CMRmap',

@@ -5,6 +5,8 @@
 #include <soillib/model/path/path.hpp>
 #include <silt/core/operation.hpp>
 #include <silt/op/common.hpp>
+#include <math_constants.h>
+#include "sample.hpp"
 
 namespace {
 
@@ -48,7 +50,8 @@ __global__ void __solve_uniform (
   const float S = source[ind] / P;
 
   // Integrate along Streamline
-  while(!shape.oob(pos) && (lambda < lambda_max) && (abs(att) > epsilon)) {
+  int step = 0;
+  while(!shape.oob(pos) && (lambda < lambda_max) && (abs(att) > epsilon) && ++step < 1024) {
 
     // Accumulate Estimate
     const int nind = shape.flatten(pos);  // New Index?
@@ -57,8 +60,8 @@ __global__ void __solve_uniform (
       atomicAdd(&flux[ind], S * att);
     }
 
-    // Integration Step (Damping Factor for Path Integration)
-    const silt::vec2 v = 0.25f * view[ind];
+    const sample_t<silt::vec2, 2, 1> v_support = sample_t<silt::vec2, 2, 1>::gather(view, silt::ivec2(shape[0], shape[1]), pos);
+    const silt::vec2 v = v_support.val();
     if(glm::length(v) < 1E-8)
       break;
 
