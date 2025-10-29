@@ -67,7 +67,7 @@ __global__ void __solve_uniform (
 
     const float dlambda = glm::length(scale / v);
     att *= __expf(-dlambda * decay[ind]);
-    pos += v / glm::length(v);
+    pos += 1.414f * v / glm::length(v);
     lambda += dlambda;
 
   }

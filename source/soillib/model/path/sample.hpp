@@ -128,10 +128,10 @@ __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::tensor_t<T>& 
   const silt::ivec2 p11 = silt::ivec2(pos) + silt::ivec2(1, 1);
   silt::vec2 w = pos - glm::floor(pos);
 
-  int i00 = (res.y - p00.y - 1) * res.x + p00.x;
-  int i01 = (res.y - p01.y - 1) * res.x + p01.x;
-  int i10 = (res.y - p10.y - 1) * res.x + p10.x;
-  int i11 = (res.y - p11.y - 1) * res.x + p11.x;
+  int i00 = p00.y * res.x + p00.x;
+  int i01 = p01.y * res.x + p01.x;
+  int i10 = p10.y * res.x + p10.x;
+  int i11 = p11.y * res.x + p11.x;
 
   if(pos.x < 0 && pos.y < 0) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
   if(pos.x > res.x-1 && pos.y > res.y-1) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
@@ -160,10 +160,10 @@ __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::const_view_t<
   const silt::ivec2 p11 = silt::ivec2(pos) + silt::ivec2(1, 1);
   silt::vec2 w = pos - glm::floor(pos);
 
-  int i00 = (res.y - p00.y - 1) * res.x + p00.x;
-  int i01 = (res.y - p01.y - 1) * res.x + p01.x;
-  int i10 = (res.y - p10.y - 1) * res.x + p10.x;
-  int i11 = (res.y - p11.y - 1) * res.x + p11.x;
+  int i00 = p00.x * res.y + p00.y;
+  int i01 = p01.x * res.y + p01.y;
+  int i10 = p10.x * res.y + p10.y;
+  int i11 = p11.x * res.y + p11.y;
 
   if(pos.x < 0) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
   if(pos.y < 0) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
