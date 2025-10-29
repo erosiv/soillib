@@ -173,6 +173,10 @@ module.def("gaussian_blur", [](const silt::tensor& tensor, const float sigma){
     return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma));
 });
 
+module.def("gradient", [](const silt::tensor& tensor, const silt::vec2 scale){
+    return silt::tensor(soil::gradient(tensor.as<float>(), scale));
+});
+
 //
 // Path Integral Solution Functions
 //

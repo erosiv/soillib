@@ -51,14 +51,20 @@ __global__ void __solve_uniform (
   while(!shape.oob(pos) && (lambda < lambda_max) && (abs(att) > epsilon)) {
 
     // Accumulate Estimate
-    atomicAdd(&flux[ind], S * att);
+    const int nind = shape.flatten(pos);  // New Index?
+    if(nind != ind) {
+      ind = nind;
+      atomicAdd(&flux[ind], S * att);
+    }
 
-    // Integration Step
-    const silt::vec2 v = view[ind];
+    // Integration Step (Damping Factor for Path Integration)
+    const silt::vec2 v = 0.25f * view[ind];
+    if(glm::length(v) < 1E-8)
+      break;
+
     const float dlambda = glm::length(scale / v);
     att *= __expf(-dlambda * decay[ind]);
-    pos += glm::normalize(v);
-    ind = shape.flatten(pos);
+    pos += v / glm::length(v);
     lambda += dlambda;
 
   }
@@ -77,7 +83,7 @@ __global__ void __normalize (
 
   const auto view = flow.view<silt::vec2>();
   const silt::vec2 v = view[n];
-  flux[n] = flux[n] / float(count) / abs(glm::dot(v, scale));
+  flux[n] = flux[n] / float(count);// / abs(glm::dot(v, scale));
 
 }
 
@@ -106,12 +112,13 @@ silt::tensor solve_uniform (
   cudaDeviceSynchronize();
 
   // Split Sampling
-  const size_t K = block(count, rng.elem());
-  for(size_t k = 0; k <= K; ++k) {
-    const size_t n = (rng.elem() * k <= count) ? rng.elem() : (count % (rng.elem() * k));
-    __solve_uniform<<<block(n, 512), 512>>>(flux, flow, source, decay, rng, shape, scale, lambda_max, epsilon);
-  }
+//  const size_t K = block(count, rng.elem());
+//  for(size_t k = 0; k <= K; ++k) {
+//    const size_t n = (rng.elem() * k <= count) ? rng.elem() : (count % (rng.elem() * k));
+//  }
+  __solve_uniform<<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, lambda_max, epsilon);
   __normalize<<<block(flux.elem(), 512), 512>>>(flux, flow, scale, count);
+  cudaDeviceSynchronize();
 
   return silt::tensor(flux);
 

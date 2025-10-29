@@ -18,15 +18,11 @@ def load(data):
   print(f"Loaded File: {data}, {image.buffer.type}, ({image.index[0]}, {image.index[1]})")
   return (image.buffer, image.index)
 
-def main(data):
+def discharge_fastflow(tensor):
 
-  # Load GeoTIFF Data
-  tiff = soil.geotiff(data)
-  tensor = tiff.tensor.gpu()
   shape = tensor.shape
   res = (shape[0], shape[1])
 
-  # Compute Accumulation
   rain = np.full(res, 1.0)
   rain = silt.tensor.from_numpy(rain.astype(np.float32)).gpu()
 
@@ -34,61 +30,49 @@ def main(data):
   with t:
     dirn = soil.direction(tensor, soil.d8)
     # flow = soil.steepest(tensor, soil.d8)
-    flow = soil.random_weighted(tensor, soil.d8, 0, 0)
-    accumulation = soil.accumulate(flow, rain, soil.d8)
+    flow = soil.random_weighted(tensor, soil.d8, 0, 0, 10.0)
+    discharge = soil.accumulate(flow, rain, soil.d8)
   print(f"Execution Time: {t.count} us")
 
-#  return
+  return discharge.cpu().numpy()
 
-  accumulation = accumulation.cpu().numpy()  
+def discharge_stochastic(tensor):
 
-#  plt.imshow(dirn.cpu().numpy())
-#  plt.imshow(flow.cpu().numpy())
-  plt.imshow(accumulation,
+  shape = tensor.shape
+  res = (shape[0], shape[1])
+
+  rain = np.full(res, 1.0)
+  evap = np.full(res, 0.001)
+
+  rain = silt.tensor.from_numpy(rain.astype(np.float32)).gpu()
+  evap = silt.tensor.from_numpy(evap.astype(np.float32)).gpu()
+
+  k = 8192*16
+  rng = silt.tensor(silt.rng, silt.shape(k), silt.gpu)
+  silt.seed(rng, 0, 0)
+
+  scale = [0.005, 0.005]
+  grad = soil.gradient(tensor, scale)
+  silt.multiply(grad, -5.0)
+
+  discharge = soil.solve_uniform(grad, rain, evap, rng, scale, k)
+  return 1 + discharge.cpu().numpy()
+
+def main(data):
+
+  # Load GeoTIFF Data
+  tiff = soil.geotiff(data)
+  tensor = tiff.tensor.gpu()
+
+#  discharge = discharge_stochastic(tensor)
+  discharge = discharge_fastflow(tensor)
+
+  plt.imshow(discharge,
     cmap='CMRmap',
-    norm=colors.LogNorm(1, accumulation.max()),
-    interpolation='bilinear')
-
+    norm=colors.LogNorm(1, discharge.max()),
+    interpolation='none'
+  )
   plt.show()
-
-  '''
-  area[catch == 0] = 1
-  plt.imshow(area, zorder=2,
-    cmap='CMRmap',
-    norm=colors.LogNorm(1, area.max()),
-    interpolation='bilinear')
-  plt.show()
-
-  height = buffer.cpu().numpy(index)
-  height[catch == 0] = np.nan
-  tiff = soil.tiff(soil.buffer.from_numpy(height), index)
-  tiff.write("height_masked.tiff")
-
-  print("Plotting Data...")
-
-  fig, ax = plt.subplots(2, 2, figsize=(8,6))
-  fig.patch.set_alpha(0)
-  plt.grid('on', zorder=0)
-
-  im = ax[0, 0].imshow(flow, zorder=2,
-    cmap='CMRmap',
-    interpolation='bilinear')
-
-  im = ax[0, 1].imshow(area, zorder=2,
-    cmap='CMRmap',
-    norm=colors.LogNorm(1, area.max()),
-    interpolation='bilinear')
-
-  im = ax[1, 0].imshow(catch, zorder=2,
-    cmap='CMRmap',
-    interpolation='none')
-
-  im = ax[1, 1].imshow(distance, zorder=2,
-    cmap='CMRmap',
-    interpolation='bilinear')
-
-  plt.show()
-  '''
 
 if __name__ == "__main__":
 
