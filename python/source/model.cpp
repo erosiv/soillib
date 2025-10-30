@@ -8,6 +8,7 @@ namespace nb = nanobind;
 #include <soillib/model/graph/graph.hpp>
 #include <soillib/model/filter/filter.hpp>
 #include <soillib/model/path/path.hpp>
+#include <soillib/model/grad/grad.hpp>
 #include "glm.hpp"
 
 using namespace nb::literals;
