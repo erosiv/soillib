@@ -83,12 +83,11 @@ __global__ void __laplacian (
   const silt::shape shape,              //!< Laplacian Field Shape
   const silt::vec2 scale
 ) {
-
-  using vec = silt::fvec<D>;
-
+  
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= shape.elem) return;
-
+  
+  using vec = silt::fvec<D>;
   auto viewIn = tensorIn.view<vec>();   // In Vector View
   auto viewOut = tensorOut.view<vec>(); // Out Vector View
 
