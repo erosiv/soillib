@@ -17,6 +17,14 @@ namespace soil {
 //  particles as well and instead assume a static velocity field.
 //  We will try this out...
 
+// ToDo:
+//  - Quadratic Interpolation and Analytical Laplacian
+//  - Implementation for the Momentum Transfer / Velocity Field...
+//  - Optional Mixing Kernel / Time-Delay Kernel?
+//  - Implementation of the Raw Erosion Kernel...
+//  - Add the same solution but for a node-based velocity field...
+//  Reimplement everything only on the python end as isolated kernels.
+
 // Additional Potential Parameters for Solution Configuration:
 //  -> epsilon
 //  -> lambda_max

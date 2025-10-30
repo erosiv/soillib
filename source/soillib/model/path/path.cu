@@ -77,6 +77,7 @@ __global__ void __solve_uniform (
 __global__ void __normalize (
   silt::tensor_t<float> flux,           //!< Flux Integral Estimate []
   const silt::tensor_t<float> flow,     //!< Flow-Field Tensor      []
+  const silt::tensor_t<float> source,   //!< Source Term 
   const silt::vec2 scale,               //!< Cell Scale
   const size_t count                    //!< Sample Count
 ) {
@@ -86,7 +87,7 @@ __global__ void __normalize (
 
   const auto view = flow.view<silt::vec2>();
   const silt::vec2 v = view[n];
-  flux[n] = flux[n] / float(count);// / abs(glm::dot(v, scale));
+  flux[n] = source[n] + flux[n] / float(count);// / abs(glm::dot(v, scale));
 
 }
 
@@ -120,7 +121,7 @@ silt::tensor solve_uniform (
 //    const size_t n = (rng.elem() * k <= count) ? rng.elem() : (count % (rng.elem() * k));
 //  }
   __solve_uniform<<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, lambda_max, epsilon);
-  __normalize<<<block(flux.elem(), 512), 512>>>(flux, flow, scale, count);
+  __normalize<<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
   cudaDeviceSynchronize();
 
   return silt::tensor(flux);
