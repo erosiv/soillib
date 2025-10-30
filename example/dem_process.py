@@ -58,10 +58,13 @@ def discharge_stochastic(tensor):
 #  plt.show()
 
   # Diffuse the Tensor...
-#  for i in range(5000):
+#  for i in range(50):
 #    diff = soil.laplacian(tensor, [1.0, 1.0])
-#    silt.multiply(diff, 0.2)
+#    silt.multiply(diff, 0.5)
 #    silt.add(tensor, diff)
+#  plt.imshow(tensor.cpu().numpy())
+#  plt.show()
+#  tensor.gpu()
 
 #  t = soil.timer(soil.us)
 #  with t:
@@ -71,10 +74,10 @@ def discharge_stochastic(tensor):
   #   and make sure that the scale is implemented correctly.
   #   
   grad = soil.gradient(tensor, scale)
-  for i in range(5000):
-    diff = soil.laplacian(grad, [1.0, 1.0])
-    silt.multiply(diff, 0.2)
-    silt.add(grad, diff)
+#  for i in range(5000):
+#    diff = soil.laplacian(grad, [1.0, 1.0])
+#    silt.multiply(diff, 0.2)
+#    silt.add(grad, diff)
 
   silt.multiply(grad, -1)
   discharge = soil.solve_uniform(grad, rain, evap, rng, scale, k)

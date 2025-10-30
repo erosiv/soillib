@@ -100,10 +100,18 @@ __global__ void __laplacian (
   const vec vp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 1, 0))];
   const vec v0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 0,-1))];
   const vec v0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 0, 1))];
-  vec lx = (vn0 + vp0 - 2.0f * v00)/scale.x/scale.x;
-  vec ly = (v0n + v0p - 2.0f * v00)/scale.y/scale.y;
+  const vec vnn = shape.oob(ipos + silt::ivec2(-1,-1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2(-1,-1))];
+  const vec vpp = shape.oob(ipos + silt::ivec2( 1, 1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 1, 1))];
+  const vec vpn = shape.oob(ipos + silt::ivec2( 1,-1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 1,-1))];
+  const vec vnp = shape.oob(ipos + silt::ivec2(-1, 1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2(-1, 1))];
 
-  viewOut[n] = lx + ly;
+  float hx = (1.0f / scale.x / scale.x);
+  float hy = (1.0f / scale.y / scale.y);
+
+  vec LH = (vn0 - v00)*hx + (vp0 - v00)*hx + (v0n - v00)*hy + (v0p - v00)*hy;
+  vec LD = 0.5f*(vnn - v00)*hx + 0.5f*(vpp - v00)*hx + 0.5f*(vpn - v00)*hy + 0.5f*(vnp - v00)*hy;
+
+  viewOut[n] = 0.5f * LH + 0.5f * LD;
 
 }
 

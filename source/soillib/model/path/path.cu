@@ -113,17 +113,8 @@ silt::tensor solve_uniform (
   auto flux = silt::tensor_t<float>(shape, silt::host_t::GPU);
 
   silt::set(flux, 0.0f);
-  cudaDeviceSynchronize();
-
-  // Split Sampling
-//  const size_t K = block(count, rng.elem());
-//  for(size_t k = 0; k <= K; ++k) {
-//    const size_t n = (rng.elem() * k <= count) ? rng.elem() : (count % (rng.elem() * k));
-//  }
   __solve_uniform<<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, lambda_max, epsilon);
   __normalize<<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
-  cudaDeviceSynchronize();
-
   return silt::tensor(flux);
 
 }
