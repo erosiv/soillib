@@ -178,6 +178,10 @@ module.def("gradient", [](const silt::tensor& tensor, const silt::vec2 scale){
     return silt::tensor(soil::gradient(tensor.as<float>(), scale));
 });
 
+module.def("laplacian", [](const silt::tensor& tensor, const silt::vec2 scale){
+    return silt::tensor(soil::laplacian(tensor.as<float>(), scale));
+});
+
 //
 // Path Integral Solution Functions
 //

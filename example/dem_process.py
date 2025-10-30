@@ -57,12 +57,35 @@ def discharge_stochastic(tensor):
 #  plt.imshow(grad[..., 1])
 #  plt.show()
 
-  t = soil.timer(soil.us)
-  with t:
-    grad = soil.gradient(tensor, scale)
-    silt.multiply(grad, -1)
-    discharge = soil.solve_uniform(grad, rain, evap, rng, scale, k)
-  print(f"Execution Time: {t.count} us")
+  # Diffuse the Tensor...
+#  for i in range(5000):
+#    diff = soil.laplacian(tensor, [1.0, 1.0])
+#    silt.multiply(diff, 0.2)
+#    silt.add(tensor, diff)
+
+#  t = soil.timer(soil.us)
+#  with t:
+
+  # Diffusion of the velocity field works...
+  #   We need to fix the numerical stability
+  #   and make sure that the scale is implemented correctly.
+  #   
+  grad = soil.gradient(tensor, scale)
+  for i in range(5000):
+    diff = soil.laplacian(grad, [1.0, 1.0])
+    silt.multiply(diff, 0.2)
+    silt.add(grad, diff)
+
+  silt.multiply(grad, -1)
+  discharge = soil.solve_uniform(grad, rain, evap, rng, scale, k)
+
+#  print(f"Laplacian Shape: {laplacian.shape}")
+#  laplacian = laplacian.cpu().numpy()
+#  grad = grad.cpu().numpy()
+#  plt.imshow(grad[..., 1])
+#  plt.show()
+
+#  print(f"Execution Time: {t.count} us")
 
   return discharge.cpu().numpy()
 

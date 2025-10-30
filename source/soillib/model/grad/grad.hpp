@@ -10,6 +10,9 @@ namespace soil {
 //! 2D Tensor Gradient (Godunov Min-Slope)
 silt::tensor_t<float> gradient(const silt::tensor_t<float>& tensor, const silt::vec2 scale);
 
+//! 2D Tensor Laplacian
+silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt::vec2 scale);
+
 }
 
 #endif

@@ -72,6 +72,64 @@ silt::tensor_t<float> gradient(const silt::tensor_t<float>& tensor, const silt::
 
 }
 
+//
+// Laplacian Implementation
+//
+
+template<size_t D>
+__global__ void __laplacian (
+  silt::tensor_t<float> tensorOut,      //!< Output Field
+  const silt::tensor_t<float> tensorIn, //!< Input Field
+  const silt::shape shape,              //!< Laplacian Field Shape
+  const silt::vec2 scale
+) {
+
+  using vec = silt::fvec<D>;
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem) return;
+
+  auto viewIn = tensorIn.view<vec>();   // In Vector View
+  auto viewOut = tensorOut.view<vec>(); // Out Vector View
+
+  // Boundary Continuation Laplacian:
+  //  Note that this can introduce strong diffusion at boundary.
+  const silt::ivec2 ipos = shape.unflatten(n);
+  const vec v00 = viewIn[n];
+  const vec vn0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2(-1, 0))];
+  const vec vp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 1, 0))];
+  const vec v0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 0,-1))];
+  const vec v0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? v00 : viewIn[shape.flatten(ipos + silt::ivec2( 0, 1))];
+  vec lx = (vn0 + vp0 - 2.0f * v00)/scale.x/scale.x;
+  vec ly = (v0n + v0p - 2.0f * v00)/scale.y/scale.y;
+
+  viewOut[n] = lx + ly;
+
+}
+
+//! 2D Tensor Laplacian
+silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt::vec2 scale) {
+
+  // basically implement the component-wise laplacian function...
+  //  should return the exact same dimsensionality of the previous vector.
+
+  const silt::shape shapeIn = tensor.shape();
+  const silt::shape shape = silt::shape(shapeIn[0], shapeIn[1]);
+
+  auto laplacian = silt::tensor_t<float>(shapeIn, silt::host_t::GPU);
+
+  if(shapeIn[2] == 1) {
+    __laplacian<1><<<block(shape.elem, 512), 512>>>(laplacian, tensor, shape, scale);
+  }
+
+  if(shapeIn[2] == 2) {
+    __laplacian<2><<<block(shape.elem, 512), 512>>>(laplacian, tensor, shape, scale);
+  }
+
+  return laplacian;
+
+}
+
 } // end of namespace soil
 
 #endif
