@@ -36,61 +36,56 @@ def discharge_fastflow(tensor):
 
   return discharge.cpu().numpy()
 
+def diffuse(tensor, scale, dt):
+  diff = soil.laplacian(tensor, scale)
+  silt.multiply(diff, dt)
+  silt.add(tensor, diff)
+
 def discharge_stochastic(tensor):
+
+#  tensor = tensor.cpu().numpy()
+#  tensor = tensor[0:512, 0:512]
+#  tensor = silt.tensor.from_numpy(tensor).gpu()
 
   shape = tensor.shape
   res = (shape[0], shape[1])
+  scale = [0.01, 0.01]
+  A = scale[0] * scale[1]
 
-  rain = np.full(res, 1.0)
-  evap = np.full(res, 0.001)
+  rain = np.full(res, A)
+  evap = np.full(res, 0.0)
+  visc = np.full(res, 0.2)
 
   rain = silt.tensor.from_numpy(rain.astype(np.float32)).gpu()
   evap = silt.tensor.from_numpy(evap.astype(np.float32)).gpu()
+  visc = silt.tensor.from_numpy(visc.astype(np.float32)).gpu()
 
-  k = 8192*48
+  k = 8192*32
   rng = silt.tensor(silt.rng, silt.shape(k), silt.gpu)
-  silt.seed(rng, 0, 0)
 
-  scale = [0.01, 0.01]
-
-#  grad = grad.cpu().numpy()
-#  plt.imshow(grad[..., 1])
-#  plt.show()
-
-  # Diffuse the Tensor...
-#  for i in range(50):
-#    diff = soil.laplacian(tensor, [1.0, 1.0])
-#    silt.multiply(diff, 0.5)
-#    silt.add(tensor, diff)
-#  plt.imshow(tensor.cpu().numpy())
-#  plt.show()
-#  tensor.gpu()
-
-#  t = soil.timer(soil.us)
-#  with t:
-
-  # Diffusion of the velocity field works...
-  #   We need to fix the numerical stability
-  #   and make sure that the scale is implemented correctly.
-  #   
   grad = soil.gradient(tensor, scale)
-#  for i in range(5000):
-#    diff = soil.laplacian(grad, [1.0, 1.0])
-#    silt.multiply(diff, 0.2)
-#    silt.add(grad, diff)
-
   silt.multiply(grad, -1)
-  discharge = soil.solve_uniform(grad, rain, evap, rng, scale, k)
+  velocity = grad
+  
+  for i in range(16):
 
-#  print(f"Laplacian Shape: {laplacian.shape}")
-#  laplacian = laplacian.cpu().numpy()
-#  grad = grad.cpu().numpy()
-#  plt.imshow(grad[..., 1])
-#  plt.show()
+    # Accumulate Discharge
+    silt.seed(rng, 0, i*k)
+    discharge = soil.solve_uniform(velocity, rain, evap, rng, scale, k)
 
-#  print(f"Execution Time: {t.count} us")
+    # Accumulate Momentum Downstream
+    silt.seed(rng, 0, i*k)
+    momentum_source = silt.clone(grad)
+    silt.multiply(momentum_source, 0.0)
+    momentum_source = silt.tensor.from_numpy(momentum_source.cpu().numpy() + rain.cpu().numpy()[..., np.newaxis]).gpu()
+    silt.multiply(momentum_source, A)
+    silt.add(momentum_source, grad)
+    momentum = soil.solve_uniform(velocity, momentum_source, visc, rng, scale, k)
+    velocity = silt.tensor.from_numpy(momentum.cpu().numpy() / discharge.cpu().numpy()[..., np.newaxis]).gpu()
+    silt.multiply(velocity, A)
+    rain.gpu()
 
-  return discharge.cpu().numpy()
+  return discharge.cpu().numpy(), velocity.cpu().numpy()
 
 def main(data):
 
@@ -98,10 +93,17 @@ def main(data):
   tiff = soil.geotiff(data)
   tensor = tiff.tensor.gpu()
 
-  discharge = discharge_stochastic(tensor)
-#  discharge = discharge_fastflow(tensor)
+  discharge, velocity = discharge_stochastic(tensor)
+  velocity = np.sum(np.abs(velocity), axis=2)
 
-  plt.imshow(discharge,
+  print(f"Discharge Max: {np.max(discharge)}")
+  print(f"Velocity MinMax: {np.min(velocity)}, {np.max(velocity)}")
+
+  fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+  fig.suptitle("Grid-Free Monte-Carlo Estimator")
+
+  ax[1].imshow(velocity)
+  ax[0].imshow(discharge,
     cmap='CMRmap',
     norm=colors.LogNorm(1, discharge.max()),
     interpolation='none'

@@ -76,7 +76,7 @@ __global__ void __solve_uniform (
 
     const float dlambda = glm::length(scale / v);
     att *= __expf(-dlambda * decay[ind]);
-    pos += 1.414f * v / glm::length(v);
+    pos += v / glm::length(v);
     lambda += dlambda;
 
   }
@@ -101,7 +101,7 @@ __global__ void __normalize (
   auto flowView = flow.view<silt::vec2>();  //!< Tensorised Flow View
 
   const silt::vec2 v = flowView[n];
-  fluxView[n] = sourceView[n] + fluxView[n] / float(count);// / abs(glm::dot(v, scale));
+  fluxView[n] = sourceView[n] + fluxView[n] / float(count) / (scale.x * scale.y);
 
 }
 
