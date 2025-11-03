@@ -20,6 +20,7 @@ target_sources(${TARGET_NAME} PUBLIC
   soillib/model/grad/grad.cu
   soillib/model/path/erosion.cu
   soillib/model/path/path.cu
+  soillib/model/sculpt/sculpt.cu
 #  soillib/op/flow.cu
 )
 

@@ -9,6 +9,7 @@ namespace nb = nanobind;
 #include <soillib/model/filter/filter.hpp>
 #include <soillib/model/path/path.hpp>
 #include <soillib/model/grad/grad.hpp>
+#include <soillib/model/sculpt/sculpt.hpp>
 #include <soillib/op/noise.hpp>
 #include "glm.hpp"
 
@@ -220,6 +221,17 @@ noise_t.def_rw("octaves", &soil::noise_param_t::octaves);
 noise_t.def_rw("frequency", &soil::noise_param_t::frequency);
 noise_t.def_rw("ext", &soil::noise_param_t::ext);
 module.def("noise", &soil::noise);
+
+//
+// Masked Operations
+//  Note: It would also make sense to just use masks directly...
+//  Then we can just have different methods of constructing masks
+//  and that would basically let us do any operation within the mask...
+//
+
+module.def("masked_set", [](silt::tensor& tensor, const float value, const silt::vec2 center, const float rad){
+  soil::masked_set(tensor.as<float>(), value, center, rad);
+});
 
 /*
 module.def("flow", [](const silt::tensor& tensor, const soil::index& index){
