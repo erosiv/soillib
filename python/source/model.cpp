@@ -9,6 +9,7 @@ namespace nb = nanobind;
 #include <soillib/model/filter/filter.hpp>
 #include <soillib/model/path/path.hpp>
 #include <soillib/model/grad/grad.hpp>
+#include <soillib/op/noise.hpp>
 #include "glm.hpp"
 
 using namespace nb::literals;
@@ -205,6 +206,20 @@ module.def("solve_uniform", [](
   );
 
 });
+
+//
+// Noise Operations
+//
+
+auto noise_t = nb::class_<soil::noise_param_t>(module, "noise_t");
+noise_t.def(nb::init<>());
+noise_t.def_rw("seed", &soil::noise_param_t::seed);
+noise_t.def_rw("gain", &soil::noise_param_t::gain);
+noise_t.def_rw("lacunarity", &soil::noise_param_t::lacunarity);
+noise_t.def_rw("octaves", &soil::noise_param_t::octaves);
+noise_t.def_rw("frequency", &soil::noise_param_t::frequency);
+noise_t.def_rw("ext", &soil::noise_param_t::ext);
+module.def("noise", &soil::noise);
 
 /*
 module.def("flow", [](const silt::tensor& tensor, const soil::index& index){

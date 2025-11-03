@@ -34,7 +34,7 @@ struct noise_param_t {
   silt::vec2 ext = {512, 512}; // Grid-Space Frequency
 
   //! Single Sample Value
-  float operator()(const soil::ivec2 pos) {
+  float operator()(const silt::ivec2 pos) {
     return this->source.GetNoise(pos[0] / ext[0], pos[1] / ext[1], this->seed);
   }
 };
@@ -44,10 +44,10 @@ silt::tensor noise(const silt::shape shape, noise_param_t param) {
   if(shape.dim != 2)
     throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
   
-  silt::tensor_t<float> tensor_t(shape, soil::CPU);
+  silt::tensor_t<float> tensor_t(shape, silt::CPU);
   param.update();
   for (size_t i = 0; i < shape.elem; ++i) {
-    soil::ivec2 position = shape.unflatten(i);
+    silt::ivec2 position = shape.unflatten(i);
     tensor_t[i] = param(position);
   }
 
