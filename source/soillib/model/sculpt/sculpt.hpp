@@ -8,6 +8,7 @@
 namespace soil {
 
 void masked_set(silt::tensor_t<float> tensor, const float value, const silt::vec2 center, const float rad);
+void masked_mean(silt::tensor_t<float> tensor, const silt::vec2 center, const float rad);
 
 }
 

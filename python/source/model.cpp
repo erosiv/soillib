@@ -233,6 +233,10 @@ module.def("masked_set", [](silt::tensor& tensor, const float value, const silt:
   soil::masked_set(tensor.as<float>(), value, center, rad);
 });
 
+module.def("masked_mean", [](silt::tensor& tensor, const silt::vec2 center, const float rad){
+  soil::masked_mean(tensor.as<float>(), center, rad);
+});
+
 /*
 module.def("flow", [](const silt::tensor& tensor, const soil::index& index){
   return soil::flow(tensor, index);
