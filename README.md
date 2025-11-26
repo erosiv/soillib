@@ -69,6 +69,12 @@ git submodule update --init --recursive
 pip install .
 ```
 
+Re-building for development:
+
+```bash
+pip install --no-build-isolation -ve .
+```
+
 Build directly using CMake:
 
 ```bash

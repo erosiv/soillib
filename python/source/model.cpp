@@ -208,6 +208,14 @@ module.def("solve_uniform", [](
 
 });
 
+module.def("suspend", [](
+  const silt::tensor flow,
+  const silt::vec2 scale,
+  const float ks
+){
+  return soil::suspend(flow.as<float>(), scale, ks);
+});
+
 //
 // Noise Operations
 //

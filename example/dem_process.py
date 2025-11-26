@@ -18,6 +18,7 @@ def load(data):
   print(f"Loaded File: {data}, {image.buffer.type}, ({image.index[0]}, {image.index[1]})")
   return (image.buffer, image.index)
 
+'''
 def discharge_fastflow(tensor):
 
   shape = tensor.shape
@@ -40,12 +41,14 @@ def diffuse(tensor, scale, dt):
   diff = soil.laplacian(tensor, scale)
   silt.multiply(diff, dt)
   silt.add(tensor, diff)
+'''
+
+# Determine the Erosion Source Term...
+# Accumulate the Erosion Source Term...
+# Decay by the Erosion Decay Term...
+# Then we should get our material distribution.
 
 def discharge_stochastic(tensor):
-
-#  tensor = tensor.cpu().numpy()
-#  tensor = tensor[0:512, 0:512]
-#  tensor = silt.tensor.from_numpy(tensor).gpu()
 
   shape = tensor.shape
   res = (shape[0], shape[1])
@@ -67,11 +70,34 @@ def discharge_stochastic(tensor):
   silt.multiply(grad, -1)
   velocity = grad
   
-  for i in range(16):
+  for i in range(64):
 
     # Accumulate Discharge
     silt.seed(rng, 0, i*k)
     discharge = soil.solve_uniform(velocity, rain, evap, rng, scale, k)
+
+    # Accumulate Eroded Mass Downstream...
+    # 
+    silt.seed(rng, 0, i*k)
+    suspend = soil.suspend(velocity, scale)# basically the shear-stress expression
+    mass = soil.solve_uniform(velocity, suspend, evap, rng, scale, k)
+
+    '''
+    Erode the Surface ...
+    Update the Gradient ...
+    '''
+
+#    suspend = mass_source.cpu().numpy()
+    deposit = silt.tensor.from_numpy(mass.cpu().numpy() / discharge.cpu().numpy()).gpu()
+    silt.multiply(suspend, -100)
+    silt.multiply(deposit, 0.0)
+    silt.add(deposit, suspend)
+
+    silt.add(tensor, deposit)
+#    silt.add(tensor, suspend)
+
+    grad = soil.gradient(tensor, scale)
+    silt.multiply(grad, -1)
 
     # Accumulate Momentum Downstream
     silt.seed(rng, 0, i*k)
@@ -85,7 +111,9 @@ def discharge_stochastic(tensor):
     silt.multiply(velocity, A)
     rain.gpu()
 
-  return discharge.cpu().numpy(), velocity.cpu().numpy()
+    # Do the same thing for the other erosion type ...
+
+  return discharge.cpu().numpy(), suspend.cpu().numpy()
 
 def main(data):
 
@@ -94,7 +122,7 @@ def main(data):
   tensor = tiff.tensor.gpu()
 
   discharge, velocity = discharge_stochastic(tensor)
-  velocity = np.sum(np.abs(velocity), axis=2)
+#  velocity = np.sum(np.abs(velocity), axis=2)
 
   print(f"Discharge Max: {np.max(discharge)}")
   print(f"Velocity MinMax: {np.min(velocity)}, {np.max(velocity)}")
@@ -102,13 +130,31 @@ def main(data):
   fig, ax = plt.subplots(1, 2, figsize=(10, 5))
   fig.suptitle("Grid-Free Monte-Carlo Estimator")
 
-  ax[1].imshow(velocity)
-  ax[0].imshow(discharge,
+  ax[0].imshow(tensor.cpu().numpy())
+#  ax[0].imshow(discharge,
+#    cmap='CMRmap',
+#    norm=colors.LogNorm(1, discharge.max()),
+#    interpolation='none'
+#  )
+  ax[1].imshow(velocity,
     cmap='CMRmap',
-    norm=colors.LogNorm(1, discharge.max()),
+    norm=colors.LogNorm(1, velocity.max()),
     interpolation='none'
   )
   plt.show()
+
+
+
+
+#  t = soil.geotiff()
+#  t.peek("my_output.tiff")
+
+  tiff_out = soil.geotiff(tensor)
+#  tiff_out.meta = t.meta
+#  tiff_out.unsetnan()
+  tiff_out.write("my_output.tiff")
+
+
 
 if __name__ == "__main__":
 

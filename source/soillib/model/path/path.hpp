@@ -42,6 +42,16 @@ silt::tensor solve_uniform (
 //! Reservoir Sampling Implementation
 // silt::tensor solve_reservoir();
 
+//
+//  Erosion Specific Source / Decay Kernels...
+//
+
+silt::tensor suspend (
+  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor
+  const silt::vec2 scale,               //!< Cell Scale
+  const float ks
+);
+
 }
 
 
