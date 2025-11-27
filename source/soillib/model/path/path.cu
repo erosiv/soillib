@@ -162,67 +162,6 @@ silt::tensor solve_uniform (
 
 }
 
-/*
-//! Mass Deposition Rate [m/y]
-__device__ float deposit(const param_t& param, const float dt, const float mass, const float discharge){
-
-  if(discharge < 1.0f)
-    return 0.0f;
-
-  const float kd = param.depositionRate;  //!< Fluvial Deposition Rate [m/y]
-  return dt * kd * mass / discharge;
-
-}
-*/
-
-__global__ void __suspend (
-  silt::tensor_t<float> source,
-  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor      []
-  const silt::vec2 scale,               //!< Cell Scale
-  const float ks
-) {
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= source.elem()) return;
-
-  auto flowView = flow.view<silt::vec2>();  //!< Tensorised Flow View
-  const silt::vec2 speed = flowView[n];
-
-  const float alpha = 0.01f;//param.fluvialExponent;
-  const float fD = 0.02f;//param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
-  const float rho = 1000.0f;//param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
-  //const float ks = 8E-7f;// param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
-  
-  const float velocity = glm::length(speed);                    //!< [m/s]
-  const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-  const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
-  const float suspend = ks * power;
-
-  source[n] = glm::abs(suspend);
-
-}
-
-/*
-namespace soil {
-
-silt::tensor suspend (
-  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor
-  const silt::vec2 scale,               //!< Cell Scale
-  const float ks
-) {
-
-  const silt::shape shapeIn = flow.shape();
-  const silt::shape shape = silt::shape(shapeIn[0], shapeIn[1]);
-
-  auto source = silt::tensor_t<float>(shape, silt::host_t::GPU);
-  __suspend<<<block(source.elem(), 512), 512>>>(source, flow, scale, ks);
-  return silt::tensor(source);
-
-}
-
-}
-*/
-
 __device__ silt::vec2 __grad(
   const silt::tensor_t<float>& height,
   const silt::shape shape,
@@ -266,6 +205,10 @@ __device__ silt::vec2 __grad(
 
 __global__ void __erode (
   silt::tensor_t<float> height,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> dischargeTrack,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentumTrack,
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
@@ -283,6 +226,9 @@ __global__ void __erode (
   int ind = shape.flatten(pos);
   const float P = 1.0f / float(shape.elem);
 
+  auto momentumView = momentum.view<silt::vec2>();
+  auto momentumTrackView = momentumTrack.view<silt::vec2>();
+
   // const vecD S = sourceView[ind] / P;
   // Transport Initialization
   
@@ -294,37 +240,48 @@ __global__ void __erode (
   int step = 0;
   while(!shape.oob(pos) && ++step < param.maxage) {
 
+    // Position Update
     if(glm::length(speed) < 1E-6f)
       break;
 
     pos += speed / glm::length(speed);
     if(shape.oob(pos))
       break;
-
     const int nind = shape.flatten(pos);
-    speed = 0.5f * speed - __grad(height, shape, scale, pos);
 
-    // monotonically decreasing only?
-    float height_next = height[nind] * scale.z;
-//    if(height_next > height_cur)
-//      break;
+    // Tracking Step
+    atomicAdd(&dischargeTrack[nind], water);
+    atomicAdd(&momentumTrackView[nind].x, water * speed.x);
+    atomicAdd(&momentumTrackView[nind].y, water * speed.y);
 
+    // Velocity Update
+    const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
+
+    const float nu = param.viscosity;
+    const float tau = param.bedShear;
+
+    speed = (1.0f - tau) * speed;
+    speed = ((1.0f - nu) * speed + nu * mspeed);
+    speed = (speed - __grad(height, shape, scale, pos));
+
+    // Erosion Update
+    const float height_next = height[nind] * scale.z;
     const float alpha = param.fluvialExponent;
     const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
     const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
     const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
-    
-    const float velocity = glm::length(speed);                    //!< [m/s]
-    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
-    const float suspend = glm::max(0.0f, ks * power * (height_cur - height_next));
-    //const float suspend = glm::max(0.0f, param.suspensionRate * (height_cur - height_next));
+
+//    const float velocity = glm::length(speed);                    //!< [m/s]
+//    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
+//    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
+//    const float suspend = glm::max(0.0f, ks * power * (height_cur - height_next));
+    const float suspend = glm::max(0.0f, param.suspensionRate * (height_cur - height_next));
 
     const float deposit = glm::min(sed, param.depositionRate * sed / water);
     const float transfer = suspend - deposit;
-
     atomicAdd(&height[ind], -transfer / scale.z);
     sed += transfer;
+
     water = (1.0f - param.evapRate) * water;
 
     height_cur = height_next;
@@ -338,12 +295,31 @@ namespace soil {
 
 void erode (
   silt::tensor_t<float> height,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> dischargeTrack,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param
-){
+) {
 
-  __erode<<<block(rng.elem(), 512), 512>>>(height, rng, height.shape(), scale, param);
+  // velocity field?
+  const float A = scale.x * scale.y;
+
+  silt::set(dischargeTrack, A);
+  silt::set(momentumTrack, 0.0f);
+
+  __erode<<<block(rng.elem(), 512), 512>>>(
+    height,
+    discharge,
+    dischargeTrack,
+    momentum,
+    momentumTrack,
+    rng, height.shape(), scale, param);
+
+  silt::mix(discharge, dischargeTrack, param.lrate);
+  silt::mix(momentum, momentumTrack, param.lrate);
 
 }
 
