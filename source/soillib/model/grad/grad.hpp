@@ -13,6 +13,9 @@ silt::tensor_t<float> gradient(const silt::tensor_t<float>& tensor, const silt::
 //! 2D Tensor Laplacian
 silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt::vec2 scale);
 
+//! Safe Negative Slope Copmutation? Zero in pits?
+silt::tensor_t<float> negslope(const silt::tensor_t<float>& tensor, const silt::vec2 scale);
+
 }
 
 #endif

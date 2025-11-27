@@ -72,6 +72,50 @@ silt::tensor_t<float> gradient(const silt::tensor_t<float>& tensor, const silt::
 
 }
 
+
+
+__global__ void __negslope (
+  silt::tensor_t<float> tensorOut,      //!< Output Field
+  const silt::tensor_t<float> tensorIn, //!< Input Field
+  const silt::shape shape,              //!< Input Field Shape
+  const silt::vec2 scale
+){
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem) return;
+  
+  // Data Loading w. Bounds Handling  
+  const silt::ivec2 ipos = shape.unflatten(n);
+  const float h = tensorIn[n];
+  const float hn0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2(-1, 0))];
+  const float hp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2( 1, 0))];
+  const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2( 0,-1))];
+  const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2( 0, 1))];
+
+  // Min Gradient Computation w. Bounds Handling
+  float gx = 0.0f;
+  if(!__isnanf(hn0)) gx = glm::max(gx, (h - hn0)/scale.x);
+  if(!__isnanf(hp0)) gx = glm::max(gx, (h - hp0)/scale.x);
+
+  float gy = 0.0f;
+  if(!__isnanf(h0n)) gy = glm::max(gy, (h - h0n)/scale.y);
+  if(!__isnanf(h0p)) gy = glm::max(gy, (h - h0p)/scale.y);
+
+  // Write to 2D vector view
+  tensorOut[n] = glm::length(silt::vec2(gx, gy));
+
+}
+
+silt::tensor_t<float> negslope(const silt::tensor_t<float>& tensor, const silt::vec2 scale){
+
+  const silt::shape shapeIn = tensor.shape();
+  const silt::shape shapeOut = silt::shape(shapeIn[0], shapeIn[1]);
+  auto negslope = silt::tensor_t<float>(shapeOut, silt::host_t::GPU);
+  __negslope<<<block(shapeIn.elem, 512), 512>>>(negslope, tensor, shapeIn, scale);
+  return negslope;
+
+}
+
 //
 // Laplacian Implementation
 //

@@ -130,7 +130,7 @@ data_t.def_prop_rw("debris_momentum",
     model.debris_momentum = tensor.as<float>();
 });
 
-module.def("erode", soil::erode);
+//module.def("erode", soil::erode);
 
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
@@ -184,6 +184,10 @@ module.def("laplacian", [](const silt::tensor& tensor, const silt::vec2 scale){
     return silt::tensor(soil::laplacian(tensor.as<float>(), scale));
 });
 
+module.def("negslope", [](const silt::tensor& tensor, const silt::vec2 scale){
+    return silt::tensor(soil::negslope(tensor.as<float>(), scale));
+});
+
 //
 // Path Integral Solution Functions
 //
@@ -208,12 +212,21 @@ module.def("solve_uniform", [](
 
 });
 
-module.def("suspend", [](
-  const silt::tensor flow,
-  const silt::vec2 scale,
-  const float ks
-){
-  return soil::suspend(flow.as<float>(), scale, ks);
+// module.def("suspend", [](
+//   const silt::tensor flow,
+//   const silt::vec2 scale,
+//   const float ks
+// ){
+//   return soil::suspend(flow.as<float>(), scale, ks);
+// });
+
+module.def("erode", [](
+  silt::tensor height,
+  silt::tensor rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+  soil::erode(height.as<float>(), rng.as<silt::rng>(), scale, param);
 });
 
 //

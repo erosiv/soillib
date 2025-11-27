@@ -77,7 +77,7 @@ __global__ void __solve_uniform (
     }
 
     const sample_t<silt::vec2, 2, 1> v_support = sample_t<silt::vec2, 2, 1>::gather(flowView, silt::ivec2(shape[0], shape[1]), pos);
-    v = 0.75f * v + 0.25f * v_support.val();
+    v = v_support.val();
     if(glm::length(v) < 1E-8)
       break;
 
@@ -202,6 +202,7 @@ __global__ void __suspend (
 
 }
 
+/*
 namespace soil {
 
 silt::tensor suspend (
@@ -216,6 +217,133 @@ silt::tensor suspend (
   auto source = silt::tensor_t<float>(shape, silt::host_t::GPU);
   __suspend<<<block(source.elem(), 512), 512>>>(source, flow, scale, ks);
   return silt::tensor(source);
+
+}
+
+}
+*/
+
+__device__ silt::vec2 __grad(
+  const silt::tensor_t<float>& height,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const silt::vec2 pos
+){
+
+  const int i00 = shape.flatten(pos + silt::vec2( 0, 0));
+  const int in0 = shape.flatten(pos + silt::vec2(-1, 0));
+  const int ip0 = shape.flatten(pos + silt::vec2( 1, 0));
+  const int i0n = shape.flatten(pos + silt::vec2( 0,-1));
+  const int i0p = shape.flatten(pos + silt::vec2( 0, 1));
+
+  const float h = height[i00] * scale.z;
+  const float hn0 = shape.oob(pos + silt::vec2(-1, 0)) ? h : height[in0] * scale.z;
+  const float hp0 = shape.oob(pos + silt::vec2( 1, 0)) ? h : height[ip0] * scale.z;
+  const float h0n = shape.oob(pos + silt::vec2( 0,-1)) ? h : height[i0n] * scale.z;
+  const float h0p = shape.oob(pos + silt::vec2( 0, 1)) ? h : height[i0p] * scale.z;
+
+  float gx = 0.0f;
+  if(__isnanf(hn0)) gx = (hp0 - h)/scale.x;
+  if(__isnanf(hp0)) gx = (h - hn0)/scale.x;
+  if(!__isnanf(hp0) && !__isnanf(hn0)){
+    if(hn0 < hp0) gx = (h - hn0)/scale.x;
+    if(hp0 < hn0) gx = (hp0 - h)/scale.x;
+    // if they are the same, slope is zero
+  }
+
+  float gy = 0.0f;
+  if(__isnanf(h0n)) gy = (h0p - h)/scale.y;
+  if(__isnanf(h0p)) gy = (h - h0n)/scale.y;
+  if(!__isnanf(h0p) && !__isnanf(h0n)){
+    if(h0n < h0p) gy = (h - h0n)/scale.y;
+    if(h0p < h0n) gy = (h0p - h)/scale.y;
+    // if they are the same, slope is zero
+  }
+
+  return silt::vec2(gx, gy);
+
+}
+
+__global__ void __erode (
+  silt::tensor_t<float> height,
+  silt::tensor_t<silt::rng> rng,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= rng.elem()) return;
+
+  // Random Sample Position
+  silt::vec2 pos = silt::vec2 {
+    curand_uniform(&rng[n])*float(shape[0]),
+    curand_uniform(&rng[n])*float(shape[1])
+  };
+  int ind = shape.flatten(pos);
+  const float P = 1.0f / float(shape.elem);
+
+  // const vecD S = sourceView[ind] / P;
+  // Transport Initialization
+  
+  float water = 1.0f;
+  float sed = 0.0f;
+  silt::vec2 speed = -__grad(height, shape, scale, pos);
+  float height_cur = height[ind] * scale.z;
+
+  int step = 0;
+  while(!shape.oob(pos) && ++step < param.maxage) {
+
+    if(glm::length(speed) < 1E-6f)
+      break;
+
+    pos += speed / glm::length(speed);
+    if(shape.oob(pos))
+      break;
+
+    const int nind = shape.flatten(pos);
+    speed = 0.5f * speed - __grad(height, shape, scale, pos);
+
+    // monotonically decreasing only?
+    float height_next = height[nind] * scale.z;
+//    if(height_next > height_cur)
+//      break;
+
+    const float alpha = param.fluvialExponent;
+    const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
+    const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
+    const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
+    
+    const float velocity = glm::length(speed);                    //!< [m/s]
+    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
+    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
+    const float suspend = glm::max(0.0f, ks * power * (height_cur - height_next));
+    //const float suspend = glm::max(0.0f, param.suspensionRate * (height_cur - height_next));
+
+    const float deposit = glm::min(sed, param.depositionRate * sed / water);
+    const float transfer = suspend - deposit;
+
+    atomicAdd(&height[ind], -transfer / scale.z);
+    sed += transfer;
+    water = (1.0f - param.evapRate) * water;
+
+    height_cur = height_next;
+    ind = nind;
+
+  }
+
+}
+
+namespace soil {
+
+void erode (
+  silt::tensor_t<float> height,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+){
+
+  __erode<<<block(rng.elem(), 512), 512>>>(height, rng, height.shape(), scale, param);
 
 }
 

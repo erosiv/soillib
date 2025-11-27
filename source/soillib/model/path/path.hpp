@@ -3,6 +3,7 @@
 
 #include <soillib/soillib.hpp>
 #include <silt/core/tensor.hpp>
+#include <soillib/model/path/erosion.hpp>
 
 namespace soil {
 
@@ -46,10 +47,21 @@ silt::tensor solve_uniform (
 //  Erosion Specific Source / Decay Kernels...
 //
 
-silt::tensor suspend (
-  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor
-  const silt::vec2 scale,               //!< Cell Scale
-  const float ks
+// silt::tensor suspend (
+//   const silt::tensor_t<float> flow,     //!< Flow-Field Tensor
+//   const silt::vec2 scale,               //!< Cell Scale
+//   const float ks
+// );
+
+//
+// Unified Erosion Kernel
+//
+
+void erode (
+  silt::tensor_t<float> height,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
 );
 
 }
