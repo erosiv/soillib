@@ -319,7 +319,7 @@ __global__ void __erode_debris (
 //  auto momentumTrackView = momentumTrack.view<silt::vec2>();
 
   // Transport Initialization
-  float mass = 0.0001f;
+  float mass = 0.0f;
   silt::vec2 speed = -__grad(height, shape, scale, pos);
   float height_cur = height[ind] * scale.z;
 
@@ -342,7 +342,6 @@ __global__ void __erode_debris (
 
     // Velocity Update
 //    const silt::vec2 mspeed = momentumView[ind] / mass[ind];
-
 //    const float nu = param.viscosity;
     const float tau = param.bedShear;
 
@@ -355,7 +354,7 @@ __global__ void __erode_debris (
 
     // Debris-Flow Erosion Formula
 
-    const float slope = (height_cur - height_next);
+    const float slope = (height_cur - height_next) / glm::length(silt::vec2(scale.x, scale.y));
     const float suspend = param.debrisSuspensionRate * glm::max(0.0f, slope - param.critSlope);
     const float deposit = glm::min(mass, param.debrisDepositionRate * mass);
     const float transfer = suspend - deposit;
