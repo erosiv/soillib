@@ -52,76 +52,31 @@ struct param_t {
 
 };
 
-//! data_t stores the tensors of transported quantities.
-struct data_t {
+//
+// Unified Erosion Kernels
+//
 
-  data_t():elem{0}{}
-  data_t(const silt::shape _shape):
-    shape(_shape),
-    elem{_shape.elem}{
-//    this->mass            = silt::tensor_t<float>(this->shape, silt::host_t::GPU);
-//    this->discharge       = silt::tensor_t<float>(this->shape, silt::host_t::GPU);
-//    this->momentum        = silt::tensor_t<vec2>(this->shape, silt::host_t::GPU);
-//    this->debris          = silt::tensor_t<float>(this->shape, silt::host_t::GPU);
-//    this->debris_momentum = silt::tensor_t<vec2>(this->shape, silt::host_t::GPU);
-  }
+void erode (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> velocity,
+  silt::tensor_t<float> velocity_track,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> discharge_track,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+);
 
-  const silt::shape shape;
-  const int elem;  //!< Total Buffer Elements
-
-  silt::tensor_t<float> discharge;
-  silt::tensor_t<float> momentum;         //!< Note: Require different shape!
-  silt::tensor_t<float> mass;
-  silt::tensor_t<float> debris;
-  silt::tensor_t<float> debris_momentum;
-
-};
-
-struct scale_t {
-  scale_t(const silt::vec3 scale){
-    this->x = scale.x * 1E3f; //!< Scale to m <- km
-    this->y = scale.y * 1E3f; //!< Scale to m <- km
-    this->z = scale.z * 1E3f; //!< Scale to m <- km
-    this->Ac = x*y;
-    this->Vc = x*y*z;
-    this->cl = silt::vec2(x, y);
-    this->len = glm::length(cl);
-  };
-  float x;
-  float y;
-  float z;
-  float Ac;
-  float Vc;
-  silt::vec2 cl;
-  float len;
-};
-
-struct map_t {
-
-  map_t(silt::shape shape, silt::vec3 scale):
-    shape(shape),
-    scale(scale),
-    elem(shape.elem){}
-
-  const size_t elem;            // Total Number of Elements
-  const silt::shape shape;      // Buffer Indexing Structure
-  const silt::vec3 scale;       // Value Scaling Factor (Real Coordinates)
-
-  silt::tensor_t<float> height;
-  silt::tensor_t<float> sediment;
-
-  // User Control Fields
-  silt::tensor_t<float> uplift;   //!< Uplift Control Map
-  silt::tensor_t<float> rainfall; //!< Rainfall Control Map
-
-  silt::tensor_t<float> transfer; //!< Transferred Material
-
-  silt::tensor_t<curandState> rand;
-  int age = 0;                  //!< Model Age
-
-};
-
-void erode(map_t& map, data_t &data, data_t &track, const param_t param, const size_t steps);
+void erode_debris (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> velocity,
+  silt::tensor_t<float> velocity_track,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> mass_track,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+);
 
 } // end of namespace soil
 

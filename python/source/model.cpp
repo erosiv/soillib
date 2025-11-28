@@ -51,6 +51,7 @@ param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 
 param_t.def_rw("force", &soil::param_t::force);
 
+/*
 //
 // Map Data-Structure
 //
@@ -131,6 +132,7 @@ data_t.def_prop_rw("debris_momentum",
 });
 
 //module.def("erode", soil::erode);
+*/
 
 // note: consider how to implement this deferred using the nodes
 // direct computation? immediate evaluation...
