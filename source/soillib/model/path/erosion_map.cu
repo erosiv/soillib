@@ -53,7 +53,8 @@ __device__ float __slope (
   const silt::tensor_t<float>& height,
   const silt::shape shape,
   const silt::vec3 scale,
-  const silt::vec2 pos
+  const silt::vec2 pos,
+  const float exitSlope
 ){
 
   const int i00 = shape.flatten(pos + silt::vec2( 0, 0));
@@ -70,12 +71,28 @@ __device__ float __slope (
 
   // Min Gradient Computation w. Bounds Handling
   float gx = 0.0f;
-  if(!__isnanf(hn0)) gx = glm::max(gx, (h - hn0)/scale.x);
-  if(!__isnanf(hp0)) gx = glm::max(gx, (h - hp0)/scale.x);
+  if(!__isnanf(hn0) && !__isnanf(hp0)){
+    gx = glm::max(gx, (h - hn0)/scale.x);
+    gx = glm::max(gx, (h - hp0)/scale.x);
+  } else if(__isnanf(hn0)){
+    gx = glm::max(gx, (h - hp0)/scale.x);
+    gx = glm::max(gx, exitSlope);
+  } else if(__isnanf(hp0)){
+    gx = glm::max(gx, (h - hn0)/scale.x);
+    gx = glm::max(gx, exitSlope);
+  }
 
   float gy = 0.0f;
-  if(!__isnanf(h0n)) gy = glm::max(gy, (h - h0n)/scale.y);
-  if(!__isnanf(h0p)) gy = glm::max(gy, (h - h0p)/scale.y);
+  if(!__isnanf(h0n) && !__isnanf(h0p)){
+    gy = glm::max(gy, (h - h0n)/scale.y);
+    gy = glm::max(gy, (h - h0p)/scale.y);
+  } else if(__isnanf(h0n)){
+    gy = glm::max(gy, (h - h0p)/scale.y);
+    gy = glm::max(gy, exitSlope);
+  } else if(__isnanf(h0p)){
+    gy = glm::max(gy, (h - h0n)/scale.y);
+    gy = glm::max(gy, exitSlope);
+  }
 
   // Write to 2D vector view
   return glm::length(silt::vec2(gx, gy));

@@ -59,7 +59,7 @@ __global__ void __erode (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Erosion Step / Mass Integration Step
-    const float slope = __slope(height, shape, scale, pos);
+    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
     const float alpha = param.fluvialExponent;
     const float fD = param.frictionFactor;                        //!< Darcy-Weisbach Friction Factor
     const float rho = param.fluvialDensity;                       //!< Density of Fluid [kg/m^3]
@@ -168,7 +168,7 @@ __global__ void __erode_debris (
   for(int step = 0; step < param.maxage; ++step){
 
     // Erosion Step
-    const float slope = __slope(height, shape, scale, pos);
+    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
     const float suspend = param.debrisSuspensionRate * glm::max(0.0f, slope - param.critSlope);
     const float deposit = glm::min(mass, param.debrisDepositionRate * mass);
     const float transfer = suspend - deposit;
