@@ -16,7 +16,6 @@ namespace soil {
 //! parameterization of the erosion model.
 struct param_t {
 
-  size_t samples = 8192;
   size_t maxage = 512;
   float lrate = 0.1f;
 

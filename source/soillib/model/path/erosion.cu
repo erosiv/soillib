@@ -103,6 +103,36 @@ __global__ void __erode (
 
 }
 
+void soil::erode (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> dischargeTrack,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  // velocity field?
+  const float A = scale.x * scale.y;
+
+  silt::set(dischargeTrack, A);
+  silt::set(momentumTrack, 0.0f);
+
+  __erode<<<block(rng.elem(), 512), 512>>>(
+    height,
+    discharge,
+    dischargeTrack,
+    momentum,
+    momentumTrack,
+    rng, height.shape(), scale, param);
+
+  silt::mix(discharge, dischargeTrack, param.lrate);
+  silt::mix(momentum, momentumTrack, param.lrate);
+
+}
+
 __global__ void __erode_debris (
   silt::tensor_t<float> height,
   silt::tensor_t<float> massBuf,
@@ -178,39 +208,7 @@ __global__ void __erode_debris (
 
 }
 
-namespace soil {
-
-void erode (
-  silt::tensor_t<float> height,
-  silt::tensor_t<float> momentum,
-  silt::tensor_t<float> momentumTrack,
-  silt::tensor_t<float> discharge,
-  silt::tensor_t<float> dischargeTrack,
-  silt::tensor_t<silt::rng> rng,
-  const silt::vec3 scale,
-  const soil::param_t param
-) {
-
-  // velocity field?
-  const float A = scale.x * scale.y;
-
-  silt::set(dischargeTrack, A);
-  silt::set(momentumTrack, 0.0f);
-
-  __erode<<<block(rng.elem(), 512), 512>>>(
-    height,
-    discharge,
-    dischargeTrack,
-    momentum,
-    momentumTrack,
-    rng, height.shape(), scale, param);
-
-  silt::mix(discharge, dischargeTrack, param.lrate);
-  silt::mix(momentum, momentumTrack, param.lrate);
-
-}
-
-void erode_debris (
+void soil::erode_debris (
   silt::tensor_t<float> height,
   silt::tensor_t<float> momentum,
   silt::tensor_t<float> momentumTrack,
@@ -239,9 +237,6 @@ void erode_debris (
   silt::mix(momentum, momentumTrack, param.lrate);
 
 }
-
-}
-
 
 namespace soil {
 using namespace silt;
