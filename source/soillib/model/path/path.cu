@@ -266,26 +266,40 @@ __global__ void __erode (
   // Transport Initialization
   
   float water = 1.0f;
-  float sed = 0.0f;
+  float mass = 0.0f;
   silt::vec2 speed = -__grad(height, shape, scale, pos);
-  float height_cur = height[ind] * scale.z;
 
-  int step = 0;
-  while(!shape.oob(pos) && ++step < param.maxage) {
+  // Iterate over Number of Steps
+  for(int step = 0; step < param.maxage; ++step) {
+
+    // Erosion Step / Mass Integration Step
+    const float slope = __slope(height, shape, scale, pos);
+//    const float alpha = param.fluvialExponent;
+//    const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
+//    const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
+//    const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
+
+//    const float velocity = glm::length(speed);                    //!< [m/s]
+//    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
+//    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
+//    const float suspend = glm::max(0.0f, ks * power * (height_cur - height_next));
+    const float suspend = glm::max(0.0f, param.suspensionRate * slope);
+    const float deposit = glm::min(mass, param.depositionRate * mass / water);
+    const float transfer = suspend - deposit;
+    atomicAdd(&height[ind], -transfer / scale.z);
+    mass += transfer;
+    water = (1.0f - param.evapRate) * water;
 
     // Position Update
-    if(glm::length(speed) < 1E-6f)
-      break;
-
     pos += speed / glm::length(speed);
     if(shape.oob(pos))
       break;
-    const int nind = shape.flatten(pos);
 
     // Tracking Step
-    atomicAdd(&dischargeTrack[nind], water);
-    atomicAdd(&momentumTrackView[nind].x, water * speed.x);
-    atomicAdd(&momentumTrackView[nind].y, water * speed.y);
+    ind = shape.flatten(pos);
+    atomicAdd(&dischargeTrack[ind], water);
+    atomicAdd(&momentumTrackView[ind].x, water * speed.x);
+    atomicAdd(&momentumTrackView[ind].y, water * speed.y);
 
     // Velocity Update
     const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
@@ -296,29 +310,8 @@ __global__ void __erode (
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
     speed = (speed - __grad(height, shape, scale, pos));
-
-    // Erosion Update
-    const float height_next = height[nind] * scale.z;
-    const float alpha = param.fluvialExponent;
-    const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
-    const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
-    const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
-
-//    const float velocity = glm::length(speed);                    //!< [m/s]
-//    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-//    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
-//    const float suspend = glm::max(0.0f, ks * power * (height_cur - height_next));
-    const float suspend = glm::max(0.0f, param.suspensionRate * (height_cur - height_next));
-
-    const float deposit = glm::min(sed, param.depositionRate * sed / water);
-    const float transfer = suspend - deposit;
-    atomicAdd(&height[ind], -transfer / scale.z);
-    sed += transfer;
-
-    water = (1.0f - param.evapRate) * water;
-
-    height_cur = height_next;
-    ind = nind;
+    if(glm::length(speed) < 1E-6f)
+      break;
 
   }
 
