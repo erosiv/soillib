@@ -274,18 +274,18 @@ __global__ void __erode (
 
     // Erosion Step / Mass Integration Step
     const float slope = __slope(height, shape, scale, pos);
-//    const float alpha = param.fluvialExponent;
-//    const float fD = param.frictionFactor;      //!< Darcy-Weisbach Friction Factor
-//    const float rho = param.fluvialDensity;     //!< Density of Fluid [kg/m^3]
-//    const float ks = param.suspensionRate;      //!< Fluvial Suspension Rate [(m^3/y)^-0.4]
+    const float alpha = param.fluvialExponent;
+    const float fD = param.frictionFactor;                        //!< Darcy-Weisbach Friction Factor
+    const float rho = param.fluvialDensity;                       //!< Density of Fluid [kg/m^3]
+    const float ks = param.suspensionRate;                        //!< Fluvial Suspension Rate [(m^3/y)^-0.4
+    const float velocity = glm::length(speed);                    //!< [m/s]
+    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
+    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
 
-//    const float velocity = glm::length(speed);                    //!< [m/s]
-//    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-//    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
-//    const float suspend = glm::max(0.0f, ks * power * (height_cur - height_next));
-    const float suspend = glm::max(0.0f, param.suspensionRate * slope);
+    const float suspend = glm::max(0.0f, ks * power * slope);
     const float deposit = glm::min(mass, param.depositionRate * mass / water);
     const float transfer = suspend - deposit;
+
     atomicAdd(&height[ind], -transfer / scale.z);
     mass += transfer;
     water = (1.0f - param.evapRate) * water;
