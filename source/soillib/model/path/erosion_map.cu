@@ -8,45 +8,24 @@
 
 #include <soillib/model/path/erosion.hpp>
 
-// #include <soillib/index/kdtree.hpp>
-// #include <cukd/builder.h>
-// #include <cukd/knn.h>
+__device__ silt::vec2 __grad(
+  const silt::tensor_t<float>& height,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const silt::vec2 pos
+){
 
-//! Map-Based Geometric Functions
-//! Note that these should be dependent on the
-//! nature of the map / model.
+  const int i00 = shape.flatten(pos + silt::vec2( 0, 0));
+  const int in0 = shape.flatten(pos + silt::vec2(-1, 0));
+  const int ip0 = shape.flatten(pos + silt::vec2( 1, 0));
+  const int i0n = shape.flatten(pos + silt::vec2( 0,-1));
+  const int i0p = shape.flatten(pos + silt::vec2( 0, 1));
 
-namespace soil {
-using namespace silt;
-
-//! Nearest Support Point
-__device__ int __nearest(const map_t& map, const vec2 pos){
-  return map.shape.flatten(pos);
-}
-
-__device__ float __height(const map_t& map, const vec2 pos, const float scale_z) {
-  
-  if(map.shape.oob(pos))
-    return CUDART_NAN_F;
-  
-  int find = map.shape.flatten(pos);
-  const float hf_0 = map.height[find];
-  const float hf_1 = map.sediment[find];
-  return (hf_0 + hf_1) * scale_z;
-
-}
-
-__device__ vec2 __grad(const map_t& map, const vec2 pos, const scale_t& scale){
-
-//  lerp5_t<float> lerp;
-//  lerp.gather(map.height, map.sediment, map.index, ivec2(pos));
-//  return lerp.grad(scale);
-
-  const float h = __height(map, pos, scale.z);
-  const float hn0 = __height(map, pos + vec2(-1, 0), scale.z);
-  const float hp0 = __height(map, pos + vec2( 1, 0), scale.z);
-  const float h0n = __height(map, pos + vec2( 0,-1), scale.z);
-  const float h0p = __height(map, pos + vec2( 0, 1), scale.z);
+  const float h = height[i00] * scale.z;
+  const float hn0 = shape.oob(pos + silt::vec2(-1, 0)) ? h : height[in0] * scale.z;
+  const float hp0 = shape.oob(pos + silt::vec2( 1, 0)) ? h : height[ip0] * scale.z;
+  const float h0n = shape.oob(pos + silt::vec2( 0,-1)) ? h : height[i0n] * scale.z;
+  const float h0p = shape.oob(pos + silt::vec2( 0, 1)) ? h : height[i0p] * scale.z;
 
   float gx = 0.0f;
   if(__isnanf(hn0)) gx = (hp0 - h)/scale.x;
@@ -66,117 +45,105 @@ __device__ vec2 __grad(const map_t& map, const vec2 pos, const scale_t& scale){
     // if they are the same, slope is zero
   }
 
-  return vec2(gx, gy);
+  return silt::vec2(gx, gy);
 
 }
 
-//
-// Derived Quantities
-//
+__device__ float __slope (
+  const silt::tensor_t<float>& height,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const silt::vec2 pos
+){
 
-template<typename Map>
-__device__ vec3 __normal(const Map& map, const vec2 pos, const vec3 scale){
+  const int i00 = shape.flatten(pos + silt::vec2( 0, 0));
+  const int in0 = shape.flatten(pos + silt::vec2(-1, 0));
+  const int ip0 = shape.flatten(pos + silt::vec2( 1, 0));
+  const int i0n = shape.flatten(pos + silt::vec2( 0,-1));
+  const int i0p = shape.flatten(pos + silt::vec2( 0, 1));
 
-  const vec2 grad = __grad(map, pos, scale);
-  return glm::normalize(vec3(-grad.x, -grad.y, 1.0f));
+  const float h = height[i00] * scale.z;
+  const float hn0 = shape.oob(pos + silt::vec2(-1, 0)) ? CUDART_NAN_F : height[in0] * scale.z;
+  const float hp0 = shape.oob(pos + silt::vec2( 1, 0)) ? CUDART_NAN_F : height[ip0] * scale.z;
+  const float h0n = shape.oob(pos + silt::vec2( 0,-1)) ? CUDART_NAN_F : height[i0n] * scale.z;
+  const float h0p = shape.oob(pos + silt::vec2( 0, 1)) ? CUDART_NAN_F : height[i0p] * scale.z;
 
-}
+  // Min Gradient Computation w. Bounds Handling
+  float gx = 0.0f;
+  if(!__isnanf(hn0)) gx = glm::max(gx, (h - hn0)/scale.x);
+  if(!__isnanf(hp0)) gx = glm::max(gx, (h - hp0)/scale.x);
 
-template<typename Map>
-__device__ float __hslope(const Map& map, const param_t& param, const vec2 pos, const vec2 dir) {
+  float gy = 0.0f;
+  if(!__isnanf(h0n)) gy = glm::max(gy, (h - h0n)/scale.y);
+  if(!__isnanf(h0p)) gy = glm::max(gy, (h - h0p)/scale.y);
 
-  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
-  vec2 npos = vec2(pos) + glm::normalize(dir);
-  const float hf = __height(map, pos, scale);
-  const float hn = __height(map, npos, scale);
-  if(__isnanf(hf) || __isnanf(hn))
-    return param.exitSlope;
-
-  return (hf - hn)/ glm::length(cl);
-
-}
-
-template<typename Map>
-__device__ float __slope(const Map& map, const param_t& param, const vec2 pos, const vec2 dir, const scale_t& scale) {
-
-//  const vec3 scale = map.scale * 1E3f;    // Cell Scale [m] (conv. from km)
-//  const vec2 cl = vec2(scale.x, scale.y); // Cell Length [m, m]
-
-  if(glm::length(dir) == 0.0f){
-    return 0.0f;
-  }
-  
-  const vec2 npos = pos + glm::normalize(dir);
-  if(npos.x < 0.5f) return -param.exitSlope;
-  if(npos.y < 0.5f) return -param.exitSlope;
-  
-  const float hf = __height(map, pos, scale.z);
-  const float hn = __height(map, npos, scale.z);
-  if(__isnanf(hf) || __isnanf(hn))
-    return -param.exitSlope;
-  
-  return (hn - hf)/glm::length(scale.cl);
+  // Write to 2D vector view
+  return glm::length(silt::vec2(gx, gy));
 
 }
 
-__device__ vec2 __avespeed(const vec2 momentum, const float discharge){
-  if(discharge < 1.0f)
-    return vec2(0.0f);
-  return momentum / discharge;
-}
+// __device__ float __height(const map_t& map, const vec2 pos, const float scale_z) {
+//   
+//   if(map.shape.oob(pos))
+//     return CUDART_NAN_F;
+//   
+//   int find = map.shape.flatten(pos);
+//   const float hf_0 = map.height[find];
+//   const float hf_1 = map.sediment[find];
+//   return (hf_0 + hf_1) * scale_z;
+// 
+// }
 
-template<typename Map>
-__device__ bool __oob(const Map& map, const vec2 pos){
-  return map.shape.oob(pos);
-}
+// __device__ vec2 __avespeed(const vec2 momentum, const float discharge){
+//   if(discharge < 1.0f)
+//     return vec2(0.0f);
+//   return momentum / discharge;
+// }
 
-__device__ vec2 __topos(const map_t& map, const int nearest){
-  return map.shape.unflatten(nearest);
-}
+// template<typename Map>
+// __device__ bool __oob(const Map& map, const vec2 pos){
+//   return map.shape.oob(pos);
+// }
 
-template<typename T, typename Map>
-__device__ void __sample(T& part, Map& map, const size_t n, const size_t N){
+// template<typename T, typename Map>
+// __device__ void __sample(T& part, Map& map, const size_t n, const size_t N){
+// 
+//   part.pos = vec2 {
+//     curand_uniform(&map.rand[n])*float(map.shape[0]),
+//     curand_uniform(&map.rand[n])*float(map.shape[1])
+//   };
+//   part.ind = map.shape.flatten(part.pos);
+//   const float P = 1.0f / float(map.elem); // Sampling Probability
+//   part.Q = P * float(N);                  // Sampling Weight
+// 
+// }
 
-  part.pos = vec2 {
-    curand_uniform(&map.rand[n])*float(map.shape[0]),
-    curand_uniform(&map.rand[n])*float(map.shape[1])
-  };
-  part.ind = map.shape.flatten(part.pos);
-  const float P = 1.0f / float(map.elem); // Sampling Probability
-  part.Q = P * float(N);                  // Sampling Weight
-
-}
-
-__device__ void __transfer(map_t& map, const vec2 pos, float transfer, const float Z) {
-
-  // Single-Material Transfer
-  const int n = __nearest(map, pos);
-  // map.height[n] += transfer / Z;
-
-  // Multi-Material Mass-Transfer
-  if(transfer >= 0.0f){
-
-    map.sediment[n] += transfer / Z;
-
-  } else {
-
-    const float maxtransfer = map.sediment[n] * Z;
-    float t1 = transfer;
-    if(t1 < -maxtransfer){
-      t1 = -maxtransfer;
-    }
-
-    map.sediment[n] += t1 / Z;
-
-    transfer -= t1;
-    map.height[n] += transfer / Z;
-
-  }
-
-}
-
-} // end of namespace soil
+// __device__ void __transfer(map_t& map, const vec2 pos, float transfer, const float Z) {
+// 
+//   // Single-Material Transfer
+//   const int n = __nearest(map, pos);
+//   // map.height[n] += transfer / Z;
+// 
+//   // Multi-Material Mass-Transfer
+//   if(transfer >= 0.0f){
+// 
+//     map.sediment[n] += transfer / Z;
+// 
+//   } else {
+// 
+//     const float maxtransfer = map.sediment[n] * Z;
+//     float t1 = transfer;
+//     if(t1 < -maxtransfer){
+//       t1 = -maxtransfer;
+//     }
+// 
+//     map.sediment[n] += t1 / Z;
+// 
+//     transfer -= t1;
+//     map.height[n] += transfer / Z;
+// 
+//   }
+// 
+// }
 
 #endif
