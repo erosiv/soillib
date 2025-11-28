@@ -203,6 +203,39 @@ __device__ silt::vec2 __grad(
 
 }
 
+__device__ float __slope (
+  const silt::tensor_t<float>& height,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const silt::vec2 pos
+){
+
+  const int i00 = shape.flatten(pos + silt::vec2( 0, 0));
+  const int in0 = shape.flatten(pos + silt::vec2(-1, 0));
+  const int ip0 = shape.flatten(pos + silt::vec2( 1, 0));
+  const int i0n = shape.flatten(pos + silt::vec2( 0,-1));
+  const int i0p = shape.flatten(pos + silt::vec2( 0, 1));
+
+  const float h = height[i00] * scale.z;
+  const float hn0 = shape.oob(pos + silt::vec2(-1, 0)) ? CUDART_NAN_F : height[in0] * scale.z;
+  const float hp0 = shape.oob(pos + silt::vec2( 1, 0)) ? CUDART_NAN_F : height[ip0] * scale.z;
+  const float h0n = shape.oob(pos + silt::vec2( 0,-1)) ? CUDART_NAN_F : height[i0n] * scale.z;
+  const float h0p = shape.oob(pos + silt::vec2( 0, 1)) ? CUDART_NAN_F : height[i0p] * scale.z;
+
+  // Min Gradient Computation w. Bounds Handling
+  float gx = 0.0f;
+  if(!__isnanf(hn0)) gx = glm::max(gx, (h - hn0)/scale.x);
+  if(!__isnanf(hp0)) gx = glm::max(gx, (h - hp0)/scale.x);
+
+  float gy = 0.0f;
+  if(!__isnanf(h0n)) gy = glm::max(gy, (h - h0n)/scale.y);
+  if(!__isnanf(h0p)) gy = glm::max(gy, (h - h0p)/scale.y);
+
+  // Write to 2D vector view
+  return glm::length(silt::vec2(gx, gy));
+
+}
+
 __global__ void __erode (
   silt::tensor_t<float> height,
   silt::tensor_t<float> discharge,
@@ -319,24 +352,35 @@ __global__ void __erode_debris (
 //  auto momentumTrackView = momentumTrack.view<silt::vec2>();
 
   // Transport Initialization
-  float mass = 0.0f;
   silt::vec2 speed = -__grad(height, shape, scale, pos);
-  float height_cur = height[ind] * scale.z;
+  float mass = 0.0f;
 
-  int step = 0;
-  while(!shape.oob(pos) && ++step < param.maxage) {
+  // Iterate over Number of Steps
+  for(int step = 0; step < param.maxage; ++step){
+
+    // Erosion Step
+    const float slope = __slope(height, shape, scale, pos);
+    const float suspend = param.debrisSuspensionRate * glm::max(0.0f, slope - param.critSlope);
+    const float deposit = glm::min(mass, param.debrisDepositionRate * mass);
+    const float transfer = suspend - deposit;
+    atomicAdd(&height[ind], -transfer / scale.z);
+    mass += transfer;
+
+// Debris-Flow Erosion Formula
+//    const float shearViscous = param.debrisViscosity * glm::length(speed) / (0.0001f + mass);
+//    const float shearYield = param.debrisYieldStress + mass * param.critSlope;
+//    const float shearMass = mass * (height_cur - height_next);
+//    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearMass - shearViscous - shearYield));
+//    const float deposit =  glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous + shearYield - shearMass)));
 
     // Position Update
-    if(glm::length(speed) < 1E-6f)
-      break;
-
     pos += speed / glm::length(speed);
     if(shape.oob(pos))
-      break;
-    const int nind = shape.flatten(pos);
-
+    break;
+    
     // Tracking Step
-    atomicAdd(&massTrack[nind], mass);
+    ind = shape.flatten(pos);
+    atomicAdd(&massTrack[ind], mass);
 //    atomicAdd(&momentumTrackView[nind].x, mass * speed.x);
 //    atomicAdd(&momentumTrackView[nind].y, mass * speed.y);
 
@@ -348,31 +392,9 @@ __global__ void __erode_debris (
     speed = (1.0f - tau) * speed;
 //    speed = ((1.0f - nu) * speed + nu * mspeed);
     speed = (speed - __grad(height, shape, scale, pos));
-
-    // Erosion Update
-    const float height_next = height[nind] * scale.z;
-
-    // Debris-Flow Erosion Formula
-
-    const float slope = (height_cur - height_next) / glm::length(silt::vec2(scale.x, scale.y));
-    const float suspend = param.debrisSuspensionRate * glm::max(0.0f, slope - param.critSlope);
-    const float deposit = glm::min(mass, param.debrisDepositionRate * mass);
-    const float transfer = suspend - deposit;
-    atomicAdd(&height[ind], -transfer / scale.z);
-    mass += transfer;
-
-//    const float shearViscous = param.debrisViscosity * glm::length(speed) / (0.0001f + mass);
-//    const float shearYield = param.debrisYieldStress + mass * param.critSlope;
-//    const float shearMass = mass * (height_cur - height_next);
-//    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearMass - shearViscous - shearYield));
-//    const float deposit =  glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous + shearYield - shearMass)));
-//
-////    const float deposit = glm::min(sed, param.depositionRate * sed / water);
-
-    // Update Tracking Variables
-    height_cur = height_next;
-    ind = nind;
-
+    if(glm::length(speed) < 1E-6f)
+      break;
+  
   }
 
 }
