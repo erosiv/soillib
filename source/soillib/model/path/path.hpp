@@ -68,6 +68,17 @@ void erode (
   const soil::param_t param
 );
 
+void erode_debris (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> velocity,
+  silt::tensor_t<float> velocity_track,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> mass_track,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+);
+
 }
 
 #endif

@@ -291,6 +291,93 @@ __global__ void __erode (
 
 }
 
+__global__ void __erode_debris (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> massBuf,
+  silt::tensor_t<float> massTrack,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<silt::rng> rng,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= rng.elem()) return;
+
+  // Random Sample Position
+  silt::vec2 pos = silt::vec2 {
+    curand_uniform(&rng[n])*float(shape[0]),
+    curand_uniform(&rng[n])*float(shape[1])
+  };
+  int ind = shape.flatten(pos);
+  const float P = 1.0f / float(shape.elem);
+  // const vecD S = sourceView[ind] / P;
+
+//  auto momentumView = momentum.view<silt::vec2>();
+//  auto momentumTrackView = momentumTrack.view<silt::vec2>();
+
+  // Transport Initialization
+  float mass = 0.0001f;
+  silt::vec2 speed = -__grad(height, shape, scale, pos);
+  float height_cur = height[ind] * scale.z;
+
+  int step = 0;
+  while(!shape.oob(pos) && ++step < param.maxage) {
+
+    // Position Update
+    if(glm::length(speed) < 1E-6f)
+      break;
+
+    pos += speed / glm::length(speed);
+    if(shape.oob(pos))
+      break;
+    const int nind = shape.flatten(pos);
+
+    // Tracking Step
+    atomicAdd(&massTrack[nind], mass);
+//    atomicAdd(&momentumTrackView[nind].x, mass * speed.x);
+//    atomicAdd(&momentumTrackView[nind].y, mass * speed.y);
+
+    // Velocity Update
+//    const silt::vec2 mspeed = momentumView[ind] / mass[ind];
+
+//    const float nu = param.viscosity;
+    const float tau = param.bedShear;
+
+    speed = (1.0f - tau) * speed;
+//    speed = ((1.0f - nu) * speed + nu * mspeed);
+    speed = (speed - __grad(height, shape, scale, pos));
+
+    // Erosion Update
+    const float height_next = height[nind] * scale.z;
+
+    // Debris-Flow Erosion Formula
+
+    const float slope = (height_cur - height_next);
+    const float suspend = param.debrisSuspensionRate * glm::max(0.0f, slope - param.critSlope);
+    const float deposit = glm::min(mass, param.debrisDepositionRate * mass);
+    const float transfer = suspend - deposit;
+    atomicAdd(&height[ind], -transfer / scale.z);
+    mass += transfer;
+
+//    const float shearViscous = param.debrisViscosity * glm::length(speed) / (0.0001f + mass);
+//    const float shearYield = param.debrisYieldStress + mass * param.critSlope;
+//    const float shearMass = mass * (height_cur - height_next);
+//    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearMass - shearViscous - shearYield));
+//    const float deposit =  glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous + shearYield - shearMass)));
+//
+////    const float deposit = glm::min(sed, param.depositionRate * sed / water);
+
+    // Update Tracking Variables
+    height_cur = height_next;
+    ind = nind;
+
+  }
+
+}
+
 namespace soil {
 
 void erode (
@@ -319,6 +406,36 @@ void erode (
     rng, height.shape(), scale, param);
 
   silt::mix(discharge, dischargeTrack, param.lrate);
+  silt::mix(momentum, momentumTrack, param.lrate);
+
+}
+
+void erode_debris (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> massTrack,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  // velocity field?
+  const float A = scale.x * scale.y;
+
+  silt::set(massTrack, A);
+  silt::set(momentumTrack, 0.0f);
+
+  __erode_debris<<<block(rng.elem(), 512), 512>>>(
+    height,
+    mass,
+    massTrack,
+    momentum,
+    momentumTrack,
+    rng, height.shape(), scale, param);
+
+  silt::mix(mass, massTrack, param.lrate);
   silt::mix(momentum, momentumTrack, param.lrate);
 
 }

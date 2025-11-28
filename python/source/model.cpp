@@ -241,6 +241,27 @@ module.def("erode", [](
   );
 });
 
+module.def("erode_debris", [](
+  silt::tensor height,
+  silt::tensor velocity,
+  silt::tensor velocity_track,
+  silt::tensor mass,
+  silt::tensor mass_track,
+  silt::tensor rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+  soil::erode_debris(
+    height.as<float>(), 
+    velocity.as<float>(),
+    velocity_track.as<float>(),
+    mass.as<float>(),
+    mass_track.as<float>(),
+    rng.as<silt::rng>(),
+    scale, param
+  );
+});
+
 //
 // Noise Operations
 //
