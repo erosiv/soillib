@@ -167,31 +167,30 @@ __global__ void __erode_debris (
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step){
 
-    // Erosion Step
+    // Debris-Flow Erosion Formula
     const float slope = __slope(height, shape, scale, pos, param.exitSlope);
-    const float suspend = param.debrisSuspensionRate * glm::max(0.0f, slope - param.critSlope);
-    const float deposit = glm::min(mass, param.debrisDepositionRate * mass);
+    
+    const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
+    // note: this implies the existence of the landslide mass...
+    const float shearViscous = param.debrisViscosity * glm::length(speed) / (1.0f + mass);
+    const float shearYield = mass * (slope - param.critSlope) - param.debrisYieldStress;
+    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearLandslide + shearYield - shearViscous));
+    const float deposit = glm::min(mass, glm::max(0.0f, param.debrisSuspensionRate * (shearViscous - shearYield - shearLandslide)));
+
     const float transfer = suspend - deposit;
     atomicAdd(&height[ind], -transfer / scale.z);
     mass += transfer;
 
-// Debris-Flow Erosion Formula
-//    const float shearViscous = param.debrisViscosity * glm::length(speed) / (0.0001f + mass);
-//    const float shearYield = param.debrisYieldStress + mass * param.critSlope;
-//    const float shearMass = mass * (height_cur - height_next);
-//    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearMass - shearViscous - shearYield));
-//    const float deposit =  glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous + shearYield - shearMass)));
-
     // Position Update
     pos += speed / glm::length(speed);
     if(shape.oob(pos))
-    break;
+      break;
     
     // Tracking Step
     ind = shape.flatten(pos);
     atomicAdd(&massTrack[ind], mass);
-//    atomicAdd(&momentumTrackView[nind].x, mass * speed.x);
-//    atomicAdd(&momentumTrackView[nind].y, mass * speed.y);
+//    atomicAdd(&momentumTrackView[ind].x, mass * speed.x);
+//    atomicAdd(&momentumTrackView[ind].y, mass * speed.y);
 
     // Velocity Update
 //    const silt::vec2 mspeed = momentumView[ind] / mass[ind];
