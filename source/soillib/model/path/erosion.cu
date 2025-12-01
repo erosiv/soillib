@@ -39,8 +39,8 @@ __global__ void __erode (
 
   // Random Sample Position
   silt::vec2 pos = silt::vec2 {
-    curand_uniform(&rng[n])*float(shape[0]),
-    curand_uniform(&rng[n])*float(shape[1])
+    curand_uniform(&rng[n])*float(shape[0] - 1),
+    curand_uniform(&rng[n])*float(shape[1] - 1)
   };
   int ind = shape.flatten(pos);
   const float P = 1.0f / float(shape.elem);
@@ -149,10 +149,10 @@ __global__ void __erode_debris (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
-  // Random Sample Position
+  // Random Sample Position      
   silt::vec2 pos = silt::vec2 {
-    curand_uniform(&rng[n])*float(shape[0]),
-    curand_uniform(&rng[n])*float(shape[1])
+    curand_uniform(&rng[n])*float(shape[0] - 1),
+    curand_uniform(&rng[n])*float(shape[1] - 1)
   };
   int ind = shape.flatten(pos);
   const float P = 1.0f / float(shape.elem);
