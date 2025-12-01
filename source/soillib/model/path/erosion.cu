@@ -173,7 +173,7 @@ __global__ void __erode_debris (
     const float shearViscous = param.debrisViscosity * glm::length(speed) / (1.0f + mass);
     const float shearYield = mass * (slope - param.critSlope) - param.debrisYieldStress;
     const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearLandslide + shearYield - shearViscous));
-    const float deposit = glm::min(mass, glm::max(0.0f, param.debrisSuspensionRate * (shearViscous - shearYield - shearLandslide)));
+    const float deposit = glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous - shearYield - shearLandslide)));
 
     const float transfer = suspend - deposit;
     atomicAdd(&height[ind], -transfer / scale.z);
@@ -219,7 +219,7 @@ void soil::erode_debris (
   // velocity field?
   const float A = scale.x * scale.y;
 
-  silt::set(massTrack, A);
+  silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
   __erode_debris<<<block(rng.elem(), 512), 512>>> (
