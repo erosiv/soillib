@@ -51,6 +51,8 @@ __global__ void __erode (
   float water = 1.0f;
   float mass = 0.0f;
   silt::vec2 speed = -__grad(height, shape, scale, pos);
+  if(glm::length(speed) == 0.0f)
+    return;
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
@@ -75,7 +77,7 @@ __global__ void __erode (
 
     // Position Update
     pos += speed / glm::length(speed);
-    if(shape.oob(pos))
+    if(__oob(shape, pos))
       break;
 
     // Tracking Step
@@ -181,7 +183,7 @@ __global__ void __erode_debris (
 
     // Position Update
     pos += speed / glm::length(speed);
-    if(shape.oob(pos))
+    if(__oob(shape, pos))
       break;
     
     // Tracking Step
