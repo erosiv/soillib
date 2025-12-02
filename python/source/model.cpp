@@ -25,30 +25,33 @@ auto param_t = nb::class_<soil::param_t>(module, "param_t");
 param_t.def(nb::init<>());
 param_t.def_rw("maxage", &soil::param_t::maxage);
 param_t.def_rw("timeStep", &soil::param_t::timeStep);
-
+param_t.def_rw("lrate", &soil::param_t::lrate);
+param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 param_t.def_rw("critSlope", &soil::param_t::critSlope);
-param_t.def_rw("debrisCreepRate", &soil::param_t::debrisCreepRate);
-param_t.def_rw("debrisDepositionRate", &soil::param_t::debrisDepositionRate);
-param_t.def_rw("debrisSuspensionRate", &soil::param_t::debrisSuspensionRate);
-param_t.def_rw("debrisYieldStress", &soil::param_t::debrisYieldStress);
-param_t.def_rw("debrisDensity", &soil::param_t::debrisDensity);
-param_t.def_rw("debrisViscosity", &soil::param_t::debrisViscosity);
-param_t.def_rw("debrisBedShear", &soil::param_t::debrisBedShear);
 
 param_t.def_rw("uplift", &soil::param_t::uplift);
 param_t.def_rw("rainfall", &soil::param_t::rainfall);
+
 param_t.def_rw("evapRate", &soil::param_t::evapRate);
 param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
 param_t.def_rw("suspensionRate", &soil::param_t::suspensionRate);
 param_t.def_rw("fluvialExponent", &soil::param_t::fluvialExponent);
 
-param_t.def_rw("gravity", &soil::param_t::gravity);
-param_t.def_rw("viscosity", &soil::param_t::viscosity);
-param_t.def_rw("bedShear", &soil::param_t::bedShear);
-param_t.def_rw("lrate", &soil::param_t::lrate);
-param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
+param_t.def_rw("debrisDepositionRate", &soil::param_t::debrisDepositionRate);
+param_t.def_rw("debrisSuspensionRate", &soil::param_t::debrisSuspensionRate);
+param_t.def_rw("debrisYieldStress", &soil::param_t::debrisYieldStress);
+param_t.def_rw("debrisViscosity", &soil::param_t::debrisViscousStress);
 
 param_t.def_rw("force", &soil::param_t::force);
+
+// Momentum Parameterization
+
+auto momentum_param_t = nb::class_<soil::momentum_param_t>(module, "momentum_param_t");
+momentum_param_t.def(nb::init<>());
+momentum_param_t.def_rw("gravity", &soil::momentum_param_t::gravity);
+momentum_param_t.def_rw("density", &soil::momentum_param_t::density);
+momentum_param_t.def_rw("viscosity", &soil::momentum_param_t::viscosity);
+momentum_param_t.def_rw("bedShear", &soil::momentum_param_t::bedShear);
 
 /*
 //
@@ -229,7 +232,8 @@ module.def("erode", [](
   silt::tensor discharge_track,
   silt::tensor rng,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 ) {
   soil::erode(
     height.as<float>(), 
@@ -238,7 +242,7 @@ module.def("erode", [](
     discharge.as<float>(),
     discharge_track.as<float>(),
     rng.as<silt::rng>(),
-    scale, param
+    scale, param, mp
   );
 });
 
@@ -250,7 +254,8 @@ module.def("erode_debris", [](
   silt::tensor mass_track,
   silt::tensor rng,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 ) {
   soil::erode_debris(
     height.as<float>(), 
@@ -259,7 +264,7 @@ module.def("erode_debris", [](
     mass.as<float>(),
     mass_track.as<float>(),
     rng.as<silt::rng>(),
-    scale, param
+    scale, param, mp
   );
 });
 

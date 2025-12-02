@@ -18,37 +18,37 @@ struct param_t {
 
   size_t maxage = 512;
   float lrate = 0.1f;
-
   float timeStep = 10.0f; //!< [y]
 
-  float gravity = 9.81f;    //!< [m/s^2]
+  float exitSlope = 0.025f;
+  float critSlope = 0.57f;
+
   float uplift = 0.1f;      //!< [m/y]
   float rainfall = 1.0f;    //!< [m/y]
   float evapRate = 0.0001f; //!< [m^3/s]
 
-  // Fluvial Erosion Parameters
-  float viscosity = 0.000001f;      //!< [m^2/s]
-  float bedShear = 12.5f;           //!< [Pa]
-  float fluvialDensity = 1000.0f;   //!< [kg/m^3]
   float frictionFactor = 0.02f;     //!< []
   float fluvialExponent = 0.01f;
   float suspensionRate = 0.0000008f; //!<
   float depositionRate = 0.00001f;
-  float exitSlope = 0.025f;
 
   // Thermal Erosion Parameters
-  float critSlope = 0.57f;
-  float debrisCreepRate = 0.0025f;
   float debrisSuspensionRate = 0.00025f;
   float debrisDepositionRate = 0.000025f;
+  float debrisViscousStress = 0.001f;
   float debrisYieldStress = 2E6;  //!< Pa*s
-  float debrisViscosity = 0.001f;
-  float debrisBedShear = 0.0125f;
-  float debrisDensity = 2.0f;  //!< [kg/m^3]
   
   // Arbitrary Body Force
   glm::vec2 force = glm::vec2(0.0f);
 
+};
+
+//! Parameters for Momentum Conservation
+struct momentum_param_t {
+  float gravity = 9.81f;    //!< [m/s^2]
+  float density = 1000.0f;  //!< [g/m^3]
+  float viscosity = 0.5f;   //!< []
+  float bedShear = 0.1f;    //!< []
 };
 
 //
@@ -63,7 +63,8 @@ void erode (
   silt::tensor_t<float> discharge_track,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 );
 
 void erode_debris (
@@ -74,7 +75,8 @@ void erode_debris (
   silt::tensor_t<float> mass_track,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 );
 
 } // end of namespace soil

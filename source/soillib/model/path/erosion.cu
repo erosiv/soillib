@@ -31,7 +31,8 @@ __global__ void __erode (
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -61,7 +62,7 @@ __global__ void __erode (
     const float slope = __slope(height, shape, scale, pos, param.exitSlope);
     const float alpha = param.fluvialExponent;
     const float fD = param.frictionFactor;                        //!< Darcy-Weisbach Friction Factor
-    const float rho = param.fluvialDensity;                       //!< Density of Fluid [kg/m^3]
+    const float rho = mp.density;                                 //!< Density of Fluid [kg/m^3]
     const float ks = param.suspensionRate;                        //!< Fluvial Suspension Rate [(m^3/y)^-0.4
     const float velocity = glm::length(speed);                    //!< [m/s]
     const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
@@ -89,8 +90,8 @@ __global__ void __erode (
     // Velocity Update
     const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
 
-    const float nu = param.viscosity;
-    const float tau = param.bedShear;
+    const float nu = mp.viscosity;
+    const float tau = mp.bedShear;
 
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
@@ -110,7 +111,8 @@ void soil::erode (
   silt::tensor_t<float> dischargeTrack,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 ) {
 
   // velocity field?
@@ -128,7 +130,8 @@ void soil::erode (
     rng,
     height.shape(),
     scale,
-    param
+    param,
+    mp
   );
 
   silt::mix(discharge, dischargeTrack, param.lrate);
@@ -145,7 +148,8 @@ __global__ void __erode_debris (
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -172,7 +176,7 @@ __global__ void __erode_debris (
     
     const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
     // note: this implies the existence of the landslide mass...
-    const float shearViscous = param.debrisViscosity * glm::length(speed) / (1.0f + mass);
+    const float shearViscous = param.debrisViscousStress * glm::length(speed) / (1.0f + mass);
     const float shearYield = mass * (slope - param.critSlope) - param.debrisYieldStress;
     const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearLandslide + shearYield - shearViscous));
     const float deposit = glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous - shearYield - shearLandslide)));
@@ -194,8 +198,8 @@ __global__ void __erode_debris (
 
     // Velocity Update
     const silt::vec2 mspeed = momentum[ind] / (1.0f + massBuf[ind]);
-    const float nu = param.viscosity;
-    const float tau = param.bedShear;
+    const float nu = mp.viscosity;
+    const float tau = mp.bedShear;
 
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
@@ -215,7 +219,8 @@ void soil::erode_debris (
   silt::tensor_t<float> massTrack,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
-  const soil::param_t param
+  const soil::param_t param,
+  const soil::momentum_param_t mp
 ) {
 
   // velocity field?
@@ -224,6 +229,9 @@ void soil::erode_debris (
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
+  const silt::shape shapeIn = height.shape();
+//  const silt::shape shape(shapeIn[0] - 1, shapeIn[1] - 1);
+
   __erode_debris<<<block(rng.elem(), 512), 512>>> (
     height,
     mass,
@@ -231,9 +239,10 @@ void soil::erode_debris (
     momentum.view<silt::vec2>(),
     momentumTrack.view<silt::vec2>(),
     rng,
-    height.shape(),
+    shapeIn,
     scale,
-    param
+    param,
+    mp
   );
 
   silt::mix(mass, massTrack, param.lrate);
