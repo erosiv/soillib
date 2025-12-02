@@ -22,8 +22,8 @@ __device__ bool __oob(
 
   if(pos.x < 0) return true;
   if(pos.y < 0) return true;
-  if(pos.x >= shape[0] - 1) return true;
-  if(pos.y >= shape[1] - 1) return true;
+  if(pos.x >= shape[0]) return true;
+  if(pos.y >= shape[1]) return true;
   return false;
 
 }
@@ -123,12 +123,13 @@ __device__ silt::vec2 __grad (
   const silt::vec2 pos
 ) {
 
-  const silt::vec2 w = pos - glm::floor(pos);
+//  const silt::vec2 w = pos - glm::floor(pos);
   const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0));
-  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0));
-  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1));
-  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1));
-  return g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
+  return g00;
+//  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0));
+//  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1));
+//  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1));
+//  return g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
 
 }
 

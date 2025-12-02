@@ -40,8 +40,8 @@ __global__ void __erode (
 
   // Random Sample Position
   silt::vec2 pos = silt::vec2 {
-    curand_uniform(&rng[n])*float(shape[0] - 1),
-    curand_uniform(&rng[n])*float(shape[1] - 1)
+    curand_uniform(&rng[n])*float(shape[0]),
+    curand_uniform(&rng[n])*float(shape[1])
   };
   int ind = shape.flatten(pos);
   const float P = 1.0f / float(shape.elem);
@@ -155,10 +155,10 @@ __global__ void __erode_debris (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
-  // Random Sample Position      
+  // Random Sample Position
   silt::vec2 pos = silt::vec2 {
-    curand_uniform(&rng[n])*float(shape[0] - 1),
-    curand_uniform(&rng[n])*float(shape[1] - 1)
+    curand_uniform(&rng[n])*float(shape[0]),
+    curand_uniform(&rng[n])*float(shape[1])
   };
   int ind = shape.flatten(pos);
   const float P = 1.0f / float(shape.elem);
@@ -169,7 +169,7 @@ __global__ void __erode_debris (
   float mass = 0.0f;
 
   // Iterate over Number of Steps
-  for(int step = 0; step < param.maxage; ++step){
+  for(int step = 0; step < param.maxage; ++step) {
 
     // Debris-Flow Erosion Formula
     const float slope = __slope(height, shape, scale, pos, param.exitSlope);
@@ -230,7 +230,6 @@ void soil::erode_debris (
   silt::set(momentumTrack, 0.0f);
 
   const silt::shape shapeIn = height.shape();
-//  const silt::shape shape(shapeIn[0] - 1, shapeIn[1] - 1);
 
   __erode_debris<<<block(rng.elem(), 512), 512>>> (
     height,
