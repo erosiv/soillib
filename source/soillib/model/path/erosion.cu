@@ -51,7 +51,7 @@ __global__ void __erode (
   
   float water = 1.0f;
   float mass = 0.0f;
-  silt::vec2 speed = -__grad(height, shape, scale, pos);
+  silt::vec2 speed = -__grad(height, shape, scale, pos, param.exitSlope);
   if(glm::length(speed) == 0.0f)
     return;
 
@@ -95,7 +95,7 @@ __global__ void __erode (
 
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - __grad(height, shape, scale, pos));
+    speed = (speed - __grad(height, shape, scale, pos, param.exitSlope));
     if(glm::length(speed) < 1E-6f)
       break;
 
@@ -165,7 +165,7 @@ __global__ void __erode_debris (
   // const vecD S = sourceView[ind] / P;
 
   // Transport Initialization
-  silt::vec2 speed = -__grad(height, shape, scale, pos);
+  silt::vec2 speed = -__grad(height, shape, scale, pos, param.exitSlope);
   float mass = 0.0f;
 
   // Iterate over Number of Steps
@@ -203,7 +203,7 @@ __global__ void __erode_debris (
 
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - __grad(height, shape, scale, pos));
+    speed = (speed - __grad(height, shape, scale, pos, param.exitSlope));
     if(glm::length(speed) < 1E-6f)
       break;
   

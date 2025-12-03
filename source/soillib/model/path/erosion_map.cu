@@ -15,6 +15,9 @@
 //! method and then lerping, or using the analytical
 //! gradients of a higher order method.
 
+//! Cell-Center Sampling:
+//!   
+
 __device__ bool __oob(
   const silt::shape shape,
   const silt::vec2 pos
@@ -32,7 +35,8 @@ __device__ silt::vec2 __glocal (
   const silt::tensor_t<float>& height,
   const silt::shape shape,
   const silt::vec3 scale,
-  const silt::ivec2 ipos
+  const silt::ivec2 ipos,
+  const float exitSlope
 ) {
 
   const int i00 = shape.flatten(ipos + silt::ivec2( 0, 0));
@@ -55,9 +59,15 @@ __device__ silt::vec2 __glocal (
   float gx = 0.0f;
   float gy = 0.0f;
 
+//  if(!__isnanf(gxn))
+
   if(!__isnanf(gxn) && gxn > 0 && abs(gxn) > abs(gx)) {
     gx = gxn;
   }
+//  if(__isnanf(gxn) && abs(exitSlope) > abs(gx)) {
+//    gx = exitSlope;
+//  }
+//
   if(!__isnanf(gxp) && gxp < 0 && abs(gxp) > abs(gx)) {
     gx = gxp;
   }
@@ -120,11 +130,12 @@ __device__ silt::vec2 __grad (
   const silt::tensor_t<float>& height,
   const silt::shape shape,
   const silt::vec3 scale,
-  const silt::vec2 pos
+  const silt::vec2 pos,
+  const float exitSlope
 ) {
 
 //  const silt::vec2 w = pos - glm::floor(pos);
-  const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0));
+  const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
   return g00;
 //  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0));
 //  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1));
