@@ -58,38 +58,41 @@ __device__ silt::vec2 __glocal (
   const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : height[i0n];
   const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : height[i0p];
 
-  const float gxn = (h - hn0) * scale.z / scale.x;
-  const float gxp = (hp0 - h) * scale.z / scale.x;
-  const float gyn = (h - h0n) * scale.z / scale.y;
-  const float gyp = (h0p - h) * scale.z / scale.y;
+  // Note: fmaxf returns numeric value if one value is NaN.
+  // NaN: On boundary, use signed (downhill) exitslope
+  //  aN: Not on boundary, clamp to downhill.
 
+  float gxn = (h - hn0) * scale.z / scale.x;
+  if(__isnanf(gxn)) gxn = exitSlope;
+  else gxn = fmaxf(gxn, 0.0f);
+  
+  float gyn = (h - h0n) * scale.z / scale.y;
+  if(__isnanf(gyn)) gyn = exitSlope;
+  else gyn = fmaxf(gyn, 0.0f);
+  
+  float gxp = (hp0 - h) * scale.z / scale.x;
+  if(__isnanf(gxp)) gxp = -exitSlope;
+  else gxp = fminf(gxp, 0.0f);
+  
+  float gyp = (h0p - h) * scale.z / scale.y;
+  if(__isnanf(gyp)) gyp = -exitSlope;
+  else gyp = fminf(gyp, 0.0f);
+
+  // Choose Steepest
+  
   float gx = 0.0f;
+  if(abs(gxn) > abs(gx)) gx = gxn;
+  if(abs(gxp) > abs(gx)) gx = gxp;
+  
   float gy = 0.0f;
-
-//  if(!__isnanf(gxn))
-
-  if(!__isnanf(gxn) && gxn > 0 && abs(gxn) > abs(gx)) {
-    gx = gxn;
-  }
-//  if(__isnanf(gxn) && abs(exitSlope) > abs(gx)) {
-//    gx = exitSlope;
-//  }
-//
-  if(!__isnanf(gxp) && gxp < 0 && abs(gxp) > abs(gx)) {
-    gx = gxp;
-  }
-
-  if(!__isnanf(gyn) && gyn > 0 && abs(gyn) > abs(gy)) {
-    gy = gyn;
-  }
-  if(!__isnanf(gyp) && gyp < 0 && abs(gyp) > abs(gy)) {
-    gy = gyp;
-  }
+  if(abs(gyn) > abs(gy)) gy = gyn;
+  if(abs(gyp) > abs(gy)) gy = gyp;
 
   return silt::vec2(gx, gy);
 
 }
 
+/*
 __device__ float __slocal (
   const silt::tensor_t<float>& height,
   const silt::shape shape,
@@ -132,6 +135,7 @@ __device__ float __slocal (
   return glm::length(silt::vec2(gx, gy));
 
 }
+*/
 
 __device__ silt::vec2 __grad (
   const silt::tensor_t<float>& height,
@@ -160,8 +164,8 @@ __device__ float __slope (
 ){
 
 //  const silt::vec2 w = pos - glm::floor(pos);
-  const float s00 = __slocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
-  return s00;
+  const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
+  return glm::length(g00);
 
   // const float s01 = __slocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
   // const float s10 = __slocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
