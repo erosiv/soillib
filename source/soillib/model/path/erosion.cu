@@ -43,7 +43,7 @@ __global__ void __erode (
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
-  int ind = shape.flatten(pos);
+  int ind = __flatten(shape, pos);
   // const float P = 1.0f / float(shape.elem);
   // const vecD S = sourceView[ind] / P;
 
@@ -65,7 +65,7 @@ __global__ void __erode (
     const float ks = param.suspensionRate;                        //!< Fluvial Suspension Rate [(m^3/y)^-0.4
     const float velocity = glm::length(speed);                    //!< [m/s]
     const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-    const float power = pow(shear * velocity, alpha);             //!< Stream Power Function
+    const float power = __powf(shear * velocity, alpha);          //!< Stream Power Function
 
     const float suspend = glm::max(0.0f, ks * power * slope);
     const float deposit = glm::min(mass, param.depositionRate * mass / water);
@@ -81,7 +81,7 @@ __global__ void __erode (
       break;
 
     // Tracking Step
-    ind = shape.flatten(pos);
+    ind = __flatten(shape, pos);
     atomicAdd(&dischargeTrack[ind], water);
     atomicAdd(&momentumTrackView[ind].x, water * speed.x);
     atomicAdd(&momentumTrackView[ind].y, water * speed.y);

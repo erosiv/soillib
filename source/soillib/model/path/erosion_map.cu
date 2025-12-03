@@ -19,7 +19,7 @@
 //!   
 
 __device__ bool __oob(
-  const silt::shape shape,
+  const silt::shape& shape,
   const silt::vec2 pos
 ) {
 
@@ -29,6 +29,13 @@ __device__ bool __oob(
   if(pos.y >= shape[1]) return true;
   return false;
 
+}
+
+__device__ int __flatten (
+  const silt::shape& shape,
+  const silt::vec2 pos
+) {
+  return shape.flatten(pos);
 }
 
 __device__ silt::vec2 __glocal (
