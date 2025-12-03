@@ -38,6 +38,19 @@ __device__ int __flatten (
   return shape.flatten(pos);
 }
 
+__device__ float __length (
+  silt::vec2 v
+) {
+  return sqrtf(v.x * v.x + v.y * v.y);
+}
+
+__device__ float __ndot (
+  silt::vec2 g,
+  silt::vec2 v
+) {
+  return (g.x * v.x + g.y * v.y) / __length(v);
+}
+
 __device__ silt::vec2 __glocal (
   const silt::tensor_t<float>& height,
   const silt::shape shape,
@@ -141,16 +154,61 @@ __device__ silt::vec2 __grad (
   const silt::tensor_t<float>& height,
   const silt::shape shape,
   const silt::vec3 scale,
-  const silt::vec2 pos,
+  silt::vec2 pos,
   const float exitSlope
 ) {
 
-//  const silt::vec2 w = pos - glm::floor(pos);
-  const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
+  // Basic Local Implementation In-Cell:
+  const silt::vec2 g00 = __glocal(height, shape, scale, pos, exitSlope);
   return g00;
-//  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
-//  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
-//  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1), exitSlope);
+
+//  // Linear Interpolated Implementation:
+//  silt::ivec2 p00, p01, p10, p11;
+//  silt::vec2 w;
+//
+//  p00.x = floorf(pos.x - 0.5f);
+//  p01.x = floorf(pos.x - 0.5f);
+//  p10.x = 1 + floorf(pos.x - 0.5f);
+//  p11.x = 1 + floorf(pos.x - 0.5f);
+//
+//  p00.y = floorf(pos.y - 0.5f);
+//  p01.y = 1 + floorf(pos.y - 0.5f);
+//  p10.y = floorf(pos.y - 0.5f);
+//  p11.y = 1 + floorf(pos.y - 0.5f);
+//
+//  if(pos.x - 0.5f < 0.0f) {
+//    p00.x = 0;
+//    p01.x = 0;
+//    p10.x = 0;
+//    p11.x = 0;
+//  }
+//  if(pos.y - 0.5f < 0.0f) {
+//    p00.y = 0;
+//    p01.y = 0;
+//    p10.y = 0;
+//    p11.y = 0;
+//  }
+//  if(pos.x - 0.5f >= float(shape[0] - 1)){
+//    p00.x = shape[0] - 1;
+//    p01.x = shape[0] - 1;
+//    p10.x = shape[0] - 1;
+//    p11.x = shape[0] - 1;
+//  }
+//  if(pos.y - 0.5f >= float(shape[1] - 1)){
+//    p00.y = shape[1] - 1;
+//    p01.y = shape[1] - 1;
+//    p10.y = shape[1] - 1;
+//    p11.y = shape[1] - 1;
+//  }
+//
+//  w = (pos - 0.5f) - glm::floor(pos - 0.5f);
+////  w.x = fminf(fmaxf(w.x, 0.0f), 1.0f);
+////  w.y = fminf(fmaxf(w.y, 0.0f), 1.0f);
+//  
+//  const silt::vec2 g00 = __glocal(height, shape, scale, p00, exitSlope);
+//  const silt::vec2 g10 = __glocal(height, shape, scale, p10, exitSlope);
+//  const silt::vec2 g01 = __glocal(height, shape, scale, p01, exitSlope);
+//  const silt::vec2 g11 = __glocal(height, shape, scale, p11, exitSlope);
 //  return g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
 
 }
@@ -163,14 +221,63 @@ __device__ float __slope (
   const float exitSlope
 ) {
 
-//  const silt::vec2 w = pos - glm::floor(pos);
   const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
   return glm::length(g00);
-//  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
-//  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
-//  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1), exitSlope);
-//  const silt::vec2 g = g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
-//  return glm::length(g);
+
+  /*
+  silt::ivec2 p00, p01, p10, p11;
+  silt::vec2 w;
+
+  p00.x = floorf(pos.x - 0.5f);
+  p01.x = floorf(pos.x - 0.5f);
+  p10.x = 1 + floorf(pos.x - 0.5f);
+  p11.x = 1 + floorf(pos.x - 0.5f);
+
+  p00.y = floorf(pos.y - 0.5f);
+  p01.y = 1 + floorf(pos.y - 0.5f);
+  p10.y = floorf(pos.y - 0.5f);
+  p11.y = 1 + floorf(pos.y - 0.5f);
+
+  w = (pos - 0.5f) - glm::floor(pos - 0.5f);
+
+  if(pos.x < 0.5f) {
+    p00.x = 0;
+    p01.x = 0;
+    p10.x = 0;
+    p11.x = 0;
+  }
+  if(pos.y < 0.5f) {
+    p00.y = 0;
+    p01.y = 0;
+    p10.y = 0;
+    p11.y = 0;
+  }
+  if(pos.x >= float(shape[0]) - 0.5f){
+    p00.x = shape[0] - 1;
+    p01.x = shape[0] - 1;
+    p10.x = shape[0] - 1;
+    p11.x = shape[0] - 1;
+  }
+  if(pos.y >= float(shape[1]) - 0.5f){
+    p00.y = shape[1] - 1;
+    p01.y = shape[1] - 1;
+    p10.y = shape[1] - 1;
+    p11.y = shape[1] - 1;
+  }
+
+  const silt::vec2 g00 = __glocal(height, shape, scale, p00, exitSlope);
+  const silt::vec2 g10 = __glocal(height, shape, scale, p10, exitSlope);
+  const silt::vec2 g01 = __glocal(height, shape, scale, p01, exitSlope);
+  const silt::vec2 g11 = __glocal(height, shape, scale, p11, exitSlope);
+  const silt::vec2 g = g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
+  return __length(g);
+  */
+
+  //  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
+  //  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
+  //  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1), exitSlope);
+  //  const silt::vec2 g = g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
+  //  return glm::length(g);
 
 }
 

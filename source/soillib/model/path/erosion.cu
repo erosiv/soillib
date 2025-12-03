@@ -59,14 +59,15 @@ __global__ void __erode (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Erosion Step / Mass Integration Step
-    const float slope = glm::length(grad);
+    const float slope = glm::length(grad);//fmaxf(0.0f, __ndot(-grad, speed));
+//    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
     const float alpha = param.fluvialExponent;
-    const float fD = param.frictionFactor;                        //!< Darcy-Weisbach Friction Factor
-    const float rho = mp.density;                                 //!< Density of Fluid [kg/m^3]
-    const float ks = param.suspensionRate;                        //!< Fluvial Suspension Rate [(m^3/y)^-0.4
-    const float velocity = glm::length(speed);                    //!< [m/s]
-    const float shear = 0.125f * fD * rho * velocity * velocity;  //!< [kg/m/s^2]
-    const float power = __powf(shear * velocity, alpha);          //!< Stream Power Function
+    const float fD = param.frictionFactor;                          //!< Darcy-Weisbach Friction Factor
+    const float rho = mp.density;                                   //!< Density of Fluid [kg/m^3]
+    const float ks = param.suspensionRate;                          //!< Fluvial Suspension Rate [(m^3/y)^-0.4
+    const float velocity = glm::length(speed);                      //!< [m/s]
+    const float shear = 0.125f * fD * rho * velocity * velocity;    //!< [kg/m/s^2]
+    const float power = glm::abs(__powf(shear * velocity, alpha));  //!< Stream Power Function
 
     const float suspend = glm::max(0.0f, ks * power * slope);
     const float deposit = glm::min(mass, param.depositionRate * mass / water);
@@ -158,23 +159,23 @@ __global__ void __erode_debris (
 
   // Random Sample Position
   silt::vec2 pos = silt::vec2 {
-    curand_uniform(&rng[n])*float(shape[0]),
-    curand_uniform(&rng[n])*float(shape[1])
+    0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
+    0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
   int ind = shape.flatten(pos);
   const float P = 1.0f / float(shape.elem);
   // const vecD S = sourceView[ind] / P;
 
   // Transport Initialization
-  silt::vec2 speed = -__grad(height, shape, scale, pos, param.exitSlope);
+  silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
+  silt::vec2 speed = -grad;
   float mass = 0.0f;
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
     // Debris-Flow Erosion Formula
-    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
-    
+    const float slope = glm::length(grad);
     const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
     // note: this implies the existence of the landslide mass...
     const float shearViscous = param.debrisViscousStress * glm::length(speed) / (1.0f + mass);
@@ -202,9 +203,10 @@ __global__ void __erode_debris (
     const float nu = mp.viscosity;
     const float tau = mp.bedShear;
 
+    grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - __grad(height, shape, scale, pos, param.exitSlope));
+    speed = (speed - grad);
     if(glm::length(speed) < 1E-6f)
       break;
   
