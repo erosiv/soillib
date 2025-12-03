@@ -40,15 +40,14 @@ __global__ void __erode (
 
   // Random Sample Position
   silt::vec2 pos = silt::vec2 {
-    curand_uniform(&rng[n])*float(shape[0]),
-    curand_uniform(&rng[n])*float(shape[1])
+    0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
+    0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
   int ind = shape.flatten(pos);
-  const float P = 1.0f / float(shape.elem);
-
+  // const float P = 1.0f / float(shape.elem);
   // const vecD S = sourceView[ind] / P;
+
   // Transport Initialization
-  
   float water = 1.0f;
   float mass = 0.0f;
   silt::vec2 speed = -__grad(height, shape, scale, pos, param.exitSlope);
