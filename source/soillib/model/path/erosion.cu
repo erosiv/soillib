@@ -50,7 +50,8 @@ __global__ void __erode (
   // Transport Initialization
   float water = 1.0f;
   float mass = 0.0f;
-  silt::vec2 speed = -__grad(height, shape, scale, pos, param.exitSlope);
+  silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
+  silt::vec2 speed = -grad;
   if(glm::length(speed) == 0.0f)
     return;
 
@@ -58,7 +59,7 @@ __global__ void __erode (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Erosion Step / Mass Integration Step
-    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
+    const float slope = glm::length(grad);
     const float alpha = param.fluvialExponent;
     const float fD = param.frictionFactor;                        //!< Darcy-Weisbach Friction Factor
     const float rho = mp.density;                                 //!< Density of Fluid [kg/m^3]
@@ -92,9 +93,10 @@ __global__ void __erode (
     const float nu = mp.viscosity;
     const float tau = mp.bedShear;
 
+    grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - __grad(height, shape, scale, pos, param.exitSlope));
+    speed = (speed - grad);
     if(glm::length(speed) < 1E-6f)
       break;
 

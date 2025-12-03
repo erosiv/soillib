@@ -148,9 +148,9 @@ __device__ silt::vec2 __grad (
 //  const silt::vec2 w = pos - glm::floor(pos);
   const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
   return g00;
-//  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0));
-//  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1));
-//  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1));
+//  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
+//  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
+//  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1), exitSlope);
 //  return g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
 
 }
@@ -161,16 +161,16 @@ __device__ float __slope (
   const silt::vec3 scale,
   const silt::vec2 pos,
   const float exitSlope
-){
+) {
 
 //  const silt::vec2 w = pos - glm::floor(pos);
   const silt::vec2 g00 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 0), exitSlope);
   return glm::length(g00);
-
-  // const float s01 = __slocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
-  // const float s10 = __slocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
-  // const float s11 = __slocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1), exitSlope);
-  // return s00 * (1.0f - w.x) * (1.0f - w.y) + s01 * (1.0f - w.x) * w.y + s10 * w.x * (1.0f - w.y) + s11 * w.x * w.y;
+//  const silt::vec2 g10 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 0), exitSlope);
+//  const silt::vec2 g01 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(0, 1), exitSlope);
+//  const silt::vec2 g11 = __glocal(height, shape, scale, silt::ivec2(pos) + silt::ivec2(1, 1), exitSlope);
+//  const silt::vec2 g = g00 * (1.0f - w.x) * (1.0f - w.y) + g01 * (1.0f - w.x) * w.y + g10 * w.x * (1.0f - w.y) + g11 * w.x * w.y;
+//  return glm::length(g);
 
 }
 
