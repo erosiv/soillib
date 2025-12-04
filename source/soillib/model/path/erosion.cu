@@ -50,8 +50,10 @@ __global__ void __erode (
   // Transport Initialization
   float water = 1.0f;
   float mass = 0.0f;
+
+  // Velocity Computation
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = -grad;
+  silt::vec2 speed = -(mp.gravity * grad);
   if(glm::length(speed) == 0.0f)
     return;
 
@@ -61,15 +63,14 @@ __global__ void __erode (
     // Erosion Step / Mass Integration Step
     const float slope = glm::length(grad);//fmaxf(0.0f, __ndot(-grad, speed));
 //    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
-    const float alpha = param.fluvialExponent;
-    const float fD = param.frictionFactor;                          //!< Darcy-Weisbach Friction Factor
-    const float rho = mp.density;                                   //!< Density of Fluid [kg/m^3]
-    const float ks = param.suspensionRate;                          //!< Fluvial Suspension Rate [(m^3/y)^-0.4
-    const float velocity = glm::length(speed);                      //!< [m/s]
-    const float shear = 0.125f * fD * rho * velocity * velocity;    //!< [kg/m/s^2]
-    const float power = glm::abs(__powf(shear * velocity, alpha));  //!< Stream Power Function
 
-    const float suspend = glm::max(0.0f, ks * power * slope);
+    const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
+    const float alpha = param.fluvialExponent;
+    const float vel = glm::length(speed);                     //!< [m/s]
+    const float shear = 0.125f * fD * mp.density * vel * vel; //!< [kg/m/s^2]
+    const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
+    
+    const float suspend = glm::max(0.0f, param.suspensionRate * power * slope);
     const float deposit = glm::min(mass, param.depositionRate * mass / water);
     const float transfer = suspend - deposit;
 
@@ -97,7 +98,7 @@ __global__ void __erode (
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - grad);
+    speed = (speed - mp.gravity * grad);
     if(glm::length(speed) < 1E-6f)
       break;
 
