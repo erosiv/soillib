@@ -38,6 +38,10 @@ __global__ void __erode (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
+  const float A = scale.x * scale.y;
+  const float rho_w = mp.density;         //!< Density of Water     [g / m^3]
+  const float rho_s = mp.density * 2.0f;  //!< Density of Sediment  [g / m^3]
+
   // Random Sample Position
   silt::vec2 pos = silt::vec2 {
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
@@ -48,8 +52,8 @@ __global__ void __erode (
   // const vecD S = sourceView[ind] / P;
 
   // Transport Initialization
-  float water = 1.0f;
-  float mass = 0.0f;
+  float vol_w = 1.0f; //!< This should be sampled
+  float vol_s = 0.0f; //!< This should also be sampled...
 
   // Velocity Computation
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
@@ -66,17 +70,22 @@ __global__ void __erode (
 
     const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
     const float alpha = param.fluvialExponent;
+
+    const float vol = vol_w + vol_s;                      //!< Total Volume
+    const float mass = (rho_w * vol_w + rho_s * vol_s);   //!< Total Mass
+    const float density = mass / vol;                     //!< Total Density
+
     const float vel = glm::length(speed);                     //!< [m/s]
-    const float shear = 0.125f * fD * mp.density * vel * vel; //!< [kg/m/s^2]
+    const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
     const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
     
-    const float suspend = glm::max(0.0f, param.suspensionRate * power * slope);
-    const float deposit = glm::min(mass, param.depositionRate * mass / water);
+    const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
+    const float deposit = glm::min(vol_s, param.depositionRate * vol_s / vol_w);
     const float transfer = suspend - deposit;
 
     atomicAdd(&height[ind], -transfer / scale.z);
-    mass += transfer;
-    water = (1.0f - param.evapRate) * water;
+    vol_s += transfer;
+    vol_w = (1.0f - param.evapRate) * vol_w;
 
     // Position Update
     pos += speed / glm::length(speed);
@@ -85,19 +94,21 @@ __global__ void __erode (
 
     // Tracking Step
     ind = __flatten(shape, pos);
-    atomicAdd(&dischargeTrack[ind], water);
-    atomicAdd(&momentumTrackView[ind].x, water * speed.x);
-    atomicAdd(&momentumTrackView[ind].y, water * speed.y);
+    atomicAdd(&dischargeTrack[ind], mass);
+    atomicAdd(&momentumTrackView[ind].x, mass * speed.x);
+    atomicAdd(&momentumTrackView[ind].y, mass * speed.y);
 
     // Velocity Update
     const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
 
     const float nu = mp.viscosity;
     const float tau = mp.bedShear;
-
+    
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
+    // basically, the momentum always wins?
+//    speed = ((1.0f - nu) * mass * speed + nu * momentumView[ind]) / ((1.0f - nu) * mass + nu * discharge[ind]);
+    speed = (1.0f - tau) * speed; // Self-Drag Application
     speed = (speed - mp.gravity * grad);
     if(glm::length(speed) < 1E-6f)
       break;
