@@ -69,6 +69,17 @@ void erode (
   const soil::momentum_param_t mp
 );
 
+void mass_transfer (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> uplift,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> mass,
+  const silt::tensor_t<float> momentum,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+);
+
 void erode_debris (
   silt::tensor_t<float> height,
   silt::tensor_t<float> velocity,

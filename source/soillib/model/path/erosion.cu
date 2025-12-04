@@ -123,9 +123,10 @@ __global__ void __erode (
 
 __global__ void __transfer (
   silt::tensor_t<float> height,
-  silt::tensor_t<float> discharge,
-  silt::tensor_t<float> mass,
-  silt::view_t<silt::vec2> momentumView,
+  const silt::tensor_t<float> upliftBase,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> mass,
+  const silt::const_view_t<silt::vec2> momentumView,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -152,9 +153,34 @@ __global__ void __transfer (
   const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
   const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
   const float deposit = param.depositionRate * conc;
+  const float uplift = param.uplift * upliftBase[n];
 
-//  const float suspend = param.suspensionRate * glm::abs(__powf(discharge[n], 0.4f) * slope);
-  height[n] += param.timeStep * (deposit - suspend);
+  height[n] += param.timeStep * (uplift + deposit - suspend);
+
+}
+
+void soil::mass_transfer (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> uplift,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> mass,
+  const silt::tensor_t<float> momentum,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+) {
+
+  __transfer<<<block(height.elem(), 512), 512>>> (
+    height,
+    uplift,
+    discharge,
+    mass,
+    momentum.view<silt::vec2>(),
+    height.shape(),
+    scale,
+    param,
+    mp
+  );
 
 }
 
@@ -197,17 +223,6 @@ void soil::erode (
   silt::mix(discharge, dischargeTrack, param.lrate);
   silt::mix(mass, massTrack, param.lrate);
   silt::mix(momentum, momentumTrack, param.lrate);
-
-  __transfer<<<block(height.elem(), 512), 512>>> (
-    height,
-    discharge,
-    mass,
-    momentum.view<silt::vec2>(),
-    height.shape(),
-    scale,
-    param,
-    mp
-  );
 
 }
 

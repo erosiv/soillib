@@ -250,6 +250,26 @@ module.def("erode", [](
   );
 });
 
+module.def("mass_transfer", [](
+  silt::tensor height,
+  silt::tensor uplift,
+  silt::tensor discharge,
+  silt::tensor mass,
+  silt::tensor momentum,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+) {
+  soil::mass_transfer (
+    height.as<float>(), 
+    uplift.as<float>(),
+    discharge.as<float>(),
+    mass.as<float>(),
+    momentum.as<float>(),
+    scale, param, mp
+  );
+});
+
 module.def("erode_debris", [](
   silt::tensor height,
   silt::tensor velocity,
