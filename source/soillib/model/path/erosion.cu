@@ -87,7 +87,7 @@ __global__ void __erode (
   for(int step = 0; step < param.maxage; ++step) {
 
     //! Attenuate the Sampled Transport Quantities
-    vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
+//    vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
     vol_w = (1.0f - param.evapRate) * vol_w;
 
     // Position Update
@@ -118,6 +118,43 @@ __global__ void __erode (
       break;
 
   }
+
+}
+
+__global__ void __transfer (
+  silt::tensor_t<float> height,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> mass,
+  silt::view_t<silt::vec2> momentumView,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+) {
+
+  // ... execute the mass transfer on height-map ...
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= height.elem()) return;
+
+  const silt::vec2 pos = shape.unflatten(n);
+  const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
+  // basically take the source component + the cumulative component...
+  const silt::vec2 speed = momentumView[n] / discharge[n] - (mp.gravity * grad);
+  const float conc = mass[n] / discharge[n];
+  const float slope = glm::length(grad);
+
+  // Erosion Step / Mass Integration Step
+  const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
+  const float alpha = param.fluvialExponent;
+  const float density = mp.density;                         //!< Total Density
+  const float vel = glm::length(speed);                     //!< [m/s]
+  const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
+  const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
+  const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
+  const float deposit = param.depositionRate * conc;
+
+//  const float suspend = param.suspensionRate * glm::abs(__powf(discharge[n], 0.4f) * slope);
+  height[n] += param.timeStep * (deposit - suspend);
 
 }
 
@@ -160,6 +197,17 @@ void soil::erode (
   silt::mix(discharge, dischargeTrack, param.lrate);
   silt::mix(mass, massTrack, param.lrate);
   silt::mix(momentum, momentumTrack, param.lrate);
+
+  __transfer<<<block(height.elem(), 512), 512>>> (
+    height,
+    discharge,
+    mass,
+    momentum.view<silt::vec2>(),
+    height.shape(),
+    scale,
+    param,
+    mp
+  );
 
 }
 
