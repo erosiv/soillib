@@ -77,8 +77,8 @@ __global__ void __erode (
   // Transport Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (mp.gravity * grad);
-  float vol_w = A * R * Q;                                      //!< Sampled Water Source Term
-  float vol_s = A * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
+  float vol_w = A * Q * R;                                          //!< Sampled Water Source Term
+  float vol_s = A * Q * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
 
   if(glm::length(speed) == 0.0f)
     return;
@@ -151,11 +151,29 @@ __global__ void __transfer (
   const float vel = glm::length(speed);                     //!< [m/s]
   const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
   const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
-  const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
+  const float suspend = param.suspensionRate * power;
   const float deposit = param.depositionRate * conc;
   const float uplift = param.uplift * upliftBase[n];
 
-  height[n] += param.timeStep * (uplift + deposit - suspend);
+  height[n] += param.timeStep * (uplift + deposit - suspend * slope);
+
+  // rate limiting based on the slope ...
+//  hdiff = glm::max(hdiff, - 0.5f * slope * glm::length(silt::vec2(scale.x, scale.y)));
+  
+  // ... basically we want to do the height-field update based on steady-state approach ...
+  //  ... that makes the height-field update unconditionally stable ...
+  //  ...
+
+  // basically approach the slope and update the height-field accordingly...
+  // ...
+
+//  const float slopeSteady = fminf(fmaxf((uplift + deposit) / (1E-6f + suspend), 0.0f), param.critSlope);
+//  const float slopeDiff = (slopeSteady - slope) * (1.0f - expf(-(1E-6f + suspend) * param.timeStep));
+//  height[n] += slopeDiff * glm::length(silt::vec2(scale.x, scale.y));
+
+  // if timestep approaches infinity, then the slope difference becomes
+  //  equal to the difference to the steady-state. Otherwise,
+  //  it is exactly zero and there is no update.
 
 }
 

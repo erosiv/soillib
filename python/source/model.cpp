@@ -36,6 +36,7 @@ param_t.def_rw("evapRate", &soil::param_t::evapRate);
 param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
 param_t.def_rw("suspensionRate", &soil::param_t::suspensionRate);
 param_t.def_rw("fluvialExponent", &soil::param_t::fluvialExponent);
+param_t.def_rw("frictionFactor", &soil::param_t::frictionFactor);
 
 param_t.def_rw("debrisDepositionRate", &soil::param_t::debrisDepositionRate);
 param_t.def_rw("debrisSuspensionRate", &soil::param_t::debrisSuspensionRate);
