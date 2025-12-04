@@ -57,10 +57,12 @@ struct momentum_param_t {
 
 void erode (
   silt::tensor_t<float> height,
-  silt::tensor_t<float> velocity,
-  silt::tensor_t<float> velocity_track,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> discharge_track,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> mass_track,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentum_track,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param,

@@ -22,10 +22,32 @@ inline int block(const int elem, const int thread) {
 
 }
 
+__device__ float __source_sediment(
+  const silt::vec2 grad,
+  const silt::vec2 speed,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+) {
+
+  // Erosion Step / Mass Integration Step
+  const float slope = glm::length(grad);
+  const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
+  const float alpha = param.fluvialExponent;
+  const float density = mp.density;                         //!< Total Density
+  const float vel = glm::length(speed);                     //!< [m/s]
+  const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
+  const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
+  const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
+  return suspend;
+
+}
+
 __global__ void __erode (
   silt::tensor_t<float> height,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> massTrack,
   silt::view_t<silt::vec2> momentumView,
   silt::view_t<silt::vec2> momentumTrackView,
   silt::tensor_t<silt::rng> rng,
@@ -38,53 +60,34 @@ __global__ void __erode (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
-  const float A = scale.x * scale.y;
+  const float A = scale.x * scale.y;      //!< Cell Area            [m^2]
   const float rho_w = mp.density;         //!< Density of Water     [g / m^3]
   const float rho_s = mp.density * 2.0f;  //!< Density of Sediment  [g / m^3]
+  const float R = 1.0f;                   //!< Rainfall Rate        [m / y]
 
-  // Random Sample Position
+  // Sampling Procedure
   silt::vec2 pos = silt::vec2 {
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
   int ind = __flatten(shape, pos);
-  // const float P = 1.0f / float(shape.elem);
-  // const vecD S = sourceView[ind] / P;
+  const float N = rng.elem();
+  const float Q = float(shape.elem) / N;  // Scaling Factor
 
   // Transport Initialization
-  float vol_w = 1.0f; //!< This should be sampled
-  float vol_s = 0.0f; //!< This should also be sampled...
-
-  // Velocity Computation
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = -(mp.gravity * grad);
+  silt::vec2 speed = - (mp.gravity * grad);
+  float vol_w = A * R * Q;                                      //!< Sampled Water Source Term
+  float vol_s = A * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
+
   if(glm::length(speed) == 0.0f)
     return;
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-    // Erosion Step / Mass Integration Step
-    const float slope = glm::length(grad);//fmaxf(0.0f, __ndot(-grad, speed));
-//    const float slope = __slope(height, shape, scale, pos, param.exitSlope);
-
-    const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
-    const float alpha = param.fluvialExponent;
-
-    const float vol = vol_w + vol_s;                      //!< Total Volume
-    const float mass = (rho_w * vol_w + rho_s * vol_s);   //!< Total Mass
-    const float density = mass / vol;                     //!< Total Density
-
-    const float vel = glm::length(speed);                     //!< [m/s]
-    const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
-    const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
-    
-    const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
-    const float deposit = glm::min(vol_s, param.depositionRate * vol_s / vol_w);
-    const float transfer = suspend - deposit;
-
-    atomicAdd(&height[ind], -transfer / scale.z);
-    vol_s += transfer;
+    //! Attenuate the Sampled Transport Quantities
+    vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
     vol_w = (1.0f - param.evapRate) * vol_w;
 
     // Position Update
@@ -94,9 +97,10 @@ __global__ void __erode (
 
     // Tracking Step
     ind = __flatten(shape, pos);
-    atomicAdd(&dischargeTrack[ind], mass);
-    atomicAdd(&momentumTrackView[ind].x, mass * speed.x);
-    atomicAdd(&momentumTrackView[ind].y, mass * speed.y);
+    atomicAdd(&dischargeTrack[ind], vol_w);
+    atomicAdd(&massTrack[ind], vol_s);
+    atomicAdd(&momentumTrackView[ind].x, vol_w * speed.x);
+    atomicAdd(&momentumTrackView[ind].y, vol_w * speed.y);
 
     // Velocity Update
     const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
@@ -119,10 +123,12 @@ __global__ void __erode (
 
 void soil::erode (
   silt::tensor_t<float> height,
-  silt::tensor_t<float> momentum,
-  silt::tensor_t<float> momentumTrack,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> massTrack,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> momentumTrack,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -133,12 +139,15 @@ void soil::erode (
   const float A = scale.x * scale.y;
 
   silt::set(dischargeTrack, A);
+  silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
   __erode<<<block(rng.elem(), 512), 512>>> (
     height,
     discharge,
     dischargeTrack,
+    mass,
+    massTrack,
     momentum.view<silt::vec2>(),
     momentumTrack.view<silt::vec2>(),
     rng,
@@ -149,6 +158,7 @@ void soil::erode (
   );
 
   silt::mix(discharge, dischargeTrack, param.lrate);
+  silt::mix(mass, massTrack, param.lrate);
   silt::mix(momentum, momentumTrack, param.lrate);
 
 }

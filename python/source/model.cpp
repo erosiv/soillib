@@ -226,10 +226,12 @@ module.def("solve_uniform", [](
 
 module.def("erode", [](
   silt::tensor height,
-  silt::tensor velocity,
-  silt::tensor velocity_track,
   silt::tensor discharge,
   silt::tensor discharge_track,
+  silt::tensor mass,
+  silt::tensor mass_track,
+  silt::tensor momentum,
+  silt::tensor momentum_track,
   silt::tensor rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -237,10 +239,12 @@ module.def("erode", [](
 ) {
   soil::erode(
     height.as<float>(), 
-    velocity.as<float>(),
-    velocity_track.as<float>(),
     discharge.as<float>(),
     discharge_track.as<float>(),
+    mass.as<float>(),
+    mass_track.as<float>(),
+    momentum.as<float>(),
+    momentum_track.as<float>(),
     rng.as<silt::rng>(),
     scale, param, mp
   );
