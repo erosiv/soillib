@@ -125,7 +125,7 @@ __global__ void __transport_fluvial (
 }
 
 __global__ void __transport_debris (
-  silt::tensor_t<float> height,
+  const silt::tensor_t<float> height,
   silt::tensor_t<float> massBuf,
   silt::tensor_t<float> massTrack,
   silt::view_t<silt::vec2> momentum,
@@ -156,30 +156,20 @@ __global__ void __transport_debris (
   silt::vec2 speed = - (mp.gravity * grad);
 
   const float slope = glm::length(grad);
-  const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
-  float vol_d = A * Q * (param.debrisSuspensionRate * shearLandslide);
+  const float shearLandslide = fmaxf(0.0f, slope - param.critSlope);
+  float vol_d = A * Q * (param.debrisViscousStress * shearLandslide);
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-//    // Debris-Flow Erosion Formula
-//    const float slope = glm::length(grad);
-//    const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
-//    // note: this implies the existence of the landslide mass...
-//    const float shearViscous = param.debrisViscousStress * glm::length(speed) / (1.0f + mass);
-//    const float shearYield = mass * (slope - param.critSlope) - param.debrisYieldStress;
-//    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearLandslide + shearYield - shearViscous));
-//    const float deposit = glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous - shearYield - shearLandslide)));
-//
-//    const float transfer = suspend - deposit;
-//    atomicAdd(&height[ind], -transfer / scale.z);
-//    mass += transfer;
+    // Debris-Flow Erosion Formula
+    const float slope = glm::length(grad);
+    
+    float debrisGrowth = ((slope - param.critSlope) - param.debrisYieldStress);
+    if(debrisGrowth > 0.0f) debrisGrowth *= param.debrisSuspensionRate;
+    else debrisGrowth *= param.debrisDepositionRate;
 
-    // Decay the Volume of Debris...
-    //  Note: This formula is incorrect, and should really
-    //  reflect the decay / growth based on the existing debris.
-    //  This is valid for the simplified landslide model.
-    vol_d = (1.0f - param.debrisDepositionRate) * vol_d;
+    vol_d = vol_d + debrisGrowth * vol_d;
 
     // Position Update
     pos += speed / glm::length(speed);
@@ -249,9 +239,11 @@ __global__ void __transfer (
 
   height[n] += param.timeStep * (uplift + deposit - suspend * slope);
   
-  const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
-  const float suspendDebris = param.debrisSuspensionRate * shearLandslide;
-  const float depositDebris = param.debrisDepositionRate * debris[n];
+  const float shearLandslide = param.debrisViscousStress * fmaxf(0.0f, slope - param.critSlope);
+  const float shearYield = debris[n] * ((slope - param.critSlope) - param.debrisYieldStress);
+
+  const float suspendDebris = shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield);
+  const float depositDebris = fminf(debris[n], fmaxf(0.0f, -param.debrisDepositionRate * shearYield));
   height[n] += param.timeStep * (depositDebris - suspendDebris);
 
   // rate limiting based on the slope ...
