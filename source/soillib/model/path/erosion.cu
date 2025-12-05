@@ -248,6 +248,11 @@ __global__ void __transfer (
   const float uplift = param.uplift * upliftBase[n];
 
   height[n] += param.timeStep * (uplift + deposit - suspend * slope);
+  
+  const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
+  const float suspendDebris = param.debrisSuspensionRate * shearLandslide;
+  const float depositDebris = param.debrisDepositionRate * debris[n];
+  height[n] += param.timeStep * (depositDebris - suspendDebris);
 
   // rate limiting based on the slope ...
 //  hdiff = glm::max(hdiff, - 0.5f * slope * glm::length(silt::vec2(scale.x, scale.y)));
