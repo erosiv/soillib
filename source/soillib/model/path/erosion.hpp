@@ -55,7 +55,7 @@ struct momentum_param_t {
 // Unified Erosion Kernels
 //
 
-void erode (
+void transport_fluvial (
   silt::tensor_t<float> height,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> discharge_track,
@@ -69,24 +69,26 @@ void erode (
   const soil::momentum_param_t mp
 );
 
-void mass_transfer (
-  silt::tensor_t<float> height,
-  const silt::tensor_t<float> uplift,
-  const silt::tensor_t<float> discharge,
-  const silt::tensor_t<float> mass,
-  const silt::tensor_t<float> momentum,
-  const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
-);
-
-void erode_debris (
+void transport_debris (
   silt::tensor_t<float> height,
   silt::tensor_t<float> velocity,
   silt::tensor_t<float> velocity_track,
   silt::tensor_t<float> mass,
   silt::tensor_t<float> mass_track,
   silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+);
+
+void mass_transfer (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> uplift,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> mass,
+  const silt::tensor_t<float> momentum,
+  const silt::tensor_t<float> debris,
+  const silt::tensor_t<float> momentumDebris,
   const silt::vec3 scale,
   const soil::param_t param,
   const soil::momentum_param_t mp

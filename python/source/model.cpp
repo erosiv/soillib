@@ -225,7 +225,7 @@ module.def("solve_uniform", [](
 //   return soil::suspend(flow.as<float>(), scale, ks);
 // });
 
-module.def("erode", [](
+module.def("transport_fluvial", [](
   silt::tensor height,
   silt::tensor discharge,
   silt::tensor discharge_track,
@@ -238,7 +238,7 @@ module.def("erode", [](
   const soil::param_t param,
   const soil::momentum_param_t mp
 ) {
-  soil::erode(
+  soil::transport_fluvial (
     height.as<float>(), 
     discharge.as<float>(),
     discharge_track.as<float>(),
@@ -251,27 +251,7 @@ module.def("erode", [](
   );
 });
 
-module.def("mass_transfer", [](
-  silt::tensor height,
-  silt::tensor uplift,
-  silt::tensor discharge,
-  silt::tensor mass,
-  silt::tensor momentum,
-  const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
-) {
-  soil::mass_transfer (
-    height.as<float>(), 
-    uplift.as<float>(),
-    discharge.as<float>(),
-    mass.as<float>(),
-    momentum.as<float>(),
-    scale, param, mp
-  );
-});
-
-module.def("erode_debris", [](
+module.def("transport_debris", [](
   silt::tensor height,
   silt::tensor velocity,
   silt::tensor velocity_track,
@@ -282,13 +262,37 @@ module.def("erode_debris", [](
   const soil::param_t param,
   const soil::momentum_param_t mp
 ) {
-  soil::erode_debris(
+  soil::transport_debris (
     height.as<float>(), 
     velocity.as<float>(),
     velocity_track.as<float>(),
     mass.as<float>(),
     mass_track.as<float>(),
     rng.as<silt::rng>(),
+    scale, param, mp
+  );
+});
+
+module.def("mass_transfer", [](
+  silt::tensor height,
+  silt::tensor uplift,
+  silt::tensor discharge,
+  silt::tensor mass,
+  silt::tensor momentumFluvial,
+  silt::tensor debris,
+  silt::tensor momentumDebris,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const soil::momentum_param_t mp
+) {
+  soil::mass_transfer (
+    height.as<float>(), 
+    uplift.as<float>(),
+    discharge.as<float>(),
+    mass.as<float>(),
+    momentumFluvial.as<float>(),
+    debris.as<float>(),
+    momentumDebris.as<float>(),
     scale, param, mp
   );
 });

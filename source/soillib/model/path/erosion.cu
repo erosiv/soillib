@@ -42,7 +42,7 @@ __device__ float __source_sediment(
 
 }
 
-__global__ void __erode (
+__global__ void __transport_fluvial (
   silt::tensor_t<float> height,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
@@ -124,7 +124,7 @@ __global__ void __erode (
 
 }
 
-__global__ void __erode_debris (
+__global__ void __transport_debris (
   silt::tensor_t<float> height,
   silt::tensor_t<float> massBuf,
   silt::tensor_t<float> massTrack,
@@ -140,6 +140,8 @@ __global__ void __erode_debris (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
+  const float A = scale.x * scale.y;      //!< Cell Area            [m^2]
+
   // Random Sample Position
   silt::vec2 pos = silt::vec2 {
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
@@ -152,23 +154,32 @@ __global__ void __erode_debris (
   // Transport Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (mp.gravity * grad);
-  float mass = 0.0f;
+
+  const float slope = glm::length(grad);
+  const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
+  float vol_d = A * Q * (param.debrisSuspensionRate * shearLandslide);
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-    // Debris-Flow Erosion Formula
-    const float slope = glm::length(grad);
-    const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
-    // note: this implies the existence of the landslide mass...
-    const float shearViscous = param.debrisViscousStress * glm::length(speed) / (1.0f + mass);
-    const float shearYield = mass * (slope - param.critSlope) - param.debrisYieldStress;
-    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearLandslide + shearYield - shearViscous));
-    const float deposit = glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous - shearYield - shearLandslide)));
+//    // Debris-Flow Erosion Formula
+//    const float slope = glm::length(grad);
+//    const float shearLandslide = glm::max(0.0f, slope - param.critSlope);
+//    // note: this implies the existence of the landslide mass...
+//    const float shearViscous = param.debrisViscousStress * glm::length(speed) / (1.0f + mass);
+//    const float shearYield = mass * (slope - param.critSlope) - param.debrisYieldStress;
+//    const float suspend = glm::max(0.0f, param.debrisSuspensionRate * (shearLandslide + shearYield - shearViscous));
+//    const float deposit = glm::min(mass, glm::max(0.0f, param.debrisDepositionRate * (shearViscous - shearYield - shearLandslide)));
+//
+//    const float transfer = suspend - deposit;
+//    atomicAdd(&height[ind], -transfer / scale.z);
+//    mass += transfer;
 
-    const float transfer = suspend - deposit;
-    atomicAdd(&height[ind], -transfer / scale.z);
-    mass += transfer;
+    // Decay the Volume of Debris...
+    //  Note: This formula is incorrect, and should really
+    //  reflect the decay / growth based on the existing debris.
+    //  This is valid for the simplified landslide model.
+    vol_d = (1.0f - param.debrisDepositionRate) * vol_d;
 
     // Position Update
     pos += speed / glm::length(speed);
@@ -178,9 +189,9 @@ __global__ void __erode_debris (
     // Tracking Step
     const int nind = shape.flatten(pos);
     if(nind != ind){
-      atomicAdd(&massTrack[nind], mass);
-      atomicAdd(&momentumTrack[nind].x, mass * speed.x);
-      atomicAdd(&momentumTrack[nind].y, mass * speed.y);
+      atomicAdd(&massTrack[nind], vol_d);
+      atomicAdd(&momentumTrack[nind].x, vol_d * speed.x);
+      atomicAdd(&momentumTrack[nind].y, vol_d * speed.y);
       ind = nind;
     }
 
@@ -205,7 +216,9 @@ __global__ void __transfer (
   const silt::tensor_t<float> upliftBase,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> mass,
-  const silt::const_view_t<silt::vec2> momentumView,
+  const silt::const_view_t<silt::vec2> momentumFluvial,
+  const silt::tensor_t<float> debris,
+  const silt::const_view_t<silt::vec2> momentumDebris,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -219,7 +232,7 @@ __global__ void __transfer (
   const silt::vec2 pos = shape.unflatten(n);
   const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   // basically take the source component + the cumulative component...
-  const silt::vec2 speed = momentumView[n] / discharge[n] - (mp.gravity * grad);
+  const silt::vec2 speed = momentumFluvial[n] / discharge[n] - (mp.gravity * grad);
   const float conc = mass[n] / discharge[n];
   const float slope = glm::length(grad);
 
@@ -260,7 +273,7 @@ __global__ void __transfer (
 // Kernel Launch Implementations
 //
 
-void soil::erode (
+void soil::transport_fluvial (
   silt::tensor_t<float> height,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
@@ -281,7 +294,7 @@ void soil::erode (
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
-  __erode<<<block(rng.elem(), 512), 512>>> (
+  __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
     height,
     discharge,
     dischargeTrack,
@@ -298,7 +311,7 @@ void soil::erode (
 
 }
 
-void soil::erode_debris (
+void soil::transport_debris (
   silt::tensor_t<float> height,
   silt::tensor_t<float> momentum,
   silt::tensor_t<float> momentumTrack,
@@ -316,7 +329,7 @@ void soil::erode_debris (
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
-  __erode_debris<<<block(rng.elem(), 512), 512>>> (
+  __transport_debris<<<block(rng.elem(), 512), 512>>> (
     height,
     mass,
     massTrack,
@@ -335,7 +348,9 @@ void soil::mass_transfer (
   const silt::tensor_t<float> uplift,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> mass,
-  const silt::tensor_t<float> momentum,
+  const silt::tensor_t<float> momentumFluvial,
+  const silt::tensor_t<float> debris,
+  const silt::tensor_t<float> momentumDebris,
   const silt::vec3 scale,
   const soil::param_t param,
   const soil::momentum_param_t mp
@@ -348,7 +363,9 @@ void soil::mass_transfer (
     uplift,
     discharge,
     mass,
-    momentum.view<silt::vec2>(),
+    momentumFluvial.view<silt::vec2>(),
+    debris,
+    momentumDebris.view<silt::vec2>(),
     shape, scale, param, mp
   );
 
