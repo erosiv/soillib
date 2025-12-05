@@ -96,11 +96,14 @@ __global__ void __erode (
       break;
 
     // Tracking Step
-    ind = __flatten(shape, pos);
-    atomicAdd(&dischargeTrack[ind], vol_w);
-    atomicAdd(&massTrack[ind], vol_s);
-    atomicAdd(&momentumTrackView[ind].x, vol_w * speed.x);
-    atomicAdd(&momentumTrackView[ind].y, vol_w * speed.y);
+    const int nind = __flatten(shape, pos);
+    if(nind != ind){
+      atomicAdd(&dischargeTrack[nind], vol_w);
+      atomicAdd(&massTrack[nind], vol_s);
+      atomicAdd(&momentumTrackView[nind].x, vol_w * speed.x);
+      atomicAdd(&momentumTrackView[nind].y, vol_w * speed.y);
+      ind = nind;
+    }
 
     // Velocity Update
     const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
