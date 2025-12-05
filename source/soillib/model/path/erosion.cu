@@ -151,7 +151,7 @@ __global__ void __erode_debris (
 
   // Transport Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = -grad;
+  silt::vec2 speed = - (mp.gravity * grad);
   float mass = 0.0f;
 
   // Iterate over Number of Steps
@@ -176,10 +176,13 @@ __global__ void __erode_debris (
       break;
     
     // Tracking Step
-    ind = shape.flatten(pos);
-    atomicAdd(&massTrack[ind], mass);
-    atomicAdd(&momentumTrack[ind].x, mass * speed.x);
-    atomicAdd(&momentumTrack[ind].y, mass * speed.y);
+    const int nind = shape.flatten(pos);
+    if(nind != ind){
+      atomicAdd(&massTrack[nind], mass);
+      atomicAdd(&momentumTrack[nind].x, mass * speed.x);
+      atomicAdd(&momentumTrack[nind].y, mass * speed.y);
+      ind = nind;
+    }
 
     // Velocity Update
     const silt::vec2 mspeed = momentum[ind] / (1.0f + massBuf[ind]);
@@ -189,7 +192,7 @@ __global__ void __erode_debris (
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - grad);
+    speed = (speed - mp.gravity * grad);
     if(glm::length(speed) < 1E-6f)
       break;
   
