@@ -18,6 +18,14 @@
 //! Cell-Center Sampling:
 //!   
 
+template<typename T>
+__device__ T __divzero (
+  const T& a,
+  const float b
+) {
+  return (b == 0.0f) ? T{0} : (a / b);
+}
+
 __device__ bool __oob(
   const silt::shape& shape,
   const silt::vec2 pos

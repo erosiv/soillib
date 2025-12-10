@@ -155,21 +155,38 @@ __global__ void __transport_debris (
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (mp.gravity * grad);
 
-  const float slope = glm::length(grad);
-  const float shearLandslide = fmaxf(0.0f, slope - param.critSlope);
-  float vol_d = A * Q * (param.debrisViscousStress * shearLandslide);
+  const float slopeExcess = (glm::length(grad) - param.critSlope);
+  const float suspend = fmaxf(0.0f, param.debrisViscousStress * slopeExcess - param.debrisYieldStress);
+  float vol_d = A * Q * suspend;
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
     // Debris-Flow Erosion Formula
     const float slope = glm::length(grad);
-    
-    float debrisGrowth = ((slope - param.critSlope) - param.debrisYieldStress);
-    if(debrisGrowth > 0.0f) debrisGrowth *= param.debrisSuspensionRate;
-    else debrisGrowth *= param.debrisDepositionRate;
+    const float shearDebris = vol_d * (slope - param.critSlope) - param.debrisYieldStress;
+    const float suspend = param.debrisSuspensionRate * shearDebris;
+    const float deposit = fmaxf(param.debrisDepositionRate * shearDebris, -vol_d);
+    if(shearDebris < 0.0f)  {
+      vol_d = vol_d + deposit;
+    } else {
+      vol_d = vol_d + suspend;
+    }
 
-    vol_d = vol_d + debrisGrowth * vol_d;
+//    if(debrisGrowth > 0.0f) debrisGrowth *= param.debrisSuspensionRate;
+//    else debrisGrowth *= param.debrisDepositionRate;
+//
+    // finite growth rate...
+    // of course, in reality it should be so that we can't go
+    //  beyond the excess of the slope...
+    //  so debrisgrowth * vol_d has to be less than 1... 
+    // debrisGrowth = fminf(fmaxf(debrisGrowth, -1.0f), 1.0f);
+    // so how do we stop it from running away?
+    //  I suppose we could think of the steady-state amount...
+
+    
+    // Equilibrium Mass Limiting...
+//    if(vol_d > shearLandslide) vol_d = shearLandslide;
 
     // Position Update
     pos += speed / glm::length(speed);
@@ -186,7 +203,7 @@ __global__ void __transport_debris (
     }
 
     // Velocity Update
-    const silt::vec2 mspeed = momentum[ind] / (1.0f + massBuf[ind]);
+    const silt::vec2 mspeed = __divzero(momentum[ind], massBuf[ind]);
     const float nu = mp.viscosity;
     const float tau = mp.bedShear;
 
@@ -221,6 +238,7 @@ __global__ void __transfer (
 
   const silt::vec2 pos = shape.unflatten(n);
   const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
+  const silt::vec2 L(scale.x, scale.y);
   // basically take the source component + the cumulative component...
   const silt::vec2 speed = momentumFluvial[n] / discharge[n] - (mp.gravity * grad);
   const float conc = mass[n] / discharge[n];
@@ -239,10 +257,11 @@ __global__ void __transfer (
 
   height[n] += param.timeStep * (uplift + deposit - suspend * slope);
   
-  const float shearLandslide = param.debrisViscousStress * fmaxf(0.0f, slope - param.critSlope);
-  const float shearYield = debris[n] * ((slope - param.critSlope) - param.debrisYieldStress);
+  const float shearLandslide = param.debrisViscousStress * fmaxf(0.0f, slope - param.critSlope - param.debrisYieldStress);
+  const float shearYield = debris[n] * (slope - param.critSlope) - param.debrisYieldStress;
 
-  const float suspendDebris = shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield);
+  const float suspendDebris = fminf(0.01f * slope * glm::length(L), shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield));
+
   const float depositDebris = fminf(debris[n], fmaxf(0.0f, -param.debrisDepositionRate * shearYield));
   height[n] += param.timeStep * (depositDebris - suspendDebris);
 
