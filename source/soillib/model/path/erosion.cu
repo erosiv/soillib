@@ -33,11 +33,11 @@ __device__ float __source_sediment(
   const float slope = glm::length(grad);
   const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
   const float alpha = param.fluvialExponent;
-  const float density = mp.density;                         //!< Total Density
-  const float vel = glm::length(speed);                     //!< [m/s]
-  const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
+  const float density = mp.density;                           //!< Total Density
+  const float vel = glm::length(speed);                       //!< [m/s]
+  const float shear = 0.125f * fD * density * vel * vel;      //!< [kg/m/s^2]
   const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
-  const float suspend = glm::max(0.0f,  param.suspensionRate * power * slope);
+  const float suspend = glm::max(0.0f, param.suspensionRate * power * slope);
   return suspend;
 
 }
@@ -264,12 +264,12 @@ __global__ void __transfer (
   const float density = mp.density;           // Fluid Density                  [kg/m^3]
 
   // Fluvial Erosion Computation
-  const float vel = glm::length(speed);                     // Fluid Velocity           [m/s]
-  const float shear = 0.125f * fD * density * vel * vel;    // Wall Shear Stress        [kg/m/s^2 = Pa]
-  const float power = glm::abs(__powf(shear * vel, alpha)); // Stream Power Function    [(kg/s^3)^a]
-  const float suspend = kfs * power;                        // Fluvial Suspension Rate  [m/y]
-  const float deposit = kfd * conc;                         // Fluvial Deposition Rate  [m/y]
-  const float uplift = ku * upliftBase[n];                  // Terrain Uplift Rate      [m/y]
+  const float vel = glm::length(speed);                       // Fluid Velocity           [m/s]
+  const float shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
+  const float power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
+  const float suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
+  const float deposit = kfd * conc;                           // Fluvial Deposition Rate  [m/y]
+  const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
 
   // Debris Erosion Computation  
   const float shearLandslide = param.debrisViscousStress * fmaxf(0.0f, slope - param.critSlope - param.debrisYieldStress);
