@@ -61,9 +61,9 @@ __global__ void __transport_fluvial (
   if(n >= rng.elem()) return;
 
   const float A = scale.x * scale.y;      //!< Cell Area            [m^2]
-  const float rho_w = mp.density;         //!< Density of Water     [g / m^3]
-  const float rho_s = mp.density * 2.0f;  //!< Density of Sediment  [g / m^3]
-  const float R = 1.0f;                   //!< Rainfall Rate        [m / y]
+  const float rho_w = mp.density;         //!< Density of Water     [kg/m^3]
+  const float rho_s = mp.density * 2.0f;  //!< Density of Sediment  [kg/m^3]
+  const float R = 1.0f;                   //!< Rainfall Rate        [m/y]
 
   // Sampling Procedure
   silt::vec2 pos = silt::vec2 {
@@ -218,6 +218,16 @@ __global__ void __transport_debris (
 
 }
 
+//! Mass-Transfer Execution Kernel
+//! This kernel edits the height-field and material distributions.
+//!
+//! Dimensionalization Notes:
+//!   - The height-field is stored as a dimensionless quantity, and
+//!     can be converted to meters using the scale.z parameter.
+//!   - The transported fields have to add the source terms explicitly,
+//!     because not every position generates a sample. This is accounted
+//!     for in the transport kernels.
+//!
 __global__ void __transfer (
   silt::tensor_t<float> height,
   const silt::tensor_t<float> upliftBase,
@@ -232,41 +242,47 @@ __global__ void __transfer (
   const soil::momentum_param_t mp
 ) {
 
-  // ... execute the mass transfer on height-map ...
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= height.elem()) return;
+  if(n >= height.elem())
+    return;
 
+  // Compute Local Properties
   const silt::vec2 pos = shape.unflatten(n);
-  const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
-  const silt::vec2 L(scale.x, scale.y);
-  // basically take the source component + the cumulative component...
+  const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope); // []
+  const float L = glm::length(glm::vec2(scale.x, scale.y));                   // [m]
   const silt::vec2 speed = momentumFluvial[n] / discharge[n] - (mp.gravity * grad);
   const float conc = mass[n] / discharge[n];
-  const float slope = glm::length(grad);
+  const float slope = glm::length(grad);                                      // []
 
-  // Erosion Step / Mass Integration Step
-  const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
-  const float alpha = param.fluvialExponent;
-  const float density = mp.density;                         //!< Total Density
-  const float vel = glm::length(speed);                     //!< [m/s]
-  const float shear = 0.125f * fD * density * vel * vel;    //!< [kg/m/s^2]
-  const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
-  const float suspend = param.suspensionRate * power;
-  const float deposit = param.depositionRate * conc;
-  const float uplift = param.uplift * upliftBase[n];
+  // General Dimensionalized Parameters
+  const float dt = param.timeStep;            // Simulation Timestep            [y]
+  const float ku = param.uplift;              // Terrain Uplift Rate            [m/y]
+  const float kfs = param.suspensionRate;     // Fluvial Suspension Rate
+  const float kfd = param.depositionRate;     // Fluvial Deposition Rate
+  const float fD = param.frictionFactor;      // Darcy-Weisbach Friction Factor []
+  const float alpha = param.fluvialExponent;  // Power Law Exponent             []
+  const float density = mp.density;           // Fluid Density                  [kg/m^3]
 
-  height[n] += param.timeStep * (uplift + deposit - suspend * slope);
-  
+  // Fluvial Erosion Computation
+  const float vel = glm::length(speed);                     // Fluid Velocity           [m/s]
+  const float shear = 0.125f * fD * density * vel * vel;    // Wall Shear Stress        [kg/m/s^2 = Pa]
+  const float power = glm::abs(__powf(shear * vel, alpha)); // Stream Power Function    [(kg/s^3)^a]
+  const float suspend = kfs * power;                        // Fluvial Suspension Rate  [m/y]
+  const float deposit = kfd * conc;                         // Fluvial Deposition Rate  [m/y]
+  const float uplift = ku * upliftBase[n];                  // Terrain Uplift Rate      [m/y]
+
+  // Debris Erosion Computation  
   const float shearLandslide = param.debrisViscousStress * fmaxf(0.0f, slope - param.critSlope - param.debrisYieldStress);
   const float shearYield = debris[n] * (slope - param.critSlope) - param.debrisYieldStress;
-
-  const float suspendDebris = fminf(0.01f * slope * glm::length(L), shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield));
-
+  const float suspendDebris = fminf(0.01f * slope * L, shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield));
   const float depositDebris = fminf(debris[n], fmaxf(0.0f, -param.debrisDepositionRate * shearYield));
-  height[n] += param.timeStep * (depositDebris - suspendDebris);
+
+  // Height-Field Update []
+  height[n] += dt * (uplift + deposit - suspend * slope) / scale.z;
+  height[n] += dt * (depositDebris - suspendDebris) / scale.z;
 
   // rate limiting based on the slope ...
-//  hdiff = glm::max(hdiff, - 0.5f * slope * glm::length(silt::vec2(scale.x, scale.y)));
+  //  hdiff = glm::max(hdiff, - 0.5f * slope * glm::length(silt::vec2(scale.x, scale.y)));
   
   // ... basically we want to do the height-field update based on steady-state approach ...
   //  ... that makes the height-field update unconditionally stable ...
