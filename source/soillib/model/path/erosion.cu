@@ -86,21 +86,6 @@ __global__ void __transport_fluvial (
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-    // Position Update
-    pos += speed / glm::length(speed);
-    if(__oob(shape, pos))
-      break;
-
-    // Tracking Step
-    const int nind = __flatten(shape, pos);
-    if(nind != ind){
-      atomicAdd(&dischargeTrack[nind], vol_w);
-      atomicAdd(&massTrack[nind], vol_s);
-      atomicAdd(&momentumTrackView[nind].x, vol_w * speed.x);
-      atomicAdd(&momentumTrackView[nind].y, vol_w * speed.y);
-      ind = nind;
-    }
-
     //! Attenuate the Sampled Transport Quantities
     //vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
     vol_w = (1.0f - param.evapRate) * vol_w;
@@ -120,6 +105,21 @@ __global__ void __transport_fluvial (
     speed = (speed - mp.gravity * grad);
     if(glm::length(speed) < 1E-6f)
       break;
+
+    // Position Update
+    pos += speed / glm::length(speed);
+    if(__oob(shape, pos))
+      break;
+
+    // Tracking Step
+    const int nind = __flatten(shape, pos);
+    if(nind != ind) {
+      atomicAdd(&dischargeTrack[nind], vol_w);
+      atomicAdd(&massTrack[nind], vol_s);
+      atomicAdd(&momentumTrackView[nind].x, vol_w * speed.x);
+      atomicAdd(&momentumTrackView[nind].y, vol_w * speed.y);
+      ind = nind;
+    }
 
   }
 
