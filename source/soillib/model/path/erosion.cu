@@ -174,20 +174,17 @@ __global__ void __transport_debris (
       vol_d = vol_d + suspend;
     }
 
-//    if(debrisGrowth > 0.0f) debrisGrowth *= param.debrisSuspensionRate;
-//    else debrisGrowth *= param.debrisDepositionRate;
-//
-    // finite growth rate...
-    // of course, in reality it should be so that we can't go
-    //  beyond the excess of the slope...
-    //  so debrisgrowth * vol_d has to be less than 1... 
-    // debrisGrowth = fminf(fmaxf(debrisGrowth, -1.0f), 1.0f);
-    // so how do we stop it from running away?
-    //  I suppose we could think of the steady-state amount...
+    // Velocity Update
+    const silt::vec2 mspeed = __divzero(momentum[ind], massBuf[ind]);
+    const float nu = mp.viscosity;
+    const float tau = mp.bedShear;
 
-    
-    // Equilibrium Mass Limiting...
-//    if(vol_d > shearLandslide) vol_d = shearLandslide;
+    grad = __grad(height, shape, scale, pos, param.exitSlope);
+    speed = (1.0f - tau) * speed;
+    speed = ((1.0f - nu) * speed + nu * mspeed);
+    speed = (speed - mp.gravity * grad);
+    if(glm::length(speed) < 1E-6f)
+      break;
 
     // Position Update
     pos += speed / glm::length(speed);
@@ -203,18 +200,6 @@ __global__ void __transport_debris (
       ind = nind;
     }
 
-    // Velocity Update
-    const silt::vec2 mspeed = __divzero(momentum[ind], massBuf[ind]);
-    const float nu = mp.viscosity;
-    const float tau = mp.bedShear;
-
-    grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = (1.0f - tau) * speed;
-    speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - mp.gravity * grad);
-    if(glm::length(speed) < 1E-6f)
-      break;
-  
   }
 
 }
@@ -288,33 +273,17 @@ __global__ void __transfer (
   //  unstable by this model. The model assumes no pits. Therefore, we can use the local slope to limit the erosion
   //  rate. Physically, this can be interpreted as an exponential approach towards the steady-state.
   float transfer = dt * (uplift + deposit - suspend);
+  transfer += dt * (depositDebris - suspendDebris);
   
   if(transfer < 0.0f){
     transfer = fmaxf(transfer, - 0.25f * L * slope);
   }
+  if(transfer > 0.0f){
+    transfer = fminf(transfer, 0.25 * L * param.critSlope);
+  }
 
   // Modify Dimensionless Height-Field
   height[n] += transfer / scale.z;
-
-//  height[n] += dt * (depositDebris - suspendDebris) / scale.z;
-
-  // rate limiting based on the slope ...
-  //  hdiff = glm::max(hdiff, - 0.5f * slope * glm::length(silt::vec2(scale.x, scale.y)));
-  
-  // ... basically we want to do the height-field update based on steady-state approach ...
-  //  ... that makes the height-field update unconditionally stable ...
-  //  ...
-
-  // basically approach the slope and update the height-field accordingly...
-  // ...
-
-//  const float slopeSteady = fminf(fmaxf((uplift + deposit) / (1E-6f + suspend), 0.0f), param.critSlope);
-//  const float slopeDiff = (slopeSteady - slope) * (1.0f - expf(-(1E-6f + suspend) * param.timeStep));
-//  height[n] += slopeDiff * glm::length(silt::vec2(scale.x, scale.y));
-
-  // if timestep approaches infinity, then the slope difference becomes
-  //  equal to the difference to the steady-state. Otherwise,
-  //  it is exactly zero and there is no update.
 
 }
 
