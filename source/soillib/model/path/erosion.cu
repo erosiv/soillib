@@ -86,10 +86,6 @@ __global__ void __transport_fluvial (
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-    //! Attenuate the Sampled Transport Quantities
-//    vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
-    vol_w = (1.0f - param.evapRate) * vol_w;
-
     // Position Update
     pos += speed / glm::length(speed);
     if(__oob(shape, pos))
@@ -105,17 +101,22 @@ __global__ void __transport_fluvial (
       ind = nind;
     }
 
-    // Velocity Update
-    const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
+    //! Attenuate the Sampled Transport Quantities
+    //vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
+    vol_w = (1.0f - param.evapRate) * vol_w;
 
+    // Velocity Update
     const float nu = mp.viscosity;
+    const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
+    speed = speed + nu * (mspeed - speed);
+    
     const float tau = mp.bedShear;
+    const float vel = glm::length(speed);
+    const float shear = 0.125f * param.frictionFactor * mp.density * vel * vel; //!< [kg/m/s^2 = Pa = Force / Area]
+    speed = (speed - tau * shear * glm::normalize(speed)); // Self-Drag Application
+    //    speed = ((1.0f - nu) * mass * speed + nu * momentumView[ind]) / ((1.0f - nu) * mass + nu * discharge[ind]);
     
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = ((1.0f - nu) * speed + nu * mspeed);
-    // basically, the momentum always wins?
-//    speed = ((1.0f - nu) * mass * speed + nu * momentumView[ind]) / ((1.0f - nu) * mass + nu * discharge[ind]);
-    speed = (1.0f - tau) * speed; // Self-Drag Application
     speed = (speed - mp.gravity * grad);
     if(glm::length(speed) < 1E-6f)
       break;
