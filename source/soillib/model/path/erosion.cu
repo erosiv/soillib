@@ -37,7 +37,7 @@ __device__ float __source_sediment(
   const float vel = glm::length(speed);                       //!< [m/s]
   const float shear = 0.125f * fD * density * vel * vel;      //!< [kg/m/s^2]
   const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
-  const float suspend = glm::max(0.0f, param.suspensionRate * power * slope);
+  const float suspend = param.suspensionRate * power;
   return suspend;
 
 }
@@ -228,6 +228,11 @@ __global__ void __transport_debris (
 //!     because not every position generates a sample. This is accounted
 //!     for in the transport kernels.
 //!
+//! Basically, there will be some limiting velocity based on the parameters,
+//!   which will depend on the slope. This in turn will lead to some kind of
+//!   steady-state slope. We could model this directly. Some dimensional
+//!   analysis could help in general with making the model more intuitive.
+//!
 __global__ void __transfer (
   silt::tensor_t<float> height,
   const silt::tensor_t<float> upliftBase,
@@ -277,9 +282,20 @@ __global__ void __transfer (
   const float suspendDebris = fminf(0.01f * slope * L, shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield));
   const float depositDebris = fminf(debris[n], fmaxf(0.0f, -param.debrisDepositionRate * shearYield));
 
-  // Height-Field Update []
-  height[n] += dt * (uplift + deposit - suspend * slope) / scale.z;
-  height[n] += dt * (depositDebris - suspendDebris) / scale.z;
+  // Height-Field Update (Stabilized)
+  //  The erosion system is not permitted to generate a pit, because pits become self-reinforcing and numerically
+  //  unstable by this model. The model assumes no pits. Therefore, we can use the local slope to limit the erosion
+  //  rate. Physically, this can be interpreted as an exponential approach towards the steady-state.
+  float transfer = dt * (uplift + deposit - suspend);
+  
+  if(transfer < 0.0f){
+    transfer = fmaxf(transfer, - 0.25f * L * slope);
+  }
+
+  // Modify Dimensionless Height-Field
+  height[n] += transfer / scale.z;
+
+//  height[n] += dt * (depositDebris - suspendDebris) / scale.z;
 
   // rate limiting based on the slope ...
   //  hdiff = glm::max(hdiff, - 0.5f * slope * glm::length(silt::vec2(scale.x, scale.y)));
