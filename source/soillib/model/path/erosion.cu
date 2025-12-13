@@ -78,7 +78,10 @@ __global__ void __transport_fluvial (
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (mp.gravity * grad);
   float vol_w = A * Q * R;                                          //!< Sampled Water Source Term
-  float vol_s = A * Q * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
+
+  float slope = glm::length(grad);
+  float vol_s = A * Q * param.suspensionRate * abs(__powf(discharge[ind], 0.4f)) * slope;
+//  float vol_s = A * Q * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
 
   if(glm::length(speed) == 0.0f)
     return;
@@ -87,20 +90,19 @@ __global__ void __transport_fluvial (
   for(int step = 0; step < param.maxage; ++step) {
 
     //! Attenuate the Sampled Transport Quantities
-    //vol_s = vol_s - glm::min(vol_s, param.depositionRate * vol_s / vol_w);
+    //! Validate this ...
+    vol_s = vol_s - glm::min(vol_s, 1E-6f * param.depositionRate * vol_s / vol_w);
     vol_w = (1.0f - param.evapRate) * vol_w;
 
     // Velocity Update
     const float nu = mp.viscosity;
     const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
     speed = speed + nu * (mspeed - speed);
-    
-    const float tau = mp.bedShear;
+
     const float vel = glm::length(speed);
     const float shear = 0.125f * param.frictionFactor * mp.density * vel * vel; //!< [kg/m/s^2 = Pa = Force / Area]
-    const float drag = tau * shear / mp.density / discharge[ind]; //!< m^2 / s^2
+    const float drag = shear / mp.density;          //!< m^2 / s^2
     speed = (speed - drag * glm::normalize(speed)); // Self-Drag Application
-    //    speed = ((1.0f - nu) * mass * speed + nu * momentumView[ind]) / ((1.0f - nu) * mass + nu * discharge[ind]);
     
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = (speed - mp.gravity * grad);
@@ -264,7 +266,9 @@ __global__ void __transfer (
   const float vel = glm::length(speed);                       // Fluid Velocity           [m/s]
   const float shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
   const float power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
-  const float suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
+  //  const float suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
+  const float suspend = param.suspensionRate * __powf(discharge[n], 0.4f) * slope;
+
   const float deposit = kfd * conc;                           // Fluvial Deposition Rate  [m/y]
   const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
 
