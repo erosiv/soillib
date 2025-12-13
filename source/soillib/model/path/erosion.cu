@@ -98,7 +98,8 @@ __global__ void __transport_fluvial (
     const float tau = mp.bedShear;
     const float vel = glm::length(speed);
     const float shear = 0.125f * param.frictionFactor * mp.density * vel * vel; //!< [kg/m/s^2 = Pa = Force / Area]
-    speed = (speed - tau * shear * glm::normalize(speed)); // Self-Drag Application
+    const float drag = tau * shear / mp.density / discharge[ind]; //!< m^2 / s^2
+    speed = (speed - drag * glm::normalize(speed)); // Self-Drag Application
     //    speed = ((1.0f - nu) * mass * speed + nu * momentumView[ind]) / ((1.0f - nu) * mass + nu * discharge[ind]);
     
     grad = __grad(height, shape, scale, pos, param.exitSlope);
@@ -165,7 +166,7 @@ __global__ void __transport_debris (
 
     // Debris-Flow Erosion Formula
     const float slope = glm::length(grad);
-    const float shearDebris = vol_d * (slope - param.critSlope) - param.debrisYieldStress;
+    const float shearDebris = mp.gravity * (vol_d * (slope - param.critSlope) - param.debrisYieldStress);
     const float suspend = param.debrisSuspensionRate * shearDebris;
     const float deposit = fmaxf(param.debrisDepositionRate * shearDebris, -vol_d);
     if(shearDebris < 0.0f)  {
@@ -246,13 +247,18 @@ __global__ void __transfer (
   const float slope = glm::length(grad);                                      // []
 
   // General Dimensionalized Parameters
-  const float dt = param.timeStep;            // Simulation Timestep            [y]
-  const float ku = param.uplift;              // Terrain Uplift Rate            [m/y]
-  const float kfs = param.suspensionRate;     // Fluvial Suspension Rate
-  const float kfd = param.depositionRate;     // Fluvial Deposition Rate
-  const float fD = param.frictionFactor;      // Darcy-Weisbach Friction Factor []
-  const float alpha = param.fluvialExponent;  // Power Law Exponent             []
-  const float density = mp.density;           // Fluid Density                  [kg/m^3]
+  const float dt = param.timeStep;              // Simulation Timestep            [y]
+  const float ku = param.uplift;                // Terrain Uplift Rate            [m/y]
+  const float kfs = param.suspensionRate;       // Fluvial Suspension Rate
+  const float kfd = param.depositionRate;       // Fluvial Deposition Rate
+  const float fD = param.frictionFactor;        // Darcy-Weisbach Friction Factor []
+  const float alpha = param.fluvialExponent;    // Power Law Exponent             []
+  const float density = mp.density;             // Fluid Density                  [kg/m^3]
+  const float g = mp.gravity;                   // Gravitational Acceleration     [m/s^2]
+  const float tau_y = param.debrisYieldStress;  // Normalized Yield Stress
+  const float kL = param.debrisViscousStress;   // Landslide Erosion Rate
+  const float kds = param.debrisSuspensionRate; // Debris Suspension Rate
+  const float kdd = param.debrisDepositionRate; // Debris Deposition Rate
 
   // Fluvial Erosion Computation
   const float vel = glm::length(speed);                       // Fluid Velocity           [m/s]
@@ -262,27 +268,22 @@ __global__ void __transfer (
   const float deposit = kfd * conc;                           // Fluvial Deposition Rate  [m/y]
   const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
 
-  // Debris Erosion Computation  
-  const float shearLandslide = param.debrisViscousStress * fmaxf(0.0f, slope - param.critSlope - param.debrisYieldStress);
-  const float shearYield = debris[n] * (slope - param.critSlope) - param.debrisYieldStress;
-  const float suspendDebris = fminf(0.01f * slope * L, shearLandslide + param.debrisSuspensionRate * fmaxf(0.0f, shearYield));
-  const float depositDebris = fminf(debris[n], fmaxf(0.0f, -param.debrisDepositionRate * shearYield));
+  // Debris Erosion Computation
+  const float debrisHeight = debris[n];                                             // Debris Flow Height [m]
+  const float excessSlope = (slope - param.critSlope);                              // Excess Slope []
+  const float shearLandslide = fmaxf(0.0f, kL * excessSlope - tau_y);               //
+  const float shearYield = g * (debrisHeight * excessSlope - tau_y);                //
+  const float suspendDebris = shearLandslide + kds * fmaxf(0.0f, shearYield);       // Debris Suspension Rate [m/y]
+  const float depositDebris = fminf(debrisHeight, fmaxf(0.0f, -kdd * shearYield));  // Debris Deposition Rate [m/y]
 
   // Height-Field Update (Stabilized)
   //  The erosion system is not permitted to generate a pit, because pits become self-reinforcing and numerically
   //  unstable by this model. The model assumes no pits. Therefore, we can use the local slope to limit the erosion
   //  rate. Physically, this can be interpreted as an exponential approach towards the steady-state.
-  float transfer = dt * (uplift + deposit - suspend);
-  transfer += dt * (depositDebris - suspendDebris);
-  
-  if(transfer < 0.0f){
-    transfer = fmaxf(transfer, - 0.25f * L * slope);
-  }
-  if(transfer > 0.0f){
-    transfer = fminf(transfer, 0.25 * L * param.critSlope);
-  }
 
-  // Modify Dimensionless Height-Field
+  float transfer = dt * (uplift + deposit - suspend + depositDebris - suspendDebris);
+  transfer = fmaxf(transfer, -0.25f * L * slope);
+  transfer = fminf(transfer,  0.25f * L * param.critSlope);
   height[n] += transfer / scale.z;
 
 }
