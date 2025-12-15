@@ -64,26 +64,27 @@ __global__ void __transport_fluvial (
   const float L = glm::length(silt::vec2(scale.x, scale.y));
   const float rho_w = mp.density;         //!< Density of Water           [kg/m^3]
   const float rho_s = mp.density * 2.0f;  //!< Density of Sediment        [kg/m^3]
+  const float tau = mp.bedShear;          //!<
   const float nu = mp.viscosity;          //!< Kinematic Viscosity        [m^2/s]
   const float g = mp.gravity;             //!< Gravitational Acceleration [m/s^2]
   const float R = 1.0f;                   //!< Rainfall Rate              [m/y]
 
   // Sampling Procedure
-  const float N = rng.elem();             // Total Sample Count
-  const float Q = float(shape.elem) / N;  // Sample Scaling Factor
+  const float N = rng.elem();             // Total Sample Count     [#]
+  const float Q = float(shape.elem) / N;  // Sample Scaling Factor  []
   silt::vec2 pos = silt::vec2 {           // Sampled Position
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
   int ind = __flatten(shape, pos);        // Sampled Index
 
-  // Transport Initialization
-  float vol_w = A * Q * R;                                          //!< Sampled Water Source Term
+  // Transport Initialization (Scaled Source-Term Sampling)
   silt::vec2 mspeed = momentumView[ind] / discharge[ind];
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * mspeed;
-  silt::vec2 dspeed = speed;
-  float vol_s = A * Q * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
+  float vol_w = Q * A * R;                                          //!< Sampled Water Source Term
+  float vol_s = Q * A * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
+  silt::vec2 dspeed = Q * A * speed;
 
   if(glm::length(speed) == 0.0f)
     return;
@@ -97,22 +98,22 @@ __global__ void __transport_fluvial (
     vol_w = (1.0f - param.evapRate) * vol_w;
     
     // Velocity Update
-    const silt::vec2 mspeed = momentumView[ind] / discharge[ind];
-    speed = speed + nu * (mspeed - speed);
-    
-    const float vel = glm::length(speed);
-    const float ds = 1.0f; //L / vel;
-    const float shear = 0.125f * param.frictionFactor * mp.density * vel * vel; //!< [kg/m/s^2 = Pa = Force / Area]
-    const float drag = shear / mp.density;                //!< m^2 / s^2
-    speed = (speed - ds * drag * glm::normalize(speed));  // Self-Drag Application
-    dspeed = (1.0f - nu) * dspeed;
-    
+    mspeed = momentumView[ind] / discharge[ind];
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = (speed - mp.gravity * grad);
-    if(glm::length(speed) < 1E-6f)
-      break;
+    
+    dspeed = (1.0f - tau) * (1.0f - nu) * dspeed;       //!< Decay Momentum Contribution
+    speed = (1.0f - tau) * (1.0f - nu) * speed;         //!< Particle Velocity Source
+    speed = speed - (mp.gravity * grad) + nu * mspeed;  //!< Particle Velocity Source
+
+//    const float vel = glm::length(speed);
+//    const float ds = 1.0f; //L / vel;
+//    const float shear = 0.125f * param.frictionFactor * mp.density * vel * vel; //!< [kg/m/s^2 = Pa = Force / Area]
+//    const float drag = shear / mp.density;                //!< m^2 / s^2
+//    speed = (speed - ds * drag * glm::normalize(speed));  // Self-Drag Application
 
     // Position Update
+    if(glm::length(speed) < 1E-6f)
+      break;
     pos += speed / glm::length(speed);
     if(__oob(shape, pos))
       break;
