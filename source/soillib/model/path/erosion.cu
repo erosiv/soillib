@@ -68,6 +68,7 @@ __global__ void __transport_fluvial (
   const float nu = mp.viscosity;          //!< Kinematic Viscosity        [m^2/s]
   const float g = mp.gravity;             //!< Gravitational Acceleration [m/s^2]
   const float R = 1.0f;                   //!< Rainfall Rate              [m/y]
+  const float eps = 1E-12f;                
 
   // Sampling Procedure
   const float N = rng.elem();             // Total Sample Count     [#]
@@ -78,41 +79,40 @@ __global__ void __transport_fluvial (
   };
   int ind = __flatten(shape, pos);        // Sampled Index
 
-  // Transport Initialization (Scaled Source-Term Sampling)
+  // Transport Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * momentumView[ind];
+  speed = glm::normalize(speed) * sqrtf(L * glm::length(speed));
+  if(glm::length(speed) < eps)
+    return;
 
-  const float source_w = A * R;
-  const float source_m = A * __source_sediment(grad, speed, param, mp);
-  const silt::vec2 source_v = speed;
+  // Transport Source / Attenuation Terms
+  const auto source_w = A * R;
+  const auto source_m = A * __source_sediment(grad, speed, param, mp);
+  const auto source_v = - (g * grad) + nu * momentumView[ind];
 
   float att_w = 1.0f;
   float att_m = 1.0f;
   float att_v = 1.0f;
 
-  if(glm::length(speed) == 0.0f)
-    return;
-
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
     //! Update Transport Attenuation
-    const float ds = 1.0f;//L / glm::length(speed);
-//    att_m = att_m - fminf(att_m, 1E-6f * param.depositionRate * (att_m * source_m) / (att_w * source_w));
-//    att_w = att_w - param.evapRate * att_w;
-//    att_v = att_v - (tau + nu) * att_v;
-    att_w = att_w * __expf(-ds * param.evapRate);
-    att_v = att_v * __expf(-ds * (tau + nu));
+//    float ds = glm::length(silt::vec2(scale.x, scale.y) / speed);
+//    ds = fminf(10.0f, fmaxf(1.0, ds));
+    att_m = att_m * __expf(-1.0f * param.depositionRate * (source_m) / (att_w * source_w));
+    att_w = att_w * __expf(-1.0f * param.evapRate);
+    att_v = att_v * __expf(-1.0f * (tau + nu));
 
     //! Velocity Update
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = speed - (mp.gravity * grad) + nu * momentumView[ind];  //!< Particle Velocity Source
-//    speed = speed - ds * (nu + tau) * speed;
-    speed = speed * __expf(-ds * (tau + nu));
-
-    // Position Update
-    if(glm::length(speed) < 1E-6f)
+    speed = speed - (mp.gravity * grad) + nu * momentumView[ind]; //!< Particle Velocity Source
+    speed = speed - (tau + nu) * speed;                           //!< Particle Velocity Decay
+    if(glm::length(speed) < eps)
       break;
+    
+    // Position Update
     pos += speed / glm::length(speed);
     if(__oob(shape, pos))
       break;
