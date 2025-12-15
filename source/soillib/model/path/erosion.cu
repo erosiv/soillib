@@ -79,12 +79,13 @@ __global__ void __transport_fluvial (
   int ind = __flatten(shape, pos);        // Sampled Index
 
   // Transport Initialization (Scaled Source-Term Sampling)
-  silt::vec2 mspeed = momentumView[ind] / discharge[ind];
+  silt::vec2 mspeed = momentumView[ind];
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * mspeed;
+
   float vol_w = Q * A * R;                                          //!< Sampled Water Source Term
   float vol_s = Q * A * __source_sediment(grad, speed, param, mp);  //!< Sampled Sediment Source Term
-  silt::vec2 dspeed = Q * A * speed;
+  silt::vec2 dspeed = Q * speed;
 
   if(glm::length(speed) == 0.0f)
     return;
@@ -98,12 +99,13 @@ __global__ void __transport_fluvial (
     vol_w = (1.0f - param.evapRate) * vol_w;
     
     // Velocity Update
-    mspeed = momentumView[ind] / discharge[ind];
+    mspeed = momentumView[ind];// / discharge[ind];
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     
     dspeed = (1.0f - tau) * (1.0f - nu) * dspeed;       //!< Decay Momentum Contribution
-    speed = (1.0f - tau) * (1.0f - nu) * speed;         //!< Particle Velocity Source
+    speed = (1.0f - nu) * speed;         //!< Particle Velocity Source
     speed = speed - (mp.gravity * grad) + nu * mspeed;  //!< Particle Velocity Source
+    speed = (1.0f - tau) * speed;
 
 //    const float vel = glm::length(speed);
 //    const float ds = 1.0f; //L / vel;
@@ -123,8 +125,8 @@ __global__ void __transport_fluvial (
     if(nind != ind) {
       atomicAdd(&dischargeTrack[nind], vol_w);
       atomicAdd(&massTrack[nind], vol_s);
-      atomicAdd(&momentumTrackView[nind].x, vol_w * dspeed.x);
-      atomicAdd(&momentumTrackView[nind].y, vol_w * dspeed.y);
+      atomicAdd(&momentumTrackView[nind].x, dspeed.x);
+      atomicAdd(&momentumTrackView[nind].y, dspeed.y);
       ind = nind;
     }
 
@@ -248,7 +250,7 @@ __global__ void __transfer (
   const silt::vec2 pos = shape.unflatten(n);
   const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope); // []
   const float L = glm::length(glm::vec2(scale.x, scale.y));                   // [m]
-  const silt::vec2 speed = momentumFluvial[n] / discharge[n] - (mp.gravity * grad);
+  const silt::vec2 speed = momentumFluvial[n] - (mp.gravity * grad);
   const float conc = mass[n] / discharge[n];
   const float slope = glm::length(grad);                                      // []
 
