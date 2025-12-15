@@ -22,26 +22,6 @@ inline int block(const int elem, const int thread) {
 
 }
 
-__device__ float __source_sediment(
-  const silt::vec2 grad,
-  const silt::vec2 speed,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
-) {
-
-  // Erosion Step / Mass Integration Step
-  // const float slope = glm::length(grad);
-  const float fD = param.frictionFactor;                    //!< Darcy-Weisbach Friction Factor
-  const float alpha = param.fluvialExponent;
-  const float density = mp.density;                           //!< Total Density
-  const float vel = glm::length(speed);                       //!< [m/s]
-  const float shear = 0.125f * fD * density * vel * vel;      //!< [kg/m/s^2]
-  const float power = glm::abs(__powf(shear * vel, alpha)); //!< Stream Power Function
-  const float suspend = param.suspensionRate * power;
-  return suspend;
-
-}
-
 __global__ void __transport_fluvial (
   silt::tensor_t<float> height,
   silt::tensor_t<float> discharge,
@@ -60,15 +40,19 @@ __global__ void __transport_fluvial (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
-  const float A = scale.x * scale.y;      //!< Cell Area                  [m^2]
-  const float L = glm::length(silt::vec2(scale.x, scale.y));
-  const float rho_w = mp.density;         //!< Density of Water           [kg/m^3]
-  const float rho_s = mp.density * 2.0f;  //!< Density of Sediment        [kg/m^3]
-  const float tau = mp.bedShear;          //!<
-  const float nu = mp.viscosity;          //!< Kinematic Viscosity        [m^2/s]
-  const float g = mp.gravity;             //!< Gravitational Acceleration [m/s^2]
-  const float R = 1.0f;                   //!< Rainfall Rate              [m/y]
-  const float eps = 1E-12f;                
+  // Physical Parameter Set
+  const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
+  const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
+  const auto rho_w = mp.density;                //!< Density of Water               [kg/m^3]
+  const auto rho_s = mp.density * 2.0f;         //!< Density of Sediment            [kg/m^3]
+  const auto tau = mp.bedShear;                 //!<
+  const auto nu = mp.viscosity;                 //!< Kinematic Viscosity            [m^2/s]
+  const auto g = mp.gravity;                    //!< Gravitational Acceleration     [m/s^2]
+  const auto ks = param.suspensionRate;         //!< Fluvial Suspension Rate
+  const auto fD = param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
+  const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
+  const auto R = 1.0f;                          //!< Rainfall Rate                  [m/y]
+  const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
 
   // Sampling Procedure
   const float N = rng.elem();             // Total Sample Count     [#]
@@ -79,16 +63,19 @@ __global__ void __transport_fluvial (
   };
   int ind = __flatten(shape, pos);        // Sampled Index
 
-  // Transport Initialization
+  // Trajectory Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * momentumView[ind];
-  speed = glm::normalize(speed) * sqrtf(L * glm::length(speed));
+  speed = speed / sqrtf(glm::length(L * speed));
   if(glm::length(speed) < eps)
     return;
-
+    
   // Transport Source / Attenuation Terms
+  const float vel = glm::length(speed);                 //!< [m/s]
+  const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
+
   const auto source_w = A * R;
-  const auto source_m = A * __source_sediment(grad, speed, param, mp);
+  const auto source_m = A * ks * __powf(shear * vel, alpha);
   const auto source_v = - (g * grad) + nu * momentumView[ind];
 
   float att_w = 1.0f;
