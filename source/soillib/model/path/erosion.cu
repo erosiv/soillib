@@ -57,7 +57,7 @@ __global__ void __transport_fluvial (
   // Sampling Procedure
   const float N = rng.elem();                   //!< Total Sample Count [#]
   const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
-  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
+  const float Q = 1.0f / (P * N * __length(L));           //!< Normalization Factor (Uniform Grid)
   silt::vec2 pos {                              //!< Sampled Position
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
@@ -97,8 +97,14 @@ __global__ void __transport_fluvial (
 
     //! Velocity Update
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = speed - ds * (mp.gravity * grad) + ds * nu * momentumView[ind]; //!< Particle Velocity Source
-    speed = __expf(-ds * (tau + nu)) * speed;                               //!< Particle Velocity Decay
+    const auto accel = - (mp.gravity * grad) + nu * momentumView[ind];
+
+    // Implicit Euler Update
+    speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
+
+// Explicit Euler Update
+//    speed = speed - ds * (mp.gravity * grad) + ds * nu * momentumView[ind]; //!< Particle Velocity Source
+//    speed = __expf(-ds * (tau + nu)) * speed;                               //!< Particle Velocity Decay
     if(glm::length(speed) < eps)
       break;
     
