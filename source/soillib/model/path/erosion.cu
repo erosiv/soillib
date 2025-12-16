@@ -146,6 +146,7 @@ __global__ void __transport_debris (
   const auto kdd = param.debrisDepositionRate;
   const auto kds = param.debrisSuspensionRate;
   const auto tau_y = param.debrisYieldStress;
+  const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
 
   // Sampling Procedure
   const float N = rng.elem();                   //!< Total Sample Count [#]
@@ -161,6 +162,8 @@ __global__ void __transport_debris (
   // Trajectory Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad);
+  if(__length(speed) < eps)
+    return;
 
   // Transport Source / Attenuation Terms
   const float slope = __length(grad);
@@ -171,6 +174,7 @@ __global__ void __transport_debris (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Debris-Flow Erosion Formula
+    const float ds = __length(L / speed);
     const float slope = __length(grad);
     const float shearDebris = g * (vol_d * (slope - theta) - tau_y);
     const float suspend = kds * shearDebris;
@@ -181,20 +185,18 @@ __global__ void __transport_debris (
       vol_d = vol_d + suspend;
     }
 
-    // Velocity Update
-    const silt::vec2 mspeed = __divzero(momentum[ind], massBuf[ind]);
+    // Velocity Update (Implicit Euler)
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = (1.0f - tau) * speed;
-    speed = ((1.0f - nu) * speed + nu * mspeed);
-    speed = (speed - mp.gravity * grad);
-    if(glm::length(speed) < 1E-6f)
+    const auto accel = - (mp.gravity * grad);// + nu * momentumView[ind];
+    speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
+    if(glm::length(speed) < eps)
       break;
-
+    
     // Position Update
     pos += speed / glm::length(speed);
     if(__oob(shape, pos))
       break;
-    
+
     // Tracking Step
     const int nind = shape.flatten(pos);
     if(nind != ind){
