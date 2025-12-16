@@ -73,8 +73,6 @@ __global__ void __transport_fluvial (
     return;
     
   // Transport Source / Attenuation Terms
-  //  Note that the source terms are always scaled expressions or rate.
-
   const float vel = glm::length(speed);                 //!< [m/s]
   const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
 
@@ -137,22 +135,31 @@ __global__ void __transport_debris (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
-  const float A = scale.x * scale.y;      //!< Cell Area            [m^2]
+  // Physical Parameter Set
+  const auto A = scale.x * scale.y;             //!< Cell Area                [m^2]
+  const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width               [m]
+  const auto theta = param.critSlope;           //!< Material Critical Slope  [m/m]
+  const auto nu = mp.viscosity;
+  const auto tau = mp.bedShear;
+  const auto g = mp.gravity;
 
-  // Random Sample Position
-  silt::vec2 pos = silt::vec2 {
+  // Sampling Procedure
+  const float N = rng.elem();                   //!< Total Sample Count [#]
+  const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
+  const float Q = 1.0f / (P * N);               //!< Normalization Factor (Uniform Grid)
+//  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
+  silt::vec2 pos {                              //!< Sampled Position
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
-  int ind = shape.flatten(pos);
-  const float N = rng.elem();
-  const float Q = float(shape.elem) / N;  // Scaling Factor
+  int ind = __flatten(shape, pos);              //!< Sampled Index
 
-  // Transport Initialization
+  // Trajectory Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = - (mp.gravity * grad);
+  silt::vec2 speed = - (g * grad);
 
-  const float slopeExcess = (glm::length(grad) - param.critSlope);
+  // Transport Source / Attenuation Terms
+  const float slopeExcess = (glm::length(grad) - theta);
   const float suspend = fmaxf(0.0f, param.debrisViscousStress * slopeExcess - param.debrisYieldStress);
   float vol_d = A * Q * suspend;
 
@@ -161,7 +168,7 @@ __global__ void __transport_debris (
 
     // Debris-Flow Erosion Formula
     const float slope = glm::length(grad);
-    const float shearDebris = mp.gravity * (vol_d * (slope - param.critSlope) - param.debrisYieldStress);
+    const float shearDebris = g * (vol_d * (slope - theta) - param.debrisYieldStress);
     const float suspend = param.debrisSuspensionRate * shearDebris;
     const float deposit = fmaxf(param.debrisDepositionRate * shearDebris, -vol_d);
     if(shearDebris < 0.0f)  {
@@ -172,9 +179,6 @@ __global__ void __transport_debris (
 
     // Velocity Update
     const silt::vec2 mspeed = __divzero(momentum[ind], massBuf[ind]);
-    const float nu = mp.viscosity;
-    const float tau = mp.bedShear;
-
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = (1.0f - tau) * speed;
     speed = ((1.0f - nu) * speed + nu * mspeed);
