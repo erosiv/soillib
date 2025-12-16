@@ -142,6 +142,10 @@ __global__ void __transport_debris (
   const auto nu = mp.viscosity;
   const auto tau = mp.bedShear;
   const auto g = mp.gravity;
+  const auto kl = param.debrisViscousStress;
+  const auto kdd = param.debrisDepositionRate;
+  const auto kds = param.debrisSuspensionRate;
+  const auto tau_y = param.debrisYieldStress;
 
   // Sampling Procedure
   const float N = rng.elem();                   //!< Total Sample Count [#]
@@ -159,18 +163,18 @@ __global__ void __transport_debris (
   silt::vec2 speed = - (g * grad);
 
   // Transport Source / Attenuation Terms
-  const float slopeExcess = (glm::length(grad) - theta);
-  const float suspend = fmaxf(0.0f, param.debrisViscousStress * slopeExcess - param.debrisYieldStress);
+  const float slope = __length(grad);
+  const float suspend = fmaxf(0.0f, kl * (slope - theta) - tau_y);
   float vol_d = A * Q * suspend;
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
     // Debris-Flow Erosion Formula
-    const float slope = glm::length(grad);
-    const float shearDebris = g * (vol_d * (slope - theta) - param.debrisYieldStress);
-    const float suspend = param.debrisSuspensionRate * shearDebris;
-    const float deposit = fmaxf(param.debrisDepositionRate * shearDebris, -vol_d);
+    const float slope = __length(grad);
+    const float shearDebris = g * (vol_d * (slope - theta) - tau_y);
+    const float suspend = kds * shearDebris;
+    const float deposit = fmaxf(kdd * shearDebris, -vol_d);
     if(shearDebris < 0.0f)  {
       vol_d = vol_d + deposit;
     } else {
