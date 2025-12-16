@@ -55,13 +55,14 @@ __global__ void __transport_fluvial (
   const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
 
   // Sampling Procedure
-  const float N = rng.elem();             // Total Sample Count     [#]
-  const float Q = float(shape.elem) / N;  // Sample Scaling Factor  []
-  silt::vec2 pos = silt::vec2 {           // Sampled Position
+  const float N = rng.elem();                   //!< Total Sample Count [#]
+  const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
+  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
+  silt::vec2 pos {                              //!< Sampled Position
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
-  int ind = __flatten(shape, pos);        // Sampled Index
+  int ind = __flatten(shape, pos);              //!< Sampled Index
 
   // Trajectory Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
@@ -71,12 +72,15 @@ __global__ void __transport_fluvial (
     return;
     
   // Transport Source / Attenuation Terms
+  //  Note that the source terms are always scaled expressions or rate.
+  //  
+
   const float vel = glm::length(speed);                 //!< [m/s]
   const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
 
-  const auto source_w = A * R;
-  const auto source_m = A * ks * __powf(shear * vel, alpha);
-  const auto source_v = - (g * grad) + nu * momentumView[ind];
+  const auto source_w = Q * R;
+  const auto source_m = Q * ks * __powf(shear * vel, alpha);
+  const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
   float att_w = 1.0f;
   float att_m = 1.0f;
@@ -86,8 +90,7 @@ __global__ void __transport_fluvial (
   for(int step = 0; step < param.maxage; ++step) {
 
     //! Update Transport Attenuation
-//    float ds = glm::length(silt::vec2(scale.x, scale.y) / speed);
-//    ds = fminf(10.0f, fmaxf(1.0, ds));
+    float ds = glm::length(silt::vec2(scale.x, scale.y) / speed);
     att_m = att_m * __expf(-1.0f * param.depositionRate * (source_m) / (att_w * source_w));
     att_w = att_w * __expf(-1.0f * param.evapRate);
     att_v = att_v * __expf(-1.0f * (tau + nu));
@@ -95,7 +98,7 @@ __global__ void __transport_fluvial (
     //! Velocity Update
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     speed = speed - (mp.gravity * grad) + nu * momentumView[ind]; //!< Particle Velocity Source
-    speed = speed - (tau + nu) * speed;                           //!< Particle Velocity Decay
+    speed = __expf(-1.0f * (tau + nu)) * speed;                   //!< Particle Velocity Decay
     if(glm::length(speed) < eps)
       break;
     
@@ -107,10 +110,10 @@ __global__ void __transport_fluvial (
     // Tracking Step
     const int nind = __flatten(shape, pos);
     if(nind != ind) {
-      atomicAdd(&dischargeTrack[nind],      Q * att_w * source_w);
-      atomicAdd(&massTrack[nind],           Q * att_m * source_m);
-      atomicAdd(&momentumTrackView[nind].x, Q * att_v * source_v.x);
-      atomicAdd(&momentumTrackView[nind].y, Q * att_v * source_v.y);
+      atomicAdd(&dischargeTrack[nind],      att_w * source_w);
+      atomicAdd(&massTrack[nind],           att_m * source_m);
+      atomicAdd(&momentumTrackView[nind].x, att_v * source_v.x);
+      atomicAdd(&momentumTrackView[nind].y, att_v * source_v.y);
       ind = nind;
     }
 
