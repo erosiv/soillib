@@ -91,14 +91,14 @@ __global__ void __transport_fluvial (
 
     //! Update Transport Attenuation
     float ds = glm::length(silt::vec2(scale.x, scale.y) / speed);
-    att_m = att_m * __expf(-1.0f * param.depositionRate * (source_m) / (att_w * source_w));
-    att_w = att_w * __expf(-1.0f * param.evapRate);
-    att_v = att_v * __expf(-1.0f * (tau + nu));
+    att_m = att_m * __expf(-ds * param.depositionRate * (source_m) / (att_w * source_w));
+    att_w = att_w * __expf(-ds * param.evapRate);
+    att_v = att_v * __expf(-ds * (tau + nu));
 
     //! Velocity Update
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    speed = speed - (mp.gravity * grad) + nu * momentumView[ind]; //!< Particle Velocity Source
-    speed = __expf(-1.0f * (tau + nu)) * speed;                   //!< Particle Velocity Decay
+    speed = speed - ds * (mp.gravity * grad) + ds * nu * momentumView[ind]; //!< Particle Velocity Source
+    speed = __expf(-ds * (tau + nu)) * speed;                               //!< Particle Velocity Decay
     if(glm::length(speed) < eps)
       break;
     
