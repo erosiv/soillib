@@ -168,21 +168,27 @@ __global__ void __transport_debris (
   // Transport Source / Attenuation Terms
   const float slope = __length(grad);
   const float suspend = fmaxf(0.0f, kl * (slope - theta) - tau_y);
-  float vol_d = A * Q * suspend;
+
+  auto source_d = A * Q * suspend;
+  const auto source_v = Q * (- g * grad);
+
+  float att_d = 1.0f;
+  float att_v = 1.0f;
 
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
     // Debris-Flow Erosion Formula
     const float ds = __length(L / speed);
+
     const float slope = __length(grad);
-    const float shearDebris = g * (vol_d * (slope - theta) - tau_y);
+    const float shearDebris = g * ( (slope - theta) - tau_y / (source_d + eps));
     const float suspend = kds * shearDebris;
-    const float deposit = fmaxf(kdd * shearDebris, -vol_d);
+    const float deposit = fmaxf(kdd * shearDebris, -1.0f);
     if(shearDebris < 0.0f)  {
-      vol_d = vol_d + deposit;
+      source_d = source_d + source_d * deposit;
     } else {
-      vol_d = vol_d + suspend;
+      source_d = source_d + source_d * suspend;
     }
 
     // Velocity Update (Implicit Euler)
@@ -200,9 +206,9 @@ __global__ void __transport_debris (
     // Tracking Step
     const int nind = shape.flatten(pos);
     if(nind != ind){
-      atomicAdd(&massTrack[nind], vol_d);
-      atomicAdd(&momentumTrack[nind].x, vol_d * speed.x);
-      atomicAdd(&momentumTrack[nind].y, vol_d * speed.y);
+      atomicAdd(&massTrack[nind], att_d * source_d);
+      atomicAdd(&momentumTrack[nind].x, att_v * source_v.x);
+      atomicAdd(&momentumTrack[nind].y, att_v * source_v.y);
       ind = nind;
     }
 
