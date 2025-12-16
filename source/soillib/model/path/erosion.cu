@@ -166,10 +166,10 @@ __global__ void __transport_debris (
     return;
 
   // Transport Source / Attenuation Terms
-  const float slope = __length(grad);
-  const float suspend = fmaxf(0.0f, kl * (slope - theta) - tau_y);
+  const float excessSlope = (__length(grad) - theta);
+  const float suspend = fmaxf(0.0f, kl * excessSlope - tau_y);
 
-  auto source_d = A * Q * suspend;
+  const auto source_d = A * Q * suspend;
   const auto source_v = Q * (- g * grad);
 
   float att_d = 1.0f;
@@ -178,18 +178,12 @@ __global__ void __transport_debris (
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-    // Debris-Flow Erosion Formula
-    const float ds = __length(L / speed);
-
-    const float slope = __length(grad);
-    const float shearDebris = g * ( (slope - theta) - tau_y / (source_d + eps));
-    const float suspend = kds * shearDebris;
-    const float deposit = fmaxf(kdd * shearDebris, -1.0f);
-    if(shearDebris < 0.0f)  {
-      source_d = source_d + source_d * deposit;
-    } else {
-      source_d = source_d + source_d * suspend;
-    }
+    // Update Transport Attenuation
+    const float ds = 1.0f;//__length(L / speed);                                      
+    const float excessSlope = (__length(grad) - theta);                               //!< Local Excess Slope
+    const float excessStress = g * (excessSlope - tau_y / (att_d * source_d + eps));  //!< Shear Stress Balance
+    const float shearRate = (excessStress < 0.0f) ? kdd : kds;                        //!< Asymmetric Shear Rate
+    att_d = att_d * __expf(ds * shearRate * excessStress);                            //!< Attenuation Update
 
     // Velocity Update (Implicit Euler)
     grad = __grad(height, shape, scale, pos, param.exitSlope);
@@ -197,7 +191,7 @@ __global__ void __transport_debris (
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
     if(glm::length(speed) < eps)
       break;
-    
+
     // Position Update
     pos += speed / glm::length(speed);
     if(__oob(shape, pos))
