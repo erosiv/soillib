@@ -57,7 +57,8 @@ __global__ void __transport_fluvial (
   // Sampling Procedure
   const float N = rng.elem();                   //!< Total Sample Count [#]
   const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
-  const float Q = 1.0f / (P * N * __length(L));           //!< Normalization Factor (Uniform Grid)
+  const float Q = 1.0f / (P * N * __length(L)); //!< Normalization Factor (Uniform Grid)
+//  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
   silt::vec2 pos {                              //!< Sampled Position
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
@@ -73,7 +74,6 @@ __global__ void __transport_fluvial (
     
   // Transport Source / Attenuation Terms
   //  Note that the source terms are always scaled expressions or rate.
-  //  
 
   const float vel = glm::length(speed);                 //!< [m/s]
   const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
@@ -89,22 +89,16 @@ __global__ void __transport_fluvial (
   // Iterate over Number of Steps
   for(int step = 0; step < param.maxage; ++step) {
 
-    //! Update Transport Attenuation
+    // Update Transport Attenuation
     float ds = glm::length(silt::vec2(scale.x, scale.y) / speed);
     att_m = att_m * __expf(-ds * param.depositionRate * (source_m) / (att_w * source_w));
     att_w = att_w * __expf(-ds * param.evapRate);
     att_v = att_v * __expf(-ds * (tau + nu));
 
-    //! Velocity Update
+    // Velocity Update (Implicit Euler)
     grad = __grad(height, shape, scale, pos, param.exitSlope);
     const auto accel = - (mp.gravity * grad) + nu * momentumView[ind];
-
-    // Implicit Euler Update
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
-
-// Explicit Euler Update
-//    speed = speed - ds * (mp.gravity * grad) + ds * nu * momentumView[ind]; //!< Particle Velocity Source
-//    speed = __expf(-ds * (tau + nu)) * speed;                               //!< Particle Velocity Decay
     if(glm::length(speed) < eps)
       break;
     
@@ -239,14 +233,6 @@ __global__ void __transfer (
   if(n >= height.elem())
     return;
 
-  // Compute Local Properties
-  const silt::vec2 pos = shape.unflatten(n);
-  const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope); // []
-  const float L = glm::length(glm::vec2(scale.x, scale.y));                   // [m]
-  const silt::vec2 speed = momentumFluvial[n] - (mp.gravity * grad);
-  const float conc = mass[n] / discharge[n];
-  const float slope = glm::length(grad);                                      // []
-
   // General Dimensionalized Parameters
   const float dt = param.timeStep;              // Simulation Timestep            [y]
   const float ku = param.uplift;                // Terrain Uplift Rate            [m/y]
@@ -260,6 +246,14 @@ __global__ void __transfer (
   const float kL = param.debrisViscousStress;   // Landslide Erosion Rate
   const float kds = param.debrisSuspensionRate; // Debris Suspension Rate
   const float kdd = param.debrisDepositionRate; // Debris Deposition Rate
+
+  // Compute Local Properties
+  const silt::vec2 pos = shape.unflatten(n);
+  const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope); // []
+  const float L = glm::length(glm::vec2(scale.x, scale.y));                   // [m]
+  const silt::vec2 speed = momentumFluvial[n] - (mp.gravity * grad);
+  const float conc = mass[n] / discharge[n];
+  const float slope = glm::length(grad);                                      // []
 
   // Fluvial Erosion Computation
   const float vel = glm::length(speed);                       // Fluid Velocity           [m/s]
