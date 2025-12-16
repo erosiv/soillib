@@ -170,7 +170,7 @@ __global__ void __transport_debris (
   const float suspend = fmaxf(0.0f, kl * excessSlope - tau_y);
 
   const auto source_d = A * Q * suspend;
-  const auto source_v = Q * (- g * grad);
+  const auto source_v = Q * (- g * grad + nu * momentum[ind]);
 
   float att_d = 1.0f;
   float att_v = 1.0f;
@@ -184,10 +184,11 @@ __global__ void __transport_debris (
     const float excessStress = g * (excessSlope - tau_y / (att_d * source_d + eps));  //!< Shear Stress Balance
     const float shearRate = (excessStress < 0.0f) ? kdd : kds;                        //!< Asymmetric Shear Rate
     att_d = att_d * __expf(ds * shearRate * excessStress);                            //!< Attenuation Update
+    att_v = att_v * __expf(-ds * (nu + tau));
 
     // Velocity Update (Implicit Euler)
     grad = __grad(height, shape, scale, pos, param.exitSlope);
-    const auto accel = - (mp.gravity * grad);// + nu * momentumView[ind];
+    const auto accel = - (mp.gravity * grad) + nu * momentum[ind];
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
     if(glm::length(speed) < eps)
       break;
@@ -200,7 +201,7 @@ __global__ void __transport_debris (
     // Tracking Step
     const int nind = shape.flatten(pos);
     if(nind != ind){
-      atomicAdd(&massTrack[nind], att_d * source_d);
+      atomicAdd(&massTrack[nind],       att_d * source_d);
       atomicAdd(&momentumTrack[nind].x, att_v * source_v.x);
       atomicAdd(&momentumTrack[nind].y, att_v * source_v.y);
       ind = nind;
