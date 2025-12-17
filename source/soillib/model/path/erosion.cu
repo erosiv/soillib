@@ -57,9 +57,9 @@ __global__ void __transport_fluvial (
   // Sampling Procedure
   const float N = rng.elem();                   //!< Total Sample Count [#]
   const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
-  const float Q = 1.0f / (P * N * __length(L)); //!< Normalization Factor (Uniform Grid)
+  const float Q = 1.0f / (P * N);               //!< Normalization Factor (Uniform Grid)
 //  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
-  silt::vec2 pos {                              //!< Sampled Position
+  silt::vec2 pos {                              //!< Sampled Positiond
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
   };
@@ -68,7 +68,7 @@ __global__ void __transport_fluvial (
   // Trajectory Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * momentumView[ind];
-  speed = speed / sqrtf(glm::length(L * speed));
+  // speed = speed / sqrtf(glm::length(L * speed));
   if(glm::length(speed) < eps)
     return;
     
@@ -77,7 +77,7 @@ __global__ void __transport_fluvial (
   const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
 
   const auto source_w = Q * R;
-  const auto source_m = Q * ks * __powf(shear * vel, alpha);
+  const auto source_m = Q * ks * abs(__powf(shear * vel, alpha));
   const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
   float att_w = 1.0f;
@@ -88,8 +88,8 @@ __global__ void __transport_fluvial (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Update Transport Attenuation
-    float ds = glm::length(silt::vec2(scale.x, scale.y) / speed);
-    att_m = att_m * __expf(-ds * param.depositionRate * (source_m) / (att_w * source_w));
+    const float ds = __length(L);// / speed);
+    att_m = att_m * __expf(-ds * param.depositionRate);
     att_w = att_w * __expf(-ds * param.evapRate);
     att_v = att_v * __expf(-ds * (tau + nu));
 
@@ -261,18 +261,17 @@ __global__ void __transfer (
   const silt::vec2 pos = shape.unflatten(n);
   const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope); // []
   const float L = glm::length(glm::vec2(scale.x, scale.y));                   // [m]
-  const silt::vec2 speed = momentumFluvial[n] - (mp.gravity * grad);
-  const float conc = mass[n] / discharge[n];
   const float slope = glm::length(grad);                                      // []
-
+  
   // Fluvial Erosion Computation
-  const float vel = glm::length(speed);                       // Fluid Velocity           [m/s]
-  const float shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
-  const float power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
-  const float suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
+  const auto speed = momentumFluvial[n] - (mp.gravity * grad);
+  const auto vel = __length(speed);                       // Fluid Velocity           [m/s]
+  const auto shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
+  const auto power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
+  const auto suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
   // const float suspend = param.suspensionRate * __powf(discharge[n], 0.4f) * slope;
 
-  const float deposit = kfd * conc;                           // Fluvial Deposition Rate  [m/y]
+  const float deposit = kfd * mass[n];                        // Fluvial Deposition Rate  [m/y]
   const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
 
   // Debris Erosion Computation
@@ -288,8 +287,9 @@ __global__ void __transfer (
   //  unstable by this model. The model assumes no pits. Therefore, we can use the local slope to limit the erosion
   //  rate. Physically, this can be interpreted as an exponential approach towards the steady-state.
 
+  const float limit = fmaxf(0.0f, glm::dot(-glm::normalize(grad), glm::normalize(speed)));
   float transfer = dt * (uplift + deposit - suspend + depositDebris - suspendDebris);
-  transfer = fmaxf(transfer, -0.25f * L * slope);
+//  transfer = fmaxf(transfer, -0.25f * L * slope * limit);
   transfer = fminf(transfer,  0.25f * L * param.critSlope);
   height[n] += transfer / scale.z;
 
@@ -318,7 +318,7 @@ void soil::transport_fluvial (
 
   // basically, this set should be initialized correctly...
   // it is currently NOT initialized correctly.  
-  silt::set(dischargeTrack, A);
+  silt::set(dischargeTrack, 0.0f);
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
