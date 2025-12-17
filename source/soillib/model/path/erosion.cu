@@ -68,7 +68,7 @@ __global__ void __transport_fluvial (
   // Trajectory Initialization
   silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * momentumView[ind];
-  // speed = speed / sqrtf(glm::length(L * speed));
+  speed = speed / sqrtf(glm::length(L * speed));
   if(glm::length(speed) < eps)
     return;
     
@@ -288,9 +288,9 @@ __global__ void __transfer (
   //  unstable by this model. The model assumes no pits. Therefore, we can use the local slope to limit the erosion
   //  rate. Physically, this can be interpreted as an exponential approach towards the steady-state.
 
-  const float limit = fmaxf(0.0f, glm::dot(-glm::normalize(grad), glm::normalize(speed)));
+  const float limit = 1.0f;//fmaxf(0.0f, glm::dot(-glm::normalize(grad), glm::normalize(speed)));
   float transfer = dt * (uplift + deposit - suspend + depositDebris - suspendDebris);
-//  transfer = fmaxf(transfer, -0.25f * L * slope * limit);
+  transfer = fmaxf(transfer, -0.25f * L * slope * limit);
   transfer = fminf(transfer,  0.25f * L * param.critSlope);
   height[n] += transfer / scale.z;
 
