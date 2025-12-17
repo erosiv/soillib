@@ -73,12 +73,12 @@ __global__ void __transport_fluvial (
     return;
     
   // Transport Source / Attenuation Terms
-  const float vel = glm::length(speed);                 //!< [m/s]
-  const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
+//  const float vel = glm::length(speed);                 //!< [m/s]
+//  const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
+//  const auto source_m = Q * ks * abs(__powf(shear * vel, alpha));
 
   const auto source_w = Q * R;
   const auto source_m = Q * ks * __powf(discharge[ind], alpha) * __length(grad);
-  //  const auto source_m = Q * ks * abs(__powf(shear * vel, alpha));
   const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
   float att_w = 1.0f;
@@ -90,7 +90,7 @@ __global__ void __transport_fluvial (
 
     // Update Transport Attenuation
     const float ds = __length(L);// / speed);
-//    att_m = att_m * __expf(-ds * param.depositionRate);
+    att_m = att_m * __expf(-ds * param.depositionRate);
     att_w = att_w * __expf(-ds * param.evapRate);
     att_v = att_v * __expf(-ds * (tau + nu));
 
