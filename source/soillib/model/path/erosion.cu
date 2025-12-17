@@ -77,7 +77,8 @@ __global__ void __transport_fluvial (
   const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
 
   const auto source_w = Q * R;
-  const auto source_m = Q * ks * abs(__powf(shear * vel, alpha));
+  const auto source_m = Q * ks * __powf(discharge[ind], alpha) * __length(grad);
+  //  const auto source_m = Q * ks * abs(__powf(shear * vel, alpha));
   const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
   float att_w = 1.0f;
@@ -265,11 +266,11 @@ __global__ void __transfer (
   
   // Fluvial Erosion Computation
   const auto speed = momentumFluvial[n] - (mp.gravity * grad);
-  const auto vel = __length(speed);                       // Fluid Velocity           [m/s]
-  const auto shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
-  const auto power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
-  const auto suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
-  // const float suspend = param.suspensionRate * __powf(discharge[n], 0.4f) * slope;
+//  const auto vel = __length(speed);                       // Fluid Velocity           [m/s]
+//  const auto shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
+//  const auto power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
+  //const auto suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
+  const float suspend = kfs * __powf(discharge[n], alpha) * slope;
 
   const float deposit = kfd * mass[n];                        // Fluvial Deposition Rate  [m/y]
   const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
@@ -318,7 +319,7 @@ void soil::transport_fluvial (
 
   // basically, this set should be initialized correctly...
   // it is currently NOT initialized correctly.  
-  silt::set(dischargeTrack, 0.0f);
+  silt::set(dischargeTrack, 1.0f);
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
