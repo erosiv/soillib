@@ -152,7 +152,6 @@ __global__ void __transport_debris (
   const float N = rng.elem();                   //!< Total Sample Count [#]
   const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
   const float Q = 1.0f / (P * N);               //!< Normalization Factor (Uniform Grid)
-//  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
   silt::vec2 pos {                              //!< Sampled Position
     0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
     0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
@@ -179,7 +178,7 @@ __global__ void __transport_debris (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Update Transport Attenuation
-    const float ds = 1.0f;//__length(L / speed);                                      
+    const float ds = __length(L);// / speed);                                      
     const float excessSlope = (__length(grad) - theta);                               //!< Local Excess Slope
     const float excessStress = g * (excessSlope - tau_y / (att_d * source_d + eps));  //!< Shear Stress Balance
     const float shearRate = (excessStress < 0.0f) ? kdd : kds;                        //!< Asymmetric Shear Rate
