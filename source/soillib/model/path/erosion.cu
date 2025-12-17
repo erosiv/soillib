@@ -90,7 +90,7 @@ __global__ void __transport_fluvial (
 
     // Update Transport Attenuation
     const float ds = __length(L);// / speed);
-    att_m = att_m * __expf(-ds * param.depositionRate);
+//    att_m = att_m * __expf(-ds * param.depositionRate);
     att_w = att_w * __expf(-ds * param.evapRate);
     att_v = att_v * __expf(-ds * (tau + nu));
 
