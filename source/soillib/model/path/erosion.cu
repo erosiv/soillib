@@ -73,12 +73,12 @@ __global__ void __transport_fluvial (
     return;
     
   // Transport Source / Attenuation Terms
-//  const float vel = glm::length(speed);                 //!< [m/s]
-//  const float shear = 0.125f * fD * rho_w * vel * vel;  //!< [kg/m/s^2]
-//  const auto source_m = Q * ks * abs(__powf(shear * vel, alpha));
-
+  const auto v = glm::length(momentumView[ind]);    //!< [m/s]
+  const auto shear = 0.125f * fD * rho_w * v * v;   //!< [kg/m/s^2]
+  const auto power = __powf(shear * __length(grad), alpha);
+//  const auto power = __powf(discharge[ind], alpha) * __length(grad);
+  const auto source_m = Q * ks * power;
   const auto source_w = Q * R;
-  const auto source_m = Q * ks * __powf(discharge[ind], alpha) * __length(grad);
   const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
   float att_w = 1.0f;
@@ -92,7 +92,7 @@ __global__ void __transport_fluvial (
     const float ds = __length(L);// / speed);
     att_m = att_m * __expf(-ds * param.depositionRate);
     att_w = att_w * __expf(-ds * param.evapRate);
-    att_v = att_v * __expf(-ds * (tau + nu));
+//    att_v = att_v * __expf(-ds * nu);
 
     // Velocity Update (Implicit Euler)
     grad = __grad(height, shape, scale, pos, param.exitSlope);
@@ -109,11 +109,11 @@ __global__ void __transport_fluvial (
     // Tracking Step
     const int nind = __flatten(shape, pos);
     if(nind != ind) {
-      atomicAdd(&dischargeTrack[nind],      att_w * source_w);
-      atomicAdd(&massTrack[nind],           att_m * source_m);
-      atomicAdd(&momentumTrackView[nind].x, att_v * source_v.x);
-      atomicAdd(&momentumTrackView[nind].y, att_v * source_v.y);
       ind = nind;
+      atomicAdd(&dischargeTrack[ind],       att_w * source_w);
+      atomicAdd(&massTrack[ind],            att_m * source_m);
+      atomicAdd(&momentumTrackView[ind].x,  att_v * source_v.x);
+      atomicAdd(&momentumTrackView[ind].y,  att_v * source_v.y);
     }
 
   }
@@ -201,10 +201,10 @@ __global__ void __transport_debris (
     // Tracking Step
     const int nind = shape.flatten(pos);
     if(nind != ind){
-      atomicAdd(&massTrack[nind],       att_d * source_d);
-      atomicAdd(&momentumTrack[nind].x, att_v * source_v.x);
-      atomicAdd(&momentumTrack[nind].y, att_v * source_v.y);
       ind = nind;
+      atomicAdd(&massTrack[ind],        att_d * source_d);
+      atomicAdd(&momentumTrack[ind].x,  att_v * source_v.x);
+      atomicAdd(&momentumTrack[ind].y,  att_v * source_v.y);
     }
 
   }
@@ -251,7 +251,7 @@ __global__ void __transfer (
   const float kfd = param.depositionRate;       // Fluvial Deposition Rate
   const float fD = param.frictionFactor;        // Darcy-Weisbach Friction Factor []
   const float alpha = param.fluvialExponent;    // Power Law Exponent             []
-  const float density = mp.density;             // Fluid Density                  [kg/m^3]
+  const float rho = mp.density;                 // Fluid Density                  [kg/m^3]
   const float g = mp.gravity;                   // Gravitational Acceleration     [m/s^2]
   const float tau_y = param.debrisYieldStress;  // Normalized Yield Stress
   const float kL = param.debrisViscousStress;   // Landslide Erosion Rate
@@ -266,11 +266,11 @@ __global__ void __transfer (
   
   // Fluvial Erosion Computation
   const auto speed = momentumFluvial[n] - (mp.gravity * grad);
-//  const auto vel = __length(speed);                       // Fluid Velocity           [m/s]
-//  const auto shear = 0.125f * fD * density * vel * vel;      // Wall Shear Stress        [kg/m/s^2 = Pa]
-//  const auto power = glm::abs(__powf(shear * vel, alpha));   // Stream Power Function    [(kg/s^3)^a]
-  //const auto suspend = kfs * power;                          // Fluvial Suspension Rate  [m/y]
-  const float suspend = kfs * __powf(discharge[n], alpha) * slope;
+  const auto v = __length(momentumFluvial[n]);                // Fluid Velocity           [m/s]
+  const auto shear = 0.125f * fD * rho * v * v;               // Wall Shear Stress        [kg/m/s^2 = Pa]
+  const auto power = __powf(shear * slope, alpha);            // Stream Power Function    [(kg/s^3)^a]
+//  const auto power = __powf(discharge[n], alpha) * slope;
+  const auto suspend = kfs * power;                           // Fluvial Suspension Rate  [m/y]
 
   const float deposit = kfd * mass[n];                        // Fluvial Deposition Rate  [m/y]
   const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
