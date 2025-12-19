@@ -447,4 +447,44 @@ void soil::layer_merge (
 
 }
 
+__global__ void __layer_albedo (
+  silt::view_t<silt::vec3> albedo,
+  const silt::const_view_t<silt::vec2> layers,
+  const silt::shape shape,
+  const silt::vec3 colorA,
+  const silt::vec3 colorB,
+  const float extinction
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  const auto layer = layers[n];
+  // const auto blend = __expf(-extinction * layer.y);
+  const auto blend = 1.0f / (1.0f + extinction * layer.y);
+  const auto color = blend * colorA + (1.0f - blend) * colorB;
+  albedo[n] = color;
+
+}
+
+void soil::layer_albedo (
+  silt::tensor_t<float> albedo,
+  const silt::tensor_t<float> layers,
+  const silt::vec3 colorA,
+  const silt::vec3 colorB,
+  const float blend
+) {
+  
+  const auto shapeIn = layers.shape();
+  const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
+  __layer_albedo<<<block(shape.elem, 512), 512>>> (
+    albedo.view<silt::vec3>(),
+    layers.view<silt::vec2>(),
+    shape, colorA, colorB, blend
+  );
+
+}
+
+
 #endif

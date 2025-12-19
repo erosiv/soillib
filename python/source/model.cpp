@@ -307,6 +307,20 @@ module.def("layer_merge", [](
   );
 });
 
+module.def("layer_albedo", [](
+  silt::tensor albedo,
+  silt::tensor layers,
+  const silt::vec3 colorA,
+  const silt::vec3 colorB,
+  const float ext
+){
+  soil::layer_albedo (
+    albedo.as<float>(),
+    layers.as<float>(),
+    colorA, colorB, ext
+  );
+});
+
 //
 // Noise Operations
 //
