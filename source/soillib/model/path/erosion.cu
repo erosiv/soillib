@@ -453,7 +453,7 @@ __global__ void __layer_albedo (
   const silt::const_view_t<silt::vec2> layers,
   const float extS,
   const silt::const_view_t<silt::vec3> colorA,
-  const silt::vec3 colorB,
+  const silt::const_view_t<silt::vec3> colorB,
   const silt::tensor_t<float> discharge,
   const float extD,
   const silt::vec3 colorW
@@ -466,7 +466,7 @@ __global__ void __layer_albedo (
   const auto layer = layers[n];
   const auto blendS = 1.0f / (1.0f + extS * layer.y);
   const auto blendD = 1.0f / (1.0f + extD * discharge[n]);
-  auto color = blendS * colorA[n] + (1.0f - blendS) * colorB;
+  auto color = blendS * colorA[n] + (1.0f - blendS) * colorB[n];
   color = (1.0f - blendD) * colorW + blendD * color;
   albedo[n] = color;
 
@@ -477,7 +477,7 @@ void soil::layer_albedo (
   const silt::tensor_t<float> layers,
   const float ext_sediment,
   const silt::tensor_t<float> colorA,
-  const silt::vec3 colorB,
+  const silt::tensor_t<float> colorB,
   const silt::tensor_t<float> discharge,
   const float ext_discharge,
   const silt::vec3 colorW
@@ -491,7 +491,7 @@ void soil::layer_albedo (
     layers.view<silt::vec2>(),
     ext_sediment,
     colorA.view<silt::vec3>(),
-    colorB,
+    colorB.view<silt::vec3>(),
     discharge, 
     ext_discharge, colorW
   );

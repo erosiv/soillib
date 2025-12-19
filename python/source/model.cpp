@@ -312,7 +312,7 @@ module.def("layer_albedo", [](
   const silt::tensor layers,
   const float extS,
   const silt::tensor colorA,
-  const silt::vec3 colorB,
+  const silt::tensor colorB,
   silt::tensor discharge,
   const float extD,
   const silt::vec3 colorW
@@ -322,7 +322,7 @@ module.def("layer_albedo", [](
     layers.as<float>(),
     extS, 
     colorA.as<float>(),
-    colorB,
+    colorB.as<float>(),
     discharge.as<float>(), extD, colorW
   );
 });
