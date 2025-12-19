@@ -233,6 +233,8 @@ module.def("transport_fluvial", [](
   silt::tensor mass_track,
   silt::tensor momentum,
   silt::tensor momentum_track,
+  silt::tensor albedo_bedrock,
+  silt::tensor albedo_sediment,
   silt::tensor rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -246,6 +248,8 @@ module.def("transport_fluvial", [](
     mass_track.as<float>(),
     momentum.as<float>(),
     momentum_track.as<float>(),
+    albedo_bedrock.as<float>(),
+    albedo_sediment.as<float>(),
     rng.as<silt::rng>(),
     scale, param, mp
   );
@@ -257,6 +261,8 @@ module.def("transport_debris", [](
   silt::tensor velocity_track,
   silt::tensor mass,
   silt::tensor mass_track,
+  silt::tensor albedo_bedrock,
+  silt::tensor albedo_sediment,
   silt::tensor rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -268,6 +274,8 @@ module.def("transport_debris", [](
     velocity_track.as<float>(),
     mass.as<float>(),
     mass_track.as<float>(),
+    albedo_bedrock.as<float>(),
+    albedo_sediment.as<float>(),
     rng.as<silt::rng>(),
     scale, param, mp
   );
@@ -281,6 +289,8 @@ module.def("mass_transfer", [](
   silt::tensor momentumFluvial,
   silt::tensor debris,
   silt::tensor momentumDebris,
+  silt::tensor albedo_bedrock,
+  silt::tensor albedo_sediment,
   const silt::vec3 scale,
   const soil::param_t param,
   const soil::momentum_param_t mp
@@ -293,6 +303,8 @@ module.def("mass_transfer", [](
     momentumFluvial.as<float>(),
     debris.as<float>(),
     momentumDebris.as<float>(),
+    albedo_bedrock.as<float>(),
+    albedo_sediment.as<float>(),
     scale, param, mp
   );
 });

@@ -329,6 +329,8 @@ void soil::transport_fluvial (
   silt::tensor_t<float> massTrack,
   silt::tensor_t<float> momentum,
   silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<float> albedo_bedrock,
+  silt::tensor_t<float> albedo_sediment,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -367,6 +369,8 @@ void soil::transport_debris (
   silt::tensor_t<float> momentumTrack,
   silt::tensor_t<float> mass,
   silt::tensor_t<float> massTrack,
+  silt::tensor_t<float> albedo_bedrock,
+  silt::tensor_t<float> albedo_sediment,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -401,6 +405,8 @@ void soil::mass_transfer (
   const silt::tensor_t<float> momentumFluvial,
   const silt::tensor_t<float> debris,
   const silt::tensor_t<float> momentumDebris,
+  silt::tensor_t<float> albedo_bedrock,
+  silt::tensor_t<float> albedo_sediment,
   const silt::vec3 scale,
   const soil::param_t param,
   const soil::momentum_param_t mp
@@ -420,6 +426,10 @@ void soil::mass_transfer (
   );
 
 }
+
+//
+// Layer and Albedo Management
+//
 
 __global__ void __layer_merge (
   silt::tensor_t<float> height,
