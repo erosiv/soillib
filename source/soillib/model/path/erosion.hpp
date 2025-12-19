@@ -104,9 +104,12 @@ void layer_merge (
 void layer_albedo (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> layers,
+  const float ext_sediment,
   const silt::vec3 colorA,
   const silt::vec3 colorB,
-  const float blend
+  const silt::tensor_t<float> discharge,
+  const float ext_discharge,
+  const silt::vec3 colorW
 );
 
 } // end of namespace soil

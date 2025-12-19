@@ -449,11 +449,14 @@ void soil::layer_merge (
 
 __global__ void __layer_albedo (
   silt::view_t<silt::vec3> albedo,
-  const silt::const_view_t<silt::vec2> layers,
   const silt::shape shape,
+  const silt::const_view_t<silt::vec2> layers,
+  const float extS,
   const silt::vec3 colorA,
   const silt::vec3 colorB,
-  const float extinction
+  const silt::tensor_t<float> discharge,
+  const float extD,
+  const silt::vec3 colorW
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -461,9 +464,10 @@ __global__ void __layer_albedo (
     return;
 
   const auto layer = layers[n];
-  // const auto blend = __expf(-extinction * layer.y);
-  const auto blend = 1.0f / (1.0f + extinction * layer.y);
-  const auto color = blend * colorA + (1.0f - blend) * colorB;
+  const auto blendS = 1.0f / (1.0f + extS * layer.y);
+  const auto blendD = 1.0f / (1.0f + extD * discharge[n]);
+  auto color = blendS * colorA + (1.0f - blendS) * colorB;
+  color = (1.0f - blendD) * colorW + blendD * color;
   albedo[n] = color;
 
 }
@@ -471,17 +475,23 @@ __global__ void __layer_albedo (
 void soil::layer_albedo (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> layers,
+  const float ext_sediment,
   const silt::vec3 colorA,
   const silt::vec3 colorB,
-  const float blend
+  const silt::tensor_t<float> discharge,
+  const float ext_discharge,
+  const silt::vec3 colorW
 ) {
   
   const auto shapeIn = layers.shape();
   const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
   __layer_albedo<<<block(shape.elem, 512), 512>>> (
     albedo.view<silt::vec3>(),
+    shape,
     layers.view<silt::vec2>(),
-    shape, colorA, colorB, blend
+    ext_sediment, colorA, colorB, 
+    discharge, 
+    ext_discharge, colorW
   );
 
 }
