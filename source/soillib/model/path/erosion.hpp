@@ -56,7 +56,7 @@ struct momentum_param_t {
 //
 
 void transport_fluvial (
-  silt::tensor_t<float> height,
+  silt::tensor_t<float> layers,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> discharge_track,
   silt::tensor_t<float> mass,
@@ -70,7 +70,7 @@ void transport_fluvial (
 );
 
 void transport_debris (
-  silt::tensor_t<float> height,
+  silt::tensor_t<float> layers,
   silt::tensor_t<float> velocity,
   silt::tensor_t<float> velocity_track,
   silt::tensor_t<float> mass,
@@ -82,7 +82,7 @@ void transport_debris (
 );
 
 void mass_transfer (
-  silt::tensor_t<float> height,
+  silt::tensor_t<float> layers,
   const silt::tensor_t<float> uplift,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> mass,
@@ -92,6 +92,11 @@ void mass_transfer (
   const silt::vec3 scale,
   const soil::param_t param,
   const soil::momentum_param_t mp
+);
+
+void layer_merge (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> layers
 );
 
 } // end of namespace soil

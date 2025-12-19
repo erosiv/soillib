@@ -226,7 +226,7 @@ module.def("solve_uniform", [](
 // });
 
 module.def("transport_fluvial", [](
-  silt::tensor height,
+  silt::tensor layers,
   silt::tensor discharge,
   silt::tensor discharge_track,
   silt::tensor mass,
@@ -239,7 +239,7 @@ module.def("transport_fluvial", [](
   const soil::momentum_param_t mp
 ) {
   soil::transport_fluvial (
-    height.as<float>(), 
+    layers.as<float>(), 
     discharge.as<float>(),
     discharge_track.as<float>(),
     mass.as<float>(),
@@ -252,7 +252,7 @@ module.def("transport_fluvial", [](
 });
 
 module.def("transport_debris", [](
-  silt::tensor height,
+  silt::tensor layers,
   silt::tensor velocity,
   silt::tensor velocity_track,
   silt::tensor mass,
@@ -263,7 +263,7 @@ module.def("transport_debris", [](
   const soil::momentum_param_t mp
 ) {
   soil::transport_debris (
-    height.as<float>(), 
+    layers.as<float>(), 
     velocity.as<float>(),
     velocity_track.as<float>(),
     mass.as<float>(),
@@ -274,7 +274,7 @@ module.def("transport_debris", [](
 });
 
 module.def("mass_transfer", [](
-  silt::tensor height,
+  silt::tensor layers,
   silt::tensor uplift,
   silt::tensor discharge,
   silt::tensor mass,
@@ -286,7 +286,7 @@ module.def("mass_transfer", [](
   const soil::momentum_param_t mp
 ) {
   soil::mass_transfer (
-    height.as<float>(), 
+    layers.as<float>(), 
     uplift.as<float>(),
     discharge.as<float>(),
     mass.as<float>(),
@@ -294,6 +294,16 @@ module.def("mass_transfer", [](
     debris.as<float>(),
     momentumDebris.as<float>(),
     scale, param, mp
+  );
+});
+
+module.def("layer_merge", [](
+  silt::tensor height,
+  silt::tensor layers
+) {
+  soil::layer_merge (
+    height.as<float>(),
+    layers.as<float>()
   );
 });
 

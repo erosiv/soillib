@@ -60,7 +60,7 @@ __device__ float __ndot (
 }
 
 __device__ silt::vec2 __glocal (
-  const silt::tensor_t<float>& height,
+  const silt::view_t<silt::vec2>& layers,
   const silt::shape shape,
   const silt::vec3 scale,
   const silt::ivec2 ipos,
@@ -73,11 +73,11 @@ __device__ silt::vec2 __glocal (
   const int i0n = shape.flatten(ipos + silt::ivec2( 0,-1));
   const int i0p = shape.flatten(ipos + silt::ivec2( 0, 1));
 
-  const float h = height[i00];
-  const float hn0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? CUDART_NAN_F : height[in0];
-  const float hp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? CUDART_NAN_F : height[ip0];
-  const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : height[i0n];
-  const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : height[i0p];
+  const float h = layers[i00].x;
+  const float hn0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? CUDART_NAN_F : layers[in0].x;
+  const float hp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? CUDART_NAN_F : layers[ip0].x;
+  const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : layers[i0n].x;
+  const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : layers[i0p].x;
 
   // Note: fmaxf returns numeric value if one value is NaN.
   // NaN: On boundary, use signed (downhill) exitslope
@@ -114,7 +114,7 @@ __device__ silt::vec2 __glocal (
 }
 
 __device__ silt::vec2 __grad (
-  const silt::tensor_t<float>& height,
+  const silt::view_t<silt::vec2>& layers,
   const silt::shape shape,
   const silt::vec3 scale,
   silt::vec2 pos,
@@ -122,7 +122,7 @@ __device__ silt::vec2 __grad (
 ) {
 
   // Basic Local Implementation In-Cell:
-  const silt::vec2 g00 = __glocal(height, shape, scale, pos, exitSlope);
+  const silt::vec2 g00 = __glocal(layers, shape, scale, pos, exitSlope);
   return g00;
 
 //  // Linear Interpolated Implementation:

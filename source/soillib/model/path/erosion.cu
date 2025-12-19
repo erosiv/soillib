@@ -23,7 +23,7 @@ inline int block(const int elem, const int thread) {
 }
 
 __global__ void __transport_fluvial (
-  silt::tensor_t<float> height,
+  const silt::view_t<silt::vec2> layers,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
   silt::tensor_t<float> mass,
@@ -66,7 +66,7 @@ __global__ void __transport_fluvial (
   int ind = __flatten(shape, pos);              //!< Sampled Index
 
   // Trajectory Initialization
-  silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
+  silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad) + nu * momentumView[ind];
   speed = speed / sqrtf(glm::length(L * speed));
   if(glm::length(speed) < eps)
@@ -95,7 +95,7 @@ __global__ void __transport_fluvial (
 //    att_v = att_v * __expf(-ds * nu);
 
     // Velocity Update (Implicit Euler)
-    grad = __grad(height, shape, scale, pos, param.exitSlope);
+    grad = __grad(layers, shape, scale, pos, param.exitSlope);
     const auto accel = - (mp.gravity * grad) + nu * momentumView[ind];
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
     if(glm::length(speed) < eps)
@@ -121,7 +121,7 @@ __global__ void __transport_fluvial (
 }
 
 __global__ void __transport_debris (
-  const silt::tensor_t<float> height,
+  const silt::view_t<silt::vec2> layers,
   silt::tensor_t<float> massBuf,
   silt::tensor_t<float> massTrack,
   silt::view_t<silt::vec2> momentum,
@@ -160,7 +160,7 @@ __global__ void __transport_debris (
   int ind = __flatten(shape, pos);              //!< Sampled Index
 
   // Trajectory Initialization
-  silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope);
+  silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope);
   silt::vec2 speed = - (g * grad);
   if(__length(speed) < eps)
     return;
@@ -187,7 +187,7 @@ __global__ void __transport_debris (
     att_v = att_v * __expf(-ds * (nu + tau));
 
     // Velocity Update (Implicit Euler)
-    grad = __grad(height, shape, scale, pos, param.exitSlope);
+    grad = __grad(layers, shape, scale, pos, param.exitSlope);
     const auto accel = - (mp.gravity * grad) + nu * momentum[ind];
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
     if(glm::length(speed) < eps)
@@ -227,7 +227,7 @@ __global__ void __transport_debris (
 //!   analysis could help in general with making the model more intuitive.
 //!
 __global__ void __transfer (
-  silt::tensor_t<float> height,
+  silt::view_t<silt::vec2> layers,
   const silt::tensor_t<float> upliftBase,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> mass,
@@ -241,7 +241,7 @@ __global__ void __transfer (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= height.elem())
+  if(n >= shape.elem)
     return;
 
   // General Dimensionalized Parameters
@@ -260,7 +260,7 @@ __global__ void __transfer (
 
   // Compute Local Properties
   const silt::vec2 pos = shape.unflatten(n);
-  const silt::vec2 grad = __grad(height, shape, scale, pos, param.exitSlope); // []
+  const silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope); // []
   const float L = glm::length(glm::vec2(scale.x, scale.y));                   // [m]
   const float slope = glm::length(grad);                                      // []
   
@@ -292,7 +292,7 @@ __global__ void __transfer (
   float transfer = dt * (uplift + deposit - suspend + depositDebris - suspendDebris);
   transfer = fmaxf(transfer, -0.25f * L * slope * limit);
   transfer = fminf(transfer,  0.25f * L * param.critSlope);
-  height[n] += transfer / scale.z;
+  layers[n].x += transfer / scale.z;
 
 }
 
@@ -301,7 +301,7 @@ __global__ void __transfer (
 //
 
 void soil::transport_fluvial (
-  silt::tensor_t<float> height,
+  silt::tensor_t<float> layers,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
   silt::tensor_t<float> mass,
@@ -315,7 +315,7 @@ void soil::transport_fluvial (
 ) {
 
   const float A = scale.x * scale.y;
-  const silt::shape shape = height.shape();
+  const silt::shape shape = layers.shape();
 
   // basically, this set should be initialized correctly...
   // it is currently NOT initialized correctly.  
@@ -324,7 +324,7 @@ void soil::transport_fluvial (
   silt::set(momentumTrack, 0.0f);
 
   __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
-    height,
+    layers.view<silt::vec2>(),
     discharge,
     dischargeTrack,
     mass,
@@ -341,7 +341,7 @@ void soil::transport_fluvial (
 }
 
 void soil::transport_debris (
-  silt::tensor_t<float> height,
+  silt::tensor_t<float> layers,
   silt::tensor_t<float> momentum,
   silt::tensor_t<float> momentumTrack,
   silt::tensor_t<float> mass,
@@ -353,13 +353,13 @@ void soil::transport_debris (
 ) {
 
   const float A = scale.x * scale.y;
-  const silt::shape shape = height.shape();
+  const silt::shape shape = layers.shape();
 
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
 
   __transport_debris<<<block(rng.elem(), 512), 512>>> (
-    height,
+    layers.view<silt::vec2>(),
     mass,
     massTrack,
     momentum.view<silt::vec2>(),
@@ -373,7 +373,7 @@ void soil::transport_debris (
 }
 
 void soil::mass_transfer (
-  silt::tensor_t<float> height,
+  silt::tensor_t<float> layers,
   const silt::tensor_t<float> uplift,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> mass,
@@ -385,10 +385,10 @@ void soil::mass_transfer (
   const soil::momentum_param_t mp
 ) {
 
-  const silt::shape shape = height.shape();
+  const silt::shape shape = uplift.shape();
   
-  __transfer<<<block(height.elem(), 512), 512>>> (
-    height,
+  __transfer<<<block(uplift.elem(), 512), 512>>> (
+    layers.view<silt::vec2>(),
     uplift,
     discharge,
     mass,
@@ -396,6 +396,32 @@ void soil::mass_transfer (
     debris,
     momentumDebris.view<silt::vec2>(),
     shape, scale, param, mp
+  );
+
+}
+
+__global__ void __layer_merge (
+  silt::tensor_t<float> height,
+  const silt::const_view_t<silt::vec2> layers
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= height.elem())
+    return;
+
+  const auto layer = layers[n];
+  height[n] = layer.x + layer.y;
+
+}
+
+void soil::layer_merge (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> layers
+) {
+
+  __layer_merge<<<block(height.elem(), 512), 512>>> (
+    height,
+    layers.view<silt::vec2>()
   );
 
 }
