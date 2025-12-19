@@ -51,6 +51,8 @@ struct momentum_param_t {
   float bedShear = 0.1f;    //!< []
 };
 
+using layer_t = silt::vec2;
+
 //
 // Unified Erosion Kernels
 //

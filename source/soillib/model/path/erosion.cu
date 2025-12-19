@@ -283,16 +283,37 @@ __global__ void __transfer (
   const float suspendDebris = shearLandslide + kds * fmaxf(0.0f, shearYield);       // Debris Suspension Rate [m/y]
   const float depositDebris = fminf(debrisHeight, fmaxf(0.0f, -kdd * shearYield));  // Debris Deposition Rate [m/y]
 
-  // Height-Field Update (Stabilized)
+  // Height-Field Update (Stabilized):
   //  The erosion system is not permitted to generate a pit, because pits become self-reinforcing and numerically
   //  unstable by this model. The model assumes no pits. Therefore, we can use the local slope to limit the erosion
   //  rate. Physically, this can be interpreted as an exponential approach towards the steady-state.
 
-  const float limit = 1.0f;//fmaxf(0.0f, glm::dot(-glm::normalize(grad), glm::normalize(speed)));
-  float transfer = dt * (uplift + deposit - suspend + depositDebris - suspendDebris);
-  transfer = fmaxf(transfer, -0.25f * L * slope * limit);
+  // Transfer Procedure (Read, Modify, Write):
+  //  Sediment is always added to the top layer,
+  //  while remove procedes from top to bottom.
+  //  Uplift only affects the bedrock layer.
+
+  float transfer = dt * (deposit - suspend + depositDebris - suspendDebris);
+  transfer = fmaxf(transfer, -0.25f * L * slope);
   transfer = fminf(transfer,  0.25f * L * param.critSlope);
-  layers[n].x += transfer / scale.z;
+
+  auto layer = layers[n];
+  layer.x += dt * uplift / scale.z;
+  layer.y += fmaxf(0.0f, transfer / scale.z);
+
+  if(transfer < 0.0f) {
+
+    // Limited Transfer
+    auto limited = fmaxf(-layer.y * scale.z, transfer);
+    layer.y += limited / scale.z;
+    transfer -= limited;
+
+    // Bedrock Transfer
+    layer.x += transfer / scale.z;
+  
+  }
+  
+  layers[n] = layer;
 
 }
 

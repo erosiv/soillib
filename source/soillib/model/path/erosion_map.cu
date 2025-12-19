@@ -59,6 +59,14 @@ __device__ float __ndot (
   return (g.x * v.x + g.y * v.y) / __length(v);
 }
 
+__device__ float __height (
+  const silt::view_t<silt::vec2>& layers,
+  const int index
+) {
+  const auto layer = layers[index];
+  return layer.x + layer.y;
+}
+
 __device__ silt::vec2 __glocal (
   const silt::view_t<silt::vec2>& layers,
   const silt::shape shape,
@@ -73,11 +81,11 @@ __device__ silt::vec2 __glocal (
   const int i0n = shape.flatten(ipos + silt::ivec2( 0,-1));
   const int i0p = shape.flatten(ipos + silt::ivec2( 0, 1));
 
-  const float h = layers[i00].x;
-  const float hn0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? CUDART_NAN_F : layers[in0].x;
-  const float hp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? CUDART_NAN_F : layers[ip0].x;
-  const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : layers[i0n].x;
-  const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : layers[i0p].x;
+  const float h = __height(layers, i00);
+  const float hn0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? CUDART_NAN_F : __height(layers, in0);
+  const float hp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? CUDART_NAN_F : __height(layers, ip0);
+  const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : __height(layers, i0n);
+  const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : __height(layers, i0p);
 
   // Note: fmaxf returns numeric value if one value is NaN.
   // NaN: On boundary, use signed (downhill) exitslope
