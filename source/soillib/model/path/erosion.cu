@@ -30,6 +30,8 @@ __global__ void __transport_fluvial (
   silt::tensor_t<float> massTrack,
   silt::view_t<silt::vec2> momentumView,
   silt::view_t<silt::vec2> momentumTrackView,
+  silt::view_t<silt::vec3> albedo_surface,
+  silt::view_t<silt::vec3> albedo_transport,
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
@@ -81,6 +83,13 @@ __global__ void __transport_fluvial (
   const auto source_w = Q * R;
   const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
+  // Sample the Bedrock Albedo:
+  //  Note: This should generally sample the SURFACE albedo!
+  //  i.e. we need a tensor for the albedo source, and the
+  //  albedo accumulation.
+
+  const auto source_a = source_m * albedo_surface[ind];
+
   float att_w = 1.0f;
   float att_m = 1.0f;
   float att_v = 1.0f;
@@ -114,6 +123,10 @@ __global__ void __transport_fluvial (
       atomicAdd(&massTrack[ind],            att_m * source_m);
       atomicAdd(&momentumTrackView[ind].x,  att_v * source_v.x);
       atomicAdd(&momentumTrackView[ind].y,  att_v * source_v.y);
+      // Albedo Transport ...
+      atomicAdd(&albedo_transport[ind].x,    att_m * source_a.x);
+      atomicAdd(&albedo_transport[ind].y,    att_m * source_a.y);
+      atomicAdd(&albedo_transport[ind].z,    att_m * source_a.z);
     }
 
   }
@@ -234,6 +247,9 @@ __global__ void __transfer (
   const silt::const_view_t<silt::vec2> momentumFluvial,
   const silt::tensor_t<float> debris,
   const silt::const_view_t<silt::vec2> momentumDebris,
+  silt::view_t<silt::vec3> albedo_bedrock,
+  silt::view_t<silt::vec3> albedo_transport,
+  silt::view_t<silt::vec3> albedo_surface,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -315,6 +331,30 @@ __global__ void __transfer (
   
   layers[n] = layer;
 
+  //
+  // Albedo Mixing Effect...
+  //
+
+  // Basically, if mass is larger than zero,
+  //  than we want to add the mass to the
+  const auto m = mass[n];
+
+  if(layer.y == 0.0f) {
+
+    albedo_surface[n] = albedo_bedrock[n];
+
+  } else if(m > 0.0f && transfer > 0.0f) {
+
+    const auto surface_color = albedo_surface[n];
+    const auto transport_color = albedo_transport[n] / m;  //!< Surface Transport Color...
+
+    // Todo: Adjust the mixing rate so that it is high if the layer height is near to zero...
+    const auto w = 1.0f;//0.5f; //!< Local Mixing Rate
+    const auto mix_color = w * transport_color + (1.0f - w) * surface_color;
+    albedo_surface[n] = mix_color;
+
+  }
+
 }
 
 //
@@ -330,7 +370,8 @@ void soil::transport_fluvial (
   silt::tensor_t<float> momentum,
   silt::tensor_t<float> momentumTrack,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_sediment,
+  silt::tensor_t<float> albedo_transport,
+  silt::tensor_t<float> albedo_surface,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -345,6 +386,7 @@ void soil::transport_fluvial (
   silt::set(dischargeTrack, 1.0f);
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
+  silt::set(albedo_transport, 0.0f);
 
   __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
     layers.view<silt::vec2>(),
@@ -354,6 +396,8 @@ void soil::transport_fluvial (
     massTrack,
     momentum.view<silt::vec2>(),
     momentumTrack.view<silt::vec2>(),
+    albedo_surface.view<silt::vec3>(),
+    albedo_transport.view<silt::vec3>(),
     rng, shape, scale, param, mp
   );
 
@@ -370,7 +414,8 @@ void soil::transport_debris (
   silt::tensor_t<float> mass,
   silt::tensor_t<float> massTrack,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_sediment,
+  silt::tensor_t<float> albedo_transport,
+  silt::tensor_t<float> albedo_surface,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param,
@@ -406,7 +451,8 @@ void soil::mass_transfer (
   const silt::tensor_t<float> debris,
   const silt::tensor_t<float> momentumDebris,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_sediment,
+  silt::tensor_t<float> albedo_transport,
+  silt::tensor_t<float> albedo_surface,
   const silt::vec3 scale,
   const soil::param_t param,
   const soil::momentum_param_t mp
@@ -422,6 +468,9 @@ void soil::mass_transfer (
     momentumFluvial.view<silt::vec2>(),
     debris,
     momentumDebris.view<silt::vec2>(),
+    albedo_bedrock.view<silt::vec3>(),
+    albedo_transport.view<silt::vec3>(),
+    albedo_surface.view<silt::vec3>(),
     shape, scale, param, mp
   );
 
