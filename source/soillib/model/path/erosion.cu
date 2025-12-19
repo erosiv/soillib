@@ -139,6 +139,8 @@ __global__ void __transport_debris (
   silt::tensor_t<float> massTrack,
   silt::view_t<silt::vec2> momentum,
   silt::view_t<silt::vec2> momentumTrack,
+  silt::view_t<silt::vec3> albedo_surface,
+  silt::view_t<silt::vec3> albedo_transport,
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
@@ -184,6 +186,7 @@ __global__ void __transport_debris (
 
   const auto source_d = A * Q * suspend;
   const auto source_v = Q * (- g * grad + nu * momentum[ind]);
+  const auto source_a = source_d * albedo_surface[ind];
 
   float att_d = 1.0f;
   float att_v = 1.0f;
@@ -213,11 +216,15 @@ __global__ void __transport_debris (
 
     // Tracking Step
     const int nind = shape.flatten(pos);
-    if(nind != ind){
+    if(nind != ind) {
       ind = nind;
-      atomicAdd(&massTrack[ind],        att_d * source_d);
-      atomicAdd(&momentumTrack[ind].x,  att_v * source_v.x);
-      atomicAdd(&momentumTrack[ind].y,  att_v * source_v.y);
+      atomicAdd(&massTrack[ind],          att_d * source_d);
+      atomicAdd(&momentumTrack[ind].x,    att_v * source_v.x);
+      atomicAdd(&momentumTrack[ind].y,    att_v * source_v.y);
+      // Albedo Transport
+      atomicAdd(&albedo_transport[ind].x, att_d * source_a.x);
+      atomicAdd(&albedo_transport[ind].y, att_d * source_a.y);
+      atomicAdd(&albedo_transport[ind].z, att_d * source_a.z);
     }
 
   }
@@ -337,7 +344,7 @@ __global__ void __transfer (
 
   // Basically, if mass is larger than zero,
   //  than we want to add the mass to the
-  const auto m = mass[n];
+  const auto m = mass[n] + debris[n];
 
   if(layer.y == 0.0f) {
 
@@ -386,7 +393,6 @@ void soil::transport_fluvial (
   silt::set(dischargeTrack, 1.0f);
   silt::set(massTrack, 0.0f);
   silt::set(momentumTrack, 0.0f);
-  silt::set(albedo_transport, 0.0f);
 
   __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
     layers.view<silt::vec2>(),
@@ -434,6 +440,8 @@ void soil::transport_debris (
     massTrack,
     momentum.view<silt::vec2>(),
     momentumTrack.view<silt::vec2>(),
+    albedo_surface.view<silt::vec3>(),
+    albedo_transport.view<silt::vec3>(),
     rng, shape, scale, param, mp
   );
 
