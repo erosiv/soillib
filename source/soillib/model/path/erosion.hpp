@@ -105,7 +105,7 @@ void layer_albedo (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> layers,
   const float ext_sediment,
-  const silt::vec3 colorA,
+  const silt::tensor_t<float> colorA,
   const silt::vec3 colorB,
   const silt::tensor_t<float> discharge,
   const float ext_discharge,

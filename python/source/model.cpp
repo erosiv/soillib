@@ -309,9 +309,9 @@ module.def("layer_merge", [](
 
 module.def("layer_albedo", [](
   silt::tensor albedo,
-  silt::tensor layers,
+  const silt::tensor layers,
   const float extS,
-  const silt::vec3 colorA,
+  const silt::tensor colorA,
   const silt::vec3 colorB,
   silt::tensor discharge,
   const float extD,
@@ -320,7 +320,9 @@ module.def("layer_albedo", [](
   soil::layer_albedo (
     albedo.as<float>(),
     layers.as<float>(),
-    extS, colorA, colorB,
+    extS, 
+    colorA.as<float>(),
+    colorB,
     discharge.as<float>(), extD, colorW
   );
 });
