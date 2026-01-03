@@ -99,9 +99,9 @@ __global__ void __transport_fluvial (
 
     // Update Transport Attenuation
     const float ds = __length(L);// / speed);
-    att_m = att_m * __expf(-ds * param.depositionRate);
+    att_m = att_m * __expf(-ds * param.depositionRate);// / (eps + att_w * source_w));
     att_w = att_w * __expf(-ds * param.evapRate);
-//    att_v = att_v * __expf(-ds * nu);
+    att_v = att_v * __expf(-ds * nu); //! \todo isolate parameter
 
     // Velocity Update (Implicit Euler)
     grad = __grad(layers, shape, scale, pos, param.exitSlope);
@@ -280,6 +280,7 @@ __global__ void __transfer (
   const float kL = param.debrisViscousStress;   // Landslide Erosion Rate
   const float kds = param.debrisSuspensionRate; // Debris Suspension Rate
   const float kdd = param.debrisDepositionRate; // Debris Deposition Rate
+  const float eps = 1E-12f;
 
   // Compute Local Properties
   const silt::vec2 pos = shape.unflatten(n);
@@ -295,7 +296,7 @@ __global__ void __transfer (
 //  const auto power = __powf(discharge[n], alpha) * slope;
   const auto suspend = kfs * power;                           // Fluvial Suspension Rate  [m/y]
 
-  const float deposit = kfd * mass[n];                        // Fluvial Deposition Rate  [m/y]
+  const float deposit = kfd * mass[n];// / (eps + discharge[n]); // Fluvial Deposition Rate  [m/y]
   const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
 
   // Debris Erosion Computation
@@ -355,8 +356,11 @@ __global__ void __transfer (
     const auto surface_color = albedo_surface[n];
     const auto transport_color = albedo_transport[n] / m;  //!< Surface Transport Color...
 
-    // Todo: Adjust the mixing rate so that it is high if the layer height is near to zero...
-    const auto w = 1.0f;//0.5f; //!< Local Mixing Rate
+    // Mixing Rate: The mixture is weighted by the layer height and the amount of mass added,
+    //  with the layer height limited by a maximum layer mixing depth.
+    const auto w_surf = fminf(1.0f, layer.y * scale.z);
+    const auto w_trsp = fmaxf(0.0f, transfer);
+    const auto w = fmaxf(0.0f, w_trsp / (w_trsp + w_surf));
     const auto mix_color = w * transport_color + (1.0f - w) * surface_color;
     albedo_surface[n] = mix_color;
 
@@ -531,10 +535,16 @@ __global__ void __layer_albedo (
     return;
 
   const auto layer = layers[n];
-  const auto blendS = 1.0f / (1.0f + extS * layer.y);
-  const auto blendD = 1.0f / (1.0f + extD * discharge[n]);
-  auto color = blendS * colorA[n] + (1.0f - blendS) * colorB[n];
-  color = (1.0f - blendD) * colorW + blendD * color;
+  const auto blendS = 1.0f / (1.0f + extS * layer.y);       //!< Approaches Zero for High Sed Layer
+  const auto blendD = 1.0f / (1.0f + extD * discharge[n]);  //!< Approaches Zero for High Discharge
+
+  const auto colorBedrock = colorA[n];
+  const auto colorSediment = __mmin(1.0f, colorB[n] + 0.1f);
+  const auto colorWater = colorW;
+
+  auto color = colorBedrock;
+  color = blendS * color + (1.0f - blendS) * colorSediment;
+  color = blendD * color + (1.0f - blendD) * colorWater;
   albedo[n] = color;
 
 }

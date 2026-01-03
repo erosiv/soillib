@@ -59,6 +59,17 @@ __device__ float __ndot (
   return (g.x * v.x + g.y * v.y) / __length(v);
 }
 
+__device__ silt::vec3 __mmin (
+  const float f,  
+  const silt::vec3 v
+) {
+  return silt::vec3 (
+    fminf(v.x, f),
+    fminf(v.y, f),
+    fminf(v.z, f)
+  );
+}
+
 __device__ float __height (
   const silt::view_t<silt::vec2>& layers,
   const int index
