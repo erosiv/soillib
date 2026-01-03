@@ -26,9 +26,11 @@ param_t.def(nb::init<>());
 param_t.def_rw("maxage", &soil::param_t::maxage);
 param_t.def_rw("timeStep", &soil::param_t::timeStep);
 param_t.def_rw("lrate", &soil::param_t::lrate);
+
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
 param_t.def_rw("critSlope", &soil::param_t::critSlope);
 
+param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("uplift", &soil::param_t::uplift);
 param_t.def_rw("rainfall", &soil::param_t::rainfall);
 
@@ -49,7 +51,6 @@ param_t.def_rw("force", &soil::param_t::force);
 
 auto momentum_param_t = nb::class_<soil::momentum_param_t>(module, "momentum_param_t");
 momentum_param_t.def(nb::init<>());
-momentum_param_t.def_rw("gravity", &soil::momentum_param_t::gravity);
 momentum_param_t.def_rw("density", &soil::momentum_param_t::density);
 momentum_param_t.def_rw("viscosity", &soil::momentum_param_t::viscosity);
 momentum_param_t.def_rw("bedShear", &soil::momentum_param_t::bedShear);

@@ -49,7 +49,7 @@ __global__ void __transport_fluvial (
   const auto rho_s = mp.density * 2.0f;         //!< Density of Sediment            [kg/m^3]
   const auto tau = mp.bedShear;                 //!<
   const auto nu = mp.viscosity;                 //!< Kinematic Viscosity            [m^2/s]
-  const auto g = mp.gravity;                    //!< Gravitational Acceleration     [m/s^2]
+  const auto g = param.gravity;                 //!< Gravitational Acceleration     [m/s^2]
   const auto ks = param.suspensionRate;         //!< Fluvial Suspension Rate
   const auto fD = param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
   const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
@@ -105,7 +105,7 @@ __global__ void __transport_fluvial (
 
     // Velocity Update (Implicit Euler)
     grad = __grad(layers, shape, scale, pos, param.exitSlope);
-    const auto accel = - (mp.gravity * grad) + nu * momentumView[ind];
+    const auto accel = - (g * grad) + nu * momentumView[ind];
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
     if(glm::length(speed) < eps)
       break;
@@ -157,7 +157,7 @@ __global__ void __transport_debris (
   const auto theta = param.critSlope;           //!< Material Critical Slope  [m/m]
   const auto nu = mp.viscosity;
   const auto tau = mp.bedShear;
-  const auto g = mp.gravity;
+  const auto g = param.gravity;
   const auto kl = param.debrisViscousStress;
   const auto kdd = param.debrisDepositionRate;
   const auto kds = param.debrisSuspensionRate;
@@ -204,7 +204,7 @@ __global__ void __transport_debris (
 
     // Velocity Update (Implicit Euler)
     grad = __grad(layers, shape, scale, pos, param.exitSlope);
-    const auto accel = - (mp.gravity * grad) + nu * momentum[ind];
+    const auto accel = - (g * grad) + nu * momentum[ind];
     speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
     if(glm::length(speed) < eps)
       break;
@@ -275,7 +275,7 @@ __global__ void __transfer (
   const float fD = param.frictionFactor;        // Darcy-Weisbach Friction Factor []
   const float alpha = param.fluvialExponent;    // Power Law Exponent             []
   const float rho = mp.density;                 // Fluid Density                  [kg/m^3]
-  const float g = mp.gravity;                   // Gravitational Acceleration     [m/s^2]
+  const float g = param.gravity;                // Gravitational Acceleration     [m/s^2]
   const float tau_y = param.debrisYieldStress;  // Normalized Yield Stress
   const float kL = param.debrisViscousStress;   // Landslide Erosion Rate
   const float kds = param.debrisSuspensionRate; // Debris Suspension Rate
@@ -289,7 +289,7 @@ __global__ void __transfer (
   const float slope = glm::length(grad);                                      // []
   
   // Fluvial Erosion Computation
-  const auto speed = momentumFluvial[n] - (mp.gravity * grad);
+  const auto speed = momentumFluvial[n] - (g * grad);
   const auto v = __length(momentumFluvial[n]);                // Fluid Velocity           [m/s]
   const auto shear = 0.125f * fD * rho * v * v;               // Wall Shear Stress        [kg/m/s^2 = Pa]
   const auto power = __powf(shear * slope, alpha);            // Stream Power Function    [(kg/s^3)^a]

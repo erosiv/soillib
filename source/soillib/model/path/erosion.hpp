@@ -16,17 +16,20 @@ namespace soil {
 //! parameterization of the erosion model.
 struct param_t {
 
+  // Simulation Parameters
   size_t maxage = 512;
   float lrate = 0.1f;
   float timeStep = 10.0f; //!< [y]
 
+  // Boundary Conditions  
   float exitSlope = 0.025f;
-  float critSlope = 0.57f;
-
   float uplift = 0.1f;      //!< [m/y]
   float rainfall = 1.0f;    //!< [m/y]
+  float gravity = 9.81f;    //!< [m/s^2]
+
   float evapRate = 0.0001f; //!< [m^3/s]
 
+  float critSlope = 0.57f;  
   float frictionFactor = 0.02f;     //!< []
   float fluvialExponent = 0.01f;
   float suspensionRate = 0.0000008f; //!<
@@ -45,7 +48,6 @@ struct param_t {
 
 //! Parameters for Momentum Conservation
 struct momentum_param_t {
-  float gravity = 9.81f;    //!< [m/s^2]
   float density = 1000.0f;  //!< [g/m^3]
   float viscosity = 0.5f;   //!< []
   float bedShear = 0.1f;    //!< []
