@@ -425,9 +425,6 @@ void soil::transport_debris (
   const float A = scale.x * scale.y;
   const silt::shape shape = layers.shape();
 
-  silt::set(massTrack, 0.0f);
-  silt::set(momentumTrack, 0.0f);
-
   __transport_debris<<<block(rng.elem(), 512), 512>>> (
     layers.view<silt::vec2>(),
     mass,
@@ -438,9 +435,6 @@ void soil::transport_debris (
     albedo_transport.view<silt::vec3>(),
     rng, shape, scale, param, mp
   );
-
-  silt::mix(mass, massTrack, param.lrate);
-  silt::mix(momentum, momentumTrack, param.lrate);
 
 }
 
