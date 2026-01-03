@@ -26,7 +26,7 @@ namespace detail {
 template<typename Array, typename Entry, size_t Size>
 struct glm_caster {
 
-	NB_TYPE_CASTER(Array, io_name(NB_TYPING_SEQUENCE, NB_TYPING_LIST) +
+	NB_TYPE_CASTER(Array, io_name("collections.abc.Sequence", "collections.abc.List") +
 		const_name("[") + make_caster<Entry>::Name + const_name("]"))
 
 	using Caster = make_caster<Entry>;

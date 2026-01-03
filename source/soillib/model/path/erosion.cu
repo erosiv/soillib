@@ -392,12 +392,6 @@ void soil::transport_fluvial (
   const float A = scale.x * scale.y;
   const silt::shape shape = layers.shape();
 
-  // basically, this set should be initialized correctly...
-  // it is currently NOT initialized correctly.  
-  silt::set(dischargeTrack, 1.0f);
-  silt::set(massTrack, 0.0f);
-  silt::set(momentumTrack, 0.0f);
-
   __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
     layers.view<silt::vec2>(),
     discharge,
@@ -410,10 +404,6 @@ void soil::transport_fluvial (
     albedo_transport.view<silt::vec3>(),
     rng, shape, scale, param, mp
   );
-
-  silt::mix(discharge, dischargeTrack, param.lrate);
-  silt::mix(mass, massTrack, param.lrate);
-  silt::mix(momentum, momentumTrack, param.lrate);
 
 }
 
