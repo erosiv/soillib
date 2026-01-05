@@ -123,6 +123,7 @@ void layer_merge (
 void layer_albedo (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> layers,
+  const silt::tensor_t<float> deltas,
   const float ext_sediment,
   const silt::tensor_t<float> colorA,
   const silt::tensor_t<float> colorB,
