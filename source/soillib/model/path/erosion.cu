@@ -482,6 +482,44 @@ void soil::mass_transfer (
 //  function. The function has to be fully symmetric in order for the transport to
 //  be mass conservative.
 
+// Note:
+//  Make sure to take into account the timestep and the critical slope...
+//  We will implement this and then simply see what it do ...
+//  
+
+__global__ void __creep_apply (
+  silt::view_t<silt::vec2> layers,
+  const silt::tensor_t<float> transfer,
+  const silt::shape shape,
+  const silt::vec3 scale
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n < shape.elem) {
+    layers[n].y += transfer[n] / scale.z;
+  }
+
+}
+
+__global__ void __creep_transport (
+  const silt::view_t<silt::vec2> layers,
+  silt::tensor_t<float> transfer,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  // Compute the desired amount of sediment creep transfer
+  //  applied to the top layer...
+
+  transfer[n] = 0.0f;
+
+}
+
 void soil::mass_creep (
   silt::tensor_t<float> layers,
   silt::tensor_t<float> transfer,
@@ -490,15 +528,16 @@ void soil::mass_creep (
 ) {
  
   const silt::shape shape = transfer.shape();
-  
-  // Compute the Creep Transfer Rate...
-//  __transfer_creep<<<block(transfer.elem(), 512), 512>>> (
-//    layers.view<silt::vec2>(),
-//    transfer,
-//    shape, scale, param
-//  );
-//
-//  __apply_creep<<<block()
+
+  __creep_transport<<<block(transfer.elem(), 512), 512>>> (
+    layers.view<silt::vec2>(),
+    transfer, shape, scale, param
+  );
+
+  __creep_apply<<<block(transfer.elem(), 512), 512>>> (
+    layers.view<silt::vec2>(),
+    transfer, shape, scale
+  );
 
 }
 
