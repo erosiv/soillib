@@ -92,6 +92,7 @@ void transport_debris (
 );
 
 void mass_transfer (
+  silt::tensor_t<float> delta,
   silt::tensor_t<float> layers,
   const silt::tensor_t<float> uplift,
   const silt::tensor_t<float> discharge,
@@ -107,11 +108,6 @@ void mass_transfer (
   const soil::momentum_param_t mp
 );
 
-//! Mass Creep Kernel
-//! 
-//! The mass_creep kernel takes the sediment layer and creeps it at a fixed rate.
-//! This only applies to the sediment layer, not the bedrock layer.
-//! 
 void mass_creep (
   silt::tensor_t<float> delta,
   const silt::tensor_t<float> layers,

@@ -287,6 +287,7 @@ module.def("transport_debris", [](
 });
 
 module.def("mass_transfer", [](
+  silt::tensor deltas,
   silt::tensor layers,
   silt::tensor uplift,
   silt::tensor discharge,
@@ -302,6 +303,7 @@ module.def("mass_transfer", [](
   const soil::momentum_param_t mp
 ) {
   soil::mass_transfer (
+    deltas.as<float>(), 
     layers.as<float>(), 
     uplift.as<float>(),
     discharge.as<float>(),

@@ -247,7 +247,8 @@ __global__ void __transport_debris (
 //!   analysis could help in general with making the model more intuitive.
 //!
 __global__ void __transfer (
-  silt::view_t<silt::vec2> layers,
+  silt::view_t<silt::vec2> deltas,
+  const silt::view_t<silt::vec2> layers,
   const silt::tensor_t<float> upliftBase,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> mass,
@@ -322,22 +323,23 @@ __global__ void __transfer (
   transfer = fminf(transfer,  0.25f * L * 0.3f); // Limit Deposition
 
   auto layer = layers[n];
-  layer.x += dt * uplift / scale.z;
-  layer.y += fmaxf(0.0f, transfer / scale.z);
+  auto delta = deltas[n];
+  delta.x += dt * uplift / scale.z;
+  delta.y += fmaxf(0.0f, transfer / scale.z);
 
   if(transfer < 0.0f) {
 
     // Limited Transfer
     auto limited = fmaxf(-layer.y * scale.z, transfer);
-    layer.y += limited / scale.z;
+    delta.y += limited / scale.z;
     transfer -= limited;
 
     // Bedrock Transfer
-    layer.x += transfer / scale.z;
+    delta.x += transfer / scale.z;
   
   }
   
-  layers[n] = layer;
+  deltas[n] = delta;
 
   //
   // Albedo Mixing Effect...
@@ -439,6 +441,7 @@ void soil::transport_debris (
 }
 
 void soil::mass_transfer (
+  silt::tensor_t<float> delta,
   silt::tensor_t<float> layers,
   const silt::tensor_t<float> uplift,
   const silt::tensor_t<float> discharge,
@@ -457,6 +460,7 @@ void soil::mass_transfer (
   const silt::shape shape = uplift.shape();
   
   __transfer<<<block(uplift.elem(), 512), 512>>> (
+    delta.view<silt::vec2>(),
     layers.view<silt::vec2>(),
     uplift,
     discharge,
