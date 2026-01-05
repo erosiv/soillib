@@ -319,7 +319,7 @@ __global__ void __transfer (
 
   float transfer = dt * (deposit - suspend + depositDebris - suspendDebris);
   transfer = fmaxf(transfer, -0.25f * L * slope);           // Limit Suspension
-  transfer = fminf(transfer,  0.35f * L * param.critSlope); // Limit Deposition
+  transfer = fminf(transfer,  0.25f * L * 0.3f); // Limit Deposition
 
   auto layer = layers[n];
   layer.x += dt * uplift / scale.z;
@@ -501,6 +501,11 @@ __global__ void __creep_apply (
 
 }
 
+// Creep Transport Implementation:
+//  We use a rate-limited laplacian, by applying a divergence of gradients.
+//  In other words, we take the difference of gradients between the cell and
+//  its neighbors and apply that, limiting by the amount of available mass.
+//  The question is, if we cap it using the critical slope? Probably not.
 __global__ void __creep_transport (
   const silt::view_t<silt::vec2> layers,
   silt::tensor_t<float> transfer,
@@ -513,10 +518,71 @@ __global__ void __creep_transport (
   if(n >= shape.elem)
     return;
 
-  // Compute the desired amount of sediment creep transfer
-  //  applied to the top layer...
+  // Compute Neighboring Index Set
+  const silt::ivec2 ipos = shape.unflatten(n);
+  const int i00 = n;
+  const int in0 = shape.flatten(ipos + silt::ivec2(-1, 0));
+  const int ip0 = shape.flatten(ipos + silt::ivec2( 1, 0));
+  const int i0n = shape.flatten(ipos + silt::ivec2( 0,-1));
+  const int i0p = shape.flatten(ipos + silt::ivec2( 0, 1));
 
-  transfer[n] = 0.0f;
+  // Sample Neighboring Layer Configuration
+  const auto l00 = layers[i00];
+  const auto ln0 = shape.oob(ipos + silt::ivec2(-1, 0)) ? l00 : layers[in0];
+  const auto lp0 = shape.oob(ipos + silt::ivec2( 1, 0)) ? l00 : layers[ip0];
+  const auto l0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? l00 : layers[i0n];
+  const auto l0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? l00 : layers[i0p];
+
+  const auto h00 = (l00.x + l00.y) * scale.z;
+  const auto hn0 = (ln0.x + ln0.y) * scale.z;
+  const auto hp0 = (lp0.x + lp0.y) * scale.z;
+  const auto h0n = (l0n.x + l0n.y) * scale.z;
+  const auto h0p = (l0p.x + l0p.y) * scale.z;
+
+  // Compute the Total Transfer Amount:
+  //  We take the height-difference minus the critical slope,
+  //  which would give us the excess until equilibriation.
+  //  Then, we cut that in half due to the symmetry of what is
+  //  transferred over. Finally, we divide the whole thing by
+  //  four due to the four elements contributing at once, so
+  //  that the entire thing is unconditionally stable.
+
+  const float critSlope = 0.1f;
+
+  const auto __transfer = [critSlope, scale](const silt::vec2& lb, const silt::vec2& lt, const float dx) {
+    const float hb = (lb.x + lb.y) * scale.z; // Height Bottom
+    const float ht = (lt.x + lt.y) * scale.z; // Height Top
+    const float tmax = 0.5f * ((ht - hb) - critSlope * dx);
+    return fmaxf(0.0f, fminf(lt.y * scale.z, tmax));
+  };
+
+  float t = 0.0f;
+
+  if(hp0 > h00) {
+    t += __transfer(l00, lp0, scale.x);
+  } else {
+    t -= __transfer(lp0, l00, scale.x);
+  }
+
+  if(hn0 > h00) {
+    t += __transfer(l00, ln0, scale.x);
+  } else {
+    t -= __transfer(ln0, l00, scale.x);
+  }
+
+  if(h0p > h00) {
+    t += __transfer(l00, l0p, scale.y);
+  } else {
+    t -= __transfer(l0p, l00, scale.y);
+  }
+
+  if(h0n > h00) {
+    t += __transfer(l00, l0n, scale.y);
+  } else {
+    t -= __transfer(l0n, l00, scale.y);
+  }
+
+  transfer[n] = 0.25f * t;
 
 }
 
