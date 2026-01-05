@@ -107,6 +107,18 @@ void mass_transfer (
   const soil::momentum_param_t mp
 );
 
+//! Mass Creep Kernel
+//! 
+//! The mass_creep kernel takes the sediment layer and creeps it at a fixed rate.
+//! This only applies to the sediment layer, not the bedrock layer.
+//! 
+void mass_creep (
+  silt::tensor_t<float> layers,
+  silt::tensor_t<float> transfer,
+  const silt::vec3 scale,
+  const soil::param_t param
+);
+
 void layer_merge (
   silt::tensor_t<float> height,
   const silt::tensor_t<float> layers

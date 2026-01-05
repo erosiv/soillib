@@ -318,8 +318,8 @@ __global__ void __transfer (
   //  Uplift only affects the bedrock layer.
 
   float transfer = dt * (deposit - suspend + depositDebris - suspendDebris);
-  transfer = fmaxf(transfer, -0.25f * L * slope);
-  transfer = fminf(transfer,  0.25f * L * param.critSlope);
+  transfer = fmaxf(transfer, -0.25f * L * slope);           // Limit Suspension
+  transfer = fminf(transfer,  0.35f * L * param.critSlope); // Limit Deposition
 
   auto layer = layers[n];
   layer.x += dt * uplift / scale.z;
@@ -473,6 +473,36 @@ void soil::mass_transfer (
 }
 
 //
+// Mass Creeping Implementation
+//  We note that the laplacian really corresponds to a gradient of gradients...
+//  So if we take each of these gradients individually and just cap them at their
+//  natural limit, we should get a limited transfer laplacian.
+//  So we compute the total amount transferred based in the individually limited
+//  amount, and then apply that exponentially which should give us a stable transfer
+//  function. The function has to be fully symmetric in order for the transport to
+//  be mass conservative.
+
+void soil::mass_creep (
+  silt::tensor_t<float> layers,
+  silt::tensor_t<float> transfer,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+ 
+  const silt::shape shape = transfer.shape();
+  
+  // Compute the Creep Transfer Rate...
+//  __transfer_creep<<<block(transfer.elem(), 512), 512>>> (
+//    layers.view<silt::vec2>(),
+//    transfer,
+//    shape, scale, param
+//  );
+//
+//  __apply_creep<<<block()
+
+}
+
+//
 // Layer and Albedo Management
 //
 
@@ -520,7 +550,7 @@ __global__ void __layer_albedo (
 
   const auto layer = layers[n];
   const auto blendS = 1.0f / (1.0f + extS * layer.y);       //!< Approaches Zero for High Sed Layer
-  const auto blendD = 1.0f / (1.0f + extD * discharge[n]);  //!< Approaches Zero for High Discharge
+  const auto blendD = fmaxf(0.5f, 1.0f / (1.0f + extD * discharge[n]));  //!< Approaches Zero for High Discharge
 
   const auto colorBedrock = colorA[n];
   const auto colorSediment = __mmin(1.0f, colorB[n] + 0.1f);

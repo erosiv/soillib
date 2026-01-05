@@ -316,6 +316,19 @@ module.def("mass_transfer", [](
   );
 });
 
+module.def("mass_creep", [](
+  silt::tensor layers,
+  silt::tensor transfer,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+  soil::mass_creep (
+    layers.as<float>(),
+    transfer.as<float>(),
+    scale, param
+  );
+});
+
 module.def("layer_merge", [](
   silt::tensor height,
   silt::tensor layers
