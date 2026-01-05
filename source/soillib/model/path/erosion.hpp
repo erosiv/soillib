@@ -113,8 +113,8 @@ void mass_transfer (
 //! This only applies to the sediment layer, not the bedrock layer.
 //! 
 void mass_creep (
-  silt::tensor_t<float> layers,
-  silt::tensor_t<float> transfer,
+  silt::tensor_t<float> delta,
+  const silt::tensor_t<float> layers,
   const silt::vec3 scale,
   const soil::param_t param
 );

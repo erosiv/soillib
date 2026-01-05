@@ -487,28 +487,14 @@ void soil::mass_transfer (
 //  We will implement this and then simply see what it do ...
 //  
 
-__global__ void __creep_apply (
-  silt::view_t<silt::vec2> layers,
-  const silt::tensor_t<float> transfer,
-  const silt::shape shape,
-  const silt::vec3 scale
-) {
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n < shape.elem) {
-    layers[n].y += transfer[n] / scale.z;
-  }
-
-}
-
 // Creep Transport Implementation:
 //  We use a rate-limited laplacian, by applying a divergence of gradients.
 //  In other words, we take the difference of gradients between the cell and
 //  its neighbors and apply that, limiting by the amount of available mass.
 //  The question is, if we cap it using the critical slope? Probably not.
-__global__ void __creep_transport (
-  const silt::view_t<silt::vec2> layers,
-  silt::tensor_t<float> transfer,
+__global__ void __mass_creep (
+  silt::view_t<silt::vec2> delta,
+  const silt::const_view_t<silt::vec2> layers,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param
@@ -547,7 +533,7 @@ __global__ void __creep_transport (
   //  four due to the four elements contributing at once, so
   //  that the entire thing is unconditionally stable.
 
-  const float critSlope = 0.1f;
+  const float critSlope = 0.0f;
 
   const auto __transfer = [critSlope, scale](const silt::vec2& lb, const silt::vec2& lt, const float dx) {
     const float hb = (lb.x + lb.y) * scale.z; // Height Bottom
@@ -582,27 +568,23 @@ __global__ void __creep_transport (
     t -= __transfer(l0n, l00, scale.y);
   }
 
-  transfer[n] = 0.25f * t;
+  delta[n].y += 0.25f * t  / scale.z;
 
 }
 
 void soil::mass_creep (
-  silt::tensor_t<float> layers,
-  silt::tensor_t<float> transfer,
+  silt::tensor_t<float> delta,
+  const silt::tensor_t<float> layers,
   const silt::vec3 scale,
   const soil::param_t param
 ) {
  
-  const silt::shape shape = transfer.shape();
-
-  __creep_transport<<<block(transfer.elem(), 512), 512>>> (
+  const auto shapeIn = layers.shape();
+  const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
+  __mass_creep<<<block(shape.elem, 512), 512>>> (
+    delta.view<silt::vec2>(),
     layers.view<silt::vec2>(),
-    transfer, shape, scale, param
-  );
-
-  __creep_apply<<<block(transfer.elem(), 512), 512>>> (
-    layers.view<silt::vec2>(),
-    transfer, shape, scale
+    shape, scale, param
   );
 
 }
