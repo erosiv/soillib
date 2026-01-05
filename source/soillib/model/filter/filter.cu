@@ -22,8 +22,8 @@ inline int block(const int elem, const int thread) {
 
 template<typename T>
 __device__ void __gaussian_blur (
-  silt::tensor_t<T>& bufferOut,
-  const silt::tensor_t<T>& bufferIn,
+  silt::view_t<T>& bufferOut,
+  const silt::view_t<T>& bufferIn,
   const silt::shape& shape,
   const unsigned int n,
   const float sigma,
@@ -46,7 +46,7 @@ __device__ void __gaussian_blur (
 //    const float sigma2 = 
     const float Z = sqrt(2.0f * 3.14159265f) * sigma;
     const float kernel = __expf(-0.5f*(k / sigma)*(k / sigma)) / Z;
-    const float src = bufferIn[nind];
+    const T src = bufferIn[nind];
     val += src * kernel;
 
   }
@@ -55,24 +55,38 @@ __device__ void __gaussian_blur (
 
 }
 
-__global__ void __blur(
-  silt::tensor_t<float> tensorOut,      //!< Output Field
-  const silt::tensor_t<float> tensorIn, //!< Input Field
+template<typename T>
+__global__ void __blur (
+  silt::view_t<T> tensorOut,      //!< Output Field
+  const silt::view_t<T> tensorIn, //!< Input Field
   const silt::shape shape,
   const float sigma,
   const bool xdir
 ){
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n < shape.elem){
-    __gaussian_blur<float>(tensorOut, tensorIn, shape, n, sigma, xdir);
+  if(n < shape.elem) {
+    __gaussian_blur<T>(tensorOut, tensorIn, shape, n, sigma, xdir);
   };
 }
 
-silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const float sigma){
-  const silt::shape shape = tensorIn.shape();
-  silt::tensor_t<float> tensorOut(shape, silt::host_t::GPU);
-  __blur<<<block(shape.elem, 512), 512>>>(tensorOut, tensorIn, shape, sigma, true);
-  __blur<<<block(shape.elem, 512), 512>>>(tensorIn, tensorOut, shape, sigma, false);
+silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const float sigma) {
+
+  const silt::shape shapeIn = tensorIn.shape();
+  const silt::shape shape(shapeIn[0], shapeIn[1]);
+  const int channel = shapeIn[2];
+  silt::tensor_t<float> tensorOut(shapeIn, silt::host_t::GPU);
+  
+  if(channel == 1) {
+    using T = silt::vec<1>;
+    __blur<T><<<block(shape.elem, 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
+    __blur<T><<<block(shape.elem, 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
+  }
+  if(channel == 2) {
+    using T = silt::vec<2>;
+    __blur<T><<<block(shape.elem, 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
+    __blur<T><<<block(shape.elem, 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
+  }
+
   return tensorIn;
 }
 
