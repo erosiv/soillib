@@ -341,10 +341,23 @@ module.def("layer_merge", [](
   );
 });
 
+module.def("agitation", [](
+  silt::tensor agitation,
+  const silt::tensor deltas,
+  const float decay,
+  const float grow
+) {
+  soil::agitation (
+    agitation.as<float>(),
+    deltas.as<float>(),
+    decay, grow
+  );
+});
+
 module.def("layer_albedo", [](
   silt::tensor albedo,
   const silt::tensor layers,
-  const silt::tensor deltas,
+  const silt::tensor agitation,
   const float extS,
   const silt::tensor colorA,
   const silt::tensor colorB,
@@ -355,7 +368,7 @@ module.def("layer_albedo", [](
   soil::layer_albedo (
     albedo.as<float>(),
     layers.as<float>(),
-    deltas.as<float>(),
+    agitation.as<float>(),
     extS, 
     colorA.as<float>(),
     colorB.as<float>(),

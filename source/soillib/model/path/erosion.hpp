@@ -120,10 +120,17 @@ void layer_merge (
   const silt::tensor_t<float> layers
 );
 
+void agitation (
+  silt::tensor_t<float> agitation,
+  const silt::tensor_t<float> delta,
+  const float decay,
+  const float grow
+);
+
 void layer_albedo (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> layers,
-  const silt::tensor_t<float> deltas,
+  const silt::tensor_t<float> agitation,
   const float ext_sediment,
   const silt::tensor_t<float> colorA,
   const silt::tensor_t<float> colorB,

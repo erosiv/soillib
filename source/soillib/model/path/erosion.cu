@@ -623,11 +623,46 @@ void soil::layer_merge (
 
 }
 
+__global__ void __agitation (
+  silt::tensor_t<float> agitation,
+  const silt::const_view_t<silt::vec2> delta,
+  const silt::shape shape,
+  const float decay,
+  const float grow
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  float ag = agitation[n];
+  ag = (1.0f - decay) * ag;
+  ag += grow * abs(delta[n].y);
+  agitation[n] = ag;
+
+}
+
+void soil::agitation (
+  silt::tensor_t<float> agitation,
+  const silt::tensor_t<float> delta,
+  const float decay,
+  const float grow
+) {
+
+  const auto shape = agitation.shape();
+  __agitation<<<block(shape.elem, 512), 512>>> (
+    agitation,
+    delta.view<silt::vec2>(),
+    shape, decay, grow
+  );
+
+}
+
 __global__ void __layer_albedo (
   silt::view_t<silt::vec3> albedo,
   const silt::shape shape,
   const silt::const_view_t<silt::vec2> layers,
-  const silt::const_view_t<silt::vec2> deltas,
+  const silt::tensor_t<float> agitation,
   const float extS,
   const silt::const_view_t<silt::vec3> colorA,
   const silt::const_view_t<silt::vec3> colorB,
@@ -658,11 +693,10 @@ __global__ void __layer_albedo (
   //  const auto colorWater = colorW;
   //  color = blendD * color + (1.0f - blendD) * colorWater;
 
-  // Shift the color depending on suspension / deposition
-  const float ag = extD * deltas[n].y;
+  // Shift the color depending on agitation
+  const float ag = extD * agitation[n];
   const float shift = 0.4f * ag / sqrt(1 + ag * ag);
   color = __mmin(1.0f, color * (1.0f + shift));
-
   albedo[n] = color;
 
 }
@@ -670,7 +704,7 @@ __global__ void __layer_albedo (
 void soil::layer_albedo (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> layers,
-  const silt::tensor_t<float> deltas,
+  const silt::tensor_t<float> agitation,
   const float ext_sediment,
   const silt::tensor_t<float> colorA,
   const silt::tensor_t<float> colorB,
@@ -685,7 +719,7 @@ void soil::layer_albedo (
     albedo.view<silt::vec3>(),
     shape,
     layers.view<silt::vec2>(),
-    deltas.view<silt::vec2>(),
+    agitation,
     ext_sediment,
     colorA.view<silt::vec3>(),
     colorB.view<silt::vec3>(),
