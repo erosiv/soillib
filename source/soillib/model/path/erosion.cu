@@ -654,17 +654,14 @@ void soil::agitation (
 
 }
 
-__global__ void __layer_albedo (
+__global__ void __albedo_layer (
   silt::view_t<silt::vec3> albedo,
-  const silt::shape shape,
+  const silt::const_view_t<silt::vec3> albedoBedrock,
+  const silt::const_view_t<silt::vec3> albedoSediment,
   const silt::const_view_t<silt::vec2> layers,
-  const silt::tensor_t<float> agitation,
-  const float extS,
-  const silt::const_view_t<silt::vec3> colorA,
-  const silt::const_view_t<silt::vec3> colorB,
-  const silt::tensor_t<float> discharge,
-  const float extD,
-  const silt::vec3 colorW
+  const float scaleSediment,
+  const silt::vec3 shiftSediment,
+  const silt::shape shape
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -672,55 +669,44 @@ __global__ void __layer_albedo (
     return;
 
   const auto layer = layers[n];
+  const auto colorBedrock = albedoBedrock[n];
+  const auto colorSediment =  __mmin(1.0f, albedoSediment[n] + shiftSediment);
 
-  // Bedrock Color
-  const auto colorBedrock = colorA[n];
-  auto color = colorBedrock;
-  //  const auto colorBedrock = silt::vec3(0.4f);//colorA[n];
-  
-  // Sediment Color
-  const auto blendS = 1.0f / (1.0f + extS * layer.y);       //!< Approaches Zero for High Sed Layer
-  const auto colorSediment = __mmin(1.0f, colorB[n] + 0.1f);  
-  //  const auto colorSediment = silt::vec3(0.6f);//__mmin(1.0f, colorB[n] + 0.1f);
-  color = blendS * color + (1.0f - blendS) * colorSediment;
+  const auto blend = 1.0f / (1.0f + scaleSediment * layer.y);
+  albedo[n] = blend * colorBedrock + (1.0f - blend) * colorSediment;
 
-  // Discharge Color
-  //  const auto blendD = fmaxf(0.5f, 1.0f / (1.0f + extD * discharge[n]));  //!< Approaches Zero for High Discharge
-  //  const auto colorWater = colorW;
-  //  color = blendD * color + (1.0f - blendD) * colorWater;
-
-  // Shift the color depending on agitation
-  const float ag = extD * agitation[n];
-  const float shift = 0.2f * ag / sqrt(1 + ag * ag);
-  color = __mmin(1.0f, color * (1.0f + shift));
-  albedo[n] = color;
+//  // Discharge Color
+//  //  const auto blendD = fmaxf(0.5f, 1.0f / (1.0f + extD * discharge[n]));  //!< Approaches Zero for High Discharge
+//  //  const auto colorWater = colorW;
+//  //  color = blendD * color + (1.0f - blendD) * colorWater;
+//
+//  // Shift the color depending on agitation
+//  const float ag = extD * agitation[n];
+//  const float shift = 0.2f * ag / sqrt(1 + ag * ag);
+//  color = __mmin(1.0f, color * (1.0f + shift));
+//  albedo[n] = color;
 
 }
 
-void soil::layer_albedo (
+void soil::albedo_layer (
   silt::tensor_t<float> albedo,
+  const silt::tensor_t<float> albedoBedrock,
+  const silt::tensor_t<float> albedoSediment,
   const silt::tensor_t<float> layers,
-  const silt::tensor_t<float> agitation,
-  const float ext_sediment,
-  const silt::tensor_t<float> colorA,
-  const silt::tensor_t<float> colorB,
-  const silt::tensor_t<float> discharge,
-  const float ext_discharge,
-  const silt::vec3 colorW
+  const float scaleSediment,
+  const silt::vec3 shiftSediment
 ) {
   
   const auto shapeIn = layers.shape();
   const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
-  __layer_albedo<<<block(shape.elem, 512), 512>>> (
+  __albedo_layer<<<block(shape.elem, 512), 512>>> (
     albedo.view<silt::vec3>(),
-    shape,
+    albedoBedrock.view<silt::vec3>(),
+    albedoSediment.view<silt::vec3>(),
     layers.view<silt::vec2>(),
-    agitation,
-    ext_sediment,
-    colorA.view<silt::vec3>(),
-    colorB.view<silt::vec3>(),
-    discharge, 
-    ext_discharge, colorW
+    scaleSediment,
+    shiftSediment,
+    shape
   );
 
 }

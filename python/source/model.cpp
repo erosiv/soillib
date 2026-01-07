@@ -356,25 +356,21 @@ module.def("agitation", [](
   );
 });
 
-module.def("layer_albedo", [](
+module.def("albedo_layer", [](
   silt::tensor albedo,
+  const silt::tensor albedoBedrock,
+  const silt::tensor albedoSediment,
   const silt::tensor layers,
-  const silt::tensor agitation,
-  const float extS,
-  const silt::tensor colorA,
-  const silt::tensor colorB,
-  silt::tensor discharge,
-  const float extD,
-  const silt::vec3 colorW
+  const float scaleSediment,
+  const silt::vec3 shiftSediment
 ) {
-  soil::layer_albedo (
+  soil::albedo_layer (
     albedo.as<float>(),
+    albedoBedrock.as<float>(),
+    albedoSediment.as<float>(),
     layers.as<float>(),
-    agitation.as<float>(),
-    extS, 
-    colorA.as<float>(),
-    colorB.as<float>(),
-    discharge.as<float>(), extD, colorW
+    scaleSediment,
+    shiftSediment
   );
 });
 

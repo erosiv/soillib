@@ -137,17 +137,33 @@ void agitation (
   const float grow
 );
 
-void layer_albedo (
+//
+// Albedo Generating Functions
+//
+
+void albedo_layer (
   silt::tensor_t<float> albedo,
+  const silt::tensor_t<float> albedoBedrock,
+  const silt::tensor_t<float> albedoSediment,
   const silt::tensor_t<float> layers,
-  const silt::tensor_t<float> agitation,
-  const float ext_sediment,
-  const silt::tensor_t<float> colorA,
-  const silt::tensor_t<float> colorB,
-  const silt::tensor_t<float> discharge,
-  const float ext_discharge,
-  const silt::vec3 colorW
+  const float scaleSediment,
+  const silt::vec3 shiftSediment
 );
+
+// void layer_albedo (
+//   // Tensor Inputs
+// 
+//   const silt::tensor_t<float> layers,
+//   const silt::tensor_t<float> discharge,
+//   const silt::tensor_t<float> agitation,
+//   // Parameters
+//   const float scaleSediment,
+//   const float scaleDischarge,
+//   const float scaleAgitation,
+//   const silt::vec3 shiftSediment,
+//   const silt::vec3 shiftDischarge,
+//   const silt::vec3 shiftAgitation
+// );
 
 } // end of namespace soil
 
