@@ -150,11 +150,19 @@ void albedo_layer (
   const silt::vec3 shiftSediment
 );
 
+void albedo_discharge (
+  silt::tensor_t<float> albedo,
+  const silt::tensor_t<float> discharge,
+  const silt::vec3 colorDischarge,
+  const float extinction,
+  const float scale
+);
+
 // void layer_albedo (
 //   // Tensor Inputs
 // 
 //   const silt::tensor_t<float> layers,
-//   const silt::tensor_t<float> discharge,
+//   
 //   const silt::tensor_t<float> agitation,
 //   // Parameters
 //   const float scaleSediment,

@@ -688,6 +688,27 @@ __global__ void __albedo_layer (
 
 }
 
+// Extinction Based Discharge Blending
+__global__ void __albedo_discharge (
+  silt::view_t<silt::vec3> albedo,
+  const silt::tensor_t<float> discharge,
+  const silt::vec3 colorDischarge,
+  const float extinction,
+  const float scale,
+  const silt::shape shape
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  const auto color = albedo[n];
+  const auto value = fmaxf(0.0f, discharge[n]);
+  const auto blend = scale * (1.0f - __expf(-extinction * value));
+  albedo[n] = blend * colorDischarge + (1.0f - blend) * color;
+
+}
+
 void soil::albedo_layer (
   silt::tensor_t<float> albedo,
   const silt::tensor_t<float> albedoBedrock,
@@ -697,7 +718,7 @@ void soil::albedo_layer (
   const silt::vec3 shiftSediment
 ) {
   
-  const auto shapeIn = layers.shape();
+  const auto shapeIn = albedo.shape();
   const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
   __albedo_layer<<<block(shape.elem, 512), 512>>> (
     albedo.view<silt::vec3>(),
@@ -706,6 +727,27 @@ void soil::albedo_layer (
     layers.view<silt::vec2>(),
     scaleSediment,
     shiftSediment,
+    shape
+  );
+
+}
+
+void soil::albedo_discharge (
+  silt::tensor_t<float> albedo,
+  const silt::tensor_t<float> discharge,
+  const silt::vec3 colorDischarge,
+  const float extinction,
+  const float scale
+) {
+ 
+  const auto shapeIn = albedo.shape();
+  const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
+
+  __albedo_discharge<<<block(shape.elem, 512), 512>>> (
+    albedo.view<silt::vec3>(),
+    discharge,
+    colorDischarge,
+    extinction, scale,
     shape
   );
 

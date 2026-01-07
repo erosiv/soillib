@@ -374,6 +374,22 @@ module.def("albedo_layer", [](
   );
 });
 
+module.def("albedo_discharge", [](
+  silt::tensor albedo,
+  const silt::tensor discharge,
+  const silt::vec3 colorDischarge,
+  const float extinction,
+  const float scale
+) {
+  soil::albedo_discharge (
+    albedo.as<float>(),
+    discharge.as<float>(),
+    colorDischarge,
+    extinction,
+    scale
+  );
+});
+
 //
 // Noise Operations
 //
