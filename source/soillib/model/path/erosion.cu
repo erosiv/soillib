@@ -35,8 +35,7 @@ __global__ void __transport_fluvial (
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -45,15 +44,17 @@ __global__ void __transport_fluvial (
   // Physical Parameter Set
   const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
-  const auto rho_w = mp.density;                //!< Density of Water               [kg/m^3]
-  const auto rho_s = mp.density * 2.0f;         //!< Density of Sediment            [kg/m^3]
-  const auto tau = mp.bedShear;                 //!<
-  const auto nu = mp.viscosity;                 //!< Kinematic Viscosity            [m^2/s]
+  const auto rho_w = param.densityWater;        //!< Density of Water               [kg/m^3]
+  const auto rho_s = param.densityDebris;       //!< Density of Sediment            [kg/m^3]
+  const auto tau = param.bedShearWater;         //!<
+  const auto nu = param.viscosityWater;         //!< Kinematic Viscosity            [m^2/s]
   const auto g = param.gravity;                 //!< Gravitational Acceleration     [m/s^2]
-  const auto ks = param.suspensionRate;         //!< Fluvial Suspension Rate
+  const auto ks = param.suspensionRateFluvial;  //!< Fluvial Suspension Rate
+  const auto kd = param.depositionRateFluvial;  //!< Fluvial Deposition Rate
   const auto fD = param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
   const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
-  const auto R = 1.0f;                          //!< Rainfall Rate                  [m/y]
+  const auto R = param.rainfall;                //!< Water Rainfall Rate                  [m/y]
+  const auto E = param.evapRate;                //!< Water Evaporation Rater
   const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
 
   // Sampling Procedure
@@ -99,8 +100,8 @@ __global__ void __transport_fluvial (
 
     // Update Transport Attenuation
     const float ds = __length(L);// / speed);
-    att_m = att_m * __expf(-ds * param.depositionRate);// / (eps + att_w * source_w));
-    att_w = att_w * __expf(-ds * param.evapRate);
+    att_m = att_m * __expf(-ds * kd);// / (eps + att_w * source_w));
+    att_w = att_w * __expf(-ds * E);
     att_v = att_v * __expf(-ds * nu); //! \todo isolate parameter
 
     // Velocity Update (Implicit Euler)
@@ -144,8 +145,7 @@ __global__ void __transport_debris (
   silt::tensor_t<silt::rng> rng,
   const silt::shape shape,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -154,14 +154,14 @@ __global__ void __transport_debris (
   // Physical Parameter Set
   const auto A = scale.x * scale.y;             //!< Cell Area                [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width               [m]
-  const auto theta = param.critSlope;           //!< Material Critical Slope  [m/m]
-  const auto nu = mp.viscosity;
-  const auto tau = mp.bedShear;
+  const auto theta = param.critSlopeBedrock;    //!< Material Critical Slope  [m/m]
+  const auto nu = param.viscosityDebris;
+  const auto tau = param.bedShearDebris;
   const auto g = param.gravity;
-  const auto kl = param.debrisViscousStress;
-  const auto kdd = param.debrisDepositionRate;
-  const auto kds = param.debrisSuspensionRate;
-  const auto tau_y = param.debrisYieldStress;
+  const auto kl = param.landslideRateDebris;
+  const auto kdd = param.depositionRateDebris;
+  const auto kds = param.suspensionRateDebris;
+  const auto tau_y = param.yieldStress;
   const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
 
   // Sampling Procedure
@@ -260,8 +260,7 @@ __global__ void __transfer (
   silt::view_t<silt::vec3> albedo_surface,
   const silt::shape shape,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -269,18 +268,18 @@ __global__ void __transfer (
     return;
 
   // General Dimensionalized Parameters
-  const float dt = param.timeStep;              // Simulation Timestep            [y]
-  const float ku = param.uplift;                // Terrain Uplift Rate            [m/y]
-  const float kfs = param.suspensionRate;       // Fluvial Suspension Rate
-  const float kfd = param.depositionRate;       // Fluvial Deposition Rate
-  const float fD = param.frictionFactor;        // Darcy-Weisbach Friction Factor []
-  const float alpha = param.fluvialExponent;    // Power Law Exponent             []
-  const float rho = mp.density;                 // Fluid Density                  [kg/m^3]
-  const float g = param.gravity;                // Gravitational Acceleration     [m/s^2]
-  const float tau_y = param.debrisYieldStress;  // Normalized Yield Stress
-  const float kL = param.debrisViscousStress;   // Landslide Erosion Rate
-  const float kds = param.debrisSuspensionRate; // Debris Suspension Rate
-  const float kdd = param.debrisDepositionRate; // Debris Deposition Rate
+  const float dt = param.timeStep;                // Simulation Timestep            [y]
+  const float ku = param.uplift;                  // Terrain Uplift Rate            [m/y]
+  const float kfs = param.suspensionRateFluvial;  // Fluvial Suspension Rate
+  const float kfd = param.depositionRateFluvial;  // Fluvial Deposition Rate
+  const float fD = param.frictionFactor;          // Darcy-Weisbach Friction Factor []
+  const float alpha = param.fluvialExponent;      // Power Law Exponent             []
+  const float rho = param.densityWater;           // Fluid Density                  [kg/m^3]
+  const float g = param.gravity;                  // Gravitational Acceleration     [m/s^2]
+  const float tau_y = param.yieldStress;          // Normalized Yield Stress
+  const float kds = param.suspensionRateDebris;   // Debris Suspension Rate
+  const float kdd = param.depositionRateDebris;   // Debris Deposition Rate
+  const float kL = param.landslideRateDebris;     // Landslide Erosion Rate
   const float eps = 1E-12f;
 
   // Compute Local Properties
@@ -302,7 +301,7 @@ __global__ void __transfer (
 
   // Debris Erosion Computation
   const float debrisHeight = debris[n];                                             // Debris Flow Height [m]
-  const float excessSlope = (slope - param.critSlope);                              // Excess Slope []
+  const float excessSlope = (slope - param.critSlopeBedrock);                       // Excess Slope []
   const float shearLandslide = fmaxf(0.0f, kL * excessSlope - tau_y);               //
   const float shearYield = g * (debrisHeight * excessSlope - tau_y);                //
   const float suspendDebris = shearLandslide + kds * fmaxf(0.0f, shearYield);       // Debris Suspension Rate [m/y]
@@ -387,8 +386,7 @@ void soil::transport_fluvial (
   silt::tensor_t<float> albedo_surface,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
 
   const float A = scale.x * scale.y;
@@ -404,7 +402,7 @@ void soil::transport_fluvial (
     momentumTrack.view<silt::vec2>(),
     albedo_surface.view<silt::vec3>(),
     albedo_transport.view<silt::vec3>(),
-    rng, shape, scale, param, mp
+    rng, shape, scale, param
   );
 
 }
@@ -420,8 +418,7 @@ void soil::transport_debris (
   silt::tensor_t<float> albedo_surface,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
 
   const float A = scale.x * scale.y;
@@ -435,7 +432,7 @@ void soil::transport_debris (
     momentumTrack.view<silt::vec2>(),
     albedo_surface.view<silt::vec3>(),
     albedo_transport.view<silt::vec3>(),
-    rng, shape, scale, param, mp
+    rng, shape, scale, param
   );
 
 }
@@ -453,8 +450,7 @@ void soil::mass_transfer (
   silt::tensor_t<float> albedo_transport,
   silt::tensor_t<float> albedo_surface,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
 
   const silt::shape shape = uplift.shape();
@@ -471,7 +467,7 @@ void soil::mass_transfer (
     albedo_bedrock.view<silt::vec3>(),
     albedo_transport.view<silt::vec3>(),
     albedo_surface.view<silt::vec3>(),
-    shape, scale, param, mp
+    shape, scale, param
   );
 
 }
@@ -695,7 +691,7 @@ __global__ void __layer_albedo (
 
   // Shift the color depending on agitation
   const float ag = extD * agitation[n];
-  const float shift = 0.4f * ag / sqrt(1 + ag * ag);
+  const float shift = 0.2f * ag / sqrt(1 + ag * ag);
   color = __mmin(1.0f, color * (1.0f + shift));
   albedo[n] = color;
 

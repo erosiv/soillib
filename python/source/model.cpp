@@ -27,33 +27,38 @@ param_t.def_rw("maxage", &soil::param_t::maxage);
 param_t.def_rw("timeStep", &soil::param_t::timeStep);
 param_t.def_rw("lrate", &soil::param_t::lrate);
 
+// Boundary / Environmental Conditions
 param_t.def_rw("exitSlope", &soil::param_t::exitSlope);
-param_t.def_rw("critSlope", &soil::param_t::critSlope);
-
-param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("uplift", &soil::param_t::uplift);
 param_t.def_rw("rainfall", &soil::param_t::rainfall);
-
+param_t.def_rw("gravity", &soil::param_t::gravity);
 param_t.def_rw("evapRate", &soil::param_t::evapRate);
-param_t.def_rw("depositionRate", &soil::param_t::depositionRate);
-param_t.def_rw("suspensionRate", &soil::param_t::suspensionRate);
-param_t.def_rw("fluvialExponent", &soil::param_t::fluvialExponent);
-param_t.def_rw("frictionFactor", &soil::param_t::frictionFactor);
 
-param_t.def_rw("debrisDepositionRate", &soil::param_t::debrisDepositionRate);
-param_t.def_rw("debrisSuspensionRate", &soil::param_t::debrisSuspensionRate);
-param_t.def_rw("debrisYieldStress", &soil::param_t::debrisYieldStress);
-param_t.def_rw("debrisViscosity", &soil::param_t::debrisViscousStress);
+// Erosion Parameters
+param_t.def_rw("frictionFactor", &soil::param_t::frictionFactor);
+param_t.def_rw("fluvialExponent", &soil::param_t::fluvialExponent);
+
+param_t.def_rw("suspensionRateFluvial", &soil::param_t::suspensionRateFluvial);
+param_t.def_rw("depositionRateFluvial", &soil::param_t::depositionRateFluvial);
+
+param_t.def_rw("suspensionRateDebris", &soil::param_t::suspensionRateDebris);
+param_t.def_rw("depositionRateDebris", &soil::param_t::depositionRateDebris);
+param_t.def_rw("landslideRateDebris", &soil::param_t::landslideRateDebris);
+
+// Material Parameters
+param_t.def_rw("critSlopeBedrock", &soil::param_t::critSlopeBedrock);
+param_t.def_rw("critSlopeSediment", &soil::param_t::critSlopeSediment);
+param_t.def_rw("yieldStress", &soil::param_t::yieldStress);
+
+param_t.def_rw("viscosityWater", &soil::param_t::viscosityWater);
+param_t.def_rw("bedShearWater", &soil::param_t::bedShearWater);
+param_t.def_rw("densityWater", &soil::param_t::densityWater);
+
+param_t.def_rw("viscosityDebris", &soil::param_t::viscosityDebris);
+param_t.def_rw("bedShearDebris", &soil::param_t::bedShearDebris);
+param_t.def_rw("densityDebris", &soil::param_t::densityDebris);
 
 param_t.def_rw("force", &soil::param_t::force);
-
-// Momentum Parameterization
-
-auto momentum_param_t = nb::class_<soil::momentum_param_t>(module, "momentum_param_t");
-momentum_param_t.def(nb::init<>());
-momentum_param_t.def_rw("density", &soil::momentum_param_t::density);
-momentum_param_t.def_rw("viscosity", &soil::momentum_param_t::viscosity);
-momentum_param_t.def_rw("bedShear", &soil::momentum_param_t::bedShear);
 
 /*
 //
@@ -239,8 +244,7 @@ module.def("transport_fluvial", [](
   silt::tensor albedo_surface,
   silt::tensor rng,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
   soil::transport_fluvial (
     layers.as<float>(), 
@@ -254,7 +258,7 @@ module.def("transport_fluvial", [](
     albedo_transport.as<float>(),
     albedo_surface.as<float>(),
     rng.as<silt::rng>(),
-    scale, param, mp
+    scale, param
   );
 });
 
@@ -269,8 +273,7 @@ module.def("transport_debris", [](
   silt::tensor albedo_surface,
   silt::tensor rng,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
   soil::transport_debris (
     layers.as<float>(), 
@@ -282,7 +285,7 @@ module.def("transport_debris", [](
     albedo_transport.as<float>(),
     albedo_surface.as<float>(),
     rng.as<silt::rng>(),
-    scale, param, mp
+    scale, param
   );
 });
 
@@ -299,8 +302,7 @@ module.def("mass_transfer", [](
   silt::tensor albedo_transport,
   silt::tensor albedo_surface,
   const silt::vec3 scale,
-  const soil::param_t param,
-  const soil::momentum_param_t mp
+  const soil::param_t param
 ) {
   soil::mass_transfer (
     deltas.as<float>(), 
@@ -314,7 +316,7 @@ module.def("mass_transfer", [](
     albedo_bedrock.as<float>(),
     albedo_transport.as<float>(),
     albedo_surface.as<float>(),
-    scale, param, mp
+    scale, param
   );
 });
 
