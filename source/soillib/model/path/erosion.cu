@@ -54,7 +54,6 @@ __global__ void __transport_fluvial (
   const auto fD = param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
   const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
   const auto R = param.rainfall;                //!< Water Rainfall Rate                  [m/y]
-  const auto E = param.evapRate;                //!< Water Evaporation Rater
   const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
 
   // Sampling Procedure
@@ -99,10 +98,16 @@ __global__ void __transport_fluvial (
   for(int step = 0; step < param.maxage; ++step) {
 
     // Update Transport Attenuation
-    const float ds = __length(L);// / speed);
-    att_m = att_m * __expf(-ds * kd);// / (eps + att_w * source_w));
-    att_w = att_w * __expf(-ds * E);
-    att_v = att_v * __expf(-ds * nu); //! \todo isolate parameter
+    const float ds = __length(L);
+    const auto v = glm::length(speed);
+    
+    const auto decay_m = kd / v;// / (eps + R + discharge[ind]);
+    const auto decay_w = param.evapRate / v;
+    const auto decay_v = 0.125f * fD / (eps + R + discharge[ind]);
+
+    att_m = att_m * __expf(-ds * decay_m);
+    att_w = att_w * __expf(-ds * decay_w);
+    att_v = att_v * __expf(-ds * decay_v);
 
     // Velocity Update (Implicit Euler)
     grad = __grad(layers, shape, scale, pos, param.exitSlope);
