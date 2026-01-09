@@ -68,6 +68,7 @@ using layer_t = silt::vec2;
 
 void transport_fluvial (
   silt::tensor_t<float> layers,
+  silt::tensor_t<float> rainfall,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> discharge_track,
   silt::tensor_t<float> mass,

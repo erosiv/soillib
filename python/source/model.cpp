@@ -233,6 +233,7 @@ module.def("solve_uniform", [](
 
 module.def("transport_fluvial", [](
   silt::tensor layers,
+  silt::tensor rainfall,
   silt::tensor discharge,
   silt::tensor discharge_track,
   silt::tensor mass,
@@ -248,6 +249,7 @@ module.def("transport_fluvial", [](
 ) {
   soil::transport_fluvial (
     layers.as<float>(), 
+    rainfall.as<float>(),
     discharge.as<float>(),
     discharge_track.as<float>(),
     mass.as<float>(),

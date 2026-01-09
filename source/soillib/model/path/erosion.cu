@@ -24,6 +24,7 @@ inline int block(const int elem, const int thread) {
 
 __global__ void __transport_fluvial (
   const silt::view_t<silt::vec2> layers,
+  const silt::tensor_t<float> rainfall,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
   silt::tensor_t<float> mass,
@@ -80,7 +81,7 @@ __global__ void __transport_fluvial (
   const auto power = __powf(shear * __length(grad), alpha);
 //  const auto power = __powf(discharge[ind], alpha) * __length(grad);
   const auto source_m = Q * ks * power;
-  const auto source_w = Q * R;
+  const auto source_w = Q * R * rainfall[ind];
   const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
 
   // Sample the Bedrock Albedo:
@@ -103,7 +104,7 @@ __global__ void __transport_fluvial (
     
     const auto decay_m = kd / v;// / (eps + R + discharge[ind]);
     const auto decay_w = param.evapRate / v;
-    const auto decay_v = 0.125f * fD / (eps + R + discharge[ind]);
+    const auto decay_v = 0.125f * fD / (eps + R * rainfall[ind] + discharge[ind]);
 
     att_m = att_m * __expf(-ds * decay_m);
     att_w = att_w * __expf(-ds * decay_w);
@@ -380,6 +381,7 @@ __global__ void __transfer (
 
 void soil::transport_fluvial (
   silt::tensor_t<float> layers,
+  silt::tensor_t<float> rainfall,
   silt::tensor_t<float> discharge,
   silt::tensor_t<float> dischargeTrack,
   silt::tensor_t<float> mass,
@@ -399,6 +401,7 @@ void soil::transport_fluvial (
 
   __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
     layers.view<silt::vec2>(),
+    rainfall,
     discharge,
     dischargeTrack,
     mass,
