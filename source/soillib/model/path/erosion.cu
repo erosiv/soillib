@@ -102,7 +102,7 @@ __global__ void __transport_fluvial (
     const float ds = __length(L);
     const auto v = glm::length(speed);
     
-    const auto decay_m = kd / v;// / (eps + R + discharge[ind]);
+    const auto decay_m = kd / v;// / (eps + R * rainfall[ind] + discharge[ind]);
     const auto decay_w = param.evapRate / v;
     const auto decay_v = 0.125f * fD / (eps + R * rainfall[ind] + discharge[ind]);
 
