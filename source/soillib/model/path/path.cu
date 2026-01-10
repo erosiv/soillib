@@ -57,6 +57,7 @@ __global__ void __solve_uniform (
   //  if we don't have any type of momentum, then pits basically
   //  don't really go away. We rely on the well-structuredness of
   //  the velocity field, which we cannot always do.
+  // silt::vec2 v = flowView[ind];
   const sample_t<silt::vec2, 2, 1> v_support = sample_t<silt::vec2, 2, 1>::gather(flowView, silt::ivec2(shape[0], shape[1]), pos);
   silt::vec2 v = v_support.val();
 
@@ -78,13 +79,14 @@ __global__ void __solve_uniform (
 
     const sample_t<silt::vec2, 2, 1> v_support = sample_t<silt::vec2, 2, 1>::gather(flowView, silt::ivec2(shape[0], shape[1]), pos);
     v = v_support.val();
+    //v = flowView[ind];
     if(glm::length(v) < 1E-8)
       break;
 
-    const float dlambda = glm::length(scale / v);
-    att *= __expf(-dlambda * decay[ind]);
-    pos += v / glm::length(v);
-    lambda += dlambda;
+//    const float dlambda = glm::length(scale / v);
+//    att *= __expf(-dlambda * decay[ind]);
+    pos += 0.25f * v / glm::length(v);
+//    lambda += dlambda;
 
   }
 

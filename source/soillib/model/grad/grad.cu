@@ -28,7 +28,7 @@ __global__ void __gradient (
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= shape.elem) return;
-  
+
   // Data Loading w. Bounds Handling  
   const silt::ivec2 ipos = shape.unflatten(n);
   const float h = tensorIn[n];
@@ -37,25 +37,38 @@ __global__ void __gradient (
   const float h0n = shape.oob(ipos + silt::ivec2( 0,-1)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2( 0,-1))];
   const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2( 0, 1))];
 
-  // Min Gradient Computation w. Bounds Handling
+  // Note: fmaxf returns numeric value if one value is NaN.
+  // NaN: On boundary, use signed (downhill) exitslope
+  //  aN: Not on boundary, clamp to downhill.
+
+  const float exitSlope = 0.0f;
+
+  float gxn = (h - hn0) / scale.x;
+  if(__isnanf(gxn)) gxn = exitSlope;
+  else gxn = fmaxf(gxn, 0.0f);
+  
+  float gyn = (h - h0n) / scale.y;
+  if(__isnanf(gyn)) gyn = exitSlope;
+  else gyn = fmaxf(gyn, 0.0f);
+  
+  float gxp = (hp0 - h) / scale.x;
+  if(__isnanf(gxp)) gxp = -exitSlope;
+  else gxp = fminf(gxp, 0.0f);
+  
+  float gyp = (h0p - h) / scale.y;
+  if(__isnanf(gyp)) gyp = -exitSlope;
+  else gyp = fminf(gyp, 0.0f);
+
+  // Choose Steepest
+  
   float gx = 0.0f;
-  if(__isnanf(hn0)) gx = (hp0 - h)/scale.x;
-  if(__isnanf(hp0)) gx = (h - hn0)/scale.x;
-  if(!__isnanf(hp0) && !__isnanf(hn0)){
-    if(hn0 < hp0) gx = (h - hn0)/scale.x;
-    if(hp0 < hn0) gx = (hp0 - h)/scale.x;
-    // if they are the same, slope is zero
-  }
-
+  if(abs(gxn) > abs(gx)) gx = gxn;
+  if(abs(gxp) > abs(gx)) gx = gxp;
+  
   float gy = 0.0f;
-  if(__isnanf(h0n)) gy = (h0p - h)/scale.y;
-  if(__isnanf(h0p)) gy = (h - h0n)/scale.y;
-  if(!__isnanf(h0p) && !__isnanf(h0n)){
-    if(h0n < h0p) gy = (h - h0n)/scale.y;
-    if(h0p < h0n) gy = (h0p - h)/scale.y;
-    // if they are the same, slope is zero
-  }
-
+  if(abs(gyn) > abs(gy)) gy = gyn;
+  if(abs(gyp) > abs(gy)) gy = gyp;
+  
   // Write to 2D vector view
   auto view = tensorOut.view<silt::vec2>();
   view[n] = silt::vec2(gx, gy);
