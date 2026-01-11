@@ -44,30 +44,41 @@ __global__ void __gradient (
   const float exitSlope = 0.0f;
 
   float gxn = (h - hn0) / scale.x;
-  if(__isnanf(gxn)) gxn = exitSlope;
-  else gxn = fmaxf(gxn, 0.0f);
-  
+//  if(__isnanf(gxn)) gxn = exitSlope;
+//  else gxn = fmaxf(gxn, 0.0f);
+
   float gyn = (h - h0n) / scale.y;
-  if(__isnanf(gyn)) gyn = exitSlope;
-  else gyn = fmaxf(gyn, 0.0f);
-  
+//  if(__isnanf(gyn)) gyn = exitSlope;
+//  else gyn = fmaxf(gyn, 0.0f);
+
   float gxp = (hp0 - h) / scale.x;
-  if(__isnanf(gxp)) gxp = -exitSlope;
-  else gxp = fminf(gxp, 0.0f);
-  
+//  if(__isnanf(gxp)) gxp = -exitSlope;
+//  else gxp = fminf(gxp, 0.0f);
+
   float gyp = (h0p - h) / scale.y;
-  if(__isnanf(gyp)) gyp = -exitSlope;
-  else gyp = fminf(gyp, 0.0f);
+//  if(__isnanf(gyp)) gyp = -exitSlope;
+//  else gyp = fminf(gyp, 0.0f);
+
+  float gx = 0.5f * (hp0 - hn0) / scale.x;
+  float gy = 0.5f * (h0p - h0n) / scale.y;
+
+  if(__isnanf(gx)) gx = gxn;
+  if(__isnanf(gx)) gx = gxp;
+  if(__isnanf(gx)) gx = 0.0f;
+
+  if(__isnanf(gy)) gy = gyn;
+  if(__isnanf(gy)) gy = gyp;
+  if(__isnanf(gy)) gy = 0.0f;
 
   // Choose Steepest
   
-  float gx = 0.0f;
-  if(abs(gxn) > abs(gx)) gx = gxn;
-  if(abs(gxp) > abs(gx)) gx = gxp;
-  
-  float gy = 0.0f;
-  if(abs(gyn) > abs(gy)) gy = gyn;
-  if(abs(gyp) > abs(gy)) gy = gyp;
+//  float gx = 0.0f;
+//  if(abs(gxn) > abs(gx)) gx = gxn;
+//  if(abs(gxp) > abs(gx)) gx = gxp;
+//  
+//  float gy = 0.0f;
+//  if(abs(gyn) > abs(gy)) gy = gyn;
+//  if(abs(gyp) > abs(gy)) gy = gyp;
   
   // Write to 2D vector view
   auto view = tensorOut.view<silt::vec2>();
