@@ -19,21 +19,32 @@ inline int block(const int elem, const int thread) {
 //! Regular Grid / Voxel Traversal Step-Size
 //! This function returns the appropriate distance to enter
 //! the next voxel's intersection midpoint in a certain direction.
+//!
+//! Method Outline:
+//!  1. Find next X, Y Intersection Distances (Individually)
+//!  2. Clamp Distances to a maximum of the Cell-Diagonal
+//!  3. Move the mean distance between X and Y intersection
 __device__ float __stepsize (
-  const silt::vec2 pos,
-  const silt::vec2 dir
+  const silt::vec2 p, // Regular Grid Position (Floating Point)
+  const silt::vec2 d  // Direction (Normalized)
 ) {
 
-  // Method Outline:
-  //  1. Find next X-Intersection Distance
-  //  2. Find next Y-Intersection Distance
-  //  3. Clamp to some maximum value (which we will decide ...)
-  //    3.a: If infinity, just move unit cell amount (i.e. max is 2.0f)
-  //  4. Compute the Average
-  //  5. Move the average amount.
-  //  (in general, move between zero and 2)
+  constexpr float tmax = CUDART_SQRT_TWO_F;
 
-  return 0.5f;
+  const float x_neg = __floorf(p.x);
+  const float y_neg = __floorf(p.y);
+  const float x_pos = 1.0f + x_neg;
+  const float y_pos = 1.0f + y_neg;
+
+  const float tx_neg = (x_neg - p.x) / d.x;
+  const float tx_pos = (x_pos - p.x) / d.x;
+  const float tx = fminf(fmaxf(tx_neg, tx_pos), tmax);
+
+  const float ty_neg = (y_neg - p.y) / d.y;
+  const float ty_pos = (y_pos - p.y) / d.y;
+  const float ty = fminf(fmaxf(ty_neg, ty_pos), tmax);
+
+  return 0.5f * (tx + ty);
 
 }
 
@@ -105,10 +116,11 @@ __global__ void __solve_uniform (
     if(glm::length(v) < 1E-16)
       break;
 
+    const silt::vec2 v_norm = v / glm::length(v);
+    pos += __stepsize(pos, v_norm) * v_norm;
 //    const float dlambda = glm::length(scale / v);
 //    att *= __expf(-dlambda * decay[ind]);
 //    lambda += dlambda;
-    pos += __stepsize(pos, v) * v / glm::length(v);
 
   }
 
