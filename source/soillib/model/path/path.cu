@@ -25,8 +25,8 @@ inline int block(const int elem, const int thread) {
 //!  2. Clamp Distances to a maximum of the Cell-Diagonal
 //!  3. Move the mean distance between X and Y intersection
 __device__ float __stepsize (
-  const silt::vec2 p, // Regular Grid Position (Floating Point)
-  const silt::vec2 d  // Direction (Normalized)
+  const silt::vec2 p, //!< Regular Grid Position (Floating Point)
+  const silt::vec2 d  //!< Direction (Normalized)
 ) {
 
   constexpr float tmax = CUDART_SQRT_TWO_F;
@@ -54,12 +54,11 @@ __global__ void __solve_uniform (
   const silt::tensor_t<float> flow,     //!< Flow-Field Tensor      [m/s]
   const silt::tensor_t<float> source,   //!< Source Term Tensor     [X/s]
   const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/s]
-  silt::tensor_t<silt::rng> rng,        //!< Random Number Source   []
+  silt::tensor_t<silt::rng> rng,        //!< Random Number Source   [1]
   const silt::shape shape,              //!< Tensor Shape
-  const silt::vec2 scale,               //!< Cell Scale             [m]           
-  const float lambda_max,               //!< Maximum Char. Time     [s]
+  const silt::vec2 scale,               //!< Cell Scale             [m]
   const float epsilon,                  //!< Minimum Attenuation    [1]
-  const float maxstep                   //!< Maximum Particle Steps []
+  const float maxstep                   //!< Maximum Particle Steps [1]
 ) {
 
   // Note: Number of concurrent samples given
@@ -74,13 +73,13 @@ __global__ void __solve_uniform (
   auto flowView = flow.view<silt::vec2>();  //!< Tensorised Flow View
 
   // Initialize Particle State
-  float att = 1.0f;
-  float lambda = 0.0f;
-  silt::vec2 pos = silt::vec2 {
+  float att = 1.0f;                         //!< Cumulative Flux Attenuation
+  float lambda = 0.0f;                      //!< Cumulative Time Travelled
+  silt::vec2 pos = silt::vec2 {             //!< Position in Grid-Space
     curand_uniform(&rng[n])*float(shape[0]),
     curand_uniform(&rng[n])*float(shape[1])
   };
-  int ind = shape.flatten(pos);
+  int ind = shape.flatten(pos);             //!< Grid Tensor Index
 
   // Upstream Contributions Sample
   const float P = 1.0f / float(shape.elem);
@@ -96,7 +95,7 @@ __global__ void __solve_uniform (
 
   // Integrate along Streamline
   int step = 0;
-  while(!shape.oob(pos) && (lambda < lambda_max) && (abs(att) > epsilon) && ++step < maxstep) {
+  while(!shape.oob(pos) && epsilon < abs(att) && ++step < maxstep) {
 
     // Accumulate Estimate
     const int nind = shape.flatten(pos);  // New Index?
@@ -113,14 +112,20 @@ __global__ void __solve_uniform (
     const sample_t<silt::vec2, 2, 1> v_support = sample_t<silt::vec2, 2, 1>::gather(flowView, silt::ivec2(shape[0], shape[1]), pos);
     v = v_support.val();
 //    v = flowView[ind];
-    if(glm::length(v) < 1E-16)
+
+    const float v_len = glm::length(v);
+    if(v_len < epsilon)
       break;
 
-    const silt::vec2 v_norm = v / glm::length(v);
-    pos += __stepsize(pos, v_norm) * v_norm;
-//    const float dlambda = glm::length(scale / v);
-//    att *= __expf(-dlambda * decay[ind]);
-//    lambda += dlambda;
+    // Update the Position in Grid-Space
+    const silt::vec2 v_norm = v / v_len;        // Normalized Direction
+    const float step = __stepsize(pos, v_norm); // Step-Size in Gridspace
+    pos += step * v_norm;                       // Grid Position Update
+
+    // Update the Real Time and Attenuation
+    const float dlambda = glm::length(step * scale) / v_len;  // Real Time Travelled
+    att *= __expf(-dlambda * decay[ind]);                     // Decay Attenuation
+    lambda += dlambda;                                        // Update Real Time
 
   }
 
@@ -166,10 +171,6 @@ silt::tensor solve_uniform (
   const size_t count                    //!< Sample Count           []
 ) {
 
-  // Simulation Parameters
-  const float epsilon = 1e-3;   //!< Minimum Attenuation [1]
-  const float lambda_max = 128; //!< Maximum Quasi-Static Time [s]
-  
   // The Accumulated Flux has the same Dimension as the Source-Term.
   //  The entirety of the flux is then initialized to zero.
   //  The actual dimension of the domain doesn't have the third component.
@@ -179,17 +180,18 @@ silt::tensor solve_uniform (
   auto flux = silt::tensor_t<float>(shapeIn, silt::host_t::GPU);
   silt::set(flux, 0.0f);
 
-  // Maximum Step Number given by Manhattan Bound
-  const float maxstep = shape[0] + shape[1];
+  // Simulation Parameters
+  const float epsilon = 1E-16f;               //!< Minimum Attenuation [1]
+  const float maxstep = shape[0] + shape[1];  //!< Maximum Step Number given by Manhattan Bound
 
   // Resolve Data-Layout ofw Source / Flux Tensor
   switch(D) {
     case 1:
-      __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, lambda_max, epsilon, maxstep);
+      __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, epsilon, maxstep);
       __normalize<1><<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
       break;
     case 2:
-      __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, lambda_max, epsilon, maxstep);
+      __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, epsilon, maxstep);
       __normalize<2><<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
       break;
     default:

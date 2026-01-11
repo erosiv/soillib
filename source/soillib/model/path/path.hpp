@@ -26,10 +26,6 @@ namespace soil {
 //  - Add the same solution but for a node-based velocity field...
 //  Reimplement everything only on the python end as isolated kernels.
 
-// Additional Potential Parameters for Solution Configuration:
-//  -> epsilon
-//  -> lambda_max
-
 //! Uniform Sampling Monte-Carlo Estimator
 silt::tensor solve_uniform (
   const silt::tensor_t<float> flow,     //!< Flow-Field Tensor
