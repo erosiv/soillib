@@ -84,6 +84,8 @@ __global__ void __solve_uniform (
   // Upstream Contributions Sample
   const float P = 1.0f / float(shape.elem);
   const vecD S = sourceView[ind] / P;
+  if(glm::length(S) < epsilon)
+    return;
 
   // the flow evolution rule?
   //  if we don't have any type of momentum, then pits basically
