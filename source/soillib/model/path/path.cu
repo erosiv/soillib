@@ -169,8 +169,7 @@ silt::tensor solve_uniform (
   // Simulation Parameters
   const float epsilon = 1e-3;   //!< Minimum Attenuation [1]
   const float lambda_max = 128; //!< Maximum Quasi-Static Time [s]
-  const float maxstep = 1024;
-
+  
   // The Accumulated Flux has the same Dimension as the Source-Term.
   //  The entirety of the flux is then initialized to zero.
   //  The actual dimension of the domain doesn't have the third component.
@@ -179,6 +178,9 @@ silt::tensor solve_uniform (
   const silt::shape shape = silt::shape(shapeIn[0], shapeIn[1]);
   auto flux = silt::tensor_t<float>(shapeIn, silt::host_t::GPU);
   silt::set(flux, 0.0f);
+
+  // Maximum Step Number given by Manhattan Bound
+  const float maxstep = shape[0] + shape[1];
 
   // Resolve Data-Layout ofw Source / Flux Tensor
   switch(D) {
