@@ -84,6 +84,7 @@ __global__ void __solve_uniform (
   int ind = shape.flatten(pos);             //!< Grid Tensor Index
 
   // Upstream Contributions Sample
+  const float L = glm::length(scale);       //!< Length of Cell         [m]
   const float A = (scale.x * scale.y);      //!< Area of Cell           [m^D]
   const float P = 1.0f / (A * shape.elem);  //!< Probability of Sample  [1/m^D]
   const vecK S = sourceView[ind] / P;       //!< Sampled Source Rate    [X*m^D/s]
@@ -94,7 +95,7 @@ __global__ void __solve_uniform (
   //  if we don't have any type of momentum, then pits basically
   //  don't really go away. We rely on the well-structuredness of
   //  the velocity field, which we cannot always do.
-  //silt::vec2 v = flowView[ind];
+//  silt::vec2 v = flowView[ind];
   const sample_t<vecD, D, 1> v_support = sample_t<vecD, D, 1>::gather(flowView, vecD(shape[0], shape[1]), pos);
   vecD v = v_support.val();
 
@@ -129,9 +130,9 @@ __global__ void __solve_uniform (
     pos += step * v_norm;                       //!< Grid Position Update   [1]
 
     // Update the Real Time and Attenuation
-    const float dlambda = glm::length(step * scale) / v_len;  //!< Real Time Travelled  [t]
-    att *= __expf(-dlambda * decay[ind]);                     //!< Decay Attenuation    [1]
-    lambda += dlambda;                                        //!< Update Real Time     [t]
+    const float dlambda = step * L / v_len;     //!< Real Time Travelled  [t]
+    att *= __expf(-dlambda * decay[ind]);       //!< Decay Attenuation    [1]
+    lambda += dlambda;                          //!< Update Real Time     [t]
 
   }
 
@@ -212,6 +213,7 @@ silt::tensor solve_uniform (
       break;
   }
 
+  cudaDeviceSynchronize();
   return silt::tensor(flux);
 
 }
