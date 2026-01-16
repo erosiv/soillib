@@ -137,14 +137,14 @@ __global__ void __transport_fluvial (
 }
 
 __global__ void __transport_debris (
-  const silt::view_t<silt::vec2> layers,
-  silt::tensor_t<float> massBuf,
-  silt::tensor_t<float> massTrack,
-  silt::view_t<silt::vec2> momentum,
-  silt::view_t<silt::vec2> momentumTrack,
-  silt::view_t<silt::vec3> albedo_surface,
-  silt::view_t<silt::vec3> albedo_transport,
+  silt::tensor_t<float> massFlux,
+  silt::view_t<silt::vec2> velocityFlux,
+  silt::view_t<silt::vec3> albedoFlux,
   silt::tensor_t<silt::rng> rng,
+  const silt::view_t<silt::vec2> layers,
+  const silt::tensor_t<float> mass,
+  const silt::view_t<silt::vec2> velocity,
+  const silt::view_t<silt::vec3> albedoSource,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param
@@ -153,9 +153,20 @@ __global__ void __transport_debris (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
+  // Scaled Sampling Procedure
+  const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
+  const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
+  const auto N = rng.elem();                    //!< Sample Count
+  const auto P = 1.0f / float(shape.elem);      //!< Sample Probability 
+  const auto Q = 1.0f / (P * N);                //!< Normalization Factor
+  const auto eps = 1E-12f;                      //!< Numerical Threshold
+  auto pos = silt::vec2 {                       //!< Sample Position
+    0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
+    0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
+  };
+  auto ind = __flatten(shape, pos);             //!< Sample Index
+
   // Physical Parameter Set
-  const auto A = scale.x * scale.y;             //!< Cell Area                [m^2]
-  const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width               [m]
   const auto theta = param.critSlopeBedrock;    //!< Material Critical Slope  [m/m]
   const auto nu = param.viscosityDebris;
   const auto tau = param.bedShearDebris;
@@ -164,17 +175,6 @@ __global__ void __transport_debris (
   const auto kdd = param.depositionRateDebris;
   const auto kds = param.suspensionRateDebris;
   const auto tau_y = param.yieldStress;
-  const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
-
-  // Sampling Procedure
-  const float N = rng.elem();                   //!< Total Sample Count [#]
-  const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
-  const float Q = 1.0f / (P * N);               //!< Normalization Factor (Uniform Grid)
-  silt::vec2 pos {                              //!< Sampled Position
-    0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
-    0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
-  };
-  int ind = __flatten(shape, pos);              //!< Sampled Index
 
   // Trajectory Initialization
   silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope);
@@ -187,47 +187,52 @@ __global__ void __transport_debris (
   const float suspend = fmaxf(0.0f, kl * excessSlope - tau_y);
 
   const auto source_d = A * Q * suspend;
-  const auto source_v = Q * (- g * grad + nu * momentum[ind]);
-  const auto source_a = source_d * albedo_surface[ind];
+  const auto source_v = Q * (- g * grad + nu * velocity[ind]);
+  const auto source_a = source_d * albedoSource[ind];
 
   float att_d = 1.0f;
   float att_v = 1.0f;
 
   // Iterate over Number of Steps
-  for(int step = 0; step < param.maxage; ++step) {
-
-    // Update Transport Attenuation
-    const float ds = __length(L);// / speed);                                      
-    const float excessSlope = (__length(grad) - theta);                               //!< Local Excess Slope
-    const float excessStress = g * (excessSlope - tau_y / (att_d * source_d + eps));  //!< Shear Stress Balance
-    const float shearRate = (excessStress < 0.0f) ? kdd : kds;                        //!< Asymmetric Shear Rate
-    att_d = att_d * __expf(ds * shearRate * excessStress);                            //!< Attenuation Update
-    att_v = att_v * __expf(-ds * (nu + tau));
-
-    // Velocity Update (Implicit Euler)
-    grad = __grad(layers, shape, scale, pos, param.exitSlope);
-    const auto accel = - (g * grad) + nu * momentum[ind];
-    speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
-    if(glm::length(speed) < eps)
-      break;
-
-    // Position Update
-    pos += speed / glm::length(speed);
-    if(__oob(shape, pos))
-      break;
+  int iter = 0;
+  while(!__oob(shape, pos) && ++iter < param.maxage) {
 
     // Tracking Step
     const int nind = shape.flatten(pos);
     if(nind != ind) {
       ind = nind;
-      atomicAdd(&massTrack[ind],          att_d * source_d);
-      atomicAdd(&momentumTrack[ind].x,    att_v * source_v.x);
-      atomicAdd(&momentumTrack[ind].y,    att_v * source_v.y);
-      // Albedo Transport
-      atomicAdd(&albedo_transport[ind].x, att_d * source_a.x);
-      atomicAdd(&albedo_transport[ind].y, att_d * source_a.y);
-      atomicAdd(&albedo_transport[ind].z, att_d * source_a.z);
+      atomicAdd(&massFlux[ind],       att_d * source_d);
+      atomicAdd(&velocityFlux[ind].x, att_v * source_v.x);
+      atomicAdd(&velocityFlux[ind].y, att_v * source_v.y);
+      atomicAdd(&albedoFlux[ind].x,   att_d * source_a.x);
+      atomicAdd(&albedoFlux[ind].y,   att_d * source_a.y);
+      atomicAdd(&albedoFlux[ind].z,   att_d * source_a.z);
     }
+
+    // Dynamic Timestep
+    const auto v_norm = __length(speed);
+    const auto v_step = 1.0f;
+    const auto v_unit = speed / v_norm;
+    const auto dL = __length(L);
+    const auto ds = v_step * dL / v_norm;
+    if(v_norm < eps)
+      break;
+
+    // Velocity Update (Implicit Euler)
+    grad = __grad(layers, shape, scale, pos, param.exitSlope);
+    const auto accel = - (g * grad) + nu * velocity[ind];
+    speed = (1.0f / (1.0f + dL * (tau + nu))) * speed + (dL / (1.0f + dL * (tau + nu))) * accel;
+
+    // Update Transport Attenuation
+    const auto excessSlope = (__length(grad) - theta);                               //!< Local Excess Slope
+    const auto excessStress = g * (excessSlope - tau_y / (att_d * source_d + eps));  //!< Shear Stress Balance
+    const auto shearRate = (excessStress < 0.0f) ? kdd : kds;                        //!< Asymmetric Shear Rate
+    const auto decay_d = - shearRate * excessStress;
+    const auto decay_v = (nu + tau);
+
+    att_d = att_d * __expf(-dL * decay_d);
+    att_v = att_v * __expf(-dL * decay_v);
+    pos += v_step * v_unit;
 
   }
 
@@ -414,13 +419,13 @@ void soil::transport_fluvial (
 
 void soil::transport_debris (
   silt::tensor_t<float> layers,
-  silt::tensor_t<float> momentum,
-  silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<float> velocity,
+  silt::tensor_t<float> velocityFlux,
   silt::tensor_t<float> mass,
-  silt::tensor_t<float> massTrack,
+  silt::tensor_t<float> massFlux,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_transport,
-  silt::tensor_t<float> albedo_surface,
+  silt::tensor_t<float> albedoFlux,
+  silt::tensor_t<float> albedoSource,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param
@@ -430,14 +435,15 @@ void soil::transport_debris (
   const silt::shape shape = layers.shape();
 
   __transport_debris<<<block(rng.elem(), 512), 512>>> (
+    massFlux,
+    velocityFlux.view<silt::vec2>(),
+    albedoFlux.view<silt::vec3>(),
+    rng,
     layers.view<silt::vec2>(),
     mass,
-    massTrack,
-    momentum.view<silt::vec2>(),
-    momentumTrack.view<silt::vec2>(),
-    albedo_surface.view<silt::vec3>(),
-    albedo_transport.view<silt::vec3>(),
-    rng, shape, scale, param
+    velocity.view<silt::vec2>(),
+    albedoSource.view<silt::vec3>(),
+    shape, scale, param
   );
 
 }
