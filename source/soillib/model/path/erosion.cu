@@ -23,17 +23,17 @@ inline int block(const int elem, const int thread) {
 }
 
 __global__ void __transport_fluvial (
+  silt::tensor_t<float> waterFlux,
+  silt::tensor_t<float> massFlux,
+  silt::view_t<silt::vec2> velocityFlux,
+  silt::view_t<silt::vec3> albedoFlux,
+  silt::tensor_t<silt::rng> rng,
   const silt::view_t<silt::vec2> layers,
   const silt::tensor_t<float> rainfall,
-  silt::tensor_t<float> discharge,
-  silt::tensor_t<float> dischargeTrack,
-  silt::tensor_t<float> mass,
-  silt::tensor_t<float> massTrack,
-  silt::view_t<silt::vec2> momentumView,
-  silt::view_t<silt::vec2> momentumTrackView,
-  silt::view_t<silt::vec3> albedo_surface,
-  silt::view_t<silt::vec3> albedo_transport,
-  silt::tensor_t<silt::rng> rng,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> mass,
+  const silt::view_t<silt::vec2> velocity,
+  const silt::view_t<silt::vec3> albedoSource,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param
@@ -42,9 +42,20 @@ __global__ void __transport_fluvial (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= rng.elem()) return;
 
-  // Physical Parameter Set
+  // Scaled Sampling Procedure
   const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
+  const auto N = rng.elem();                    //!< Sample Count
+  const auto P = 1.0f / float(shape.elem);      //!< Sample Probability 
+  const auto Q = 1.0f / (P * N);                //!< Normalization Factor
+  const auto eps = 1E-12f;                      //!< Numerical Threshold
+  auto pos = silt::vec2 {                       //!< Sample Position
+    0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
+    0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
+  };
+  auto ind = __flatten(shape, pos);             //!< Sample Index
+
+  // Physical Parameter Set
   const auto rho_w = param.densityWater;        //!< Density of Water               [kg/m^3]
   const auto rho_s = param.densityDebris;       //!< Density of Sediment            [kg/m^3]
   const auto tau = param.bedShearWater;         //!<
@@ -54,87 +65,72 @@ __global__ void __transport_fluvial (
   const auto kd = param.depositionRateFluvial;  //!< Fluvial Deposition Rate
   const auto fD = param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
   const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
-  const auto R = param.rainfall;                //!< Water Rainfall Rate                  [m/y]
-  const auto eps = 1E-12f;                      //!< Attenuation Threshold          []
-
-  // Sampling Procedure
-  const float N = rng.elem();                   //!< Total Sample Count [#]
-  const float P = 1.0f / float(shape.elem);     //!< Sample Probability 
-  const float Q = 1.0f / (P * N);               //!< Normalization Factor (Uniform Grid)
-//  const float Q = 1.0f / (P * N * A);           //!< Normalization Factor (Uniform Grid)
-  silt::vec2 pos {                              //!< Sampled Positiond
-    0.5f + curand_uniform(&rng[n])*float(shape[0] - 1),
-    0.5f + curand_uniform(&rng[n])*float(shape[1] - 1)
-  };
-  int ind = __flatten(shape, pos);              //!< Sampled Index
+  const auto R = param.rainfall;                //!< Water Rainfall Rate            [m/y]
 
   // Trajectory Initialization
+  const auto vel = velocity[ind];
   silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = - (g * grad) + nu * momentumView[ind];
+  silt::vec2 speed = - (g * grad) + nu * vel;
   speed = speed / sqrtf(glm::length(L * speed));
   if(glm::length(speed) < eps)
     return;
     
-  // Transport Source / Attenuation Terms
-  const auto v = glm::length(momentumView[ind]);    //!< [m/s]
-  const auto shear = 0.125f * fD * rho_w * v * v;   //!< [kg/m/s^2]
+  // Transport Source Terms
+  const auto v = __length(vel);                             //!< [m/s]
+  const auto shear = 0.125f * fD * rho_w * v * v;           //!< [kg/m/s^2]
   const auto power = __powf(shear * __length(grad), alpha);
-//  const auto power = __powf(discharge[ind], alpha) * __length(grad);
+  //  const auto power = __powf(discharge[ind], alpha) * __length(grad);
+
   const auto source_m = Q * ks * power;
   const auto source_w = Q * R * rainfall[ind];
-  const auto source_v = Q * (- (g * grad) + nu * momentumView[ind]);
+  const auto source_v = Q * (- (g * grad) + nu * vel);
+  const auto source_a = source_m * albedoSource[ind];
 
-  // Sample the Bedrock Albedo:
-  //  Note: This should generally sample the SURFACE albedo!
-  //  i.e. we need a tensor for the albedo source, and the
-  //  albedo accumulation.
-
-  const auto source_a = source_m * albedo_surface[ind];
-
+  // Attenuation Terms
   float att_w = 1.0f;
   float att_m = 1.0f;
   float att_v = 1.0f;
 
-  // Iterate over Number of Steps
-  for(int step = 0; step < param.maxage; ++step) {
-
-    // Update Transport Attenuation
-    const float ds = __length(L);
-    const auto v = glm::length(speed);
-    
-    const auto decay_m = kd / v;// / (eps + R * rainfall[ind] + discharge[ind]);
-    const auto decay_w = param.evapRate / v;
-    const auto decay_v = 0.125f * fD / (eps + R * rainfall[ind] + discharge[ind]);
-
-    att_m = att_m * __expf(-ds * decay_m);
-    att_w = att_w * __expf(-ds * decay_w);
-    att_v = att_v * __expf(-ds * decay_v);
-
-    // Velocity Update (Implicit Euler)
-    grad = __grad(layers, shape, scale, pos, param.exitSlope);
-    const auto accel = - (g * grad) + nu * momentumView[ind];
-    speed = (1.0f / (1.0f + ds * (tau + nu))) * speed + (ds / (1.0f + ds * (tau + nu))) * accel;
-    if(glm::length(speed) < eps)
-      break;
-    
-    // Position Update
-    pos += speed / glm::length(speed);
-    if(__oob(shape, pos))
-      break;
+  // Integrate Trajectory
+  int iter = 0;
+  while(!__oob(shape, pos) && ++iter < param.maxage) {
 
     // Tracking Step
     const int nind = __flatten(shape, pos);
     if(nind != ind) {
       ind = nind;
-      atomicAdd(&dischargeTrack[ind],       att_w * source_w);
-      atomicAdd(&massTrack[ind],            att_m * source_m);
-      atomicAdd(&momentumTrackView[ind].x,  att_v * source_v.x);
-      atomicAdd(&momentumTrackView[ind].y,  att_v * source_v.y);
-      // Albedo Transport ...
-      atomicAdd(&albedo_transport[ind].x,    att_m * source_a.x);
-      atomicAdd(&albedo_transport[ind].y,    att_m * source_a.y);
-      atomicAdd(&albedo_transport[ind].z,    att_m * source_a.z);
+      atomicAdd(&waterFlux[ind],      att_w * source_w);
+      atomicAdd(&massFlux[ind],       att_m * source_m);
+      atomicAdd(&velocityFlux[ind].x, att_v * source_v.x);
+      atomicAdd(&velocityFlux[ind].y, att_v * source_v.y);
+      atomicAdd(&albedoFlux[ind].x,   att_m * source_a.x);
+      atomicAdd(&albedoFlux[ind].y,   att_m * source_a.y);
+      atomicAdd(&albedoFlux[ind].z,   att_m * source_a.z);
     }
+
+    // Dynamic Timestep
+    const auto v_norm = __length(speed);
+    const auto v_step = 1.0f;
+    const auto v_unit = speed / v_norm;
+    const auto dL = __length(L);
+    const auto ds = v_step * dL / v_norm;
+    if(v_norm < eps)
+      break;
+
+    // Velocity Update (Implicit Euler)
+    grad = __grad(layers, shape, scale, pos, param.exitSlope);
+    const auto accel = - (g * grad) + nu * velocity[ind];
+    speed = (1.0f / (1.0f + dL * (tau + nu))) * speed + (dL / (1.0f + dL * (tau + nu))) * accel;
+
+    // Transport Attenuation Update
+    const auto decay_m = kd;// / (eps + R * rainfall[ind] + discharge[ind]);
+    const auto decay_w = param.evapRate;
+    const auto decay_v = 0.125f * fD / (eps + R * rainfall[ind] + discharge[ind]);
+
+    att_m = att_m * __expf(-ds * decay_m);
+    att_w = att_w * __expf(-ds * decay_w);
+    att_v = att_v * __expf(-dL * decay_v);
+    pos += v_step * v_unit;
 
   }
 
@@ -383,14 +379,14 @@ void soil::transport_fluvial (
   silt::tensor_t<float> layers,
   silt::tensor_t<float> rainfall,
   silt::tensor_t<float> discharge,
-  silt::tensor_t<float> dischargeTrack,
+  silt::tensor_t<float> waterFlux,
   silt::tensor_t<float> mass,
-  silt::tensor_t<float> massTrack,
+  silt::tensor_t<float> massFlux,
   silt::tensor_t<float> momentum,
-  silt::tensor_t<float> momentumTrack,
+  silt::tensor_t<float> velocityFlux,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_transport,
-  silt::tensor_t<float> albedo_surface,
+  silt::tensor_t<float> albedoFlux,
+  silt::tensor_t<float> albedoSource,
   silt::tensor_t<silt::rng> rng,
   const silt::vec3 scale,
   const soil::param_t param
@@ -400,17 +396,18 @@ void soil::transport_fluvial (
   const silt::shape shape = layers.shape();
 
   __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
+    waterFlux,
+    massFlux,
+    velocityFlux.view<silt::vec2>(),
+    albedoFlux.view<silt::vec3>(),
+    rng,
     layers.view<silt::vec2>(),
     rainfall,
     discharge,
-    dischargeTrack,
     mass,
-    massTrack,
     momentum.view<silt::vec2>(),
-    momentumTrack.view<silt::vec2>(),
-    albedo_surface.view<silt::vec3>(),
-    albedo_transport.view<silt::vec3>(),
-    rng, shape, scale, param
+    albedoSource.view<silt::vec3>(),
+    shape, scale, param
   );
 
 }
