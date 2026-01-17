@@ -66,7 +66,7 @@ __global__ void __transport_fluvial (
   const auto nu = param.viscosityWater;         //!< Kinematic Viscosity            [m^2/s]
   const auto g = param.gravity;                 //!< Gravitational Acceleration     [m/s^2]
   const auto ks = param.suspensionRateFluvial / 64.0f;  //!< Fluvial Suspension Rate
-  const auto kd = param.depositionRateFluvial;  //!< Fluvial Deposition Rate
+  const auto kd = param.depositionRateFluvial * 1.33f;  //!< Fluvial Deposition Rate
   const auto fD = 8.0f * param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
   const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
   const auto R = param.rainfall;                //!< Water Rainfall Rate            [m/y]
@@ -85,7 +85,7 @@ __global__ void __transport_fluvial (
   const auto power = __powf(shear * __length(grad), alpha);
   //  const auto power = __powf(discharge[ind], alpha) * __length(grad);
 
-  const auto source_m = Q * ks * power;
+  const auto source_m = A * Q * ks * power;
   const auto source_w = A * Q * R * waterSource[ind];
   const auto source_v = Q * (- (g * grad) + nu * vel);
   const auto source_a = source_m * albedoSource[ind];
@@ -144,7 +144,7 @@ __global__ void __normalize_fluvial (
   const silt::tensor_t<float> waterFlux,
   const silt::tensor_t<float> massFlux,
   const silt::view_t<silt::vec2> velocityFlux,
-  const silt::view_t<silt::vec3> albedoFlux,
+  silt::view_t<silt::vec3> albedoFlux,
   const silt::tensor_t<silt::rng> rng,
   const silt::view_t<silt::vec2> layers,
   const silt::tensor_t<float> waterSource,
@@ -165,8 +165,13 @@ __global__ void __normalize_fluvial (
   const auto v = silt::vec2(1.0, 0.0);                //!< Velocity [m/s] (FIX)
   const auto norm = abs(v.x * L.y) + abs(v.y * L.x);  //!< [m^2/s]
 
-  waterHeight[n]  = (A * param.rainfall * waterSource[n] + waterFlux[n]) / norm;
-  mass[n]         = massFlux[n];
+  const auto source_w = param.rainfall * waterSource[n];
+  const auto source_m = 0.0f;
+  const auto source_a = 0.0f;
+
+  waterHeight[n]  = (A * source_w + waterFlux[n]) / norm;
+  mass[n]         = (A * source_m + massFlux[n]) / norm;
+  albedoFlux[n]   = (A * source_a + albedoFlux[n]) / norm; // (note: hypothetical albedo source...)
   velocity[n]     = velocityFlux[n];
 
 }
@@ -434,7 +439,7 @@ __global__ void __transfer (
   const float dt = param.timeStep;                // Simulation Timestep            [y]
   const float ku = param.uplift;                  // Terrain Uplift Rate            [m/y]
   const float kfs = param.suspensionRateFluvial / 64.0f;  // Fluvial Suspension Rate
-  const float kfd = param.depositionRateFluvial;  // Fluvial Deposition Rate
+  const float kfd = param.depositionRateFluvial * 1.33f;  // Fluvial Deposition Rate
   const float fD = 8.0f * param.frictionFactor;          // Darcy-Weisbach Friction Factor []
   const float alpha = param.fluvialExponent;      // Power Law Exponent             []
   const float rho = param.densityWater;           // Fluid Density                  [kg/m^3]
