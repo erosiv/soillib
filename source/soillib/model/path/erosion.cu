@@ -22,6 +22,10 @@ inline int block(const int elem, const int thread) {
 
 }
 
+//
+// Fluvial Erosion Transport and Normalization
+//
+
 __global__ void __transport_fluvial (
   silt::tensor_t<float> waterFlux,
   silt::tensor_t<float> massFlux,
@@ -136,6 +140,88 @@ __global__ void __transport_fluvial (
 
 }
 
+__global__ void __normalize_fluvial (
+  const silt::tensor_t<float> waterFlux,
+  const silt::tensor_t<float> massFlux,
+  const silt::view_t<silt::vec2> velocityFlux,
+  const silt::view_t<silt::vec3> albedoFlux,
+  const silt::tensor_t<silt::rng> rng,
+  const silt::view_t<silt::vec2> layers,
+  const silt::tensor_t<float> rainfall,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> mass,
+  silt::view_t<silt::vec2> velocity,
+  const silt::view_t<silt::vec3> albedoSource,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem) return;
+
+  discharge[n]  = waterFlux[n];
+  mass[n]       = massFlux[n];
+  velocity[n]   = velocityFlux[n];
+
+}
+
+void soil::transport_fluvial (
+  silt::tensor_t<float> layers,
+  silt::tensor_t<float> rainfall,
+  silt::tensor_t<float> discharge,
+  silt::tensor_t<float> waterFlux,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> massFlux,
+  silt::tensor_t<float> momentum,
+  silt::tensor_t<float> velocityFlux,
+  silt::tensor_t<float> albedo_bedrock,
+  silt::tensor_t<float> albedoFlux,
+  silt::tensor_t<float> albedoSource,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const auto shapeIn = layers.shape();
+  const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
+
+  __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
+    waterFlux,
+    massFlux,
+    velocityFlux.view<silt::vec2>(),
+    albedoFlux.view<silt::vec3>(),
+    rng,
+    layers.view<silt::vec2>(),
+    rainfall,
+    discharge,
+    mass,
+    momentum.view<silt::vec2>(),
+    albedoSource.view<silt::vec3>(),
+    shape, scale, param
+  );
+
+  __normalize_fluvial<<<block(shape.elem, 512), 512>>> (
+    waterFlux,
+    massFlux,
+    velocityFlux.view<silt::vec2>(),
+    albedoFlux.view<silt::vec3>(),
+    rng,
+    layers.view<silt::vec2>(),
+    rainfall,
+    discharge,
+    mass,
+    momentum.view<silt::vec2>(),
+    albedoSource.view<silt::vec3>(),
+    shape, scale, param
+  );
+
+}
+
+//
+// Debris Flow Erosion Transport and Normalization
+//
+
 __global__ void __transport_debris (
   silt::tensor_t<float> massFlux,
   silt::view_t<silt::vec2> velocityFlux,
@@ -235,6 +321,71 @@ __global__ void __transport_debris (
     pos += v_step * v_unit;
 
   }
+
+}
+
+__global__ void __normalize_debris (
+  const silt::tensor_t<float> massFlux,
+  const silt::view_t<silt::vec2> velocityFlux,
+  const silt::view_t<silt::vec3> albedoFlux,
+  const silt::tensor_t<silt::rng> rng,
+  const silt::view_t<silt::vec2> layers,
+  silt::tensor_t<float> mass,
+  silt::view_t<silt::vec2> velocity,
+  const silt::view_t<silt::vec3> albedoSource,
+  const silt::shape shape,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem) return;
+
+  mass[n]       = massFlux[n];
+  velocity[n]   = velocityFlux[n];
+
+}
+
+void soil::transport_debris (
+  silt::tensor_t<float> layers,
+  silt::tensor_t<float> velocity,
+  silt::tensor_t<float> velocityFlux,
+  silt::tensor_t<float> mass,
+  silt::tensor_t<float> massFlux,
+  silt::tensor_t<float> albedo_bedrock,
+  silt::tensor_t<float> albedoFlux,
+  silt::tensor_t<float> albedoSource,
+  silt::tensor_t<silt::rng> rng,
+  const silt::vec3 scale,
+  const soil::param_t param
+) {
+
+  const auto shapeIn = layers.shape();
+  const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
+
+  __transport_debris<<<block(rng.elem(), 512), 512>>> (
+    massFlux,
+    velocityFlux.view<silt::vec2>(),
+    albedoFlux.view<silt::vec3>(),
+    rng,
+    layers.view<silt::vec2>(),
+    mass,
+    velocity.view<silt::vec2>(),
+    albedoSource.view<silt::vec3>(),
+    shape, scale, param
+  );
+
+  __normalize_debris<<<block(shape.elem, 512), 512>>> (
+    massFlux,
+    velocityFlux.view<silt::vec2>(),
+    albedoFlux.view<silt::vec3>(),
+    rng,
+    layers.view<silt::vec2>(),
+    mass,
+    velocity.view<silt::vec2>(),
+    albedoSource.view<silt::vec3>(),
+    shape, scale, param
+  );
 
 }
 
@@ -373,78 +524,6 @@ __global__ void __transfer (
     albedo_surface[n] = mix_color;
 
   }
-
-}
-
-//
-// Kernel Launch Implementations
-//
-
-void soil::transport_fluvial (
-  silt::tensor_t<float> layers,
-  silt::tensor_t<float> rainfall,
-  silt::tensor_t<float> discharge,
-  silt::tensor_t<float> waterFlux,
-  silt::tensor_t<float> mass,
-  silt::tensor_t<float> massFlux,
-  silt::tensor_t<float> momentum,
-  silt::tensor_t<float> velocityFlux,
-  silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedoFlux,
-  silt::tensor_t<float> albedoSource,
-  silt::tensor_t<silt::rng> rng,
-  const silt::vec3 scale,
-  const soil::param_t param
-) {
-
-  const float A = scale.x * scale.y;
-  const silt::shape shape = layers.shape();
-
-  __transport_fluvial<<<block(rng.elem(), 512), 512>>> (
-    waterFlux,
-    massFlux,
-    velocityFlux.view<silt::vec2>(),
-    albedoFlux.view<silt::vec3>(),
-    rng,
-    layers.view<silt::vec2>(),
-    rainfall,
-    discharge,
-    mass,
-    momentum.view<silt::vec2>(),
-    albedoSource.view<silt::vec3>(),
-    shape, scale, param
-  );
-
-}
-
-void soil::transport_debris (
-  silt::tensor_t<float> layers,
-  silt::tensor_t<float> velocity,
-  silt::tensor_t<float> velocityFlux,
-  silt::tensor_t<float> mass,
-  silt::tensor_t<float> massFlux,
-  silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedoFlux,
-  silt::tensor_t<float> albedoSource,
-  silt::tensor_t<silt::rng> rng,
-  const silt::vec3 scale,
-  const soil::param_t param
-) {
-
-  const float A = scale.x * scale.y;
-  const silt::shape shape = layers.shape();
-
-  __transport_debris<<<block(rng.elem(), 512), 512>>> (
-    massFlux,
-    velocityFlux.view<silt::vec2>(),
-    albedoFlux.view<silt::vec3>(),
-    rng,
-    layers.view<silt::vec2>(),
-    mass,
-    velocity.view<silt::vec2>(),
-    albedoSource.view<silt::vec3>(),
-    shape, scale, param
-  );
 
 }
 
