@@ -50,7 +50,7 @@ __global__ void __transport_fluvial (
   const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
   const auto N = rng.elem();                    //!< Sample Count
-  const auto P = 1.0f / float(shape.elem);      //!< Sample Probability 
+  const auto P = 1.0f / float(A * shape.elem);  //!< Sample Probability 
   const auto Q = 1.0f / (P * N);                //!< Normalization Factor
   const auto eps = 1E-12f;                      //!< Numerical Threshold
   auto pos = silt::vec2 {                       //!< Sample Position
@@ -67,7 +67,7 @@ __global__ void __transport_fluvial (
   const auto g = param.gravity;                 //!< Gravitational Acceleration     [m/s^2]
   const auto ks = param.suspensionRateFluvial / 64.0f;  //!< Fluvial Suspension Rate
   const auto kd = param.depositionRateFluvial * 1.33f;  //!< Fluvial Deposition Rate
-  const auto fD = 8.0f * param.frictionFactor;         //!< Darcy-Weisbach Friction Factor []
+  const auto fD = param.frictionFactor / 8.0f;         //!< Darcy-Weisbach Friction Factor []
   const auto alpha = param.fluvialExponent;     //!< Suspension Power               []
   const auto R = param.rainfall;                //!< Water Rainfall Rate            [m/y]
 
@@ -85,8 +85,8 @@ __global__ void __transport_fluvial (
   const auto power = __powf(shear * __length(grad), alpha);
   //  const auto power = __powf(discharge[ind], alpha) * __length(grad);
 
-  const auto source_m = A * Q * ks * power;
-  const auto source_w = A * Q * R * waterSource[ind];
+  const auto source_m = Q * ks * power;
+  const auto source_w = Q * R * waterSource[ind];
   const auto source_v = Q * (- (g * grad) + nu * vel);
   const auto source_a = source_m * albedoSource[ind];
 
@@ -164,15 +164,18 @@ __global__ void __normalize_fluvial (
   const auto L = silt::vec2(scale.x, scale.y);        //!< Cell Width [m]
   const auto v = silt::vec2(1.0, 0.0);                //!< Velocity [m/s] (FIX)
   const auto norm = abs(v.x * L.y) + abs(v.y * L.x);  //!< [m^2/s]
+  const auto pos = shape.unflatten(n);
+  const auto grad = __grad(layers, shape, scale, pos, param.exitSlope); // []
 
   const auto source_w = param.rainfall * waterSource[n];
+  const auto source_v = - param.gravity * grad;
   const auto source_m = 0.0f;
   const auto source_a = 0.0f;
 
   waterHeight[n]  = (A * source_w + waterFlux[n]) / norm;
   mass[n]         = (A * source_m + massFlux[n]) / norm;
   albedoFlux[n]   = (A * source_a + albedoFlux[n]) / norm; // (note: hypothetical albedo source...)
-  velocity[n]     = velocityFlux[n];
+  velocity[n]     = (A * source_v + velocityFlux[n]) / norm;
 
 }
 
@@ -420,7 +423,7 @@ __global__ void __transfer (
   const silt::tensor_t<float> upliftBase,
   const silt::tensor_t<float> waterHeight,
   const silt::tensor_t<float> mass,
-  const silt::const_view_t<silt::vec2> momentumFluvial,
+  const silt::const_view_t<silt::vec2> velocityFluvial,
   const silt::tensor_t<float> debris,
   const silt::const_view_t<silt::vec2> momentumDebris,
   silt::view_t<silt::vec3> albedo_bedrock,
@@ -440,7 +443,7 @@ __global__ void __transfer (
   const float ku = param.uplift;                  // Terrain Uplift Rate            [m/y]
   const float kfs = param.suspensionRateFluvial / 64.0f;  // Fluvial Suspension Rate
   const float kfd = param.depositionRateFluvial * 1.33f;  // Fluvial Deposition Rate
-  const float fD = 8.0f * param.frictionFactor;          // Darcy-Weisbach Friction Factor []
+  const float fD = param.frictionFactor / 8.0f;          // Darcy-Weisbach Friction Factor []
   const float alpha = param.fluvialExponent;      // Power Law Exponent             []
   const float rho = param.densityWater;           // Fluid Density                  [kg/m^3]
   const float g = param.gravity;                  // Gravitational Acceleration     [m/s^2]
@@ -457,8 +460,8 @@ __global__ void __transfer (
   const float slope = glm::length(grad);                                      // []
   
   // Fluvial Erosion Computation
-  const auto speed = momentumFluvial[n] - (g * grad);
-  const auto v = __length(momentumFluvial[n]);                // Fluid Velocity           [m/s]
+  const auto speed = velocityFluvial[n];
+  const auto v = __length(speed);                             // Fluid Velocity           [m/s]
   const auto shear = 0.125f * fD * rho * v * v;               // Wall Shear Stress        [kg/m/s^2 = Pa]
   const auto power = __powf(shear * slope, alpha);            // Stream Power Function    [(kg/s^3)^a]
 //  const auto power = __powf(discharge[n], alpha) * slope;
@@ -543,7 +546,7 @@ void soil::mass_transfer (
   const silt::tensor_t<float> uplift,
   const silt::tensor_t<float> waterHeight,
   const silt::tensor_t<float> mass,
-  const silt::tensor_t<float> momentumFluvial,
+  const silt::tensor_t<float> velocityFluvial,
   const silt::tensor_t<float> debris,
   const silt::tensor_t<float> momentumDebris,
   silt::tensor_t<float> albedo_bedrock,
@@ -561,7 +564,7 @@ void soil::mass_transfer (
     uplift,
     waterHeight,
     mass,
-    momentumFluvial.view<silt::vec2>(),
+    velocityFluvial.view<silt::vec2>(),
     debris,
     momentumDebris.view<silt::vec2>(),
     albedo_bedrock.view<silt::vec3>(),
