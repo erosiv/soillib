@@ -52,6 +52,32 @@ __device__ float __length (
   return sqrtf(v.x * v.x + v.y * v.y);
 }
 
+namespace {
+__device__ float __stepsize (
+  const silt::vec2 p, //!< Regular Grid Position (Floating Point)
+  const silt::vec2 d  //!< Direction (Normalized)
+) {
+
+  constexpr float tmax = CUDART_SQRT_TWO_F;
+
+  const float x_neg = __floorf(p.x);
+  const float y_neg = __floorf(p.y);
+  const float x_pos = 1.0f + x_neg;
+  const float y_pos = 1.0f + y_neg;
+
+  const float tx_neg = (x_neg - p.x) / d.x;
+  const float tx_pos = (x_pos - p.x) / d.x;
+  const float tx = fminf(fmaxf(tx_neg, tx_pos), tmax);
+
+  const float ty_neg = (y_neg - p.y) / d.y;
+  const float ty_pos = (y_pos - p.y) / d.y;
+  const float ty = fminf(fmaxf(ty_neg, ty_pos), tmax);
+
+  return 0.5f * (tx + ty);
+
+}
+}
+
 __device__ float __ndot (
   silt::vec2 g,
   silt::vec2 v

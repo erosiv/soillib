@@ -110,10 +110,10 @@ __global__ void __transport_fluvial (
 
     // Dynamic Timestep
     const auto v_norm = __length(speed);
-    const auto v_step = 1.0f;
     const auto v_unit = speed / v_norm;
-    const auto dL = __length(L);
-    const auto ds = v_step * dL / v_norm;
+    const auto v_step = __stepsize(pos, v_unit);
+    const auto dL = v_step * __length(L);
+    const auto ds = dL / v_norm;
     if(v_norm < eps)
       break;
 
@@ -211,10 +211,10 @@ __global__ void __transport_debris (
 
     // Dynamic Timestep
     const auto v_norm = __length(speed);
-    const auto v_step = 1.0f;
     const auto v_unit = speed / v_norm;
-    const auto dL = __length(L);
-    const auto ds = v_step * dL / v_norm;
+    const auto v_step = __stepsize(pos, v_unit);
+    const auto dL = v_step * __length(L);
+    const auto ds = dL / v_norm;
     if(v_norm < eps)
       break;
 
@@ -544,8 +544,7 @@ __global__ void __mass_creep (
   //  four due to the four elements contributing at once, so
   //  that the entire thing is unconditionally stable.
 
-  const float critSlope = 0.3f;
-
+  const float critSlope = param.critSlopeSediment;
   const auto __transfer = [critSlope, scale](const silt::vec2& lb, const silt::vec2& lt, const float dx) {
     const float hb = (lb.x + lb.y) * scale.z; // Height Bottom
     const float ht = (lt.x + lt.y) * scale.z; // Height Top
