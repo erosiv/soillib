@@ -111,7 +111,8 @@ void mass_transfer (
   const silt::tensor_t<float> debris,
   const silt::tensor_t<float> momentumDebris,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_transport,
+  silt::tensor_t<float> albedo_transport_fluvial,
+  silt::tensor_t<float> albedo_transport_debris,
   silt::tensor_t<float> albedo_surface,
   const silt::vec3 scale,
   const soil::param_t param

@@ -301,7 +301,8 @@ module.def("mass_transfer", [](
   silt::tensor debris,
   silt::tensor momentumDebris,
   silt::tensor albedo_bedrock,
-  silt::tensor albedo_transport,
+  silt::tensor albedo_transport_fluvial,
+  silt::tensor albedo_transport_debris,
   silt::tensor albedo_surface,
   const silt::vec3 scale,
   const soil::param_t param
@@ -316,7 +317,8 @@ module.def("mass_transfer", [](
     debris.as<float>(),
     momentumDebris.as<float>(),
     albedo_bedrock.as<float>(),
-    albedo_transport.as<float>(),
+    albedo_transport_fluvial.as<float>(),
+    albedo_transport_debris.as<float>(),
     albedo_surface.as<float>(),
     scale, param
   );

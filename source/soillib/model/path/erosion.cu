@@ -167,15 +167,22 @@ __global__ void __normalize_fluvial (
   const auto pos = shape.unflatten(n);
   const auto grad = __grad(layers, shape, scale, pos, param.exitSlope); // []
 
+  const auto m = massFlux[n];
+  const auto a = albedoFlux[n];
+
   const auto source_w = param.rainfall * waterSource[n];
   const auto source_v = - param.gravity * grad;
   const auto source_m = 0.0f;
-  const auto source_a = 0.0f;
 
   waterHeight[n]  = (A * source_w + waterFlux[n]) / norm;
-  mass[n]         = (A * source_m + massFlux[n]) / norm;
-  albedoFlux[n]   = (A * source_a + albedoFlux[n]) / norm; // (note: hypothetical albedo source...)
+  mass[n]         = (A * source_m + m) / norm;
   velocity[n]     = (A * source_v + velocityFlux[n]) / norm;
+
+  if(m > 0.0f && __length(a) > 0.0f) {
+    albedoFlux[n] = a / m;
+  } else {
+    albedoFlux[n] = albedoSource[n];
+  }
 
 }
 
@@ -332,11 +339,12 @@ __global__ void __transport_debris (
     const auto excessSlope = (__length(grad) - theta);                  //!< Local Excess Slope
     const auto excessStress = g * (excessSlope - tau_y / debrisHeight); //!< Shear Stress Balance
     const auto shearRate = (excessStress < 0.0f) ? kdd : kds;           //!< Asymmetric Shear Rate
-    const auto decay_d = - shearRate * excessStress / v_norm;
+    
+    const auto decay_d = fminf(ds * shearRate * excessStress / v_norm, 0.1f);
     const auto decay_v = (nu + tau / debrisHeight);
 //    if(decay_d < 0.0f) decay_d = fminf(decay_d, 0.5f * excessSlope * dL / debrisHeight);
 
-    att_d = att_d * __expf(-ds * decay_d);  //!< Attenuation Update Debris
+    att_d = att_d * __expf(decay_d);        //!< Attenuation Update Debris
     att_v = att_v * __expf(-dL * decay_v);  //!< Attenuation Update Velocity
     pos += v_step * v_unit;                 //!< Grid Position Update
 
@@ -347,7 +355,7 @@ __global__ void __transport_debris (
 __global__ void __normalize_debris (
   const silt::tensor_t<float> massFlux,
   const silt::view_t<silt::vec2> velocityFlux,
-  const silt::view_t<silt::vec3> albedoFlux,
+  silt::view_t<silt::vec3> albedoFlux,
   const silt::tensor_t<silt::rng> rng,
   const silt::view_t<silt::vec2> layers,
   silt::tensor_t<float> mass,
@@ -368,13 +376,21 @@ __global__ void __normalize_debris (
   const auto pos = shape.unflatten(n);
   const auto grad = __grad(layers, shape, scale, pos, param.exitSlope); // []
 
+  const auto m = massFlux[n];
+  const auto a = albedoFlux[n];
+
   const auto source_v = - param.gravity * grad;
   const auto source_d = 0.0f;
   const auto source_a = 0.0f;
 
-  mass[n]       = (A * source_d + massFlux[n]) / norm;
+  mass[n]       = (A * source_d + m) / norm;
   velocity[n]   = (A * source_v + velocityFlux[n]) / norm;
-  albedoFlux[n] = (A * source_a + albedoFlux[n]) / norm;
+
+  if(m > 0.0f && __length(a) > 0.0f) {
+    albedoFlux[n] = a / m;
+  } else {
+    albedoFlux[n] = albedoSource[n];
+  }
 
 }
 
@@ -446,7 +462,8 @@ __global__ void __transfer (
   const silt::tensor_t<float> debris,
   const silt::const_view_t<silt::vec2> momentumDebris,
   silt::view_t<silt::vec3> albedo_bedrock,
-  silt::view_t<silt::vec3> albedo_transport,
+  silt::view_t<silt::vec3> albedoFluxFluvial,
+  silt::view_t<silt::vec3> albedoFluxDebris,
   silt::view_t<silt::vec3> albedo_surface,
   const silt::shape shape,
   const silt::vec3 scale,
@@ -486,16 +503,17 @@ __global__ void __transfer (
 //  const auto power = __powf(discharge[n], alpha) * slope;
   const auto suspend = kfs * power;                           // Fluvial Suspension Rate  [m/y]
 
-  const float deposit = kfd * mass[n];// / (eps + waterHeight[n]); // Fluvial Deposition Rate  [m/y]
-  const float uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
+  const auto massHeight = mass[n];
+  const auto deposit = kfd * massHeight;// / (eps + waterHeight[n]); // Fluvial Deposition Rate  [m/y]
+  const auto uplift = ku * upliftBase[n];                    // Terrain Uplift Rate      [m/y]
 
   // Debris Erosion Computation
-  const float debrisHeight = debris[n];                                             // Debris Flow Height [m]
-  const float excessSlope = (slope - param.critSlopeBedrock);                       // Excess Slope []
-  const float shearLandslide = fmaxf(0.0f, kL * excessSlope);                       //
-  const float shearYield = g * (debrisHeight * excessSlope - tau_y);                //
-  const float suspendDebris = shearLandslide + kds * fmaxf(0.0f, shearYield);       // Debris Suspension Rate [m/y]
-  const float depositDebris = fminf(debrisHeight, fmaxf(0.0f, -kdd * shearYield));  // Debris Deposition Rate [m/y]
+  const auto debrisHeight = debris[n];                                             // Debris Flow Height [m]
+  const auto excessSlope = (slope - param.critSlopeBedrock);                       // Excess Slope []
+  const auto shearLandslide = fmaxf(0.0f, kL * excessSlope);                       //
+  const auto shearYield = g * (debrisHeight * excessSlope - tau_y);                //
+  const auto suspendDebris = shearLandslide + kds * fmaxf(0.0f, shearYield);       // Debris Suspension Rate [m/y]
+  const auto depositDebris = fminf(debrisHeight, fmaxf(0.0f, -kdd * shearYield));  // Debris Deposition Rate [m/y]
 
   // Height-Field Update (Stabilized):
   //  The erosion system is not permitted to generate a pit, because pits become self-reinforcing and numerically
@@ -531,29 +549,27 @@ __global__ void __transfer (
   deltas[n] = delta;
 
   //
-  // Albedo Mixing Effect...
+  // Surface / Transport Albedo Mixing
   //
 
-  // Basically, if mass is larger than zero,
-  //  than we want to add the mass to the
-  const auto m = mass[n] + debris[n];
+  const auto albedoFluvial = albedoFluxFluvial[n];
+  const auto albedoDebris = albedoFluxDebris[n];
+  const auto totalHeight = massHeight + debrisHeight;
+  const auto mixDepth = 1.0f;
 
   if(layer.y == 0.0f) {
-
     albedo_surface[n] = albedo_bedrock[n];
+  } else if (totalHeight > 0.0f) {
 
-  } else if(m > 0.0f && transfer > 0.0f) {
+    const auto wMass = massHeight / totalHeight;
+    const auto colorTransport = wMass * albedoFluvial + (1.0f - wMass) * albedoDebris;
+    const auto colorSurface = albedo_surface[n];
 
-    const auto surface_color = albedo_surface[n];
-    const auto transport_color = albedo_transport[n] / m;  //!< Surface Transport Color...
-
-    // Mixing Rate: The mixture is weighted by the layer height and the amount of mass added,
-    //  with the layer height limited by a maximum layer mixing depth.
-    const auto w_surf = fminf(1.0f, layer.y * scale.z);
-    const auto w_trsp = fmaxf(0.0f, transfer);
-    const auto w = fmaxf(0.0f, w_trsp / (w_trsp + w_surf));
-    const auto mix_color = w * transport_color + (1.0f - w) * surface_color;
-    albedo_surface[n] = mix_color;
+    const auto wSurf = fminf(mixDepth, layer.y * scale.z);
+    const auto wTrsp = fmaxf(0.0f, transfer);
+    const auto w = wTrsp / (wTrsp + wSurf);
+    const auto colorMix = w * colorTransport + (1.0f - w) * colorSurface;
+    albedo_surface[n] = colorMix;
 
   }
 
@@ -569,7 +585,8 @@ void soil::mass_transfer (
   const silt::tensor_t<float> debris,
   const silt::tensor_t<float> momentumDebris,
   silt::tensor_t<float> albedo_bedrock,
-  silt::tensor_t<float> albedo_transport,
+  silt::tensor_t<float> albedoFluxFluvial,
+  silt::tensor_t<float> albedoFluxDebris,
   silt::tensor_t<float> albedo_surface,
   const silt::vec3 scale,
   const soil::param_t param
@@ -587,7 +604,8 @@ void soil::mass_transfer (
     debris,
     momentumDebris.view<silt::vec2>(),
     albedo_bedrock.view<silt::vec3>(),
-    albedo_transport.view<silt::vec3>(),
+    albedoFluxFluvial.view<silt::vec3>(),
+    albedoFluxDebris.view<silt::vec3>(),
     albedo_surface.view<silt::vec3>(),
     shape, scale, param
   );
