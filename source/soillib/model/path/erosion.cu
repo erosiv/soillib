@@ -256,7 +256,7 @@ __global__ void __transport_debris (
   const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
   const auto N = rng.elem();                    //!< Sample Count
-  const auto P = 1.0f / float(shape.elem);      //!< Sample Probability 
+  const auto P = 1.0f / float(A * shape.elem);  //!< Sample Probability 
   const auto Q = 1.0f / (P * N);                //!< Normalization Factor
   const auto eps = 1E-12f;                      //!< Numerical Threshold
   auto pos = silt::vec2 {                       //!< Sample Position
@@ -276,17 +276,19 @@ __global__ void __transport_debris (
   const auto tau_y = param.yieldStress;
 
   // Trajectory Initialization
+  const auto vel = velocity[ind];
   silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = - (g * grad);
+  silt::vec2 speed = - (g * grad) + nu * vel;
+  speed = speed / sqrtf(__length(L * speed));
   if(__length(speed) < eps)
     return;
 
   // Transport Source / Attenuation Terms
   const float excessSlope = (__length(grad) - theta);
-  const float suspend = fmaxf(0.0f, kl * excessSlope - tau_y);
+  const float suspend = fmaxf(0.0f, kl * excessSlope);
 
-  const auto source_d = A * Q * suspend;
-  const auto source_v = Q * (- g * grad + nu * velocity[ind]);
+  const auto source_d = Q * suspend;
+  const auto source_v = Q * (- g * grad + nu * vel);  
   const auto source_a = source_d * albedoSource[ind];
 
   float att_d = 1.0f;
@@ -319,19 +321,24 @@ __global__ void __transport_debris (
 
     // Velocity Update (Implicit Euler)
     grad = __grad(layers, shape, scale, pos, param.exitSlope);
+    const auto debrisHeight = eps + att_d * source_d;
     const auto accel = - (g * grad) + nu * velocity[ind];
-    speed = (1.0f / (1.0f + dL * (tau + nu))) * speed + (dL / (1.0f + dL * (tau + nu))) * accel;
+    const auto decay = nu + tau / debrisHeight;
+    const auto w = 1.0f / (1.0f + dL * decay);
+    speed = w * speed + w * dL * accel;
 
     // Update Transport Attenuation
-    const auto excessSlope = (__length(grad) - theta);                               //!< Local Excess Slope
-    const auto excessStress = g * (excessSlope - tau_y / (att_d * source_d + eps));  //!< Shear Stress Balance
-    const auto shearRate = (excessStress < 0.0f) ? kdd : kds;                        //!< Asymmetric Shear Rate
-    const auto decay_d = - shearRate * excessStress;
-    const auto decay_v = (nu + tau);
+//    const float viscousStress = nu * v_len / debrisHeight / debrisHeight;
+    const auto excessSlope = (__length(grad) - theta);                  //!< Local Excess Slope
+    const auto excessStress = g * (excessSlope - tau_y / debrisHeight); //!< Shear Stress Balance
+    const auto shearRate = (excessStress < 0.0f) ? kdd : kds;           //!< Asymmetric Shear Rate
+    const auto decay_d = - shearRate * excessStress / v_norm;
+    const auto decay_v = (nu + tau / debrisHeight);
+//    if(decay_d < 0.0f) decay_d = fminf(decay_d, 0.5f * excessSlope * dL / debrisHeight);
 
-    att_d = att_d * __expf(-dL * decay_d);
-    att_v = att_v * __expf(-dL * decay_v);
-    pos += v_step * v_unit;
+    att_d = att_d * __expf(-ds * decay_d);  //!< Attenuation Update Debris
+    att_v = att_v * __expf(-dL * decay_v);  //!< Attenuation Update Velocity
+    pos += v_step * v_unit;                 //!< Grid Position Update
 
   }
 
@@ -354,8 +361,20 @@ __global__ void __normalize_debris (
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
   if(n >= shape.elem) return;
 
-  mass[n]       = massFlux[n];
-  velocity[n]   = velocityFlux[n];
+  const auto A = (scale.x * scale.y);                 //!< Cell Area [m^2]
+  const auto L = silt::vec2(scale.x, scale.y);        //!< Cell Width [m]
+  const auto v = silt::vec2(1.0, 0.0);                //!< Velocity [m/s] (FIX)
+  const auto norm = abs(v.x * L.y) + abs(v.y * L.x);  //!< [m^2/s]
+  const auto pos = shape.unflatten(n);
+  const auto grad = __grad(layers, shape, scale, pos, param.exitSlope); // []
+
+  const auto source_v = - param.gravity * grad;
+  const auto source_d = 0.0f;
+  const auto source_a = 0.0f;
+
+  mass[n]       = (A * source_d + massFlux[n]) / norm;
+  velocity[n]   = (A * source_v + velocityFlux[n]) / norm;
+  albedoFlux[n] = (A * source_a + albedoFlux[n]) / norm;
 
 }
 
@@ -473,7 +492,7 @@ __global__ void __transfer (
   // Debris Erosion Computation
   const float debrisHeight = debris[n];                                             // Debris Flow Height [m]
   const float excessSlope = (slope - param.critSlopeBedrock);                       // Excess Slope []
-  const float shearLandslide = fmaxf(0.0f, kL * excessSlope - tau_y);               //
+  const float shearLandslide = fmaxf(0.0f, kL * excessSlope);                       //
   const float shearYield = g * (debrisHeight * excessSlope - tau_y);                //
   const float suspendDebris = shearLandslide + kds * fmaxf(0.0f, shearYield);       // Debris Suspension Rate [m/y]
   const float depositDebris = fminf(debrisHeight, fmaxf(0.0f, -kdd * shearYield));  // Debris Deposition Rate [m/y]
