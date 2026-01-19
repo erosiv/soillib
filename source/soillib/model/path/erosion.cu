@@ -338,11 +338,9 @@ __global__ void __transport_debris (
 //    const float viscousStress = nu * v_len / debrisHeight / debrisHeight;
     const auto excessSlope = (__length(grad) - theta);                  //!< Local Excess Slope
     const auto excessStress = g * (excessSlope - tau_y / debrisHeight); //!< Shear Stress Balance
-    const auto shearRate = (excessStress < 0.0f) ? kdd : kds;           //!< Asymmetric Shear Rate
-    
-    const auto decay_d = fminf(ds * shearRate * excessStress / v_norm, 0.1f);
+    const auto shearRate = (excessStress < 0.0f) ? kdd : kds;           //!< Asymmetric Shear Rate    
+    const auto decay_d = ds * shearRate * excessStress / v_norm;
     const auto decay_v = (nu + tau / debrisHeight);
-//    if(decay_d < 0.0f) decay_d = fminf(decay_d, 0.5f * excessSlope * dL / debrisHeight);
 
     att_d = att_d * __expf(decay_d);        //!< Attenuation Update Debris
     att_v = att_v * __expf(-dL * decay_v);  //!< Attenuation Update Velocity
