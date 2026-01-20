@@ -347,19 +347,6 @@ module.def("layer_merge", [](
   );
 });
 
-module.def("agitation", [](
-  silt::tensor agitation,
-  const silt::tensor deltas,
-  const float decay,
-  const float grow
-) {
-  soil::agitation (
-    agitation.as<float>(),
-    deltas.as<float>(),
-    decay, grow
-  );
-});
-
 module.def("albedo_layer", [](
   silt::tensor albedo,
   const silt::tensor albedoBedrock,
@@ -377,6 +364,28 @@ module.def("albedo_layer", [](
     shiftSediment
   );
 });
+
+module.def("albedo_stratum", [](
+  silt::tensor albedoBedrock,
+  const silt::tensor uplift,
+  const silt::tensor layers,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const silt::vec3 colorA,
+  const silt::vec3 colorB,
+  const float age,
+  const float freq
+) {
+  soil::albedo_stratum (
+    albedoBedrock.as<float>(),
+    uplift.as<float>(),
+    layers.as<float>(),
+    scale, param, 
+    colorA, colorB,
+    age, freq
+  );
+});
+
 
 module.def("albedo_discharge", [](
   silt::tensor albedo,

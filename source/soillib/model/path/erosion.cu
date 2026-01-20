@@ -756,41 +756,6 @@ void soil::layer_merge (
 
 }
 
-__global__ void __agitation (
-  silt::tensor_t<float> agitation,
-  const silt::const_view_t<silt::vec2> delta,
-  const silt::shape shape,
-  const float decay,
-  const float grow
-) {
-
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
-    return;
-
-  float ag = agitation[n];
-  ag = (1.0f - decay) * ag;
-  ag += grow * abs(delta[n].y);
-  agitation[n] = ag;
-
-}
-
-void soil::agitation (
-  silt::tensor_t<float> agitation,
-  const silt::tensor_t<float> delta,
-  const float decay,
-  const float grow
-) {
-
-  const auto shape = agitation.shape();
-  __agitation<<<block(shape.elem, 512), 512>>> (
-    agitation,
-    delta.view<silt::vec2>(),
-    shape, decay, grow
-  );
-
-}
-
 __global__ void __albedo_layer (
   silt::view_t<silt::vec3> albedo,
   const silt::const_view_t<silt::vec3> albedoBedrock,
@@ -822,6 +787,69 @@ __global__ void __albedo_layer (
 //  const float shift = 0.2f * ag / sqrt(1 + ag * ag);
 //  color = __mmin(1.0f, color * (1.0f + shift));
 //  albedo[n] = color;
+
+}
+
+// Extinction Based Discharge Blending
+__global__ void __albedo_stratum (
+  silt::view_t<silt::vec3> albedoBedrock,
+  const silt::tensor_t<float> uplift,
+  const silt::const_view_t<silt::vec2> layers,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const silt::vec3 colorA,
+  const silt::vec3 colorB,
+  const float age,
+  const float freq,
+  const silt::shape shape
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  // Total Uplift Displacement
+  const auto shift = age * param.uplift * uplift[n];
+  const auto layer = layers[n];
+  const auto depth = fmaxf(shift - layer.x * scale.z, 0.0f);
+  
+  // The surface bedrock color is the total displacement,
+  //  minus the current bedrock height.
+
+  const int index = __floorf(depth / freq);
+  if(index % 2 == 0){
+    albedoBedrock[n] = colorA;// ... sample the color ...
+  } else {
+    albedoBedrock[n] = colorB;// ... sample the color ...
+  }
+
+}
+
+void soil::albedo_stratum (
+  silt::tensor_t<float> albedoBedrock,
+  const silt::tensor_t<float> uplift,
+  const silt::tensor_t<float> layers,
+  const silt::vec3 scale,
+  const soil::param_t param,
+  const silt::vec3 colorA,
+  const silt::vec3 colorB,
+  const float age,
+  const float freq
+) {
+
+  const auto shape = uplift.shape();
+  __albedo_stratum<<<block(shape.elem, 512), 512>>> (
+    albedoBedrock.view<silt::vec3>(),
+    uplift,
+    layers.view<silt::vec2>(),
+    scale,
+    param,
+    colorA,
+    colorB,
+    age,
+    freq,
+    shape
+  );
 
 }
 
