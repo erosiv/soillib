@@ -74,7 +74,7 @@ __global__ void __transport_fluvial (
   // Trajectory Initialization
   const auto vel = velocity[ind];
   silt::vec2 grad = __grad(layers, shape, scale, pos, param.exitSlope);
-  silt::vec2 speed = - (g * grad) + nu * vel;
+  silt::vec2 speed = - (g * grad) + nu * vel + param.force;
   speed = speed / sqrtf(glm::length(L * speed));
   if(glm::length(speed) < eps)
     return;
@@ -123,7 +123,7 @@ __global__ void __transport_fluvial (
 
     // Velocity Update (Implicit Euler)
     grad = __grad(layers, shape, scale, pos, param.exitSlope);
-    const auto accel = - (g * grad) + nu * velocity[ind];
+    const auto accel = - (g * grad) + nu * velocity[ind] + param.force;
     speed = (1.0f / (1.0f + dL * (tau + nu))) * speed + (dL / (1.0f + dL * (tau + nu))) * accel;
 
     // Transport Attenuation Update
@@ -171,7 +171,7 @@ __global__ void __normalize_fluvial (
   const auto a = albedoFlux[n];
 
   const auto source_w = param.rainfall * waterSource[n];
-  const auto source_v = - param.gravity * grad;
+  const auto source_v = - param.gravity * grad + param.force;
   const auto source_m = 0.0f;
 
   waterHeight[n]  = (A * source_w + waterFlux[n]) / norm;
@@ -557,15 +557,15 @@ __global__ void __transfer (
 
   if(layer.y == 0.0f) {
     albedo_surface[n] = albedo_bedrock[n];
-  } else if (totalHeight > 0.0f) {
+  } else if (totalHeight > 0.0f && transfer > eps) {
 
-    const auto wMass = massHeight / totalHeight;
-    const auto colorTransport = wMass * albedoFluvial + (1.0f - wMass) * albedoDebris;
-    const auto colorSurface = albedo_surface[n];
+    const auto wMass = fminf(massHeight / totalHeight, 1.0f);
+    const auto colorTransport = __mmin(1.0f, wMass * albedoFluvial + (1.0f - wMass) * albedoDebris);
+    const auto colorSurface = __mmin(1.0f, albedo_surface[n]);
 
     const auto wSurf = fminf(mixDepth, layer.y * scale.z);
-    const auto wTrsp = fmaxf(0.0f, transfer);
-    const auto w = wTrsp / (wTrsp + wSurf);
+    const auto wTrsp = fmaxf(eps, transfer);
+    const auto w = fminf(wTrsp / (wTrsp + wSurf), 1.0f);
     const auto colorMix = w * colorTransport + (1.0f - w) * colorSurface;
     albedo_surface[n] = colorMix;
 
