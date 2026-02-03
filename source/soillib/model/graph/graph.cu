@@ -383,6 +383,7 @@ struct acc_t {
   silt::tensor_t<int> donor;    // Donor Graph
   silt::tensor_t<int> count;    // Donor Count
   silt::tensor_t<float> value;  // Local Value
+  silt::tensor_t<float> decay;  // Decay Value
 };
 
 template<typename DIR = D4_t>
@@ -397,6 +398,7 @@ __global__ void __rake_compress(
     return;
   
   float value = accIn.value[n]; //!< Accumulation Value
+  float decay = accIn.decay[n]; //!< Local Decay Value
   int count = accIn.count[n];   //!< Number of Donors
   int donors[DIR::K];           //!< Donor Indices
   
@@ -423,22 +425,24 @@ __global__ void __rake_compress(
 
     // Donor is a Leaf-Node: Accumulate and Prune
     if(dcount == 0){
-      value += accIn.value[donor];  // Add the Donor's Value
-      donors[k] = donors[count-1];  // Move Last Donor Forward
-      donors[count-1] = -1;         // Prune Last Donor
-      count -= 1;                   // Shorten List
-      k -= 1;                       // Repeat Iteration
+      value += decay * accIn.value[donor];    // Add the Donor's Value
+      donors[k] = donors[count-1];            // Move Last Donor Forward
+      donors[count-1] = -1;                   // Prune Last Donor
+      count -= 1;                             // Shorten List
+      k -= 1;                                 // Repeat Iteration
     }
 
     // Donor has a Single Donor: Accmulate and Pointer Jump
     else if(dcount == 1){
-      value += accIn.value[donor];            // Add the Donor's Value
+      value += decay * accIn.value[donor];    // Add the Donor's Value
+      decay *= accIn.decay[donor];
       donors[k] = accIn.donor[DIR::K*donor];  // Pointer Jump the Donor
     }
 
   }
 
   accOut.value[n] = value;  //!< Output Value
+  accOut.decay[n] = decay;  //!< Output Value
   accOut.count[n] = count;  //!< Output Count
   if(count >= 1) accOut.donor[DIR::K*n + 0] = donors[0];
   if(count >= 2) accOut.donor[DIR::K*n + 1] = donors[1];
@@ -454,11 +458,12 @@ __global__ void __rake_compress(
 
 //! Compute the Upstream Accumulation of a Field
 //!\todo Possible Optimization: Per-Cell Ping-Pong Scheme for fewer writes
-silt::tensor_t<float> accumulate (
+silt::tensor_t<float> __accumulate (
   const silt::tensor_t<int> graph,
   const silt::tensor_t<float> value,
-  const edge_t edge
-){
+  const edge_t edge,
+  const float decay
+) {
 
   const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<float> {
 
@@ -468,15 +473,18 @@ silt::tensor_t<float> accumulate (
     acc_t accA, accB;
     accA.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
     accA.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+    accA.decay = silt::tensor_t<float>(shape, silt::host_t::GPU);
     
     accB.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
     accB.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
+    accB.decay = silt::tensor_t<float>(shape, silt::host_t::GPU);
 
     accA.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
     accB.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
 
     silt::set(accA.donor, -1);
     silt::set(accA.value, value);
+    silt::set(accA.decay, decay);
     __donor<DIR><<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
     __count<DIR><<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
 
@@ -498,6 +506,23 @@ silt::tensor_t<float> accumulate (
     default: throw std::invalid_argument("invalid edge enumerator");
   }
   
+}
+
+silt::tensor_t<float> accumulate (
+  const silt::tensor_t<int> graph,
+  const silt::tensor_t<float> value,
+  const edge_t edge
+) {
+  return __accumulate(graph, value, edge, 1.0f);
+}
+
+silt::tensor_t<float> accumulate_decay (
+  const silt::tensor_t<int> graph,
+  const silt::tensor_t<float> value,
+  const edge_t edge,
+  const float decay
+) {
+  return __accumulate(graph, value, edge, decay);
 }
 
 } // end of namespace soil

@@ -183,6 +183,10 @@ module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field
   return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>(), edge));
 });
 
+module.def("accumulate_decay", [](const silt::tensor& graph, const silt::tensor& field, const soil::edge_t edge, const float decay){
+  return silt::tensor(soil::accumulate_decay(graph.as<int>(), field.as<float>(), edge, decay));
+});
+
 module.def("gaussian_blur", [](const silt::tensor& tensor, const float sigma){
     return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma));
 });
