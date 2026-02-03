@@ -53,11 +53,11 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
 
 silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset, const float T);
 
-//! Compute the Upstream Accumulation of a Field
-silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const edge_t edge);
+//! Compute the Upstream Accumulation of a Source Field
+silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> source, const edge_t edge);
 
-//! Compute the Upstream Accumulation of a Field
-silt::tensor_t<float> accumulate_decay(const silt::tensor_t<int> graph, const silt::tensor_t<float> field, const edge_t edge, const float decay);
+//! Compute the Upstream Accumulation of a Source Field (w. Decay)
+silt::tensor_t<float> accumulate_decay(const silt::tensor_t<int> graph, const silt::tensor_t<float> source, const silt::tensor_t<float> decay, const edge_t edge);
 
 //! Compute the Quadratic Slope of a Tensor (Gradient Norm)
 silt::tensor_t<float> slope(const silt::tensor_t<float> tensor, const silt::tensor_t<int> flow, const silt::vec2 scale);

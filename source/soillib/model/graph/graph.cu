@@ -458,11 +458,12 @@ __global__ void __rake_compress(
 
 //! Compute the Upstream Accumulation of a Field
 //!\todo Possible Optimization: Per-Cell Ping-Pong Scheme for fewer writes
+template<typename DECAY_T>
 silt::tensor_t<float> __accumulate (
   const silt::tensor_t<int> graph,
   const silt::tensor_t<float> value,
-  const edge_t edge,
-  const float decay
+  const DECAY_T decay,
+  const edge_t edge
 ) {
 
   const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<float> {
@@ -513,16 +514,16 @@ silt::tensor_t<float> accumulate (
   const silt::tensor_t<float> value,
   const edge_t edge
 ) {
-  return __accumulate(graph, value, edge, 1.0f);
+  return __accumulate<float>(graph, value, 1.0f, edge);
 }
 
 silt::tensor_t<float> accumulate_decay (
   const silt::tensor_t<int> graph,
-  const silt::tensor_t<float> value,
-  const edge_t edge,
-  const float decay
+  const silt::tensor_t<float> source,
+  const silt::tensor_t<float> decay,
+  const edge_t edge
 ) {
-  return __accumulate(graph, value, edge, decay);
+  return __accumulate<silt::tensor_t<float>>(graph, source, decay, edge);
 }
 
 } // end of namespace soil
