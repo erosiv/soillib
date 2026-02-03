@@ -18,7 +18,6 @@ def load(data):
   print(f"Loaded File: {data}, {image.buffer.type}, ({image.index[0]}, {image.index[1]})")
   return (image.buffer, image.index)
 
-'''
 def discharge_fastflow(tensor):
 
   shape = tensor.shape
@@ -32,11 +31,12 @@ def discharge_fastflow(tensor):
     dirn = soil.direction(tensor, soil.d8)
     # flow = soil.steepest(tensor, soil.d8)
     flow = soil.random_weighted(tensor, soil.d8, 0, 0, 10.0)
-    discharge = soil.accumulate(flow, rain, soil.d8)
+    discharge = soil.accumulate_decay(flow, rain, soil.d8, 1.0 - 1E-4)
   print(f"Execution Time: {t.count} us")
 
   return discharge.cpu().numpy()
 
+'''
 def diffuse(tensor, scale, dt):
   diff = soil.laplacian(tensor, scale)
   silt.multiply(diff, dt)
@@ -48,6 +48,7 @@ def diffuse(tensor, scale, dt):
 # Decay by the Erosion Decay Term...
 # Then we should get our material distribution.
 
+'''
 def discharge_stochastic(tensor):
 
   shape = tensor.shape
@@ -82,11 +83,6 @@ def discharge_stochastic(tensor):
     suspend = soil.suspend(velocity, scale)# basically the shear-stress expression
     mass = soil.solve_uniform(velocity, suspend, evap, rng, scale, k)
 
-    '''
-    Erode the Surface ...
-    Update the Gradient ...
-    '''
-
 #    suspend = mass_source.cpu().numpy()
     deposit = silt.tensor.from_numpy(mass.cpu().numpy() / discharge.cpu().numpy()).gpu()
     silt.multiply(suspend, -100)
@@ -114,6 +110,7 @@ def discharge_stochastic(tensor):
     # Do the same thing for the other erosion type ...
 
   return discharge.cpu().numpy(), suspend.cpu().numpy()
+'''
 
 def main(data):
 
@@ -121,26 +118,27 @@ def main(data):
   tiff = soil.geotiff(data)
   tensor = tiff.tensor.gpu()
 
-  discharge, velocity = discharge_stochastic(tensor)
+  # discharge, velocity = discharge_stochastic(tensor)
+  discharge = discharge_fastflow(tensor)
 #  velocity = np.sum(np.abs(velocity), axis=2)
 
   print(f"Discharge Max: {np.max(discharge)}")
-  print(f"Velocity MinMax: {np.min(velocity)}, {np.max(velocity)}")
+#  print(f"Velocity MinMax: {np.min(velocity)}, {np.max(velocity)}")
 
   fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-  fig.suptitle("Grid-Free Monte-Carlo Estimator")
+  fig.suptitle("Fastflow w. Decay (Evap = 1E-4)")
 
   ax[0].imshow(tensor.cpu().numpy())
-#  ax[0].imshow(discharge,
-#    cmap='CMRmap',
-#    norm=colors.LogNorm(1, discharge.max()),
-#    interpolation='none'
-#  )
-  ax[1].imshow(velocity,
+  ax[1].imshow(discharge,
     cmap='CMRmap',
-    norm=colors.LogNorm(1, velocity.max()),
+    norm=colors.LogNorm(1, discharge.max()),
     interpolation='none'
   )
+#  ax[1].imshow(velocity,
+#    cmap='CMRmap',
+#    norm=colors.LogNorm(1, velocity.max()),
+#    interpolation='none'
+#  )
   plt.show()
 
 
@@ -158,7 +156,8 @@ def main(data):
 
 if __name__ == "__main__":
 
-  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
+  #data = "C:\\Users\\nicho\\Datasets\\test.tiff"
+  data = "C:\\Users\\nicho\\Workspace\\cu-fsm\\terrain.tiff"
   #data = "_dem_conditioned.tiff"
 
   main(data)
