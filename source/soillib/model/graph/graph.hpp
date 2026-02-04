@@ -33,13 +33,13 @@ struct D4_t {
 struct D8_t {
   static constexpr const size_t K = 8;
   __device__ D8_t():shift{
-    silt::ivec2(-1.0, -1.0),
     silt::ivec2(-1.0,  0.0),
-    silt::ivec2(-1.0,  1.0),
     silt::ivec2( 0.0, -1.0),
     silt::ivec2( 0.0,  1.0),
-    silt::ivec2( 1.0, -1.0),
     silt::ivec2( 1.0,  0.0),
+    silt::ivec2(-1.0, -1.0),
+    silt::ivec2(-1.0,  1.0),
+    silt::ivec2( 1.0, -1.0),
     silt::ivec2( 1.0,  1.0)
   }{}
   const silt::ivec2 shift[K];

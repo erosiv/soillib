@@ -321,7 +321,7 @@ silt::tensor_t<float> slope (
 template<typename DIR = D4_t>
 __global__ void __donor(
   silt::tensor_t<int> donor,        //!< Output Donor Graph
-  const silt::tensor_t<int> graph,  //!< Input Receiver Graph,
+  const silt::tensor_t<int> graph,  //!< Input Receiver Graph
   const silt::shape shape
 ){
 
@@ -379,6 +379,46 @@ __global__ void __count(
 
 }
 
+template<typename DECAY_T, typename DIR = D4_t>
+__global__ void my_decay (
+  silt::tensor_t<float> decay,
+  const silt::tensor_t<int> donor,
+  const DECAY_T decayIn,
+  const silt::shape shape
+) {
+
+  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if(n >= shape.elem)
+    return;
+
+  // Assign to each donor decay value
+  //  the decay value of the incoming cell.
+  for(int k = 0; k < DIR::K; ++k){
+    
+    const int d = donor[DIR::K*n + k];
+    if(d >= 0) {
+
+      if(k < 4) {
+        if constexpr(std::is_same_v<DECAY_T, float>){
+          decay[DIR::K*n + k] = decayIn;
+        } else {
+          decay[DIR::K*n + k] = decayIn[d];
+        }
+      } else {
+        if constexpr(std::is_same_v<DECAY_T, float>){
+          decay[DIR::K*n + k] = __powf(decayIn, 1.414f);
+        } else {
+          decay[DIR::K*n + k] = __powf(decayIn[d], 1.414f);
+        }
+      }
+
+    } else {
+      break;
+    }
+  }
+
+}
+
 struct acc_t {
   silt::tensor_t<int> donor;    // Donor Graph
   silt::tensor_t<int> count;    // Donor Count
@@ -398,9 +438,9 @@ __global__ void __rake_compress(
     return;
   
   float value = accIn.value[n]; //!< Accumulation Value
-  float decay = accIn.decay[n]; //!< Local Decay Value
   int count = accIn.count[n];   //!< Number of Donors
   int donors[DIR::K];           //!< Donor Indices
+  float decays[DIR::K];         //!< Donory Decay Values
   
   // Developer Note: This lowers register pressure on
   //  the GPU relative to a for loop, while doing
@@ -416,33 +456,46 @@ __global__ void __rake_compress(
     if(count >= 8) donors[7] = accIn.donor[DIR::K*n + 7];
   }
 
+  if(count >= 1) decays[0] = accIn.decay[DIR::K*n + 0];
+  if(count >= 2) decays[1] = accIn.decay[DIR::K*n + 1];
+  if(count >= 3) decays[2] = accIn.decay[DIR::K*n + 2];
+  if(count >= 4) decays[3] = accIn.decay[DIR::K*n + 3];
+  if constexpr(std::is_same_v<DIR, D8_t>) {
+    if(count >= 5) decays[4] = accIn.decay[DIR::K*n + 4];
+    if(count >= 6) decays[5] = accIn.decay[DIR::K*n + 5];
+    if(count >= 7) decays[6] = accIn.decay[DIR::K*n + 6];
+    if(count >= 8) decays[7] = accIn.decay[DIR::K*n + 7];
+  }
+
   // Iterate over the Set of Donors
   for(int k = 0; k < count; ++k){
 
     // Retrieve Donor at Index
     const int donor = donors[k];
+    const float decay = decays[k];
     const int dcount = accIn.count[donor];
 
     // Donor is a Leaf-Node: Accumulate and Prune
     if(dcount == 0){
       value += decay * accIn.value[donor];    // Add the Donor's Value
       donors[k] = donors[count-1];            // Move Last Donor Forward
+      decays[k] = decays[count-1];
       donors[count-1] = -1;                   // Prune Last Donor
+      decays[count-1] = 0.0f;
       count -= 1;                             // Shorten List
       k -= 1;                                 // Repeat Iteration
     }
 
     // Donor has a Single Donor: Accmulate and Pointer Jump
-    else if(dcount == 1){
+    else if(dcount == 1) {
       value += decay * accIn.value[donor];    // Add the Donor's Value
-      decay *= accIn.decay[donor];
-      donors[k] = accIn.donor[DIR::K*donor];  // Pointer Jump the Donor
+      donors[k] = accIn.donor[DIR::K*donor];  // Pointer Jump the Donor (Zero'th Donor)
+      decays[k] = decay * accIn.decay[DIR::K*donor];
     }
 
   }
 
   accOut.value[n] = value;  //!< Output Value
-  accOut.decay[n] = decay;  //!< Output Value
   accOut.count[n] = count;  //!< Output Count
   if(count >= 1) accOut.donor[DIR::K*n + 0] = donors[0];
   if(count >= 2) accOut.donor[DIR::K*n + 1] = donors[1];
@@ -454,6 +507,18 @@ __global__ void __rake_compress(
     if(count >= 7) accOut.donor[DIR::K*n + 6] = donors[6];
     if(count >= 8) accOut.donor[DIR::K*n + 7] = donors[7];
   }
+
+  if(count >= 1) accOut.decay[DIR::K*n + 0] = decays[0];
+  if(count >= 2) accOut.decay[DIR::K*n + 1] = decays[1];
+  if(count >= 3) accOut.decay[DIR::K*n + 2] = decays[2];
+  if(count >= 4) accOut.decay[DIR::K*n + 3] = decays[3];
+  if constexpr(std::is_same_v<DIR, D8_t>) {
+    if(count >= 5) accOut.decay[DIR::K*n + 4] = decays[4];
+    if(count >= 6) accOut.decay[DIR::K*n + 5] = decays[5];
+    if(count >= 7) accOut.decay[DIR::K*n + 6] = decays[6];
+    if(count >= 8) accOut.decay[DIR::K*n + 7] = decays[7];
+  }
+
 }
 
 //! Compute the Upstream Accumulation of a Field
@@ -474,20 +539,21 @@ silt::tensor_t<float> __accumulate (
     acc_t accA, accB;
     accA.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
     accA.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
-    accA.decay = silt::tensor_t<float>(shape, silt::host_t::GPU);
     
     accB.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
     accB.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
-    accB.decay = silt::tensor_t<float>(shape, silt::host_t::GPU);
 
     accA.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
+    accA.decay = silt::tensor_t<float>(dshape, silt::host_t::GPU);
+
     accB.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
+    accB.decay = silt::tensor_t<float>(dshape, silt::host_t::GPU);
 
     silt::set(accA.donor, -1);
     silt::set(accA.value, value);
-    silt::set(accA.decay, decay);
     __donor<DIR><<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
     __count<DIR><<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
+    my_decay<DECAY_T, DIR><<<block(shape.elem, 512), 512>>>(accA.decay, accA.donor, decay, shape);
 
     // Execute Rake-Compression Iterations
     const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);

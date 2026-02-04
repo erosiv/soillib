@@ -31,7 +31,11 @@ def discharge_fastflow(tensor):
     dirn = soil.direction(tensor, soil.d8)
     # flow = soil.steepest(tensor, soil.d8)
     flow = soil.random_weighted(tensor, soil.d8, 0, 0, 10.0)
-    discharge = soil.accumulate_decay(flow, rain, soil.d8, 0.1)
+
+    decay = np.full(res, 0.9).astype(np.float32)
+    decay = silt.tensor.from_numpy(decay).gpu()
+
+    discharge = soil.accumulate_decay(flow, rain, decay, soil.d8)
   print(f"Execution Time: {t.count} us")
 
   return discharge.cpu().numpy()
