@@ -31,8 +31,8 @@ __device__ float __stepsize (
 
   constexpr float tmax = CUDART_SQRT_TWO_F;
 
-  const float x_neg = __floorf(p.x);
-  const float y_neg = __floorf(p.y);
+  const float x_neg = floorf(p.x);
+  const float y_neg = floorf(p.y);
   const float x_pos = 1.0f + x_neg;
   const float y_pos = 1.0f + y_neg;
 

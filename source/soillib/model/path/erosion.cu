@@ -816,7 +816,7 @@ __global__ void __albedo_stratum (
   // The surface bedrock color is the total displacement,
   //  minus the current bedrock height.
 
-  const int index = __floorf(depth / freq);
+  const int index = floorf(depth / freq);
   if(index % 2 == 0){
     albedoBedrock[n] = colorA;// ... sample the color ...
   } else {

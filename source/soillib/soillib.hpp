@@ -17,6 +17,7 @@
 #pragma nv_diag_suppress 177
 #pragma nv_diag_suppress 445
 #pragma nv_diag_suppress 20011
+#pragma nv_diag_suppress 20012
 #pragma nv_diag_suppress 20013
 #pragma nv_diag_suppress 20015
 #endif
@@ -33,10 +34,14 @@
 
 // Exported Symbols from the Shared DLL Macro
 
-#if defined(SHARED_BUILD)
-#  define EXPORT_SHARED __declspec(dllexport)
+#if defined(_WIN32)
+#  if defined(SHARED_BUILD)
+#    define EXPORT_SHARED __declspec(dllexport)
+#  else
+#    define EXPORT_SHARED __declspec(dllexport)
+#  endif
 #else
-#  define EXPORT_SHARED __declspec(dllexport)
+#  define EXPORT_SHARED
 #endif
 
 namespace soil {

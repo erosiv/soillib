@@ -31,9 +31,9 @@ target_compile_definitions(${MODULE_NAME} PRIVATE
 
 target_link_libraries(${MODULE_NAME} PRIVATE soil)
 
+set(BUILD_SHARED_LIBS ON) # Required for linking
 add_subdirectory(${CMAKE_SOURCE_DIR}/ext/libtiff libtiff)
-find_package(tiff CONFIG REQUIRED)
-target_link_libraries(${MODULE_NAME} PRIVATE tiff)
+target_link_libraries(${MODULE_NAME} PRIVATE TIFF::tiff)
 
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(${MODULE_NAME} PRIVATE glm::glm)
