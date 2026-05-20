@@ -456,9 +456,9 @@ __global__ void __transfer (
   const silt::tensor_t<float> upliftBase,
   const silt::tensor_t<float> waterHeight,
   const silt::tensor_t<float> mass,
-  const silt::const_view_t<silt::vec2> velocityFluvial,
+  const silt::view_t<const silt::vec2> velocityFluvial,
   const silt::tensor_t<float> debris,
-  const silt::const_view_t<silt::vec2> momentumDebris,
+  const silt::view_t<const silt::vec2> momentumDebris,
   silt::view_t<silt::vec3> albedo_bedrock,
   silt::view_t<silt::vec3> albedoFluxFluvial,
   silt::view_t<silt::vec3> albedoFluxDebris,
@@ -632,7 +632,7 @@ void soil::mass_transfer (
 //  The question is, if we cap it using the critical slope? Probably not.
 __global__ void __mass_creep (
   silt::view_t<silt::vec2> delta,
-  const silt::const_view_t<silt::vec2> layers,
+  const silt::view_t<const silt::vec2> layers,
   const silt::shape shape,
   const silt::vec3 scale,
   const soil::param_t param
@@ -732,7 +732,7 @@ void soil::mass_creep (
 
 __global__ void __layer_merge (
   silt::tensor_t<float> height,
-  const silt::const_view_t<silt::vec2> layers
+  const silt::view_t<const silt::vec2> layers
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -758,9 +758,9 @@ void soil::layer_merge (
 
 __global__ void __albedo_layer (
   silt::view_t<silt::vec3> albedo,
-  const silt::const_view_t<silt::vec3> albedoBedrock,
-  const silt::const_view_t<silt::vec3> albedoSediment,
-  const silt::const_view_t<silt::vec2> layers,
+  const silt::view_t<const silt::vec3> albedoBedrock,
+  const silt::view_t<const silt::vec3> albedoSediment,
+  const silt::view_t<const silt::vec2> layers,
   const float scaleSediment,
   const silt::vec3 shiftSediment,
   const silt::shape shape
@@ -794,7 +794,7 @@ __global__ void __albedo_layer (
 __global__ void __albedo_stratum (
   silt::view_t<silt::vec3> albedoBedrock,
   const silt::tensor_t<float> uplift,
-  const silt::const_view_t<silt::vec2> layers,
+  const silt::view_t<const silt::vec2> layers,
   const silt::vec3 scale,
   const soil::param_t param,
   const silt::vec3 colorA,

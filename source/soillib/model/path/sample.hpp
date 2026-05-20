@@ -108,7 +108,7 @@ struct sample_t<T, 2, 1> {
   } 
 
   __device__ static sample_t<T, 2, 1> gather(const silt::tensor_t<T>& buf, const silt::ivec2 res, const silt::vec2 pos);
-  __device__ static sample_t<T, 2, 1> gather(const silt::const_view_t<T>& buf, const silt::ivec2 res, const silt::vec2 pos);
+  __device__ static sample_t<T, 2, 1> gather(const silt::view_t<const T>& buf, const silt::ivec2 res, const silt::vec2 pos);
 //  __device__ static sample_t<T, 2, 1> gather(cudaTextureObject_t texObj, const silt::ivec2 res, const silt::vec2 pos);
 
   sample_t<T, 1, 1> l0, l1;
@@ -152,7 +152,7 @@ __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::tensor_t<T>& 
 }
 
 template<typename T>
-__device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::const_view_t<T>& view, const silt::ivec2 res, const silt::vec2 pos){
+__device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::view_t<const T>& view, const silt::ivec2 res, const silt::vec2 pos){
 
   const silt::ivec2 p00 = silt::ivec2(pos) + silt::ivec2(0, 0);
   const silt::ivec2 p01 = silt::ivec2(pos) + silt::ivec2(0, 1);
