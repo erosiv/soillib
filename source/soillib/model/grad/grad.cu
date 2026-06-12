@@ -27,7 +27,7 @@ __global__ void __gradient (
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem) return;
+  if(n >= shape.elem()) return;
 
   // Data Loading w. Bounds Handling  
   const silt::ivec2 ipos = shape.unflatten(n);
@@ -91,7 +91,7 @@ silt::tensor_t<float> gradient(const silt::tensor_t<float>& tensor, const silt::
   const silt::shape shapeIn = tensor.shape();
   const silt::shape shapeOut = silt::shape(shapeIn[0], shapeIn[1], 2);
   auto gradient = silt::tensor_t<float>(shapeOut, silt::host_t::GPU);
-  __gradient<<<block(shapeIn.elem, 512), 512>>>(gradient, tensor, shapeIn, scale);
+  __gradient<<<block(shapeIn.elem(), 512), 512>>>(gradient, tensor, shapeIn, scale);
   return gradient;
 
 }
@@ -106,7 +106,7 @@ __global__ void __negslope (
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem) return;
+  if(n >= shape.elem()) return;
   
   // Data Loading w. Bounds Handling  
   const silt::ivec2 ipos = shape.unflatten(n);
@@ -135,7 +135,7 @@ silt::tensor_t<float> negslope(const silt::tensor_t<float>& tensor, const silt::
   const silt::shape shapeIn = tensor.shape();
   const silt::shape shapeOut = silt::shape(shapeIn[0], shapeIn[1]);
   auto negslope = silt::tensor_t<float>(shapeOut, silt::host_t::GPU);
-  __negslope<<<block(shapeIn.elem, 512), 512>>>(negslope, tensor, shapeIn, scale);
+  __negslope<<<block(shapeIn.elem(), 512), 512>>>(negslope, tensor, shapeIn, scale);
   return negslope;
 
 }
@@ -153,7 +153,7 @@ __global__ void __laplacian (
 ) {
   
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem) return;
+  if(n >= shape.elem()) return;
   
   using vec = silt::fvec<D>;
   auto viewIn = tensorIn.view<vec>();   // In Vector View
@@ -194,11 +194,11 @@ silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt:
   auto laplacian = silt::tensor_t<float>(shapeIn, silt::host_t::GPU);
 
   if(shapeIn[2] == 1) {
-    __laplacian<1><<<block(shape.elem, 512), 512>>>(laplacian, tensor, shape, scale);
+    __laplacian<1><<<block(shape.elem(), 512), 512>>>(laplacian, tensor, shape, scale);
   }
 
   if(shapeIn[2] == 2) {
-    __laplacian<2><<<block(shape.elem, 512), 512>>>(laplacian, tensor, shape, scale);
+    __laplacian<2><<<block(shape.elem(), 512), 512>>>(laplacian, tensor, shape, scale);
   }
 
   return laplacian;

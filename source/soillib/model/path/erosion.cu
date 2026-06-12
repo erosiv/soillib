@@ -50,7 +50,7 @@ __global__ void __transport_fluvial (
   const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
   const auto N = rng.elem();                    //!< Sample Count
-  const auto P = 1.0f / float(A * shape.elem);  //!< Sample Probability 
+  const auto P = 1.0f / float(A * shape.elem());  //!< Sample Probability 
   const auto Q = 1.0f / (P * N);                //!< Normalization Factor
   const auto eps = 1E-12f;                      //!< Numerical Threshold
   auto pos = silt::vec2 {                       //!< Sample Position
@@ -158,7 +158,7 @@ __global__ void __normalize_fluvial (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem) return;
+  if(n >= shape.elem()) return;
 
   const auto A = (scale.x * scale.y);                 //!< Cell Area [m^2]
   const auto L = silt::vec2(scale.x, scale.y);        //!< Cell Width [m]
@@ -221,7 +221,7 @@ void soil::transport_fluvial (
     shape, scale, param
   );
 
-  __normalize_fluvial<<<block(shape.elem, 512), 512>>> (
+  __normalize_fluvial<<<block(shape.elem(), 512), 512>>> (
     waterFlux,
     massFlux,
     velocityFlux.view<silt::vec2>(),
@@ -263,7 +263,7 @@ __global__ void __transport_debris (
   const auto A = scale.x * scale.y;             //!< Cell Area                      [m^2]
   const auto L = silt::vec2(scale.x, scale.y);  //!< Cell Width                     [m]
   const auto N = rng.elem();                    //!< Sample Count
-  const auto P = 1.0f / float(A * shape.elem);  //!< Sample Probability 
+  const auto P = 1.0f / float(A * shape.elem());  //!< Sample Probability 
   const auto Q = 1.0f / (P * N);                //!< Normalization Factor
   const auto eps = 1E-12f;                      //!< Numerical Threshold
   auto pos = silt::vec2 {                       //!< Sample Position
@@ -365,7 +365,7 @@ __global__ void __normalize_debris (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem) return;
+  if(n >= shape.elem()) return;
 
   const auto A = (scale.x * scale.y);                 //!< Cell Area [m^2]
   const auto L = silt::vec2(scale.x, scale.y);        //!< Cell Width [m]
@@ -421,7 +421,7 @@ void soil::transport_debris (
     shape, scale, param
   );
 
-  __normalize_debris<<<block(shape.elem, 512), 512>>> (
+  __normalize_debris<<<block(shape.elem(), 512), 512>>> (
     massFlux,
     velocityFlux.view<silt::vec2>(),
     albedoFlux.view<silt::vec3>(),
@@ -469,7 +469,7 @@ __global__ void __transfer (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   // General Dimensionalized Parameters
@@ -639,7 +639,7 @@ __global__ void __mass_creep (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   // Compute Neighboring Index Set
@@ -718,7 +718,7 @@ void soil::mass_creep (
  
   const auto shapeIn = layers.shape();
   const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
-  __mass_creep<<<block(shape.elem, 512), 512>>> (
+  __mass_creep<<<block(shape.elem(), 512), 512>>> (
     delta.view<silt::vec2>(),
     layers.view<silt::vec2>(),
     shape, scale, param
@@ -767,7 +767,7 @@ __global__ void __albedo_layer (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const auto layer = layers[n];
@@ -805,7 +805,7 @@ __global__ void __albedo_stratum (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   // Total Uplift Displacement
@@ -838,7 +838,7 @@ void soil::albedo_stratum (
 ) {
 
   const auto shape = uplift.shape();
-  __albedo_stratum<<<block(shape.elem, 512), 512>>> (
+  __albedo_stratum<<<block(shape.elem(), 512), 512>>> (
     albedoBedrock.view<silt::vec3>(),
     uplift,
     layers.view<silt::vec2>(),
@@ -864,7 +864,7 @@ __global__ void __albedo_discharge (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const auto color = albedo[n];
@@ -885,7 +885,7 @@ void soil::albedo_layer (
   
   const auto shapeIn = albedo.shape();
   const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
-  __albedo_layer<<<block(shape.elem, 512), 512>>> (
+  __albedo_layer<<<block(shape.elem(), 512), 512>>> (
     albedo.view<silt::vec3>(),
     albedoBedrock.view<silt::vec3>(),
     albedoSediment.view<silt::vec3>(),
@@ -908,7 +908,7 @@ void soil::albedo_discharge (
   const auto shapeIn = albedo.shape();
   const auto shape = silt::shape(shapeIn[0], shapeIn[1]);
 
-  __albedo_discharge<<<block(shape.elem, 512), 512>>> (
+  __albedo_discharge<<<block(shape.elem(), 512), 512>>> (
     albedo.view<silt::vec3>(),
     discharge,
     colorDischarge,

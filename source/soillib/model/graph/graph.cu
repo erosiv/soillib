@@ -32,7 +32,7 @@ __global__ void __steepest (
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
@@ -78,7 +78,7 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
   const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
     const silt::shape shape = height.shape();
     silt::tensor_t<int> graph(shape, silt::host_t::GPU);
-    __steepest<DIR><<<block(shape.elem, 512), 512>>>(graph, height, shape);
+    __steepest<DIR><<<block(shape.elem(), 512), 512>>>(graph, height, shape);
     return graph;
   };
 
@@ -110,7 +110,7 @@ __global__ void __random_weighted (
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
@@ -181,8 +181,8 @@ silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const ed
     const silt::shape shape = height.shape();
     silt::tensor_t<curandState> rand(shape, silt::host_t::GPU);
     silt::tensor_t<int> graph(shape, silt::host_t::GPU);
-    __seed<<<block(shape.elem, 512), 512>>>(rand, seed, offset);
-    __random_weighted<DIR><<<block(shape.elem, 512), 512>>>(graph, rand, height, shape, T);
+    __seed<<<block(shape.elem(), 512), 512>>>(rand, seed, offset);
+    __random_weighted<DIR><<<block(shape.elem(), 512), 512>>>(graph, rand, height, shape, T);
     return graph;
   };
 
@@ -206,7 +206,7 @@ __global__ void __direction (
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
@@ -251,7 +251,7 @@ silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t e
   const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
     const silt::shape shape = height.shape();
     silt::tensor_t<int> flow(shape, silt::host_t::GPU);
-    __direction<DIR><<<block(shape.elem, 512), 512>>>(flow, height, shape);
+    __direction<DIR><<<block(shape.elem(), 512), 512>>>(flow, height, shape);
     return flow;
   };
 
@@ -276,7 +276,7 @@ __global__ void __slope (
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const int next = flow[n];
@@ -305,7 +305,7 @@ silt::tensor_t<float> slope (
 
   const silt::shape shape = tensor.shape();
   silt::tensor_t<float> slope(shape, silt::host_t::GPU);
-  __slope<<<block(shape.elem, 512), 512>>>(slope, tensor, flow, scale, shape);
+  __slope<<<block(shape.elem(), 512), 512>>>(slope, tensor, flow, scale, shape);
   return slope;
 
 }
@@ -326,7 +326,7 @@ __global__ void __donor(
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
@@ -355,7 +355,7 @@ __global__ void __count(
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   int _count = 0;
@@ -388,7 +388,7 @@ __global__ void my_decay (
 ) {
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
 
   // Assign to each donor decay value
@@ -434,7 +434,7 @@ __global__ void __rake_compress(
 ){
 
   const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if(n >= shape.elem)
+  if(n >= shape.elem())
     return;
   
   float value = accIn.value[n]; //!< Accumulation Value
@@ -551,15 +551,15 @@ silt::tensor_t<float> __accumulate (
 
     silt::set(accA.donor, -1);
     silt::set(accA.value, value);
-    __donor<DIR><<<block(shape.elem, 512), 512>>>(accA.donor, graph, shape);
-    __count<DIR><<<block(shape.elem, 512), 512>>>(accA.count, accA.donor, shape);
-    my_decay<DECAY_T, DIR><<<block(shape.elem, 512), 512>>>(accA.decay, accA.donor, decay, shape);
+    __donor<DIR><<<block(shape.elem(), 512), 512>>>(accA.donor, graph, shape);
+    __count<DIR><<<block(shape.elem(), 512), 512>>>(accA.count, accA.donor, shape);
+    my_decay<DECAY_T, DIR><<<block(shape.elem(), 512), 512>>>(accA.decay, accA.donor, decay, shape);
 
     // Execute Rake-Compression Iterations
-    const size_t iter = std::ceil(std::log2f((float)shape.elem)/2.0f);
+    const size_t iter = std::ceil(std::log2f((float)shape.elem())/2.0f);
     for(size_t i = 0; i <= iter; ++i){
-      __rake_compress<DIR><<<block(shape.elem, 256), 256>>>(accB, accA, shape);
-      __rake_compress<DIR><<<block(shape.elem, 256), 256>>>(accA, accB, shape);
+      __rake_compress<DIR><<<block(shape.elem(), 256), 256>>>(accB, accA, shape);
+      __rake_compress<DIR><<<block(shape.elem(), 256), 256>>>(accA, accB, shape);
     }
     cudaDeviceSynchronize();
 

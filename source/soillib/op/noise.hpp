@@ -41,12 +41,12 @@ struct noise_param_t {
 
 silt::tensor noise(const silt::shape shape, noise_param_t param) {
 
-  if(shape.dim != 2)
+  if(shape.dim() != 2)
     throw std::invalid_argument("can't extract a full noise buffer from a non-2D index");
   
   silt::tensor_t<float> tensor_t(shape, silt::CPU);
   param.update();
-  for (size_t i = 0; i < shape.elem; ++i) {
+  for (size_t i = 0; i < shape.elem(); ++i) {
     silt::ivec2 position = shape.unflatten(i);
     tensor_t[i] = param(position);
   }

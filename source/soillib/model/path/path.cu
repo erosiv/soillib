@@ -86,7 +86,7 @@ __global__ void __solve_uniform (
   // Upstream Contributions Sample
   const float L = glm::length(scale);       //!< Length of Cell         [m]
   const float A = (scale.x * scale.y);      //!< Area of Cell           [m^D]
-  const float P = 1.0f / (A * shape.elem);  //!< Probability of Sample  [1/m^D]
+  const float P = 1.0f / (A * shape.elem());  //!< Probability of Sample  [1/m^D]
   const vecK S = sourceView[ind] / P;       //!< Sampled Source Rate    [X*m^D/s]
   if(glm::length(S) < epsilon)              //!< Early Termination
     return;
