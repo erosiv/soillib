@@ -105,8 +105,4 @@ def main(data):
   '''
 
 if __name__ == "__main__":
-
-  data = "C:\\Users\\nicho\\Datasets\\test.tiff"
-  #data = "_dem_conditioned.tiff"
-
-  main(data)
+  main("data/dem_1024.tiff")
