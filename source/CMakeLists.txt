@@ -24,7 +24,7 @@ target_sources(${TARGET_NAME} PUBLIC
 )
 
 find_package(glm CONFIG REQUIRED)
-target_link_libraries(soil PRIVATE glm::glm)
+target_link_libraries(${TARGET_NAME} PRIVATE glm::glm)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/ext/silt silt)
 target_link_libraries(${TARGET_NAME} PUBLIC silt::silt)
