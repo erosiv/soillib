@@ -35,13 +35,17 @@
 // Exported Symbols from the Shared DLL Macro
 
 #if defined(_WIN32)
-#  if defined(SHARED_BUILD)
-#    define EXPORT_SHARED __declspec(dllexport)
+#  if defined(SOIL_SHARED_BUILD)
+#    define SOIL_API __declspec(dllexport)
 #  else
-#    define EXPORT_SHARED __declspec(dllexport)
+#    define SOIL_API __declspec(dllimport)
 #  endif
 #else
-#  define EXPORT_SHARED
+#  if defined(SOIL_SHARED_BUILD)
+#    define SOIL_API __attribute__((visibility("default")))
+#  else
+#    define SOIL_API
+#  endif
 #endif
 
 namespace soil {

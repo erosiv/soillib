@@ -23,4 +23,6 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr --extended-la
 #
 
 add_subdirectory(source)  # Build Library
-add_subdirectory(python)  # Build Bindings
+if(PROJECT_IS_TOP_LEVEL)
+  add_subdirectory(python)  # Build Bindings
+endif()

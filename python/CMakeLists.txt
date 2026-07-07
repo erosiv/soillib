@@ -12,16 +12,20 @@ endif()
 #
 
 find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
-add_subdirectory(${CMAKE_SOURCE_DIR}/ext/nanobind nanobind)
+if(NOT TARGET nanobind::nanobind_static AND NOT TARGET nanobind)
+  add_subdirectory(${CMAKE_SOURCE_DIR}/ext/nanobind nanobind)
+endif()
 
 set(MODULE_NAME soillib)
 nanobind_add_module(${MODULE_NAME}
+  NB_SHARED
+  NB_DOMAIN "erosiv"
   source/_module.cpp
   source/io.cpp
   source/model.cpp
   source/util.cpp
-#  NB_SHARED
 )
+
 target_compile_definitions(${MODULE_NAME} PRIVATE
   MODULE_NAME=${MODULE_NAME})
 
@@ -46,6 +50,9 @@ target_link_libraries(${MODULE_NAME} PRIVATE glm::glm)
 install(TARGETS ${MODULE_NAME} LIBRARY DESTINATION ${MODULE_NAME})
 
 # Install Runtime Dependencies into Wheel File
-install(TARGETS nanobind RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/${MODULE_NAME})
-install(TARGETS soil RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/${MODULE_NAME})
+install(TARGETS soil
+  RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/${MODULE_NAME}
+  LIBRARY DESTINATION ${SKBUILD_PLATLIB_DIR}/${MODULE_NAME}
+)
+
 install(TARGETS tiff RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/${MODULE_NAME})

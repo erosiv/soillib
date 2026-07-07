@@ -3,12 +3,12 @@
 #
 
 set(TARGET_NAME soil)
-add_library(${TARGET_NAME} SHARED)
+add_library(${TARGET_NAME} STATIC)
 set_target_properties(${TARGET_NAME} PROPERTIES 
   LINKER_LANGUAGE CUDA
 )
 
-target_compile_definitions(${TARGET_NAME} PRIVATE -DSHARED_BUILD)
+target_compile_definitions(${TARGET_NAME} PRIVATE SOIL_SHARED_BUILD)
 target_include_directories(${TARGET_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/soillib>
@@ -21,11 +21,10 @@ target_sources(${TARGET_NAME} PUBLIC
   soillib/model/grad/grad.cu
   soillib/model/path/erosion.cu
   soillib/model/path/path.cu
-#  soillib/op/flow.cu
 )
 
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(soil PRIVATE glm::glm)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/ext/silt silt)
-target_link_libraries(${TARGET_NAME} PUBLIC silt_lib)
+target_link_libraries(${TARGET_NAME} PUBLIC silt::silt)
