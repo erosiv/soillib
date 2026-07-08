@@ -9,8 +9,14 @@ Maintained by [erosiv](https://erosiv.studio). Based on concepts developed by an
 Tested on Windows and Linux.
 
 <p align="center">
-<img alt="Terrain Generated with Soillib" src="https://github.com/user-attachments/assets/74a6d55f-2f1c-43f7-b911-81ac91a1374b" width="75%" align="center"/>
+<img alt="Terrain Generated with Soillib" src="image/large_braid.jpeg" width="100%" align="center"/>
 </p>
+
+#### Related Work
+
+- [Stochastic Geomorphological Transport for Terrain Erosion Simuluation](https://erosiv.studio/publications/stochastic-geomorphological-transport)
+- [geotransport](https://github.com/erosiv/geotransport): Companion Repository for Stochastic Geomorphological Transport
+- [SimpleHydrology](https://github.com/weigert/SimpleHydrology): Early momentum conserving erosion model.
 
 ## Description
 
@@ -41,31 +47,32 @@ Concepts and type constraints are extremely convenient for defining complex oper
 
 Additionally, the introduction of "deducing this" in `C++23` as well as the convenient `std::format` and `std::print` are features that reduce design complexity of the library.
 
-## Installation
+## Installation and Usage
 
-### Dependencies
-
-- GLM
-- LibTIFF
-- CUDA Toolkit
-- CMake
-- Python3
-- Scikit (pip)
-
-### Installing
-
-Install through [pypi.org](https://pypi.org/project/soillib/) using `pip`:
+Install through [pypi.org](https://pypi.org/project/soillib/) using `pip` (w. dependencies):
 
 ```bash
-pip install soillib
+pip install erosiv-silt soillib
 ```
 
-#### Building
+Import into your python project:
+
+```python
+import soillib as soil
+```
+
+## Building from Source
+
+After cloning, update your git submodules:
+
+```bash
+git submodule update --init --recursive
+pip install .
+```
 
 Build from source and install from this repository using `pip`:
 
 ```bash
-git submodule update --init --recursive
 pip install .
 ```
 
@@ -78,7 +85,6 @@ pip install --no-build-isolation -ve .
 Build directly using CMake:
 
 ```bash
-git submodule update --init --recursive
 cmake -S . -B build
 cmake --build build
 ```
@@ -88,3 +94,13 @@ Build Wheel Distributable:
 ```bash
 pip wheel .
 ```
+
+### Dependencies
+
+- [silt (is submodule)](https://github.com/erosiv/silt)
+- LibTIFF (is submodule)
+- nanobind (is submodule)
+- CUDA Toolkit
+- CMake
+- Python3
+- Scikit (pip)
