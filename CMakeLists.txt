@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 3.21.0)
 
 #
 # Project Configuration
 #
 
 set(PROJECT_NAME soillib)
-set(PROJECT_VERSION 1.1.1)
+set(PROJECT_VERSION 1.1.2)
 
 project(${PROJECT_NAME} VERSION ${PROJECT_VERSION} LANGUAGES C CXX CUDA)
 
