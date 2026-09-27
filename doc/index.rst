@@ -15,6 +15,11 @@ soillib
    :start-after: <!-- doc:overview-start -->
    :end-before: <!-- doc:overview-end -->
 
+.. image:: ../image/large_braid.jpeg
+   :alt: Terrain generated with soillib
+   :align: center
+   :width: 100%
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

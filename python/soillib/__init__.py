@@ -9,6 +9,11 @@ from .util import *  # noqa: F401,F403
 
 from . import soillib as _ext  # noqa: F401
 
+def _public_names() -> list:
+    return sorted(n for n in dir(_ext) if not n.startswith("_"))
+
+__all__ = _public_names()
+
 def _resolve_version() -> str:
     """Version of the installed distribution.
 

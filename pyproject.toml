@@ -23,7 +23,10 @@ maintainers = [
 # Building doc/: `pip install -e .[docs]`, then `sphinx-build doc build/html`.
 # Doxygen itself is a separate, non-pip binary -- conf.py invokes it
 # automatically, so it just needs to be on PATH.
-docs = ["sphinx", "breathe", "myst-parser"]
+# matplotlib and numpy are not optional for the docs build: autodoc
+# imports soillib, whose __init__ imports soillib.util, which imports
+# both at module level. Without them the Python API page renders empty.
+docs = ["sphinx", "breathe", "myst-parser", "matplotlib", "numpy"]
 
 [project.urls]
 Homepage = "https://erosiv.studio"

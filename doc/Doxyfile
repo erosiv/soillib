@@ -1,41 +1,47 @@
-# Doxygen configuration.
 #
-# XML only: Doxygen is used purely as a C++ parser here, and Breathe renders
-# its output into the Sphinx site. There is no separate Doxygen HTML site to
-# keep in sync. doc/conf.py runs this automatically.
+# Minimal Doxygen configuration for soillib's C++ API reference.
+#
+#  Consumed by Breathe (see conf.py), which reads Doxygen's XML output and
+#  renders it inside Sphinx's own theme -- so only XML is produced here, not
+#  Doxygen's own HTML. conf.py runs `doxygen Doxyfile` itself as part of the
+#  Sphinx build, so `sphinx-build doc build/html` stays a one-step command;
+#  Doxygen just needs to be installed and on PATH (see the `docs` extra in
+#  pyproject.toml for the pip-installable pieces).
+#
 
-PROJECT_NAME           = "soillib"
-OUTPUT_DIRECTORY       = _build/doxygen
+PROJECT_NAME            = "soillib"
+OUTPUT_DIRECTORY        = _build/doxygen
+INPUT                   = ../source/soillib
+RECURSIVE               = YES
 
-GENERATE_HTML          = NO
-GENERATE_LATEX         = NO
-GENERATE_XML           = YES
-XML_OUTPUT             = xml
+# Headers only. api_cpp.rst is built from `.. doxygenfile::` directives, one
+# per header, grouped by directory -- adding the .cu implementation files
+# would put kernel internals in the public reference.
+FILE_PATTERNS           = *.hpp *.h
 
-INPUT                  = ../source
-RECURSIVE              = YES
-FILE_PATTERNS          = *.hpp *.cuh *.h *.cu *.cpp
+# Vendored third-party headers (FastNoiseLite, libmorton). Not soillib's API.
+EXCLUDE                 = ../source/soillib/external
 
-EXTRACT_ALL            = YES
-EXTRACT_STATIC         = YES
+GENERATE_HTML           = NO
+GENERATE_LATEX          = NO
+GENERATE_XML            = YES
+XML_PROGRAMLISTING      = NO
 
-# Matches the //! doc-comment convention used in source/.
-JAVADOC_AUTOBRIEF      = YES
+# The codebase's doc-comment convention is a `//!` banner immediately above
+# the declaration -- treat its first sentence as the brief description.
+JAVADOC_AUTOBRIEF       = YES
+JAVADOC_BANNER          = YES
 
-# Internal helpers are not part of the public reference.
-EXCLUDE                = ../source/soillib/external
-EXCLUDE_SYMBOLS        = *detail* *Detail*
+# Private helpers behind the public API -- implementation, not the
+# documented surface.
+EXCLUDE_SYMBOLS         = *detail* *Detail*
 
-# Expand the attribute macros away, so signatures read as plain C++ rather
-# than showing literal GPU_ENABLE / __host__ tokens.
-ENABLE_PREPROCESSING   = YES
-MACRO_EXPANSION        = YES
-EXPAND_ONLY_PREDEF     = YES
-PREDEFINED             = GPU_ENABLE= \
-                         __host__= \
-                         __device__= \
-                         __global__= \
-                         HAS_CUDA
+# Strip CUDA macro noise so declarations read as plain C++, rather than
+# showing a literal GPU_ENABLE token where __host__ __device__ would be.
+MACRO_EXPANSION         = YES
+EXPAND_ONLY_PREDEF      = YES
+PREDEFINED              = GPU_ENABLE= __host__= __device__= __global__=
 
-QUIET                  = YES
-WARN_IF_UNDOCUMENTED   = NO
+QUIET                   = YES
+WARN_IF_UNDOCUMENTED    = NO
+WARN_AS_ERROR           = NO

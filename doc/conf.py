@@ -61,6 +61,30 @@ if _doxygen_result.returncode != 0:
 breathe_projects = {'soillib': str(_doc_dir / '_build' / 'doxygen' / 'xml')}
 breathe_default_project = 'soillib'
 
+suppress_warnings = ['duplicate_declaration.cpp']
+
+# -- Python API reference (autodoc) ------------------------------------------
+#
+#  autodoc imports the real module rather than reading source text. When that
+#  import fails Sphinx only emits a warning and api_python.rst renders empty,
+#  which is easy to miss in a long build log -- so check it here and fail
+#  loudly, the same way the Doxygen check above does.
+
+import importlib
+
+try:
+    importlib.import_module('soillib')
+except Exception as _exc:
+    raise RuntimeError(
+        "cannot import `soillib` -- required for the Python API reference.\n"
+        "Install the package into the environment running sphinx-build:\n"
+        "    pip install -e .[docs]\n"
+        "That also needs `silt` installed (python/soillib/__init__.py imports "
+        "it) and matplotlib/numpy (imported by soillib.util), both of which "
+        "the `docs` extra pulls in.\n"
+        f"Underlying error: {type(_exc).__name__}: {_exc}"
+    ) from _exc
+
 # -- HTML output -------------------------------------------------------------
 
 html_theme = 'alabaster'

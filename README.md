@@ -10,11 +10,11 @@ Maintained by [erosiv](https://erosiv.studio). Based on concepts developed by an
 
 Tested on Windows and Linux.
 
+<!-- doc:overview-end -->
+
 <p align="center">
 <img alt="Terrain Generated with Soillib" src="image/large_braid.jpeg" width="100%" align="center"/>
 </p>
-
-<!-- doc:overview-end -->
 
 #### Related Work
 

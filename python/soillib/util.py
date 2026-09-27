@@ -5,6 +5,23 @@ from zipfile import ZipFile
 import os
 import numpy as np
 
+# Explicit public surface.
+__all__ = [
+  "iter_tiff",
+  "relief_shade",
+  "plot_area",
+  "plot_dem",
+  "plot_flow",
+  "plot_images",
+  "show_height",
+  "show_normal",
+  "show_relief",
+  "show_discharge",
+  "show_mass",
+  "show_layers",
+  "zip_save",
+]
+
 def iter_tiff(path, max_files = None):
 
   '''
