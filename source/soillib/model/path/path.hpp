@@ -1,5 +1,4 @@
-#ifndef SOILLIB_MODEL_PATH
-#define SOILLIB_MODEL_PATH
+#pragma once
 
 #include <soillib/soillib.hpp>
 #include <silt/core/tensor.hpp>
@@ -40,5 +39,3 @@ silt::tensor solve_uniform (
 // silt::tensor solve_reservoir();
 
 }
-
-#endif

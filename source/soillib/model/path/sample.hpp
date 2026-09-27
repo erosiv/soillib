@@ -1,5 +1,6 @@
-#ifndef SOILLIB_SAMPLE
-#define SOILLIB_SAMPLE
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/silt.hpp>
 #include <silt/core/tensor.hpp>
@@ -212,5 +213,3 @@ __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::view_t<const 
 //    w
 //  };
 //}
-
-#endif

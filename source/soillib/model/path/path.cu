@@ -1,6 +1,4 @@
-#ifndef SOILLIB_MODEL_PATH_CU
-#define SOILLIB_MODEL_PATH_CU
-#define HAS_CUDA
+#include <soillib/soillib.hpp>
 
 #include <soillib/model/path/path.hpp>
 #include <silt/core/operation.hpp>
@@ -10,8 +8,8 @@
 
 namespace {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
+inline int block(const int64_t elem, const int thread) {
+  return int((elem + thread - 1) / thread);
 }
 
 }
@@ -63,7 +61,7 @@ __global__ void __solve_uniform (
 
   // Note: Number of concurrent samples given
   //  by the dimensionality of the rng tensor.
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= rng.elem()) return;
 
   // Extract Correct Dimension Views
@@ -147,7 +145,7 @@ __global__ void __normalize (
   const size_t count                    //!< Sample Count           [1]
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= flux.elem()/K) return;
 
   constexpr size_t D = 2;                 //!< Dimensionality of Domain
@@ -203,21 +201,23 @@ silt::tensor solve_uniform (
   switch(D) {
     case 1:
       __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, epsilon, maxstep);
+      gpuErrchk(cudaGetLastError());
       __normalize<1><<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
+      gpuErrchk(cudaGetLastError());
       break;
     case 2:
       __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, epsilon, maxstep);
+      gpuErrchk(cudaGetLastError());
       __normalize<2><<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
+      gpuErrchk(cudaGetLastError());
       break;
     default:
       break;
   }
 
-  cudaDeviceSynchronize();
+  gpuErrchk(cudaDeviceSynchronize());
   return silt::tensor(flux);
 
 }
 
 }
-
-#endif

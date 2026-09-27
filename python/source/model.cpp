@@ -1,5 +1,4 @@
-#ifndef SOILLIB_PYTHON_MODEL
-#define SOILLIB_PYTHON_MODEL
+#include <soillib/soillib.hpp>
 
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
@@ -485,5 +484,3 @@ module.def("select_index", [](const silt::tensor& source, const silt::tensor& in
 */
 
 }
-
-#endif

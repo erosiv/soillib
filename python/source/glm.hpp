@@ -1,5 +1,4 @@
-#ifndef SOILLIB_PYTHON_GLM
-#define SOILLIB_PYTHON_GLM
+#pragma once
 
 //! GLM Vector and Matrix Type Casters
 //!
@@ -13,6 +12,8 @@
 //! Based on work by Patrik Huber 2016,
 //! adapted for latest Nanobind / C++23
 //! by Nicholas McDonald, 2024
+
+#include <soillib/soillib.hpp>
 
 #include <nanobind/stl/array.h>
 #include "glm/gtc/type_ptr.hpp"
@@ -102,5 +103,3 @@ struct type_caster<glm::tvec4<T, P>>
 }	// end of namespace detail
 
 }
-
-#endif

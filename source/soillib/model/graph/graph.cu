@@ -1,6 +1,4 @@
-#ifndef SOILLIB_MODEL_GRAPH_CU
-#define SOILLIB_MODEL_GRAPH_CU
-#define HAS_CUDA
+#include <soillib/soillib.hpp>
 
 #include <soillib/model/graph/graph.hpp>
 #include <silt/op/common.hpp>
@@ -10,8 +8,8 @@ namespace soil {
 
 namespace {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
+inline int block(const int64_t elem, const int thread) {
+  return int((elem + thread - 1) / thread);
 }
 
 }
@@ -31,7 +29,7 @@ __global__ void __steepest (
   const silt::shape shape             //!< Shape of Tensors
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -79,6 +77,7 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
     const silt::shape shape = height.shape();
     silt::tensor_t<int> graph(shape, silt::host_t::GPU);
     __steepest<DIR><<<block(shape.elem(), 512), 512>>>(graph, height, shape);
+    gpuErrchk(cudaGetLastError());
     return graph;
   };
 
@@ -95,7 +94,7 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
 //
 
 __global__ void __seed(silt::tensor_t<curandState> buf, const size_t seed, const size_t offset) {
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= buf.elem()) return;
   curand_init(seed, n, offset, &buf[n]);
 }
@@ -109,7 +108,7 @@ __global__ void __random_weighted (
   const float T                       //!< Gibbs Distribution Temperature
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -182,7 +181,9 @@ silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const ed
     silt::tensor_t<curandState> rand(shape, silt::host_t::GPU);
     silt::tensor_t<int> graph(shape, silt::host_t::GPU);
     __seed<<<block(shape.elem(), 512), 512>>>(rand, seed, offset);
+    gpuErrchk(cudaGetLastError());
     __random_weighted<DIR><<<block(shape.elem(), 512), 512>>>(graph, rand, height, shape, T);
+    gpuErrchk(cudaGetLastError());
     return graph;
   };
 
@@ -205,7 +206,7 @@ __global__ void __direction (
   const silt::shape shape             //!< Shape of Tensors
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -252,6 +253,7 @@ silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t e
     const silt::shape shape = height.shape();
     silt::tensor_t<int> flow(shape, silt::host_t::GPU);
     __direction<DIR><<<block(shape.elem(), 512), 512>>>(flow, height, shape);
+    gpuErrchk(cudaGetLastError());
     return flow;
   };
 
@@ -275,7 +277,7 @@ __global__ void __slope (
   const silt::shape shape             //!< Shape of Tensors
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -306,6 +308,7 @@ silt::tensor_t<float> slope (
   const silt::shape shape = tensor.shape();
   silt::tensor_t<float> slope(shape, silt::host_t::GPU);
   __slope<<<block(shape.elem(), 512), 512>>>(slope, tensor, flow, scale, shape);
+  gpuErrchk(cudaGetLastError());
   return slope;
 
 }
@@ -325,7 +328,7 @@ __global__ void __donor(
   const silt::shape shape
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -354,7 +357,7 @@ __global__ void __count(
   const silt::shape shape
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -387,7 +390,7 @@ __global__ void my_decay (
   const silt::shape shape
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -433,7 +436,7 @@ __global__ void __rake_compress(
   const silt::shape shape
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
   
@@ -552,16 +555,21 @@ silt::tensor_t<float> __accumulate (
     silt::set(accA.donor, -1);
     silt::set(accA.value, value);
     __donor<DIR><<<block(shape.elem(), 512), 512>>>(accA.donor, graph, shape);
+    gpuErrchk(cudaGetLastError());
     __count<DIR><<<block(shape.elem(), 512), 512>>>(accA.count, accA.donor, shape);
+    gpuErrchk(cudaGetLastError());
     my_decay<DECAY_T, DIR><<<block(shape.elem(), 512), 512>>>(accA.decay, accA.donor, decay, shape);
+    gpuErrchk(cudaGetLastError());
 
     // Execute Rake-Compression Iterations
     const size_t iter = std::ceil(std::log2f((float)shape.elem())/2.0f);
     for(size_t i = 0; i <= iter; ++i){
       __rake_compress<DIR><<<block(shape.elem(), 256), 256>>>(accB, accA, shape);
+      gpuErrchk(cudaGetLastError());
       __rake_compress<DIR><<<block(shape.elem(), 256), 256>>>(accA, accB, shape);
+      gpuErrchk(cudaGetLastError());
     }
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaDeviceSynchronize());
 
     return accA.value;
 
@@ -593,5 +601,3 @@ silt::tensor_t<float> accumulate_decay (
 }
 
 } // end of namespace soil
-
-#endif

@@ -1,5 +1,6 @@
-#ifndef SOILLIB_MODEL_GRAPH
-#define SOILLIB_MODEL_GRAPH
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/core/types.hpp>
 #include <silt/core/shape.hpp>
@@ -63,5 +64,3 @@ silt::tensor_t<float> accumulate_decay(const silt::tensor_t<int> graph, const si
 silt::tensor_t<float> slope(const silt::tensor_t<float> tensor, const silt::tensor_t<int> flow, const silt::vec2 scale);
 
 } // end of namespace soil
-
-#endif

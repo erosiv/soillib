@@ -1,6 +1,6 @@
-#ifndef SOILLIB_OP_EROSION_MAP_CU
-#define SOILLIB_OP_EROSION_MAP_CU
-#define HAS_CUDA
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/core/types.hpp>
 #include <silt/core/tensor.hpp>
@@ -260,5 +260,3 @@ __device__ silt::vec2 __grad (
 //   }
 // 
 // }
-
-#endif

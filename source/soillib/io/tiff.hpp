@@ -1,5 +1,6 @@
-#ifndef SOILLIB_IO_TIFF
-#define SOILLIB_IO_TIFF
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/core/shape.hpp>
 #include <silt/core/tensor.hpp>
@@ -242,5 +243,3 @@ bool tiff::write(const char *filename) {
 
 }; // end of namespace io
 }; // end of namespace soil
-
-#endif

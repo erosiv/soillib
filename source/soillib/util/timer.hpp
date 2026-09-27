@@ -1,5 +1,6 @@
-#ifndef SOILLIB_UTIL_TIMER
-#define SOILLIB_UTIL_TIMER
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <chrono>
 
@@ -69,5 +70,3 @@ private:
 };
 
 } // end of namespace soil
-
-#endif

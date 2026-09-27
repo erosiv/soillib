@@ -1,5 +1,4 @@
-#ifndef SOILLIB_PYTHON_UTIL
-#define SOILLIB_PYTHON_UTIL
+#include <soillib/soillib.hpp>
 
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
@@ -81,5 +80,3 @@ timer.def_prop_ro("count", [](const soil::timer& timer){
 // bind_yield_t<silt::ivec4>(module, "yield_vec4");
 
 }
-
-#endif

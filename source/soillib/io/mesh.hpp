@@ -1,5 +1,6 @@
-#ifndef SOILLIB_IO_MESH
-#define SOILLIB_IO_MESH
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <fstream>
 #include <silt/core/shape.hpp>
@@ -210,5 +211,3 @@ bool mesh::write_binary(const char *filename) const {
 
 } // end of namespace io
 } // end of namespace soil
-
-#endif

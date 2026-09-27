@@ -1,5 +1,6 @@
-#ifndef SOILLIB_MODEL_GRAD
-#define SOILLIB_MODEL_GRAD
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/core/types.hpp>
 #include <silt/core/shape.hpp>
@@ -17,5 +18,3 @@ silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt:
 silt::tensor_t<float> negslope(const silt::tensor_t<float>& tensor, const silt::vec2 scale);
 
 }
-
-#endif

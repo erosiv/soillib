@@ -1,5 +1,4 @@
-#ifndef SOILLIB_MODEL_EROSION
-#define SOILLIB_MODEL_EROSION
+#pragma once
 
 #include <soillib/soillib.hpp>
 #include <silt/core/tensor.hpp>
@@ -167,5 +166,3 @@ void albedo_discharge (
 
 
 } // end of namespace soil
-
-#endif

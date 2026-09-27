@@ -1,5 +1,6 @@
-#ifndef SOILLIB_OP_NOISE
-#define SOILLIB_OP_NOISE
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/core/shape.hpp>
 #include <silt/core/tensor.hpp>
@@ -56,5 +57,3 @@ silt::tensor noise(const silt::shape shape, noise_param_t param) {
 }
 
 }; // end of namespace soil
-
-#endif

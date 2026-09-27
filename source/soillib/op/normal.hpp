@@ -1,5 +1,4 @@
-#ifndef SOILLIB_OP_NORMAL
-#define SOILLIB_OP_NORMAL
+#pragma once
 
 #include <soillib/soillib.hpp>
 #include <silt/core/shape.hpp>
@@ -40,5 +39,3 @@ silt::tensor normal(const silt::tensor_t<T>& tensor, const vec3 scale = vec3(1.0
 
 }
 } // end of namespace soil
-
-#endif

@@ -1,6 +1,4 @@
-#ifndef SOILLIB_MODEL_FILTER_CU
-#define SOILLIB_MODEL_FILTER_CU
-#define HAS_CUDA
+#include <soillib/soillib.hpp>
 
 #include <soillib/model/filter/filter.hpp>
 #include <math_constants.h>
@@ -10,8 +8,8 @@ namespace soil {
 
 namespace {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
+inline int block(const int64_t elem, const int thread) {
+  return int((elem + thread - 1) / thread);
 }
 
 }
@@ -63,7 +61,7 @@ __global__ void __blur (
   const float sigma,
   const bool xdir
 ){
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n < shape.elem()) {
     __gaussian_blur<T>(tensorOut, tensorIn, shape, n, sigma, xdir);
   };
@@ -79,17 +77,19 @@ silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const float 
   if(channel == 1) {
     using T = silt::vec<1>;
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
+    gpuErrchk(cudaGetLastError());
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
+    gpuErrchk(cudaGetLastError());
   }
   if(channel == 2) {
     using T = silt::vec<2>;
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
+    gpuErrchk(cudaGetLastError());
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
+    gpuErrchk(cudaGetLastError());
   }
 
   return tensorIn;
 }
 
 } // end of namespace soil
-
-#endif

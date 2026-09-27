@@ -1,5 +1,6 @@
-#ifndef SOILLIB_IO_GEOTIFF
-#define SOILLIB_IO_GEOTIFF
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <soillib/io/tiff.hpp>
 
@@ -315,5 +316,3 @@ void geotiff::unsetNaN() {
 
 }; // end of namespace io
 }; // end of namespace soil
-
-#endif

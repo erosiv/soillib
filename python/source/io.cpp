@@ -1,5 +1,4 @@
-#ifndef SOILLIB_PYTHON_IO
-#define SOILLIB_PYTHON_IO
+#include <soillib/soillib.hpp>
 
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
@@ -112,5 +111,3 @@ geotiff_meta.def_prop_ro("max", [](soil::io::geotiff::meta_t& geotiff_meta){
 // mesh.def("write_binary", &soil::io::mesh::write_binary);
 
 }
-
-#endif

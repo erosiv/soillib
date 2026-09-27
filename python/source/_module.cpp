@@ -1,8 +1,7 @@
-#ifndef SOILLIB_PYTHON
-#define SOILLIB_PYTHON
-
 // soillib Python Bindings
 // Nicholas McDonald 2025
+
+#include <soillib/soillib.hpp>
 
 #include <nanobind/nanobind.h>
 
@@ -25,5 +24,3 @@ bind_model(module);
 bind_util(module);
 
 }
-
-#endif

@@ -1,5 +1,6 @@
-#ifndef SOILLIB_MODEL_FILTER
-#define SOILLIB_MODEL_FILTER
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <silt/core/types.hpp>
 #include <silt/core/shape.hpp>
@@ -11,5 +12,3 @@ namespace soil {
 silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensor, const float sigma);
 
 }
-
-#endif

@@ -1,5 +1,6 @@
-#ifndef SOILLIB_UTIL_YIELD
-#define SOILLIB_UTIL_YIELD
+#pragma once
+
+#include <soillib/soillib.hpp>
 
 #include <coroutine>
 #include <cstdint>
@@ -245,5 +246,3 @@ public:
 };
 
 } // end of namespace soil
-
-#endif

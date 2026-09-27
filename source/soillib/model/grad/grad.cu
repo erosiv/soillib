@@ -1,6 +1,4 @@
-#ifndef SOILLIB_MODEL_GRAD_CU
-#define SOILLIB_MODEL_GRAD_CU
-#define HAS_CUDA
+#include <soillib/soillib.hpp>
 
 #include <soillib/model/grad/grad.hpp>
 #include <math_constants.h>
@@ -9,8 +7,8 @@ namespace soil {
 
 namespace {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
+inline int block(const int64_t elem, const int thread) {
+  return int((elem + thread - 1) / thread);
 }
 
 }
@@ -26,7 +24,7 @@ __global__ void __gradient (
   const silt::vec2 scale
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem()) return;
 
   // Data Loading w. Bounds Handling  
@@ -92,6 +90,7 @@ silt::tensor_t<float> gradient(const silt::tensor_t<float>& tensor, const silt::
   const silt::shape shapeOut = silt::shape(shapeIn[0], shapeIn[1], 2);
   auto gradient = silt::tensor_t<float>(shapeOut, silt::host_t::GPU);
   __gradient<<<block(shapeIn.elem(), 512), 512>>>(gradient, tensor, shapeIn, scale);
+  gpuErrchk(cudaGetLastError());
   return gradient;
 
 }
@@ -105,7 +104,7 @@ __global__ void __negslope (
   const silt::vec2 scale
 ){
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem()) return;
   
   // Data Loading w. Bounds Handling  
@@ -136,6 +135,7 @@ silt::tensor_t<float> negslope(const silt::tensor_t<float>& tensor, const silt::
   const silt::shape shapeOut = silt::shape(shapeIn[0], shapeIn[1]);
   auto negslope = silt::tensor_t<float>(shapeOut, silt::host_t::GPU);
   __negslope<<<block(shapeIn.elem(), 512), 512>>>(negslope, tensor, shapeIn, scale);
+  gpuErrchk(cudaGetLastError());
   return negslope;
 
 }
@@ -152,7 +152,7 @@ __global__ void __laplacian (
   const silt::vec2 scale
 ) {
   
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem()) return;
   
   using vec = silt::fvec<D>;
@@ -195,10 +195,12 @@ silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt:
 
   if(shapeIn[2] == 1) {
     __laplacian<1><<<block(shape.elem(), 512), 512>>>(laplacian, tensor, shape, scale);
+    gpuErrchk(cudaGetLastError());
   }
 
   if(shapeIn[2] == 2) {
     __laplacian<2><<<block(shape.elem(), 512), 512>>>(laplacian, tensor, shape, scale);
+    gpuErrchk(cudaGetLastError());
   }
 
   return laplacian;
@@ -206,5 +208,3 @@ silt::tensor_t<float> laplacian(const silt::tensor_t<float>& tensor, const silt:
 }
 
 } // end of namespace soil
-
-#endif

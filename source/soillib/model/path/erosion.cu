@@ -1,7 +1,3 @@
-#ifndef SOILLIB_MODEL_EROSION_CU
-#define SOILLIB_MODEL_EROSION_CU
-#define HAS_CUDA
-
 #include <soillib/soillib.hpp>
 
 #include <silt/core/error.hpp>
@@ -16,8 +12,8 @@
 
 namespace {
 
-inline int block(const int elem, const int thread) {
-  return (elem + thread - 1) / thread;
+inline int block(const int64_t elem, const int thread) {
+  return int((elem + thread - 1) / thread);
 }
 
 }
@@ -43,7 +39,7 @@ __global__ void __transport_fluvial (
   const soil::param_t param
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= rng.elem()) return;
 
   // Scaled Sampling Procedure
@@ -157,7 +153,7 @@ __global__ void __normalize_fluvial (
   const soil::param_t param
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem()) return;
 
   const auto A = (scale.x * scale.y);                 //!< Cell Area [m^2]
@@ -220,6 +216,7 @@ void soil::transport_fluvial (
     albedoSource.view<silt::vec3>(),
     shape, scale, param
   );
+  gpuErrchk(cudaGetLastError());
 
   __normalize_fluvial<<<block(shape.elem(), 512), 512>>> (
     waterFlux,
@@ -235,6 +232,7 @@ void soil::transport_fluvial (
     albedoSource.view<silt::vec3>(),
     shape, scale, param
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -256,7 +254,7 @@ __global__ void __transport_debris (
   const soil::param_t param
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= rng.elem()) return;
 
   // Scaled Sampling Procedure
@@ -364,7 +362,7 @@ __global__ void __normalize_debris (
   const soil::param_t param
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem()) return;
 
   const auto A = (scale.x * scale.y);                 //!< Cell Area [m^2]
@@ -420,6 +418,7 @@ void soil::transport_debris (
     albedoSource.view<silt::vec3>(),
     shape, scale, param
   );
+  gpuErrchk(cudaGetLastError());
 
   __normalize_debris<<<block(shape.elem(), 512), 512>>> (
     massFlux,
@@ -432,6 +431,7 @@ void soil::transport_debris (
     albedoSource.view<silt::vec3>(),
     shape, scale, param
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -468,7 +468,7 @@ __global__ void __transfer (
   const soil::param_t param
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -607,6 +607,7 @@ void soil::mass_transfer (
     albedo_surface.view<silt::vec3>(),
     shape, scale, param
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -638,7 +639,7 @@ __global__ void __mass_creep (
   const soil::param_t param
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -723,6 +724,7 @@ void soil::mass_creep (
     layers.view<silt::vec2>(),
     shape, scale, param
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -735,7 +737,7 @@ __global__ void __layer_merge (
   const silt::view_t<const silt::vec2> layers
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= height.elem())
     return;
 
@@ -753,6 +755,7 @@ void soil::layer_merge (
     height,
     layers.view<silt::vec2>()
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -766,7 +769,7 @@ __global__ void __albedo_layer (
   const silt::shape shape
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -804,7 +807,7 @@ __global__ void __albedo_stratum (
   const silt::shape shape
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -850,6 +853,7 @@ void soil::albedo_stratum (
     freq,
     shape
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -863,7 +867,7 @@ __global__ void __albedo_discharge (
   const silt::shape shape
 ) {
 
-  const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
 
@@ -894,6 +898,7 @@ void soil::albedo_layer (
     shiftSediment,
     shape
   );
+  gpuErrchk(cudaGetLastError());
 
 }
 
@@ -915,8 +920,6 @@ void soil::albedo_discharge (
     extinction, scale,
     shape
   );
+  gpuErrchk(cudaGetLastError());
 
 }
-
-
-#endif
