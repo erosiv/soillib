@@ -1,0 +1,3 @@
+# Vendored third-party sources. Reformatting them produces a huge diff
+# against upstream and makes the next version bump painful to merge.
+source/soillib/external/*

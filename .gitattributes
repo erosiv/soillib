@@ -1,0 +1,68 @@
+# Line-ending policy lives here, in the repository, rather than in each
+# developer's Git installation. Without this file, normalization depends on
+# core.autocrlf (set in Git for Windows' *system* config, which does not
+# travel with the repo), so any client that does not inherit that setting --
+# CI containers, WSL, Docker builds, other platforms -- reports the entire
+# tree as modified.
+#
+# `text=auto` means: store text as LF in the repository, and check out using
+# the platform's native convention (CRLF on Windows). Working trees are
+# unchanged by this file; only the normalization *rule* becomes explicit.
+
+* text=auto
+
+# Sources and build files -- normalized as text.
+*.c      text
+*.cc     text
+*.cpp    text
+*.cu     text
+*.cuh    text
+*.h      text
+*.hpp    text
+*.py     text
+*.pyi    text
+*.md     text
+*.rst    text
+*.txt    text
+*.toml   text
+*.cmake  text
+*.yml    text
+*.yaml   text
+*.json   text
+*.clang-format text
+
+# Windows-only files that require CRLF regardless of platform.
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.sln    text eol=crlf
+*.vcxproj      text eol=crlf
+*.vcxproj.filters text eol=crlf
+
+# Shell scripts must stay LF even when checked out on Windows.
+*.sh     text eol=lf
+
+# Binary -- never normalized, never diffed as text.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.tiff   binary
+*.tif    binary
+*.ico    binary
+*.pdf    binary
+*.whl    binary
+*.dll    binary
+*.so     binary
+*.dylib  binary
+*.lib    binary
+*.a      binary
+*.exe    binary
+*.pyd    binary
+*.pyc    binary
+*.npy    binary
+*.npz    binary
+*.ply    binary
+*.zip    binary
+
+# Committed example data -- binary, never normalized or diffed as text.
+example/data/** binary

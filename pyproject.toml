@@ -1,15 +1,16 @@
 [build-system]
-requires = ["scikit-build-core >=0.4.3"]
+requires = ["scikit-build-core >=0.10"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "soillib"
-version = "1.1.2"
+dynamic = ["version"]
 description = "Numerical Geomorphology Package"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 license = "LGPL-3.0"
 keywords = ["soillib", "erosiv", "geomorphology", "erosion", "simulation", "cuda", "gpu"]
+# dependencies = ["silt-erosiv"]
 
 authors = [
   {name = "Nicholas McDonald", email = "nick@erosiv.studio"},
@@ -17,6 +18,12 @@ authors = [
 maintainers = [
   {name = "Nicholas McDonald", email = "nick@erosiv.studio"},
 ]
+
+[project.optional-dependencies]
+# Building doc/: `pip install -e .[docs]`, then `sphinx-build doc build/html`.
+# Doxygen itself is a separate, non-pip binary -- conf.py invokes it
+# automatically, so it just needs to be on PATH.
+docs = ["sphinx", "breathe", "myst-parser"]
 
 [project.urls]
 Homepage = "https://erosiv.studio"
@@ -27,3 +34,9 @@ Repository = "https://github.com/erosiv/soillib"
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 wheel.py-api = "cp312"
+wheel.packages = ["python/soillib"]
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "VERSION"
+regex = '(?P<value>[0-9][^\s]*)'

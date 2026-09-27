@@ -54,3 +54,13 @@ source/build
 **/*.npy
 
 # !example/data/dem_1024.tiff
+
+# Generated Python type stub (nanobind_add_stub, see python/CMakeLists.txt).
+# Generated at build time, so never committed -- but py.typed IS committed.
+python/soillib/*.pyi
+
+# Doxygen XML consumed by Breathe (see doc/Doxyfile, doc/conf.py)
+doc/_build/
+
+# pytest
+.pytest_cache
