@@ -4,9 +4,9 @@
 
 #include <silt/core/types.hpp>
 #include <silt/core/tensor.hpp>
-#include <silt/op/gather.hpp>
 
 #include <soillib/model/path/erosion.hpp>
+#include <math_constants.h>
 
 //! Various Method of Computing Gradients:
 //! In general, we want it to vary smoothly,

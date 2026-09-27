@@ -19,9 +19,6 @@ RECURSIVE               = YES
 # would put kernel internals in the public reference.
 FILE_PATTERNS           = *.hpp *.h
 
-# Vendored third-party headers (FastNoiseLite, libmorton). Not soillib's API.
-EXCLUDE                 = ../source/soillib/external
-
 GENERATE_HTML           = NO
 GENERATE_LATEX          = NO
 GENERATE_XML            = YES

@@ -26,6 +26,7 @@ target_compile_definitions(${TARGET_NAME} PUBLIC
 target_include_directories(${TARGET_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/soillib>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/ext/FastNoiseLite/Cpp>
 )
 
 target_sources(${TARGET_NAME} PRIVATE
@@ -34,6 +35,7 @@ target_sources(${TARGET_NAME} PRIVATE
   soillib/model/grad/grad.cu
   soillib/model/path/erosion.cu
   soillib/model/path/path.cu
+  soillib/op/normal.cu
 )
 
 #

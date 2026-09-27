@@ -7,7 +7,7 @@
 #include <silt/core/types.hpp>
 
 #pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
-#include <soillib/external/FastNoiseLite.h>
+#include <FastNoiseLite.h>
 
 namespace soil {
 

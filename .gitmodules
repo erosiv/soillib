@@ -7,3 +7,6 @@
 [submodule "ext/silt"]
 	path = ext/silt
 	url = https://github.com/erosiv/silt.git
+[submodule "ext/FastNoiseLite"]
+	path = ext/FastNoiseLite
+	url = https://github.com/Auburn/FastNoiseLite.git

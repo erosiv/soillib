@@ -5,8 +5,10 @@ Generated from the ``//!`` doc-comments in ``source/soillib`` via Doxygen and
 Breathe, one section per header, grouped the way the source tree already is
 rather than by C++ namespace -- everything lives in ``soil``, so the
 namespace carves nothing up, while the directory layout is the real
-organising structure. Internal helpers (``detail`` namespaces) and the
-vendored third-party headers under ``external/`` are excluded throughout.
+organising structure. Internal helpers (``detail`` namespaces) are excluded
+throughout. Vendored third-party dependencies (FastNoiseLite, and silt's own
+dependencies) live as git submodules under ``ext/`` and are not part of
+soillib's own source tree, so they never enter this reference at all.
 
 I/O
 ---

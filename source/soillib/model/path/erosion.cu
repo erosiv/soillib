@@ -2,7 +2,6 @@
 
 #include <silt/core/error.hpp>
 #include <silt/core/tensor.hpp>
-#include <silt/op/gather.hpp>
 #include <silt/op/common.hpp>
 
 #include <soillib/model/path/erosion.hpp>

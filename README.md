@@ -114,6 +114,7 @@ Note that building the documentation requires sphinx, doxygen, breathe and myst_
 - [silt (is submodule)](https://github.com/erosiv/silt)
 - LibTIFF (is submodule)
 - nanobind (is submodule)
+- [FastNoiseLite (is submodule)](https://github.com/Auburn/FastNoiseLite)
 - CUDA Toolkit
 - CMake
 - Python3
