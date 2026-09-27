@@ -22,17 +22,13 @@ def main(data):
 
   # Load GeoTIFF Data
   tiff = soil.geotiff(data)
-  tensor = tiff.tensor.gpu()
+  tensor = tiff.tensor.to_gpu()
   shape = tensor.shape
   res = (shape[0], shape[1])
 
   # Compute Accumulation
   rain = np.full(res, 1.0)
-  rain = silt.tensor.from_numpy(rain.astype(np.float32)).gpu()
-
-
-
-
+  rain = silt.tensor.from_numpy(rain.astype(np.float32)).to_gpu()
 
   multiflow = np.full(res, 0.0)
 
@@ -46,7 +42,7 @@ def main(data):
       print(f"Computing ({k})...")
       flow = soil.random_weighted(tensor, soil.d8, 0, k, T)
       accumulation = soil.accumulate(flow, rain, soil.d8)
-      multiflow += accumulation.cpu().numpy() / float(K)
+      multiflow += accumulation.to_cpu().numpy() / float(K)
 
   print(f"Execution Time: {t.count} us")
 
