@@ -1,0 +1,92 @@
+/* Matches the palette/type of https://erosiv.studio, sampled from its
+   computed styles: cream background, near-black text, Parkinsans
+   headings, Open Sans body, gold/plum accents. */
+
+@import url('https://fonts.googleapis.com/css2?family=Parkinsans&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+  --erosiv-bg: #FFFBEF;
+  --erosiv-text: #1E1E1E;
+  --erosiv-accent: #E7B24C;
+  --erosiv-accent-dark: #382846;
+  --erosiv-muted: #E6D6A9;
+  --erosiv-code-bg: #FBF3DC;
+}
+
+body {
+  background: var(--erosiv-bg);
+  color: var(--erosiv-text);
+  font-family: 'Open Sans', sans-serif;
+}
+
+div.body,
+div.document,
+div.related,
+div.footer {
+  background: var(--erosiv-bg);
+  color: var(--erosiv-text);
+}
+
+h1, h2, h3, h4, h5, h6,
+p.logo a,
+div.sphinxsidebar h3,
+div.sphinxsidebar h4 {
+  font-family: 'Parkinsans', sans-serif !important;
+  font-weight: 400;
+  color: var(--erosiv-text);
+}
+
+a, a:visited {
+  color: var(--erosiv-accent-dark);
+  border-bottom: 1px solid var(--erosiv-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--erosiv-accent);
+  border-bottom-color: var(--erosiv-accent-dark);
+}
+
+div.sphinxsidebar {
+  background: var(--erosiv-bg);
+}
+
+div.sphinxsidebar a {
+  color: var(--erosiv-accent-dark);
+  border-bottom: 1px solid var(--erosiv-accent);
+  text-decoration: none;
+}
+
+div.sphinxsidebar h3,
+div.sphinxsidebar h4 {
+  color: var(--erosiv-accent-dark);
+}
+
+div.sphinxsidebar input {
+  border: 1px solid var(--erosiv-accent-dark);
+}
+
+code, tt, pre, .highlight {
+  font-family: 'Ubuntu Mono', Menlo, Consolas, monospace;
+}
+
+div.highlight {
+  background: var(--erosiv-code-bg);
+  border: 1px solid var(--erosiv-muted);
+  border-radius: 4px;
+}
+
+tt.literal, code.literal {
+  background: var(--erosiv-muted);
+  color: var(--erosiv-accent-dark);
+  border-radius: 3px;
+}
+
+div.admonition {
+  background: var(--erosiv-muted);
+  border-color: var(--erosiv-accent);
+}
+
+table.docutils th {
+  background: var(--erosiv-muted);
+}

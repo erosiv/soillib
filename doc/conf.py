@@ -87,5 +87,5 @@ except Exception as _exc:
 
 # -- HTML output -------------------------------------------------------------
 
-html_theme = 'alabaster'
 html_static_path = ['_static']
+html_css_files = ['erosiv.css']
