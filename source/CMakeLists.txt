@@ -8,6 +8,7 @@ add_library(soillib::soillib ALIAS ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
   LINKER_LANGUAGE CUDA
+  POSITION_INDEPENDENT_CODE ON
 )
 
 target_compile_definitions(${TARGET_NAME} PUBLIC HAS_CUDA)
