@@ -6,6 +6,8 @@ import silt  # noqa: F401  -- load-bearing, see above
 
 from .soillib import *  # noqa: F401,F403
 from .util import *  # noqa: F401,F403
+from . import flow  # noqa: F401
+from . import erosion  # noqa: F401
 
 from . import soillib as _ext  # noqa: F401
 

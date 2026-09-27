@@ -1,173 +1,120 @@
 #!/usr/bin/env python
 
-import os
-import soillib as soil
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+"""
+Multi-Resolution GPU Erosion Example
+
+Runs the same stochastic geotransport erosion model as erosion_gpu.py, but
+steps it forward through a sequence of increasing resolutions using
+soil.erosion.ErosionModel.resized() (soil.resize under the hood): coarse
+resolutions establish the large-scale drainage pattern cheaply, and later,
+finer resolutions refine detail without restarting the simulation from
+scratch.
+"""
+
 import numpy as np
+import matplotlib.pyplot as plt
 
-from __common__ import show_height, show_relief, show_discharge, show_layers, zip_save
+import silt
+import soillib as soil
 
-'''
-Multi Resolution GPU Erosion Example
 
-This example simulates erosion at increasing resolutions.
-The physical scale associated with the model corrects the
-parameters so that the simulation occurs correctly at scale.
-This can significantly reduce erosion simulation time.
+def noise_height(shape, world_scale, feature_scale, seed=3):
+  """A Perlin/simplex height field to erode, in world_scale's z-units."""
+  param = soil.noise_t()
+  param.ext = np.array([shape[0], shape[1]]) * (feature_scale / world_scale[0:2])
+  param.seed = seed
+  return soil.noise(shape, param)
 
-Multi-Scale Erosion Procedure:
-1. Construct Model at Resolution
-2. Erode at Resolution
-3. Construct New Model at Increased Resolution
-4. Goto 2
-'''
 
 def main():
 
-  simres = np.array([128, 128])         # Resolution [px]
-  wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z)
+  wscale = np.array([20.0, 20.0, 4.0])  # World Scale [km] (x, y, z), fixed
   nscale = np.array([20.0, 20.0])       # Noise Feature Scale [km] (x, y)
-  pscale = [wscale[0]/simres[0],        # Pixel Scale [km/px]
-            wscale[1]/simres[1],
-            wscale[2]]                  # Value Scale [km/unit]
 
-  noise_param = soil.noise_t()
-  noise_param.ext = simres * nscale / wscale[0:2]
-  noise_param.seed = 3
+  def pixel_scale(res):
+    return [wscale[0] / res[0], wscale[1] / res[1], wscale[2]]
 
-  index = soil.index(simres)  
-  height = soil.noise(index, noise_param)
-  soil.multiply(height, 1.0)
-
-  sediment = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  sediment[:] = 0.0
-  
-  # Construct Model
-
-  model = soil.map_t(index, pscale)
-  model.height = height.gpu()
-  model.sediment = sediment.gpu()
-
-  model.rainfall = soil.buffer(soil.float32, index.elem(), soil.gpu)
-  soil.set(model.rainfall, 1.0)
-
-  uplift = soil.noise(index, noise_param)
-  soil.clamp(uplift, 0.0, 1.0)
-  model.uplift = uplift.gpu()
-
-  # Construct Data
-
-  data = soil.data_t(index.elem())
-  track = soil.data_t(index.elem())
-
-  data.discharge[:] = 0.0
-  data.momentum[:] = [0.0, 0.0]
-  data.mass[:] = 0.0
-  data.debris[:] = 0.0
-  data.debris_momentum[:] = [0.0, 0.0]
-
-  # Construct Parameters
+  # Reference Parameterization (erosiv's own working values for this model)
 
   param = soil.param_t()
 
-  param.timeStep = 10.0 # Geological Timestep [y]
-  param.samples = 32768  # Number of Patricle Samples
-  param.maxage = 512    # Maximum Particle Lifetime
-  param.lrate = 1.0     # Filter Learning Rate
+  param.maxage = 2048
+  param.lrate = 1.0
+  param.timeStep = 250.0
 
-  param.gravity = 9.81    # Specific Gravity [m/s^2]
-  param.uplift = 0.01     # Uplift Rate [m/y]
-  
-  param.rainfall = 1.0              # Rainfall Rate [m/y]
-  param.evapRate = 0.0005           # Evapotranspiration Rate [1/s]
-  param.viscosity = 0.000001        # Water Viscosity [m^2/s]
-  param.bedShear = 12.5             # Turbulent Shear Stress [Pa = kg/m/s^2]
-  param.suspensionRate = 0.0000008  # Fluvial Suspension Rate
-  param.depositionRate = 0.00001    # Fluvial Deposition Rate
-  param.fluvialExponent = 0.01      # Fluvial Power Exponent
-  param.exitSlope = 0.025           # Slope Boundary Condition
+  param.exitSlope = 0.01
+  param.uplift = 0.001
+  param.rainfall = 1.0
+  param.gravity = 9.81
+  param.evapRate = 0.0
 
-  param.critSlope = 0.57                # Critical Slope
-  param.debrisCreepRate = 0.0025        # Landslide Erosion Rate
-  param.debrisSuspensionRate = 0.00025  # Debris Suspension Rate
-  param.debrisDepositionRate = 0.0001   # Debris Deposition Rate
-  param.debrisYieldStress = 2E6         # Yield Stress [Pa]
-  param.debrisDensity = 2500.0          # Debris Density [kg/m^3]
-  param.debrisViscosity = 0.004         # Debris Viscosity [m^2/s]
-  param.debrisBedShear = 60/2500.0      # Debris Turbulent Shear Stress
+  param.frictionFactor = 0.06
+  param.fluvialExponent = 2.0
+
+  param.suspensionRateFluvial = 0.0008 * (0.0075 ** 2.0)
+  param.depositionRateFluvial = 0.4
+  param.suspensionRateDebris = 0.001
+  param.depositionRateDebris = 0.001
+  param.landslideRateDebris = 0.01
+
+  param.critSlopeBedrock = 0.57
+  param.critSlopeSediment = 0.3
+  param.yieldStress = 0.001
+
+  param.viscosityWater = 0.000001
+  param.bedShearWater = 0.0075
+  param.densityWater = 1.0
+
+  param.viscosityDebris = 0.0
+  param.bedShearDebris = 0.99
+  param.densityDebris = 2.0
+
+  # Seed at the first (coarsest) resolution
+
+  simres = np.array([128, 128])
+  shape = silt.shape(*simres)
+
+  model = soil.erosion.ErosionModel(shape, pixel_scale(simres), param)
+  model.set_height(noise_height(shape, wscale, nscale))
+  model.set_uplift(np.ones(tuple(simres), dtype=np.float32))
+
+  # Resolution Schedule: (resolution, steps at that resolution)
+
+  schedule = [
+    ([128, 128], 2048),
+    ([256, 256], 512),
+    ([512, 512], 256),
+    ([1024, 1024], 64),
+  ]
 
   timer = soil.timer()
 
-  def scaleup(model, data, track, oldres, simres):
+  for res, steps in schedule:
 
-    # Upscale Individual Buffers
+    res = np.array(res)
+    new_shape = silt.shape(*res)
+    if new_shape != model.shape:
+      model = model.resized(new_shape, pixel_scale(res))
 
-    index = soil.index(simres)
-    pscale = [wscale[0]/simres[0],
-              wscale[1]/simres[1],
-              wscale[2]]
-
-    height = soil.buffer(soil.float32, index.elem(), soil.gpu)
-    soil.resize(height, model.height, simres, oldres)
-
-    sediment = soil.buffer(soil.float32, index.elem(), soil.gpu)
-    soil.resize(sediment, model.sediment, simres, oldres)
-
-    rainfall = soil.buffer(soil.float32, index.elem(), soil.gpu)
-    soil.resize(rainfall, model.rainfall, simres, oldres)
-
-    uplift = soil.buffer(soil.float32, index.elem(), soil.gpu)
-    soil.resize(uplift, model.uplift, simres, oldres)
-
-    model = soil.map_t(index, pscale)
-    model.height = height
-    model.sediment = sediment
-    model.rainfall = rainfall
-    model.uplift = uplift
-
-    # Update Tracking
-
-    newdata = soil.data_t(index.elem())
-    newtrack = soil.data_t(index.elem())
-
-    soil.resize(newdata.mass, data.mass, simres, oldres)
-    soil.resize(newdata.discharge, data.discharge, simres, oldres)
-    soil.resize(newdata.momentum, data.momentum, simres, oldres)
-    soil.resize(newdata.debris_momentum, data.debris_momentum, simres, oldres)
-    soil.resize(newdata.debris, data.debris, simres, oldres)
-    
-    return model, newtrack, newdata, index, simres, pscale
-
-  ksteps = [
-    ([128, 128], 2048),
-    ([256, 256], 4),
-#    ([512, 512], 512),
-    ([1000, 1000], 4),
-#    ([2048, 2048], 512),
-  ]
-
-  # Note: The first scale-up procedure here is redundant and can be removed.
-
-  for nextres, steps in ksteps:
-  
-    model, data, track, index, simres, pscale = scaleup(model, data, track, simres, nextres)
-
-    print(f"Simulating Resolution: {simres}")
+    print(f"Simulating Resolution: {tuple(res)}")
     for i in range(steps):
       with timer:
-        soil.erode(model, data, track, param, 1)
-      print(f"Execution Time: {timer.count}ms")
+        model.step(1)
+    print(f"  {steps} steps, last step {timer.count} ms")
 
-  # Save Geotiff Output
-  # Geotiff so that pixel and value scale are respected,
-  # and we must also add the height of all layers.
+  # Display / Save
 
-  zip_save('/home/nickmcdonald/Datasets/erosion_multi_base.zip', {
+  soil.erosion.plot(model)
+
+  layers_np = model.layers.copy_to(silt.cpu).numpy()
+  sediment = silt.tensor.from_numpy(np.ascontiguousarray(layers_np[..., 1]))
+
+  soil.util.zip_save("data/erosion_multiscale.zip", {
     "height": model.height,
-    "sediment": model.sediment,
-    "discharge": data.discharge
-  }, index, pscale)
+    "sediment": sediment,
+    "discharge": model.discharge,
+  }, model.scale)
+
 
 if __name__ == "__main__":
   main()

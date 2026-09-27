@@ -9,6 +9,8 @@ namespace nb = nanobind;
 #include <soillib/model/path/path.hpp>
 #include <soillib/model/grad/grad.hpp>
 #include <soillib/op/noise.hpp>
+#include <soillib/op/normal.hpp>
+#include <soillib/op/resize.hpp>
 #include "glm.hpp"
 
 using namespace nb::literals;
@@ -199,6 +201,14 @@ module.def("laplacian", [](const silt::tensor& tensor, const silt::vec2 scale){
 
 module.def("negslope", [](const silt::tensor& tensor, const silt::vec2 scale){
     return silt::tensor(soil::negslope(tensor.as<float>(), scale));
+});
+
+module.def("normal", [](const silt::tensor& tensor, const silt::vec3 scale){
+    return silt::tensor(soil::normal(tensor.as<float>(), scale));
+});
+
+module.def("resize", [](const silt::tensor& tensor, const silt::shape shape_out){
+    return silt::tensor(soil::resize(tensor.as<float>(), shape_out));
 });
 
 //
