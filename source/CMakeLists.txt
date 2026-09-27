@@ -44,3 +44,6 @@ if(NOT TARGET silt::silt)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC silt::silt)
+
+find_package(CUDAToolkit)
+target_link_libraries(${TARGET_NAME} PUBLIC CUDA::curand)
