@@ -1,0 +1,41 @@
+# Doxygen configuration.
+#
+# XML only: Doxygen is used purely as a C++ parser here, and Breathe renders
+# its output into the Sphinx site. There is no separate Doxygen HTML site to
+# keep in sync. doc/conf.py runs this automatically.
+
+PROJECT_NAME           = "soillib"
+OUTPUT_DIRECTORY       = _build/doxygen
+
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+
+INPUT                  = ../source
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.cuh *.h *.cu *.cpp
+
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+
+# Matches the //! doc-comment convention used in source/.
+JAVADOC_AUTOBRIEF      = YES
+
+# Internal helpers are not part of the public reference.
+EXCLUDE                = ../source/soillib/external
+EXCLUDE_SYMBOLS        = *detail* *Detail*
+
+# Expand the attribute macros away, so signatures read as plain C++ rather
+# than showing literal GPU_ENABLE / __host__ tokens.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = GPU_ENABLE= \
+                         __host__= \
+                         __device__= \
+                         __global__= \
+                         HAS_CUDA
+
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO

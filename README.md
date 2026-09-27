@@ -1,5 +1,7 @@
 # soillib
 
+<!-- doc:overview-start -->
+
 soillib is a library and toolbox for numerical geomorphology simulation on the GPU
 
 Written in in C++23 + CUDA and exposed to Python3 through nanobind
@@ -11,6 +13,8 @@ Tested on Windows and Linux.
 <p align="center">
 <img alt="Terrain Generated with Soillib" src="image/large_braid.jpeg" width="100%" align="center"/>
 </p>
+
+<!-- doc:overview-end -->
 
 #### Related Work
 
@@ -94,6 +98,16 @@ Build Wheel Distributable:
 ```bash
 pip wheel .
 ```
+
+### Build Documentation
+
+The documentation is build with sphinx:
+
+```bash
+sphinx-build doc build/html
+```
+
+Note that building the documentation requires sphinx, doxygen, breathe and myst_parser. All except doxygen are available through `pip`.
 
 ### Dependencies
 
