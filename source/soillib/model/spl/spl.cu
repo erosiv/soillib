@@ -36,7 +36,8 @@ __global__ void __spl_rate (
 
 }
 
-silt::tensor_t<float> spl_rate (
+void spl_rate (
+  silt::tensor_t<float> rate,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> slope,
   const float K,
@@ -48,10 +49,8 @@ silt::tensor_t<float> spl_rate (
     throw silt::error::mismatch_host(silt::host_t::GPU, discharge.host());
 
   const silt::shape shape = discharge.shape();
-  silt::tensor_t<float> rate(shape, silt::host_t::GPU);
   __spl_rate<<<block(shape.elem(), 512), 512>>>(rate, discharge, slope, K, m, n, shape);
   gpuErrchk(cudaGetLastError());
-  return rate;
 
 }
 

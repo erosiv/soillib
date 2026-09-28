@@ -61,6 +61,6 @@ silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::te
 silt::tensor_t<float> accumulate_decay(const silt::tensor_t<int> graph, const silt::tensor_t<float> source, const silt::tensor_t<float> decay, const edge_t edge);
 
 //! Compute the Quadratic Slope of a Tensor (Gradient Norm)
-silt::tensor_t<float> slope(const silt::tensor_t<float> tensor, const silt::tensor_t<int> flow, const silt::vec2 scale);
+silt::tensor_t<float> slope(const silt::tensor_t<float> tensor, const silt::tensor_t<int> flow, const silt::vec3 scale);
 
 } // end of namespace soil

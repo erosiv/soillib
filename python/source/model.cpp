@@ -160,7 +160,7 @@ module.def("direction", [](const silt::tensor& height, const soil::edge_t edge){
   return silt::tensor(soil::direction(height.as<float>(), edge));
 });
 
-module.def("slope", [](const silt::tensor& tensor, const silt::tensor& flow, const silt::vec2 scale){
+module.def("slope", [](const silt::tensor& tensor, const silt::tensor& flow, const silt::vec3 scale){
   return silt::tensor(soil::slope(tensor.as<float>(), flow.as<int>(), scale));
 });
 
@@ -216,13 +216,17 @@ module.def("resize", [](const silt::tensor& tensor, const silt::shape shape_out)
 // Stream-Power Erosion
 //
 
-module.def("spl_rate", [](const silt::tensor& discharge, const silt::tensor& slope, const float K, const float m, const float n){
-    return silt::tensor(soil::spl_rate(discharge.as<float>(), slope.as<float>(), K, m, n));
-});
+// In-place cores -- write into the passed `rate`/`height` tensor, no
+// allocation. soillib.spl_rate/spl_apply (python/soillib/__init__.py) are
+// the allocating out-of-place wrappers, torch-style (add_ vs add).
 
-module.def("spl_apply", [](silt::tensor height, const silt::tensor& rate, const float dt){
+module.def("spl_rate_", [](silt::tensor rate, const silt::tensor& discharge, const silt::tensor& slope, const float K, const float m, const float n){
+    soil::spl_rate(rate.as<float>(), discharge.as<float>(), slope.as<float>(), K, m, n);
+}, "rate"_a, "discharge"_a, "slope"_a, "K"_a, "m"_a, "n"_a);
+
+module.def("spl_apply_", [](silt::tensor height, const silt::tensor& rate, const float dt){
     soil::spl_apply(height.as<float>(), rate.as<float>(), dt);
-});
+}, "height"_a, "rate"_a, "dt"_a);
 
 //
 // Path Integral Solution Functions

@@ -299,17 +299,18 @@ __global__ void __slope (
 silt::tensor_t<float> slope (
   const silt::tensor_t<float> tensor,
   const silt::tensor_t<int> flow,
-  const silt::vec2 scale
+  const silt::vec3 scale
 ) {
 
   if(tensor.host() != silt::host_t::GPU)
     throw silt::error::mismatch_host(silt::host_t::GPU, tensor.host());
 
+  const silt::vec2 gscale(scale.x / scale.z, scale.y / scale.z);
   const silt::shape shape = tensor.shape();
-  silt::tensor_t<float> slope(shape, silt::host_t::GPU);
-  __slope<<<block(shape.elem(), 512), 512>>>(slope, tensor, flow, scale, shape);
+  silt::tensor_t<float> out(shape, silt::host_t::GPU);
+  __slope<<<block(shape.elem(), 512), 512>>>(out, tensor, flow, gscale, shape);
   gpuErrchk(cudaGetLastError());
-  return slope;
+  return out;
 
 }
 

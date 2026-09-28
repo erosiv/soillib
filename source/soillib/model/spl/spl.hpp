@@ -8,13 +8,14 @@
 
 namespace soil {
 
-//! Local incision rate under a pure stream-power law:
+//! Local incision rate under a pure stream-power law, written into `rate`:
 //!   E = K * Q^m * |S|^n
 //! Detachment-limited, no deposition. Q is a discharge field (e.g. from
 //! soil::accumulate), S a downstream slope field (e.g. from soil::slope) --
 //! sign-agnostic, so either soil::slope's convention or an externally
 //! computed slope magnitude works.
-silt::tensor_t<float> spl_rate (
+void spl_rate (
+  silt::tensor_t<float> rate,
   const silt::tensor_t<float> discharge,
   const silt::tensor_t<float> slope,
   const float K,

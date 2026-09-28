@@ -58,17 +58,15 @@ def main():
 
   res = np.array([1024, 1024])          # Resolution [px]
   ext = np.array([8192.0, 8192.0])      # World Extent [m] (x, y)
-  scale_z = 50.0                        # Value Scale [m/unit]
-  
+  scale_z = 1.0                        # Value Scale [m/unit]
+
   shape = silt.shape(*res)
-  scale = [
-    ext[0] / res[0],
-    ext[1] / res[1],
-  ]
+  pscale = [ext[0] / res[0], ext[1] / res[1], scale_z]
 
   # Heigth and Discharge Fields
   H = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
   Q = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
+  rate = silt.like(H)
 
   # Input Fields (Uplift, Rainfall)
   U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
@@ -83,14 +81,14 @@ def main():
 
       graph = soil.steepest(H, soil.d8)
       Q = soil.accumulate(graph, P, soil.d8)
-      S = soil.slope(H, graph, scale)
-      rate = soil.spl_rate(Q, S, 1.0, 0.4, 1.0)
+      S = soil.slope(H, graph, [pscale[0], pscale[1], 1.0])
+      soil.spl_rate_(rate, Q, S, K=1.0, m=0.4, n=1.0)
       silt.add_(H, U)
-      soil.spl_apply(H, rate, 1.0)
+      soil.spl_apply_(H, rate, dt=1.0)
 
       print(f"Step {i}/{steps}, Execution Time: {timer.count} ms")
 
-  plot(H, Q, [*scale, 50])
+  plot(H, Q, pscale)
 
 if __name__ == "__main__":
   main()
