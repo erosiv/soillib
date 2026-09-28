@@ -9,6 +9,7 @@ namespace nb = nanobind;
 #include <soillib/model/path/path.hpp>
 #include <soillib/model/spl/spl.hpp>
 #include <soillib/model/grad/grad.hpp>
+#include <soillib/op/cone.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
 #include <soillib/op/resize.hpp>
@@ -164,6 +165,13 @@ module.def("slope", [](const silt::tensor& tensor, const silt::tensor& flow, con
   return silt::tensor(soil::slope(tensor.as<float>(), flow.as<int>(), scale));
 });
 
+// Magnitude of a precomputed 2-component gradient field (see grad_steepest/
+// grad_quadratic/grad_centered below) -- an overload, not a replacement,
+// of the flow-graph slope() above.
+module.def("slope", [](const silt::tensor& gradient){
+  return silt::tensor(soil::slope(gradient.as<float>()));
+}, "gradient"_a);
+
 // module.def("steepest", [](const silt::tensor& height){
 //   return silt::tensor(soil::steepest(height.as<float>()));
 // });
@@ -196,25 +204,40 @@ module.def("gaussian_blur", [](const silt::tensor& tensor, const silt::tensor& s
     return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma.as<float>()));
 }, "tensor"_a, "sigma"_a);
 
-module.def("gradient", [](const silt::tensor& tensor, const silt::vec2 scale){
-    return silt::tensor(soil::gradient(tensor.as<float>(), scale));
-});
+module.def("grad_steepest", [](const silt::tensor& tensor, const silt::vec3 scale){
+    return silt::tensor(soil::grad_steepest(tensor.as<float>(), scale));
+}, "tensor"_a, "scale"_a);
+
+module.def("grad_quadratic", [](const silt::tensor& tensor, const silt::vec3 scale){
+    return silt::tensor(soil::grad_quadratic(tensor.as<float>(), scale));
+}, "tensor"_a, "scale"_a);
+
+module.def("grad_centered", [](const silt::tensor& tensor, const silt::vec3 scale){
+    return silt::tensor(soil::grad_centered(tensor.as<float>(), scale));
+}, "tensor"_a, "scale"_a);
 
 module.def("laplacian", [](const silt::tensor& tensor, const silt::vec2 scale){
     return silt::tensor(soil::laplacian(tensor.as<float>(), scale));
 });
 
-module.def("negslope", [](const silt::tensor& tensor, const silt::vec2 scale){
-    return silt::tensor(soil::negslope(tensor.as<float>(), scale));
-});
-
+// Convenience: grad_centered + the normalize trick, in one call.
 module.def("normal", [](const silt::tensor& tensor, const silt::vec3 scale){
     return silt::tensor(soil::normal(tensor.as<float>(), scale));
 });
 
+// The normalize trick alone, over a precomputed 2-component gradient
+// field (see grad_steepest/grad_quadratic/grad_centered above).
+module.def("normal", [](const silt::tensor& gradient){
+    return silt::tensor(soil::normal(gradient.as<float>()));
+}, "gradient"_a);
+
 module.def("resize", [](const silt::tensor& tensor, const silt::shape shape_out){
     return silt::tensor(soil::resize(tensor.as<float>(), shape_out));
 });
+
+module.def("cone", [](const silt::shape shape, const silt::vec2 apex, const float height, const float dUdx, const float dUdy, const silt::vec2 scale){
+    return silt::tensor(soil::cone(shape, apex, height, dUdx, dUdy, scale));
+}, "shape"_a, "apex"_a, "height"_a, "dUdx"_a, "dUdy"_a, "scale"_a);
 
 //
 // Stream-Power Erosion

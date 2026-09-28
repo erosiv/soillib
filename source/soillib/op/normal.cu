@@ -34,24 +34,27 @@ __global__ void __normal (
 
 }
 
+silt::tensor_t<float> normal(const silt::tensor_t<float>& gradient) {
+
+  const silt::shape shape_in = gradient.shape();
+  const silt::shape shape2d = silt::shape(shape_in[0], shape_in[1]);
+  const silt::shape shape_out = silt::shape(shape_in[0], shape_in[1], 3);
+  auto output = silt::tensor_t<float>(shape_out, silt::host_t::GPU);
+
+  __normal<<<block(shape2d.elem(), 512), 512>>>(output, gradient, shape2d);
+  gpuErrchk(cudaGetLastError());
+
+  return output;
+
+}
+
 silt::tensor_t<float> normal(const silt::tensor_t<float>& tensor, const silt::vec3 scale) {
 
   const silt::shape shape_in = tensor.shape();
   if (shape_in.dim() != 2)
     throw std::invalid_argument("normal map can not be computed for non 2D-indexed buffers");
 
-  // Fold the vertical scale into the horizontal spacing, so that
-  // gradient() (which expects world-space spacing) yields dz/dx, dz/dy.
-  const silt::vec2 gscale(scale.x / scale.z, scale.y / scale.z);
-  const silt::tensor_t<float> grad = soil::gradient(tensor, gscale);
-
-  const silt::shape shape_out = silt::shape(shape_in[0], shape_in[1], 3);
-  auto output = silt::tensor_t<float>(shape_out, silt::host_t::GPU);
-
-  __normal<<<block(shape_in.elem(), 512), 512>>>(output, grad, shape_in);
-  gpuErrchk(cudaGetLastError());
-
-  return output;
+  return soil::normal(soil::grad_centered(tensor, scale));
 
 }
 

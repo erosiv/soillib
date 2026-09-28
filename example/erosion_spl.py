@@ -76,8 +76,10 @@ def main():
 
   # Input Fields (Uplift, Rainfall)
   P = soil.util.load_png(f"{DATA_DIR}/rainfall.png", host=silt.gpu)
-  U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
   C = soil.util.load_png(f"{DATA_DIR}/albedo.png", host=silt.gpu)
+  U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
+  Uc = soil.cone(shape, apex=[0,0], height=0.0, dUdx=1e-4, dUdy=0.0, scale=[scale[0], scale[1]])
+  silt.add_(U, Uc)
 
   dt = 1.0
   silt.multiply_(U, 2.0 * dt / scale_z)
@@ -89,8 +91,11 @@ def main():
   for i in range(steps):
     with timer:
 
-      G = soil.steepest(H, soil.d8)
-      S = soil.slope(H, G, scale)
+      # Gradient and Slope
+      #grad = soil.grad_steepest(H, scale)
+      grad = soil.grad_quadratic(H, scale)
+      #grad = soil.grad_centered(H, scale)
+      S = soil.slope(grad)
 
       # SPL Rate
       E = soil.spl_rate(Qw, S, K=0.1, m=0.4, n=1.0)
@@ -101,6 +106,7 @@ def main():
       silt.add_(H, U)
 
       # Discharge Field Computation
+      G = soil.steepest(H, soil.d8)
       Qw = soil.accumulate(G, P, soil.d8)
       Qs = soil.accumulate(G, E, soil.d8)
       Qc = soil.accumulate(G, C, soil.d8)
