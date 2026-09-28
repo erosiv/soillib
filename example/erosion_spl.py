@@ -149,10 +149,10 @@ def main():
       # silt.multiply_(Qc, 1.0 / samples)
 
       # Diffusion Component onto Advective Component
-      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
-      diff = silt.clamp(diff, 0.0, 8.0)
-      Qw = soil.gaussian_blur(Qw, diff)
-      Qs = soil.gaussian_blur(Qs, diff)
+#      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
+#      diff = silt.clamp(diff, 0.0, 8.0)
+#      Qw = soil.gaussian_blur(Qw, diff)
+#      Qs = soil.gaussian_blur(Qs, diff)
 #      Qc = soil.gaussian_blur(Qc, diff)
 
       print(f"Step {i}/{steps}, Execution Time: {timer.count} ms")
