@@ -83,6 +83,7 @@ def main():
   silt.add_(U, Uc)
   silt.multiply_(U, 1.0)
 
+  rng = silt.rand(shape, 0)
   relax = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
 
   # Simulate
@@ -113,21 +114,50 @@ def main():
 
       # Transport Simulation
 
-      G = soil.steepest(H, soil.d8)
+      
+      # One Sample:
+      # G = soil.steepest(H, soil.d8)
+      G = soil.random_weighted(H, soil.d8, rng)
       Qw = soil.accumulate(G, P, soil.d8) # Water Discharge
       Qs = soil.accumulate(G, E, soil.d8) # Sediment Load
-      Qc = soil.accumulate(G, C, soil.d8) # Color Discharge
+      # Qc = soil.accumulate(G, C, soil.d8) # Color Discharge
 
-      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
-      diff = silt.clamp(diff, 0.0, 8.0)
+      # Temporal Delay
+      # alpha = 0.5
+      # silt.mix_(Qw, soil.accumulate(G, P, soil.d8), alpha)
+      # silt.mix_(Qs, soil.accumulate(G, E, soil.d8), alpha)
+      # silt.mix_(Qc, soil.accumulate(G, C, soil.d8), alpha)
 
-      Qw = soil.gaussian_blur(Qw, diff)
-      Qs = soil.gaussian_blur(Qs, diff)
-      Qc = soil.gaussian_blur(Qc, diff)
+      # MultiSample:
+
+#      samples = 4
+#
+#      # First draw allocates, the rest accumulate into it.
+#      G = soil.random_weighted(H, soil.d8, rng)
+#      Qw = soil.accumulate(G, P, soil.d8)   # Water Discharge
+#      Qs = soil.accumulate(G, E, soil.d8)   # Sediment Load
+#      Qc = soil.accumulate(G, C, soil.d8)   # Color Discharge
+#
+#      for _ in range(samples - 1):
+#        G = soil.random_weighted(H, soil.d8, rng)
+#        silt.add_(Qw, soil.accumulate(G, P, soil.d8))
+#        silt.add_(Qs, soil.accumulate(G, E, soil.d8))
+#        silt.add_(Qc, soil.accumulate(G, C, soil.d8))
+#
+#      silt.multiply_(Qw, 1.0 / samples)
+#      silt.multiply_(Qs, 1.0 / samples)
+#      silt.multiply_(Qc, 1.0 / samples)
+
+      # Diffusion Component onto Advective Component
+      # diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
+      # diff = silt.clamp(diff, 0.0, 8.0)
+      # Qw = soil.gaussian_blur(Qw, diff)
+      # Qs = soil.gaussian_blur(Qs, diff)
+      # Qc = soil.gaussian_blur(Qc, diff)
 
       print(f"Step {i}/{steps}, Execution Time: {timer.count} ms")
 
-  plot(H, Qw, Qc, scale)
+  plot(H, Qw, C, scale)
 
 if __name__ == "__main__":
   main()

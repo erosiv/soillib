@@ -153,21 +153,11 @@ nb::enum_<soil::edge_t>(module, "edge")
   .value("d8",  soil::edge_t::D8)
   .export_values();
 
-// module.def("direction", [](const silt::tensor& height){
-//   return silt::tensor(soil::direction(height.as<float>()));
-// });
-
-module.def("direction", [](const silt::tensor& height, const soil::edge_t edge){
-  return silt::tensor(soil::direction(height.as<float>(), edge));
-});
-
-module.def("slope", [](const silt::tensor& tensor, const silt::tensor& flow, const silt::vec3 scale){
-  return silt::tensor(soil::slope(tensor.as<float>(), flow.as<int>(), scale));
-});
-
-// Magnitude of a precomputed 2-component gradient field (see grad_steepest/
-// grad_quadratic/grad_centered below) -- an overload, not a replacement,
-// of the flow-graph slope() above.
+// Magnitude of a precomputed 2-component gradient field, from any of
+// grad_steepest/grad_quadratic/grad_centered below. This replaced the old
+// flow-graph slope(height, flow, scale), which reported the slope only
+// along the graph's chosen receiver and so carried its directional bias
+// straight into the erosion law.
 module.def("slope", [](const silt::tensor& gradient){
   return silt::tensor(soil::slope(gradient.as<float>()));
 }, "gradient"_a);
@@ -180,9 +170,9 @@ module.def("steepest", [](const silt::tensor& height, const soil::edge_t edge){
   return silt::tensor(soil::steepest(height.as<float>(), edge));
 });
 
-module.def("random_weighted", [](const silt::tensor& height, const soil::edge_t edge, const size_t seed, const size_t offset, const float T){
-  return silt::tensor(soil::random_weighted(height.as<float>(), edge, seed, offset, T));
-});
+module.def("random_weighted", [](const silt::tensor& height, const soil::edge_t edge, silt::tensor rng){
+  return silt::tensor(soil::random_weighted(height.as<float>(), edge, rng.as<silt::rng>()));
+}, "height"_a, "edge"_a, "rng"_a);
 
 // module.def("accumulate", [](const silt::tensor& graph, const silt::tensor& field){
 //   return silt::tensor(soil::accumulate(graph.as<int>(), field.as<float>()));

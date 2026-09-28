@@ -90,22 +90,15 @@ silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t ed
 }
 
 //
-// Random Direction Flow
+// Slope-Weighted Stochastic Receiver Sampling
 //
-
-__global__ void __seed(silt::tensor_t<curandState> buf, const size_t seed, const size_t offset) {
-  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
-  if(n >= buf.elem()) return;
-  curand_init(seed, n, offset, &buf[n]);
-}
 
 template<typename DIR = D4_t>
 __global__ void __random_weighted (
   silt::tensor_t<int> graph,          //!< Output Graph Tensor
-  silt::tensor_t<curandState> rand,   //!< Random Number Generator
+  silt::tensor_t<silt::rng> rng,      //!< Random State, Advanced in Place
   const silt::tensor_t<float> height, //!< Input Height Tensor
-  const silt::shape shape,            //!< Shape of Tensors
-  const float T                       //!< Gibbs Distribution Temperature
+  const silt::shape shape             //!< Shape of Tensors
 ){
 
   const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
@@ -114,75 +107,76 @@ __global__ void __random_weighted (
 
   const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
   const DIR dir;                                //!< Direction Support
-  const float hlocal = height[n];               //!< Current Lowest Height
+  const float hlocal = height[n];               //!< Local Height
 
-  // Compute the Local State Energies
-  //  And the Probability Distribution
-  //  Note that we assume that the state energy is the potential energy,
-  //  meaning that the probability of transition is given by the height
-  //  difference. Dividing by the distance makes it a rate.
+  // Partition function over the descending neighbors. The weight is the
+  // downhill slope itself, so P(k) = S_k / sum(S) -- the expected receiver
+  // distribution is exactly the slope-weighted MFD partition.
+  float Z = 0.0f;
+  for(int k = 0; k < DIR::K; ++k){
 
-  float CDF[DIR::K];        //!< Cumulative Distribution Function
-  float Z = 0.0f;           //!< Distribution Partition Function
-
-  for(int k = 0; k < DIR::K; ++k) {
-  
     const silt::ivec2 shift = dir.shift[k];
     const silt::ivec2 npos = ipos + shift;
     if(shape.oob(npos))
       continue;
-    const int nind = shape.flatten(npos);
 
-    // State Transition Energy
-    const float dE = (hlocal - height[nind])/__length(shift);
-    const float P = (dE <= 0.0f) ? 0.0f : __expf(dE / T);
-    CDF[k] = Z + P;
-    Z += P;
+    const float w = (hlocal - height[shape.flatten(npos)]) / __length(shift);
+    if(w > 0.0f)
+      Z += w;
 
   }
 
-  //
-  // Inverse Transform Sample the CDF
-  //
+  // No descending neighbor: pit, same convention as __steepest.
+  if(Z <= 0.0f){
+    graph[n] = -1;
+    return;
+  }
 
-  int next = -1;                                  //!< Current Parent Node
-  const float uniform = curand_uniform(&rand[n]); //!< Uniform Random Variable
-  for(int k = 0; k < DIR::K; ++k) {
+  // Inverse transform sample. curand_uniform is (0, 1] and the second pass
+  // accumulates in the same order, so u <= Z is always reached; `next`
+  // trails the last positive weight, so there is no fallthrough either way.
+  const float u = curand_uniform(&rng[n]) * Z;
+
+  int next = -1;
+  float acc = 0.0f;
+  for(int k = 0; k < DIR::K; ++k){
 
     const silt::ivec2 shift = dir.shift[k];
     const silt::ivec2 npos = ipos + shift;
     if(shape.oob(npos))
       continue;
-    const int nind = shape.flatten(npos);
 
-    // Sample the 
-    if(uniform < (CDF[k] / Z)){
-      next = nind;
+    const int nind = shape.flatten(npos);
+    const float w = (hlocal - height[nind]) / __length(shift);
+    if(w <= 0.0f)
+      continue;
+
+    acc += w;
+    next = nind;
+    if(u <= acc)
       break;
-    }
 
   }
 
-  // Write Steepest Node to Graph
-  //  Note that if no node has a height below
-  //  the local height, next points to self,
-  //  as it is initialized and never updated.
   graph[n] = next;
 
 }
 
-silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset, const float T) {
+silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, silt::tensor_t<silt::rng> rng) {
 
   if(height.host() != silt::host_t::GPU)
     throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
 
+  if(rng.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, rng.host());
+
+  if(rng.elem() < height.elem())
+    throw std::invalid_argument("rng tensor is smaller than the height field");
+
   const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
     const silt::shape shape = height.shape();
-    silt::tensor_t<curandState> rand(shape, silt::host_t::GPU);
     silt::tensor_t<int> graph(shape, silt::host_t::GPU);
-    __seed<<<block(shape.elem(), 512), 512>>>(rand, seed, offset);
-    gpuErrchk(cudaGetLastError());
-    __random_weighted<DIR><<<block(shape.elem(), 512), 512>>>(graph, rand, height, shape, T);
+    __random_weighted<DIR><<<block(shape.elem(), 512), 512>>>(graph, rng, height, shape);
     gpuErrchk(cudaGetLastError());
     return graph;
   };
@@ -192,129 +186,6 @@ silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const ed
     case D8: return dispatch.template operator()<D8_t>();
     default: throw std::invalid_argument("invalid edge enumerator");
   }
-
-}
-
-//
-// Flow Direction Kernel for Debugging
-//
-
-template<typename DIR = D4_t>
-__global__ void __direction (
-  silt::tensor_t<int> direction,      //!< Output Graph Tensor
-  const silt::tensor_t<float> height, //!< Input Height Tensor
-  const silt::shape shape             //!< Shape of Tensors
-){
-
-  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
-  if(n >= shape.elem())
-    return;
-
-  const silt::ivec2 ipos = shape.unflatten(n);  //!< Unflattened Position
-  const DIR dir;                                //!< Direction Support
-  const float hlocal = height[n];               //!< Current Lowest Height
-
-  float smax = 0.0f;  //!< Current Steepest Slope
-  int next = -1;      //!< Current Parent Node
-
-  // Iterate over Set of Neighbors
-  for(int k = 0; k < DIR::K; ++k){
-
-    // Neighbor Position and Bounds Check
-    const silt::ivec2 shift = dir.shift[k];
-    const silt::ivec2 npos = ipos + shift;
-    if(shape.oob(npos))
-      continue;
-
-    const int nind = shape.flatten(npos);
-    const float scur = (hlocal - height[nind])/__length(shift);
-    if(scur > smax){
-      smax = scur;
-      next = k;
-    }
-
-  }
-
-  // Write Steepest Node to Graph
-  //  Note that if no node has a height below
-  //  the local height, next points to self,
-  //  as it is initialized and never updated.
-  direction[n] = next;
-
-}
-
-//! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
-silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t edge) {
-
-  if(height.host() != silt::host_t::GPU)
-    throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
-
-  const auto dispatch = [&]<typename DIR>() -> silt::tensor_t<int> {
-    const silt::shape shape = height.shape();
-    silt::tensor_t<int> flow(shape, silt::host_t::GPU);
-    __direction<DIR><<<block(shape.elem(), 512), 512>>>(flow, height, shape);
-    gpuErrchk(cudaGetLastError());
-    return flow;
-  };
-
-  switch(edge){
-    case D4: return dispatch.template operator()<D4_t>();
-    case D8: return dispatch.template operator()<D8_t>();
-    default: throw std::invalid_argument("invalid edge enumerator");
-  }
-
-}
-
-//
-// Slope Computation Kernel
-//
-
-__global__ void __slope (
-  silt::tensor_t<float> slope,        //!< Output Graph Tensor
-  const silt::tensor_t<float> tensor, //!< Input Height Tensor
-  const silt::tensor_t<int> flow,     //!< Flow Tensor
-  const silt::vec2 scale,             //!< Scale of Tensor Index
-  const silt::shape shape             //!< Shape of Tensors
-){
-
-  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
-  if(n >= shape.elem())
-    return;
-
-  const int next = flow[n];
-  if(next < 0 || next == n){
-    slope[n] = 0.0f;  // unknown gradient...
-    return;
-  }
-
-  const silt::vec2 ipos = shape.unflatten(n);
-  const silt::vec2 npos = shape.unflatten(next);
-
-  const float ival = tensor[n];
-  const float nval = tensor[next];
-  slope[n] = (nval - ival) / __length(scale*(npos - ipos));
-
-}
-
-silt::tensor_t<float> slope (
-  const silt::tensor_t<float> tensor,
-  const silt::tensor_t<int> flow,
-  const silt::vec3 scale
-) {
-
-  if(tensor.host() != silt::host_t::GPU)
-    throw silt::error::mismatch_host(silt::host_t::GPU, tensor.host());
-
-  // Fold the vertical scale into the horizontal spacing (as soil::normal
-  // does for its gradient), so the raw height difference divided by the
-  // folded distance yields the true dz/dl regardless of any z unit scale.
-  const silt::vec2 gscale(scale.x / scale.z, scale.y / scale.z);
-
-  const silt::shape shape = tensor.shape();
-  silt::tensor_t<float> out(shape, silt::host_t::GPU);
-  __slope<<<block(shape.elem(), 512), 512>>>(out, tensor, flow, gscale, shape);
-  gpuErrchk(cudaGetLastError());
-  return out;
 
 }
 

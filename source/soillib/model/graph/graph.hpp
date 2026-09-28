@@ -46,21 +46,25 @@ struct D8_t {
   const silt::ivec2 shift[K];
 };
 
-//! Compute the Direction of the FLow
-silt::tensor_t<int> direction(const silt::tensor_t<float> height, const edge_t edge);
-
 //! Compute the Flow-Graph of Steepest-Neighbors for a Height-Field
 silt::tensor_t<int> steepest(const silt::tensor_t<float> height, const edge_t edge);
 
-silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, const size_t seed, const size_t offset, const float T);
+//! Sample a Slope-Weighted Descending Receiver Graph.
+//! Each cell draws one receiver from the discrete distribution over its
+//! descending neighbors, with probability proportional to the downhill
+//! slope. Every draw is a single-receiver graph the O(N) accumulation
+//! consumes unchanged, but the expected receiver distribution is the
+//! slope-weighted MFD partition -- so averaging draws recovers a
+//! multi-flow field without ever building one, breaking up the
+//! directional artifacts a deterministic steepest-descent graph locks in.
+//! `rng` is advanced in place: seed it once (silt::seed / silt.rand) and
+//! reuse it across draws for a controlled, reproducible sequence.
+silt::tensor_t<int> random_weighted(const silt::tensor_t<float> height, const edge_t edge, silt::tensor_t<silt::rng> rng);
 
 //! Compute the Upstream Accumulation of a Source Field
 silt::tensor_t<float> accumulate(const silt::tensor_t<int> graph, const silt::tensor_t<float> source, const edge_t edge);
 
 //! Compute the Upstream Accumulation of a Source Field (w. Decay)
 silt::tensor_t<float> accumulate_decay(const silt::tensor_t<int> graph, const silt::tensor_t<float> source, const silt::tensor_t<float> decay, const edge_t edge);
-
-//! Compute the Quadratic Slope of a Tensor (Gradient Norm)
-silt::tensor_t<float> slope(const silt::tensor_t<float> tensor, const silt::tensor_t<int> flow, const silt::vec3 scale);
 
 } // end of namespace soil
