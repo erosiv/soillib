@@ -101,6 +101,26 @@ class ErosionModel:
     else:
       self.uplift = silt.tensor.from_numpy(np.asarray(uplift, dtype=np.float32)).to_gpu()
 
+  def set_rainfall(self, rainfall):
+    """Set the rainfall-rate field (numpy array or tensor, GPU-resident)."""
+    if hasattr(rainfall, "to_gpu"):
+      self.rainfall = rainfall if rainfall.host == silt.gpu else rainfall.copy_to(silt.gpu)
+    else:
+      self.rainfall = silt.tensor.from_numpy(np.asarray(rainfall, dtype=np.float32)).to_gpu()
+
+  def set_albedo_bedrock(self, albedo):
+    """
+    Set the bedrock albedo field (3-channel numpy array or tensor,
+    GPU-resident). Also resets the surface albedo to match, mirroring
+    freshly-allocated model state before any sediment has been deposited.
+    """
+    if hasattr(albedo, "to_gpu"):
+      albedo = albedo if albedo.host == silt.gpu else albedo.copy_to(silt.gpu)
+    else:
+      albedo = silt.tensor.from_numpy(np.asarray(albedo, dtype=np.float32)).to_gpu()
+    self._albedo_bedrock = albedo
+    silt.set_(self._albedo_surface, albedo)
+
   def step(self, substeps=1):
     """Advance the simulation by `substeps` transport + mass-transfer passes."""
     for _ in range(substeps):
@@ -185,8 +205,8 @@ def plot(model):
   relief = 0.5 + 0.5 * relief
 
   shaded = np.repeat(relief[..., None], 3, axis=-1)
-  shaded[sediment >= 1e-4] *= [0.0, 1.0, 1.0]
-  shaded[sediment < 1e-4] *= [1.0, 0.0, 0.0]
+  # shaded[sediment >= 1e-4] *= [0.0, 1.0, 1.0]
+  # shaded[sediment < 1e-4] *= [1.0, 0.0, 0.0]
 
   plt.imshow(shaded, interpolation='bilinear')
   plt.show()

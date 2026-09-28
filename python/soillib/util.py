@@ -14,6 +14,7 @@ import soillib as soil
 
 __all__ = [
   "iter_tiff",
+  "load_png",
   "relief_shade",
   "plot_area",
   "plot_images",
@@ -45,6 +46,34 @@ def iter_tiff(path, max_files=None):
 
   else:
     raise RuntimeError("path must be file or directory")
+
+
+def load_png(path, host=None):
+  """
+  Load a PNG as a tensor: grayscale (L/LA) -> single channel, RGB/RGBA ->
+  first 3 channels, divided by 256 
+  """
+  from PIL import Image
+
+  image = Image.open(path)
+  size = image.size
+  mode = image.mode
+  data = np.array(image.getdata())
+
+  if mode == "L":
+    data = data.reshape(size[0], size[1], 1)[..., 0]
+  elif mode == "LA":
+    data = data.reshape(size[0], size[1], 2)[..., 0]
+  elif mode == "RGB":
+    data = data.reshape(size[0], size[1], 3)[..., :3]
+  elif mode == "RGBA":
+    data = data.reshape(size[0], size[1], 4)[..., :3]
+  else:
+    raise ValueError(f"load_png: unsupported PNG mode {mode!r}")
+
+  data = (data / 256.0).astype(np.float32)
+  tensor = silt.tensor.from_numpy(data)
+  return tensor.to(host) if host is not None else tensor
 
 
 def relief_shade(h, n):
