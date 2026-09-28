@@ -15,7 +15,15 @@ Suspension - deposition - transport - blur, one step:
      source field fed through the *same* accumulation soil.accumulate uses
      for water, so it also works on an RGB source (see soil.accumulate).
   5. D = spl_deposition(Qs, Qw, k_S)   -- k_S * Qs / Qw, concentration-based.
-  6. height += dt * (D - E)            -- net surface change.
+  6. height += dt * phi(lambda*dt) * (D - E + U)  -- net surface change,
+     exponentially fitted (spl_relax + spl_apply_exp). Forward Euler on
+     this term is only stable for dt < 2/lambda, and deposition -- a pure
+     source with no self-limiting feedback -- blows past that and fills
+     cells above their donors, stranding pits the single-receiver router
+     can not resolve. The fit integrates the linear part exactly instead,
+     so the cell relaxes onto its equilibrium slope rather than
+     overshooting it, at any dt. spill_limit is the backstop in flats,
+     where lambda ~ 0 and the fit degenerates to forward Euler.
   7. diffusivity = spl_diffusivity(Qw, S, ...); blur height and color by it
      -- a fast local-redistribution stand-in for the sediment transport
      FastFlow's single-receiver routing can't resolve in flat areas, and
@@ -58,6 +66,9 @@ def step(
   D0, k_D,
   dt,
   grad="quadratic",
+  uplift=None,
+  fit=True,
+  spill=True,
 ):
   """
   One suspension-deposition-transport-blur step, in place on `height` and
@@ -81,9 +92,18 @@ def step(
                soil.grad_*-compatible callable of your own. "quadratic"
                (Godunov upwind) gives the smoothest, least directionally
                biased result; "steepest" reproduces the old flow-graph
-               slope's artifacts.
+               slope's artifacts. "centered" is incompatible with fit=True
+               (see soil.spl_relax).
+  uplift:      optional (X, Y) uplift *rate* field, folded into the net
+               rate rather than added separately -- required for the
+               exponential fit to relax onto the right equilibrium slope.
+  fit:         exponentially-fitted integration (default). Stable at any
+               dt; set False for plain forward Euler.
+  spill:       cap aggradation at donor level after the update (default),
+               preventing deposition from reversing flow in flats.
 
-  Returns (Qw, Qs, E, D) for inspection/plotting.
+  Returns (height, color, Qw, Qs, E, D) -- height and color come back as
+  new tensors, since the blur and the spill limiter are out-of-place.
   """
   grad_fn = GRAD_FN(grad)
 
@@ -96,10 +116,22 @@ def step(
   D = soil.spl_deposition(Qs, Qw, k_S=k_S)
 
   net = silt.add(E, silt.multiply(D, -1.0))  # net erosion = E - D
-  soil.spl_apply_(height, net, dt=dt)        # height -= dt * (E - D)
+  if uplift is not None:
+    silt.add_(net, silt.multiply(uplift, -1.0))
+
+  before = height.copy_to() if spill else None
+
+  if fit:
+    relax = soil.spl_relax(Qw, S, K=K, m=m, n=n, scale=graph_scale)
+    soil.spl_apply_exp_(height, net, relax, dt=dt)
+  else:
+    soil.spl_apply_(height, net, dt=dt)
+
+  if spill:
+    height = soil.spill_limit(height, before, epsilon=1e-6)
 
   diffusivity = soil.spl_diffusivity(Qw, S, D0=D0, k_D=k_D, m=m, n=n)
   height = soil.gaussian_blur(height, diffusivity)
   color = soil.gaussian_blur(color, diffusivity)
 
-  return Qw, Qs, E, D
+  return height, color, Qw, Qs, E, D

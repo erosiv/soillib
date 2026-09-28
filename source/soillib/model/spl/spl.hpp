@@ -30,6 +30,57 @@ void spl_apply (
   const float dt
 );
 
+//! Linearized relaxation rate for the exponentially-fitted update below,
+//! written into `relax`:
+//!   lambda = dE/dh = n * K * Q^m * |S|^(n-1) * dS/dh   [1/time]
+//! dS/dh is the sensitivity of an upwind slope to the local height, i.e.
+//! 1/dx with the vertical scale folded in (scale.z/min(scale.x, scale.y)):
+//! the steeper axis is taken, so the fit errs toward more damping.
+//! For n = 1 this collapses to lambda = K * Q^m * dS/dh, independent of S.
+//! Only meaningful for an upwind slope (grad_steepest/grad_quadratic) --
+//! a centered stencil does not involve the local height at all, so its
+//! dS/dh is zero and no fitting is possible.
+void spl_relax (
+  silt::tensor_t<float> relax,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> slope,
+  const float K,
+  const float m,
+  const float n,
+  const silt::vec3 scale
+);
+
+//! Exponentially-fitted height update, in place:
+//!   h -= dt * phi(lambda*dt) * rate,   phi(z) = (1 - exp(-z))/z
+//! Treating the receiver height as frozen over the step, the height obeys
+//! dh/dt = -lambda*(h - h_eq), whose exact solution is the above. phi(0)=1
+//! recovers forward Euler, and phi ~ 1/z for large z caps the effective
+//! step at 1/lambda, so the cell relaxes onto h_eq instead of overshooting
+//! it -- stable for any dt, with the steady state (where the net rate
+//! vanishes) preserved exactly.
+//! `rate` must carry every source term, uplift included, or h_eq -- and so
+//! the equilibrium slope -- is wrong at large dt.
+void spl_apply_exp (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> rate,
+  const silt::tensor_t<float> relax,
+  const float dt
+);
+
+//! Cap aggradation at the level of the cells that drained into it, as a
+//! new tensor. `before` is the height field as it stood at the start of the
+//! step and fixes which D4 neighbors are donors; `height` is the updated
+//! field to clamp. A cell rising above its donors reverses their flow and
+//! strands them as pits, which single-receiver routing can not resolve --
+//! the backstop for deposition in flats, where the discharge is too small
+//! for spl_relax's damping to bite. Non-conservative: the excess is
+//! discarded rather than passed downstream.
+silt::tensor_t<float> spill_limit (
+  const silt::tensor_t<float>& height,
+  const silt::tensor_t<float>& before,
+  const float epsilon
+);
+
 //! Stream-power-parameterized diffusivity, written into `diffusivity`:
 //!   D = D0 + k_D * Q^m * |S|^n
 //! Same form and inputs as spl_rate, plus a base (uniform) diffusivity D0.

@@ -64,6 +64,7 @@ def main():
   res = np.array([1024, 1024])          # Resolution [px]
   ext = np.array([8192.0, 8192.0])      # World Extent [m] (x, y)
   scale_z = 50.0                        # Value Scale [m/unit]
+  dt = 4.0
 
   shape = silt.shape(*res)
   scale = [ext[0] / res[0], ext[1] / res[1], scale_z]
@@ -78,16 +79,16 @@ def main():
   P = soil.util.load_png(f"{DATA_DIR}/rainfall.png", host=silt.gpu)
   C = soil.util.load_png(f"{DATA_DIR}/albedo.png", host=silt.gpu)
   U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
-  Uc = soil.cone(shape, apex=[0,0], height=0.0, dUdx=1e-4, dUdy=0.0, scale=[scale[0], scale[1]])
+  Uc = soil.cone(shape, apex=[0,0], height=0.0, dUdx=1e-4, dUdy=2e-4, scale=[scale[0], scale[1]])
   silt.add_(U, Uc)
+  silt.multiply_(U, 1.0)
 
-  dt = 1.0
-  silt.multiply_(U, 2.0 * dt / scale_z)
+  relax = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
 
   # Simulate
 
   timer = soil.timer()
-  steps = 1024
+  steps = 512
   for i in range(steps):
     with timer:
 
@@ -102,23 +103,27 @@ def main():
       D = soil.spl_deposition(Qs, Qw, k_S=0.01)
 
       N = silt.add(E, silt.multiply(D, -1.0))   # net erosion = E - D
-      soil.spl_apply_(H, N, dt = dt / scale_z)  # height -= dt * (E - D)
-      silt.add_(H, U)
+      silt.add_(N, silt.multiply(U, -1.0))
 
-      # Discharge Field Computation
+      # soil.spl_apply_(H, N, dt = dt / scale_z)  # height -= dt * (E - D)
+      soil.spl_relax_(relax, Qw, Qs, K=0.1, m=0.4, n=1.0, scale=scale)
+      soil.spl_apply_exp_(H, N, relax, dt = dt / scale_z)
+
+      # spill_limit(height, before, epsilon=1e-6) -> tensor
+
+      # Transport Simulation
+
       G = soil.steepest(H, soil.d8)
-      Qw = soil.accumulate(G, P, soil.d8)
-      Qs = soil.accumulate(G, E, soil.d8)
-      Qc = soil.accumulate(G, C, soil.d8)
+      Qw = soil.accumulate(G, P, soil.d8) # Water Discharge
+      Qs = soil.accumulate(G, E, soil.d8) # Sediment Load
+      Qc = soil.accumulate(G, C, soil.d8) # Color Discharge
 
-      # Transport
-
-      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.1, m=-0.4, n=-1.0)
+      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
       diff = silt.clamp(diff, 0.0, 8.0)
 
-      soil.gaussian_blur(Qw, diff)
-      soil.gaussian_blur(Qs, diff)
-      soil.gaussian_blur(Qc, diff)
+      Qw = soil.gaussian_blur(Qw, diff)
+      Qs = soil.gaussian_blur(Qs, diff)
+      Qc = soil.gaussian_blur(Qc, diff)
 
       print(f"Step {i}/{steps}, Execution Time: {timer.count} ms")
 

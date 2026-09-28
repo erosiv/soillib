@@ -31,6 +31,20 @@ def spl_apply(height, rate, dt):
     return result
 
 
+def spl_relax(discharge, slope, K, m, n, scale):
+    """dE/dh, the exponential fit's relaxation rate, as a new tensor (see spl_relax_)."""
+    relax = silt.like(discharge)
+    spl_relax_(relax, discharge, slope, K=K, m=m, n=n, scale=scale)
+    return relax
+
+
+def spl_apply_exp(height, rate, relax, dt):
+    """Exponentially-fitted spl_apply, as a new tensor (see spl_apply_exp_)."""
+    result = height.copy_to()
+    spl_apply_exp_(result, rate, relax, dt)
+    return result
+
+
 def spl_diffusivity(discharge, slope, D0, k_D, m, n):
     """D0 + k_D * discharge^m * |slope|^n, as a new tensor (see spl_diffusivity_)."""
     diffusivity = silt.like(discharge)
@@ -48,7 +62,10 @@ def spl_deposition(Qs, Qw, k_S):
 def _public_names() -> list:
     return sorted(n for n in dir(_ext) if not n.startswith("_"))
 
-__all__ = _public_names() + ["spl_rate", "spl_apply", "spl_diffusivity", "spl_deposition"]
+__all__ = _public_names() + [
+    "spl_rate", "spl_apply", "spl_relax", "spl_apply_exp",
+    "spl_diffusivity", "spl_deposition",
+]
 
 def _resolve_version() -> str:
     """Version of the installed distribution.

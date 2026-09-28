@@ -255,6 +255,18 @@ module.def("spl_apply_", [](silt::tensor height, const silt::tensor& rate, const
     soil::spl_apply(height.as<float>(), rate.as<float>(), dt);
 }, "height"_a, "rate"_a, "dt"_a);
 
+module.def("spl_relax_", [](silt::tensor relax, const silt::tensor& discharge, const silt::tensor& slope, const float K, const float m, const float n, const silt::vec3 scale){
+    soil::spl_relax(relax.as<float>(), discharge.as<float>(), slope.as<float>(), K, m, n, scale);
+}, "relax"_a, "discharge"_a, "slope"_a, "K"_a, "m"_a, "n"_a, "scale"_a);
+
+module.def("spl_apply_exp_", [](silt::tensor height, const silt::tensor& rate, const silt::tensor& relax, const float dt){
+    soil::spl_apply_exp(height.as<float>(), rate.as<float>(), relax.as<float>(), dt);
+}, "height"_a, "rate"_a, "relax"_a, "dt"_a);
+
+module.def("spill_limit", [](const silt::tensor& height, const silt::tensor& before, const float epsilon){
+    return silt::tensor(soil::spill_limit(height.as<float>(), before.as<float>(), epsilon));
+}, "height"_a, "before"_a, "epsilon"_a = 1e-6f);
+
 module.def("spl_diffusivity_", [](silt::tensor diffusivity, const silt::tensor& discharge, const silt::tensor& slope, const float D0, const float k_D, const float m, const float n){
     soil::spl_diffusivity(diffusivity.as<float>(), discharge.as<float>(), slope.as<float>(), D0, k_D, m, n);
 }, "diffusivity"_a, "discharge"_a, "slope"_a, "D0"_a, "k_D"_a, "m"_a, "n"_a);

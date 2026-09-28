@@ -89,6 +89,153 @@ void spl_apply (
 }
 
 //
+// Exponential Fitting: Relaxation Rate + Fitted Update
+//
+
+__global__ void __spl_relax (
+  silt::tensor_t<float> relax,            //!< Output Relaxation Rate
+  const silt::tensor_t<float> discharge,  //!< Input Discharge Field
+  const silt::tensor_t<float> slope,      //!< Input Slope Field
+  const float K,
+  const float m,
+  const float n,
+  const float dSdh,                       //!< Slope Sensitivity, 1/dx w. z-fold
+  const silt::shape shape
+){
+
+  const int64_t i = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(i >= shape.elem())
+    return;
+
+  const float Q = fmaxf(discharge[i], 0.0f);
+  const float S = fmaxf(fabsf(slope[i]), 1e-8f);
+  relax[i] = fmaxf(n * K * powf(Q, m) * powf(S, n - 1.0f) * dSdh, 0.0f);
+
+}
+
+void spl_relax (
+  silt::tensor_t<float> relax,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> slope,
+  const float K,
+  const float m,
+  const float n,
+  const silt::vec3 scale
+) {
+
+  if(discharge.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, discharge.host());
+
+  // Steeper axis => larger lambda => more damping.
+  const float dSdh = scale.z / fminf(scale.x, scale.y);
+
+  const silt::shape shape = discharge.shape();
+  __spl_relax<<<block(shape.elem(), 512), 512>>>(relax, discharge, slope, K, m, n, dSdh, shape);
+  gpuErrchk(cudaGetLastError());
+
+}
+
+__global__ void __spl_apply_exp (
+  silt::tensor_t<float> height,      //!< Height Field, Updated in Place
+  const silt::tensor_t<float> rate,  //!< Input Net Rate
+  const silt::tensor_t<float> relax, //!< Input Relaxation Rate
+  const float dt,
+  const silt::shape shape
+){
+
+  const int64_t i = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(i >= shape.elem())
+    return;
+
+  const float z = fmaxf(relax[i] * dt, 0.0f);
+
+  // phi(z) = (1 - exp(-z))/z. Series below ~1e-4 avoids 0/0 and the
+  // cancellation in (1 - exp(-z)) for small z.
+  const float phi = (z > 1e-4f) ? (-expm1f(-z) / z)
+                                : (1.0f - 0.5f * z + z * z / 6.0f);
+
+  height[i] -= dt * phi * rate[i];
+
+}
+
+void spl_apply_exp (
+  silt::tensor_t<float> height,
+  const silt::tensor_t<float> rate,
+  const silt::tensor_t<float> relax,
+  const float dt
+) {
+
+  if(height.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
+
+  const silt::shape shape = height.shape();
+  __spl_apply_exp<<<block(shape.elem(), 512), 512>>>(height, rate, relax, dt, shape);
+  gpuErrchk(cudaGetLastError());
+
+}
+
+//
+// Deposition Spill Limiter
+//
+
+__global__ void __spill_limit (
+  silt::tensor_t<float> heightOut,        //!< Output Clamped Height
+  const silt::tensor_t<float> height,     //!< Input Updated Height
+  const silt::tensor_t<float> before,     //!< Input Pre-Step Height
+  const float epsilon,
+  const silt::shape shape
+){
+
+  const int64_t i = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(i >= shape.elem())
+    return;
+
+  const silt::ivec2 ipos = shape.unflatten(i);
+  const float h0 = before[i];
+
+  const int sx[4] = {-1, 1,  0, 0};
+  const int sy[4] = { 0, 0, -1, 1};
+
+  // Donors: neighbors that stood above this cell before the step. The cell
+  // may rise to their updated level at most.
+  float spill = 0.0f;
+  bool bounded = false;
+
+  for(int k = 0; k < 4; ++k){
+    const silt::ivec2 npos = silt::ivec2(ipos.x + sx[k], ipos.y + sy[k]);
+    if(shape.oob(npos))
+      continue;
+    const int64_t j = shape.flatten(npos);
+    if(before[j] <= h0)
+      continue;
+    const float hj = height[j];
+    spill = bounded ? fminf(spill, hj) : hj;
+    bounded = true;
+  }
+
+  const float h = height[i];
+  heightOut[i] = bounded ? fminf(h, spill - epsilon) : h;
+
+}
+
+silt::tensor_t<float> spill_limit (
+  const silt::tensor_t<float>& height,
+  const silt::tensor_t<float>& before,
+  const float epsilon
+) {
+
+  if(height.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, height.host());
+
+  const silt::shape shape = height.shape();
+  auto out = silt::tensor_t<float>(shape, silt::host_t::GPU);
+  __spill_limit<<<block(shape.elem(), 512), 512>>>(out, height, before, epsilon, shape);
+  gpuErrchk(cudaGetLastError());
+  return out;
+
+}
+
+//
 // Stream-Power Diffusivity Kernel
 //
 
