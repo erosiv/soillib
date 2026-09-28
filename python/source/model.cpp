@@ -7,6 +7,7 @@ namespace nb = nanobind;
 #include <soillib/model/graph/graph.hpp>
 #include <soillib/model/filter/filter.hpp>
 #include <soillib/model/path/path.hpp>
+#include <soillib/model/spl/spl.hpp>
 #include <soillib/model/grad/grad.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
@@ -209,6 +210,18 @@ module.def("normal", [](const silt::tensor& tensor, const silt::vec3 scale){
 
 module.def("resize", [](const silt::tensor& tensor, const silt::shape shape_out){
     return silt::tensor(soil::resize(tensor.as<float>(), shape_out));
+});
+
+//
+// Stream-Power Erosion
+//
+
+module.def("spl_rate", [](const silt::tensor& discharge, const silt::tensor& slope, const float K, const float m, const float n){
+    return silt::tensor(soil::spl_rate(discharge.as<float>(), slope.as<float>(), K, m, n));
+});
+
+module.def("spl_apply", [](silt::tensor height, const silt::tensor& rate, const float dt){
+    soil::spl_apply(height.as<float>(), rate.as<float>(), dt);
 });
 
 //

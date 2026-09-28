@@ -35,6 +35,7 @@ target_sources(${TARGET_NAME} PRIVATE
   soillib/model/grad/grad.cu
   soillib/model/path/erosion.cu
   soillib/model/path/path.cu
+  soillib/model/spl/spl.cu
   soillib/op/normal.cu
   soillib/op/resize.cu
 )
