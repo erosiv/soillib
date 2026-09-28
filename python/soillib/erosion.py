@@ -3,10 +3,7 @@ GPU stochastic erosion model -- a thin, reusable convenience layer over
 soillib's individual transport / mass-transfer kernels (transport_fluvial,
 transport_debris, mass_transfer, layer_merge). Those kernels are the
 "official" implementation referenced in soillib's README; this module is
-just the tensor bookkeeping and step choreography around them, modeled on
-erosiv's own reference erosion node, trimmed to what an example script
-needs (no albedo/visual channels -- those are a rendering concern, not part
-of the erosion physics).
+just the tensor bookkeeping and step choreography around them.
 
 `layers` is a single 2-component tensor per soillib's own convention
 (soil.layer_merge takes one `layers` argument, not two): component 0 is
@@ -14,11 +11,13 @@ taken here as bedrock elevation and component 1 as sediment thickness, with
 soil.layer_merge collapsing the two into a single height field.
 """
 
+import os
+
 import numpy as np
 import silt
 import soillib as soil
 
-__all__ = ["ErosionModel", "plot"]
+__all__ = ["ErosionModel", "plot", "export"]
 
 
 class ErosionModel:
@@ -26,8 +25,9 @@ class ErosionModel:
   A stochastic geotransport erosion model over a single height field.
 
   Tracks a two-layer [bedrock, sediment] height stack, fluvial
-  discharge/mass/momentum and debris-flow mass/momentum, and steps them
-  forward with soillib's particle-based transport kernels.
+  discharge/mass/momentum and debris-flow mass/momentum, surface/bedrock
+  albedo, and steps them forward with soillib's particle-based transport
+  kernels.
   """
 
   def __init__(self, shape, scale, param=None, seed=0, samples=8192 * 16):
@@ -72,11 +72,10 @@ class ErosionModel:
 
     self._delta = z2()
 
-    # transport_fluvial/transport_debris require albedo channels
-    # structurally, even though this convenience layer never reads them
-    # back out -- plain scratch buffers here, not exposed for tuning.
-    self._albedo_bedrock = z3()
-    self._albedo_surface = z3()
+    self.albedo_bedrock = z3()
+    self.albedo_surface = z3()
+    # Internal transport-kernel scratch: per-step albedo accumulation, not
+    # meaningful state on its own outside a step() call.
     self._albedo_transport_fluvial = z3()
     self._albedo_transport_debris = z3()
 
@@ -118,8 +117,8 @@ class ErosionModel:
       albedo = albedo if albedo.host == silt.gpu else albedo.copy_to(silt.gpu)
     else:
       albedo = silt.tensor.from_numpy(np.asarray(albedo, dtype=np.float32)).to_gpu()
-    self._albedo_bedrock = albedo
-    silt.set_(self._albedo_surface, albedo)
+    self.albedo_bedrock = albedo
+    silt.set_(self.albedo_surface, albedo)
 
   def step(self, substeps=1):
     """Advance the simulation by `substeps` transport + mass-transfer passes."""
@@ -137,7 +136,7 @@ class ErosionModel:
           self.discharge, self.discharge_track,
           self.mass, self.mass_track,
           self.momentum, self.momentum_track,
-          self._albedo_bedrock, self._albedo_transport_fluvial, self._albedo_surface,
+          self.albedo_bedrock, self._albedo_transport_fluvial, self.albedo_surface,
           self.rng, self.scale, self.param,
         )
 
@@ -146,7 +145,7 @@ class ErosionModel:
           self.layers,
           self.debris_momentum, self.debris_momentum_track,
           self.debris, self.debris_track,
-          self._albedo_bedrock, self._albedo_transport_debris, self._albedo_surface,
+          self.albedo_bedrock, self._albedo_transport_debris, self.albedo_surface,
           self.rng, self.scale, self.param,
         )
 
@@ -155,7 +154,7 @@ class ErosionModel:
         self._delta, self.layers, self.uplift,
         self.discharge, self.mass, self.momentum,
         self.debris, self.debris_momentum,
-        self._albedo_bedrock, self._albedo_transport_fluvial, self._albedo_transport_debris, self._albedo_surface,
+        self.albedo_bedrock, self._albedo_transport_fluvial, self._albedo_transport_debris, self.albedo_surface,
         self.scale, self.param,
       )
       silt.add_(self.layers, self._delta)
@@ -182,6 +181,8 @@ class ErosionModel:
     new.momentum = soil.resize(self.momentum, new_shape)
     new.debris = soil.resize(self.debris, new_shape)
     new.debris_momentum = soil.resize(self.debris_momentum, new_shape)
+    new.albedo_bedrock = soil.resize(self.albedo_bedrock, new_shape)
+    new.albedo_surface = soil.resize(self.albedo_surface, new_shape)
 
     soil.layer_merge(new.height, new.layers)
     new.age = self.age
@@ -190,23 +191,86 @@ class ErosionModel:
 
 def plot(model):
   """
-  Bedrock-vs-sediment hillshade of an ErosionModel: cyan where sediment
-  has accumulated, red where bedrock is still exposed.
+  A 2x2 summary of an ErosionModel: surface normal coloration, surface
+  albedo, relief-shaded surface albedo, and the discharge map.
   """
   import matplotlib.pyplot as plt
+  from matplotlib import colors
   from . import util
 
   layers = model.layers.copy_to(silt.cpu).numpy()
   height = layers[..., 0] + layers[..., 1]
-  sediment = layers[..., 1]
 
   normal = soil.normal(model.height, model.scale).copy_to(silt.cpu).numpy()
-  relief = util.relief_shade(height, normal)
-  relief = 0.5 + 0.5 * relief
+  normal_rgb = np.clip(0.5 + 0.5 * normal, 0.0, 1.0)
 
-  shaded = np.repeat(relief[..., None], 3, axis=-1)
-  # shaded[sediment >= 1e-4] *= [0.0, 1.0, 1.0]
-  # shaded[sediment < 1e-4] *= [1.0, 0.0, 0.0]
+  albedo = util._to_cpu_numpy(model.albedo_surface)
+  albedo = np.clip(albedo, 0.0, 1.0)
 
-  plt.imshow(shaded, interpolation='bilinear')
+  diffuse = np.clip(0.5 + 0.5 * util.relief_shade(height, normal), 0.0, 1.0)
+  shaded_albedo = np.clip(diffuse[..., None] * albedo, 0.0, 1.0)
+
+  discharge = util._to_cpu_numpy(model.discharge)
+
+  fig, ax = plt.subplots(2, 2, figsize=(12, 12))
+
+  ax[0, 0].imshow(normal_rgb)
+  ax[0, 0].set_title("Surface Normal")
+
+  ax[0, 1].imshow(albedo)
+  ax[0, 1].set_title("Surface Albedo")
+
+  ax[1, 0].imshow(shaded_albedo)
+  ax[1, 0].set_title("Relief-Shaded Albedo")
+
+  ax[1, 1].imshow(1.0 + discharge, cmap='CMRmap',
+                   norm=colors.LogNorm(1, 1.0 + discharge.max()))
+  ax[1, 1].set_title("Discharge")
+
+  for a in ax.flat:
+    a.set_xticks([])
+    a.set_yticks([])
+
+  plt.tight_layout()
   plt.show()
+
+
+def export(model, out_dir="out"):
+  """
+  Export every tensor tracked by an ErosionModel as individual image
+  files under out_dir: a float32 GeoTIFF per single-channel field, an
+  x/y GeoTIFF pair per 2-component vector field, and an 8-bit PNG per
+  3-channel color field -- see soil.util.save_tensor.
+  """
+  from . import util
+
+  os.makedirs(out_dir, exist_ok=True)
+
+  layers = model.layers.copy_to(silt.cpu).numpy()
+  bedrock = silt.tensor.from_numpy(np.ascontiguousarray(layers[..., 0]))
+  sediment = silt.tensor.from_numpy(np.ascontiguousarray(layers[..., 1]))
+
+  normal = soil.normal(model.height, model.scale)
+  silt.multiply_(normal, 0.5)
+  silt.add_(normal, 0.5)
+
+  fields = {
+    "height": model.height,
+    "bedrock": bedrock,
+    "sediment": sediment,
+    "discharge": model.discharge,
+    "mass": model.mass,
+    "debris": model.debris,
+    "momentum": model.momentum,
+    "debris_momentum": model.debris_momentum,
+    "uplift": model.uplift,
+    "rainfall": model.rainfall,
+    "albedo_bedrock": model.albedo_bedrock,
+    "albedo_surface": model.albedo_surface,
+    "normal": normal,
+  }
+
+  written = []
+  for name, tensor in fields.items():
+    written += util.save_tensor(os.path.join(out_dir, name), tensor, scale=model.scale)
+  return written

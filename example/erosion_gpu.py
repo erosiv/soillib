@@ -7,7 +7,9 @@ Stochastic geotransport erosion, parameterized to reproduce the title
 scene of "Stochastic Geomorphological Transport for Terrain Erosion
 Simulation" (https://erosiv.studio/publications/stochastic-geomorphological-transport).
 
-This headless script node should converge to the same result given the same input maps.
+Domain, input maps and erosion parameters are taken verbatim from the
+scene's original parameterization, so this headless script reproduces the
+same result given the same input maps.
 
 Uses soil.erosion.ErosionModel for the kernel choreography
 (transport_fluvial / transport_debris / mass_transfer / layer_merge) --
@@ -21,6 +23,7 @@ import silt
 import soillib as soil
 
 DATA_DIR = "data/scene1"
+
 
 def main():
 
@@ -102,7 +105,11 @@ def main():
   # Display
 
   soil.erosion.plot(model)
-  soil.util.show_discharge(model.discharge)
+
+  # Export
+
+  written = soil.erosion.export(model, out_dir="out")
+  print(f"Exported {len(written)} files to out/")
 
 
 if __name__ == "__main__":

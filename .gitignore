@@ -64,3 +64,6 @@ doc/_build/
 
 # pytest
 .pytest_cache
+
+# Example script output dumps (soil.erosion.export, etc.)
+example/out/

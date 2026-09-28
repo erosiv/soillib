@@ -24,6 +24,7 @@ __all__ = [
   "show_discharge",
   "show_mass",
   "zip_save",
+  "save_tensor",
 ]
 
 
@@ -51,7 +52,7 @@ def iter_tiff(path, max_files=None):
 def load_png(path, host=None):
   """
   Load a PNG as a tensor: grayscale (L/LA) -> single channel, RGB/RGBA ->
-  first 3 channels, divided by 256 
+  first 3 channels, divided by 256 (not 255).
   """
   from PIL import Image
 
@@ -182,3 +183,45 @@ def zip_save(output, fields, scale):
       tiff_out.write(filename)
       archive.write(filename)
       os.remove(filename)
+
+
+def save_tensor(path, tensor, scale=None):
+  """
+  Save a tensor to disk, format chosen by its channel count:
+
+    1 channel -> a float32 GeoTIFF (`path`.tiff)
+    2 channels -> two float32 GeoTIFFs, one per component
+                  (`path`_x.tiff, `path`_y.tiff -- e.g. a momentum field)
+    3 channels -> an 8-bit PNG (`path`.png), values clipped to [0, 1]
+
+  `scale`, if given, is written as the GeoTIFF pixel scale. `path` is
+  given without an extension. Returns the list of files written.
+  """
+  data = _to_cpu_numpy(tensor)
+  channels = data.shape[-1] if data.ndim == 3 else 1
+
+  def write_tiff(out, values_2d):
+    tiff_out = soil.geotiff(silt.tensor.from_numpy(np.ascontiguousarray(values_2d)))
+    if scale is not None:
+      tiff_out.meta.scale = scale
+    tiff_out.write(out)
+    return out
+
+  if channels == 1:
+    values = data if data.ndim == 2 else data[..., 0]
+    return [write_tiff(f"{path}.tiff", values)]
+
+  if channels == 2:
+    return [
+      write_tiff(f"{path}_x.tiff", data[..., 0]),
+      write_tiff(f"{path}_y.tiff", data[..., 1]),
+    ]
+
+  if channels == 3:
+    from PIL import Image
+    out = f"{path}.png"
+    image = np.clip(255.0 * data, 0.0, 255.0).astype(np.uint8)
+    Image.fromarray(image).save(out)
+    return [out]
+
+  raise ValueError(f"save_tensor: unsupported channel count {channels}")
