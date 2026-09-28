@@ -1,6 +1,6 @@
 #include <soillib/soillib.hpp>
 
-#include <soillib/model/filter/filter.hpp>
+#include <soillib/model/filter/gaussian.hpp>
 #include <math_constants.h>
 #include <soillib/model/graph/graph.hpp>
 

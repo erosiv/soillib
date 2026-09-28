@@ -5,7 +5,7 @@ namespace nb = nanobind;
 
 #include <soillib/model/path/erosion.hpp>
 #include <soillib/model/graph/graph.hpp>
-#include <soillib/model/filter/filter.hpp>
+#include <soillib/model/filter/gaussian.hpp>
 #include <soillib/model/path/path.hpp>
 #include <soillib/model/spl/spl.hpp>
 #include <soillib/model/grad/grad.hpp>

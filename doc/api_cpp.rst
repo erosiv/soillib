@@ -30,7 +30,7 @@ The simulation models themselves, one subdirectory per family.
 Filter
 ~~~~~~
 
-.. doxygenfile:: filter.hpp
+.. doxygenfile:: gaussian.hpp
 
 Gradient
 ~~~~~~~~

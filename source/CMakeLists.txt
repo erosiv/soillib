@@ -31,7 +31,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 target_sources(${TARGET_NAME} PRIVATE
   soillib/model/graph/graph.cu
-  soillib/model/filter/filter.cu
+  soillib/model/filter/gaussian.cu
   soillib/model/grad/grad.cu
   soillib/model/path/erosion.cu
   soillib/model/path/path.cu
