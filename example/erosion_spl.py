@@ -28,6 +28,7 @@ DATA_DIR = "data/scene1"
 def plot(
   height,
   discharge,
+  color,
   scale
 ):
 
@@ -39,9 +40,13 @@ def plot(
   discharge = discharge.to_cpu().numpy()
 
   fig, ax = plt.subplots(2, figsize=(12, 12))
+  # silt.divide_(color, discharge)
 
   ax[0].imshow(normal_rgb)
   ax[0].set_title("Surface Normal")
+
+#  ax[1].imshow(color)
+#  ax[1].set_title("Surface Color")
 
   ax[1].imshow(1.0 + discharge, cmap='CMRmap',
                    norm=colors.LogNorm(1, 1.0 + np.nanmax(discharge)))
@@ -65,13 +70,14 @@ def main():
 
   # Heigth and Discharge Fields
   H = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
-  Q = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
+  Qw = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
+  Qs = silt.tensor.from_numpy(np.zeros(tuple(res), dtype=np.float32)).to_gpu()
   rate = silt.like(H)
 
   # Input Fields (Uplift, Rainfall)
   P = soil.util.load_png(f"{DATA_DIR}/rainfall.png", host=silt.gpu)
   U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
-  soil.gaussian_blur(U, 12.0)
+  C = soil.util.load_png(f"{DATA_DIR}/albedo.png", host=silt.gpu)
 
   dt = 1.0
   silt.multiply_(U, 2.0 * dt / scale_z)
@@ -79,31 +85,38 @@ def main():
   # Simulate
 
   timer = soil.timer()
-  steps = 512
+  steps = 1024
   for i in range(steps):
     with timer:
 
-      graph = soil.steepest(H, soil.d8)
+      G = soil.steepest(H, soil.d8)
+      S = soil.slope(H, G, scale)
+
+      # SPL Rate
+      E = soil.spl_rate(Qw, S, K=0.1, m=0.4, n=1.0)
+      D = soil.spl_deposition(Qs, Qw, k_S=0.01)
+
+      N = silt.add(E, silt.multiply(D, -1.0))   # net erosion = E - D
+      soil.spl_apply_(H, N, dt = dt / scale_z)  # height -= dt * (E - D)
+      silt.add_(H, U)
 
       # Discharge Field Computation
-      Q = soil.accumulate(graph, P, soil.d8)
-      S = soil.slope(H, graph, scale)
+      Qw = soil.accumulate(G, P, soil.d8)
+      Qs = soil.accumulate(G, E, soil.d8)
+      Qc = soil.accumulate(G, C, soil.d8)
 
-      D = soil.spl_diffusivity(Q, S, D0=0.25, k_D=1, m=-0.4, n=-1.0)
-      D = silt.clamp(D, 0.0, 8.0)
-      soil.gaussian_blur(Q, D)
+      # Transport
 
-      # Slope Field and SPL Erosion Rate
-      soil.spl_rate_(rate, Q, S, K=0.1, m=0.4, n=1.0)
+      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.1, m=-0.4, n=-1.0)
+      diff = silt.clamp(diff, 0.0, 8.0)
 
-      # Height-Field Update: Uplift and Erode
-      silt.add_(H, U)
-      soil.spl_apply_(H, rate, dt = dt / scale_z)
+      soil.gaussian_blur(Qw, diff)
+      soil.gaussian_blur(Qs, diff)
+      soil.gaussian_blur(Qc, diff)
 
       print(f"Step {i}/{steps}, Execution Time: {timer.count} ms")
 
-  plot(H, Q, scale)
+  plot(H, Qw, Qc, scale)
 
 if __name__ == "__main__":
   main()
-

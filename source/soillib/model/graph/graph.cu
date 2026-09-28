@@ -305,7 +305,11 @@ silt::tensor_t<float> slope (
   if(tensor.host() != silt::host_t::GPU)
     throw silt::error::mismatch_host(silt::host_t::GPU, tensor.host());
 
+  // Fold the vertical scale into the horizontal spacing (as soil::normal
+  // does for its gradient), so the raw height difference divided by the
+  // folded distance yields the true dz/dl regardless of any z unit scale.
   const silt::vec2 gscale(scale.x / scale.z, scale.y / scale.z);
+
   const silt::shape shape = tensor.shape();
   silt::tensor_t<float> out(shape, silt::host_t::GPU);
   __slope<<<block(shape.elem(), 512), 512>>>(out, tensor, flow, gscale, shape);
@@ -423,25 +427,31 @@ __global__ void my_decay (
 
 }
 
+//! T is the accumulated value's type -- silt::vec<1/2/3>, dispatched by
+//! channel count in accumulate()/accumulate_decay() below, so a plain
+//! discharge field and an RGB color field share this same machinery.
+//! donor/count/decay stay scalar regardless of T: they describe the graph
+//! structure and a per-edge decay factor, not the accumulated quantity.
+template<typename T>
 struct acc_t {
   silt::tensor_t<int> donor;    // Donor Graph
   silt::tensor_t<int> count;    // Donor Count
-  silt::tensor_t<float> value;  // Local Value
+  silt::view_t<T> value;        // Local Value (vectorized)
   silt::tensor_t<float> decay;  // Decay Value
 };
 
-template<typename DIR = D4_t>
+template<typename T, typename DIR = D4_t>
 __global__ void __rake_compress(
-  acc_t accOut,
-  const acc_t accIn, 
+  acc_t<T> accOut,
+  const acc_t<T> accIn,
   const silt::shape shape
 ){
 
   const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem())
     return;
-  
-  float value = accIn.value[n]; //!< Accumulation Value
+
+  T value = accIn.value[n];     //!< Accumulation Value
   int count = accIn.count[n];   //!< Number of Donors
   int donors[DIR::K];           //!< Donor Indices
   float decays[DIR::K];         //!< Donory Decay Values
@@ -481,7 +491,7 @@ __global__ void __rake_compress(
 
     // Donor is a Leaf-Node: Accumulate and Prune
     if(dcount == 0){
-      value += decay * accIn.value[donor];    // Add the Donor's Value
+      value += accIn.value[donor] * decay;    // Add the Donor's Value
       donors[k] = donors[count-1];            // Move Last Donor Forward
       decays[k] = decays[count-1];
       donors[count-1] = -1;                   // Prune Last Donor
@@ -492,7 +502,7 @@ __global__ void __rake_compress(
 
     // Donor has a Single Donor: Accmulate and Pointer Jump
     else if(dcount == 1) {
-      value += decay * accIn.value[donor];    // Add the Donor's Value
+      value += accIn.value[donor] * decay;    // Add the Donor's Value
       donors[k] = accIn.donor[DIR::K*donor];  // Pointer Jump the Donor (Zero'th Donor)
       decays[k] = decay * accIn.decay[DIR::K*donor];
     }
@@ -527,7 +537,7 @@ __global__ void __rake_compress(
 
 //! Compute the Upstream Accumulation of a Field
 //!\todo Possible Optimization: Per-Cell Ping-Pong Scheme for fewer writes
-template<typename DECAY_T>
+template<typename T, typename DECAY_T>
 silt::tensor_t<float> __accumulate (
   const silt::tensor_t<int> graph,
   const silt::tensor_t<float> value,
@@ -540,12 +550,9 @@ silt::tensor_t<float> __accumulate (
     const silt::shape shape = graph.shape();
     const silt::shape dshape = silt::shape(shape[0], shape[1], DIR::K);
 
-    acc_t accA, accB;
+    acc_t<T> accA, accB;
     accA.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
-    accA.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
-    
     accB.count = silt::tensor_t<int>(shape, silt::host_t::GPU);
-    accB.value = silt::tensor_t<float>(shape, silt::host_t::GPU);
 
     accA.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
     accA.decay = silt::tensor_t<float>(dshape, silt::host_t::GPU);
@@ -553,8 +560,15 @@ silt::tensor_t<float> __accumulate (
     accB.donor = silt::tensor_t<int>(dshape, silt::host_t::GPU);
     accB.decay = silt::tensor_t<float>(dshape, silt::host_t::GPU);
 
+    // Raw float storage behind the vectorized value field -- acc_t only
+    // holds a T-typed view over it for the rake-compress arithmetic.
+    silt::tensor_t<float> valueA(value.shape(), silt::host_t::GPU);
+    silt::tensor_t<float> valueB(value.shape(), silt::host_t::GPU);
+    accA.value = valueA.view<T>();
+    accB.value = valueB.view<T>();
+
     silt::set(accA.donor, -1);
-    silt::set(accA.value, value);
+    silt::set(valueA, value);
     __donor<DIR><<<block(shape.elem(), 512), 512>>>(accA.donor, graph, shape);
     gpuErrchk(cudaGetLastError());
     __count<DIR><<<block(shape.elem(), 512), 512>>>(accA.count, accA.donor, shape);
@@ -565,31 +579,39 @@ silt::tensor_t<float> __accumulate (
     // Execute Rake-Compression Iterations
     const size_t iter = std::ceil(std::log2f((float)shape.elem())/2.0f);
     for(size_t i = 0; i <= iter; ++i){
-      __rake_compress<DIR><<<block(shape.elem(), 256), 256>>>(accB, accA, shape);
+      __rake_compress<T, DIR><<<block(shape.elem(), 256), 256>>>(accB, accA, shape);
       gpuErrchk(cudaGetLastError());
-      __rake_compress<DIR><<<block(shape.elem(), 256), 256>>>(accA, accB, shape);
+      __rake_compress<T, DIR><<<block(shape.elem(), 256), 256>>>(accA, accB, shape);
       gpuErrchk(cudaGetLastError());
     }
     gpuErrchk(cudaDeviceSynchronize());
 
-    return accA.value;
+    return valueA;
 
   };
-  
+
   switch(edge){
     case D4: return dispatch.template operator()<D4_t>();
     case D8: return dispatch.template operator()<D8_t>();
     default: throw std::invalid_argument("invalid edge enumerator");
   }
-  
+
 }
 
+//! Dispatch to the T (channel count) matching `value`, so this works the
+//! same for a scalar discharge field or an RGB color field -- see the
+//! module docstring on acc_t.
 silt::tensor_t<float> accumulate (
   const silt::tensor_t<int> graph,
   const silt::tensor_t<float> value,
   const edge_t edge
 ) {
-  return __accumulate<float>(graph, value, 1.0f, edge);
+  switch(value.shape()[2]){
+    case 1: return __accumulate<silt::vec<1>, float>(graph, value, 1.0f, edge);
+    case 2: return __accumulate<silt::vec<2>, float>(graph, value, 1.0f, edge);
+    case 3: return __accumulate<silt::vec<3>, float>(graph, value, 1.0f, edge);
+    default: throw std::invalid_argument("accumulate: unsupported channel count");
+  }
 }
 
 silt::tensor_t<float> accumulate_decay (
@@ -598,7 +620,12 @@ silt::tensor_t<float> accumulate_decay (
   const silt::tensor_t<float> decay,
   const edge_t edge
 ) {
-  return __accumulate<silt::tensor_t<float>>(graph, source, decay, edge);
+  switch(source.shape()[2]){
+    case 1: return __accumulate<silt::vec<1>, silt::tensor_t<float>>(graph, source, decay, edge);
+    case 2: return __accumulate<silt::vec<2>, silt::tensor_t<float>>(graph, source, decay, edge);
+    case 3: return __accumulate<silt::vec<3>, silt::tensor_t<float>>(graph, source, decay, edge);
+    default: throw std::invalid_argument("accumulate_decay: unsupported channel count");
+  }
 }
 
 } // end of namespace soil

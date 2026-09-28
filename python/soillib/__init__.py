@@ -8,6 +8,7 @@ from .soillib import *  # noqa: F401,F403
 from .util import *  # noqa: F401,F403
 from . import flow  # noqa: F401
 from . import erosion  # noqa: F401
+from . import spl  # noqa: F401
 
 from . import soillib as _ext  # noqa: F401
 
@@ -37,10 +38,17 @@ def spl_diffusivity(discharge, slope, D0, k_D, m, n):
     return diffusivity
 
 
+def spl_deposition(Qs, Qw, k_S):
+    """k_S * Qs / Qw (concentration-based), as a new tensor (see spl_deposition_)."""
+    deposition = silt.like(Qs)
+    spl_deposition_(deposition, Qs, Qw, k_S=k_S)
+    return deposition
+
+
 def _public_names() -> list:
     return sorted(n for n in dir(_ext) if not n.startswith("_"))
 
-__all__ = _public_names() + ["spl_rate", "spl_apply", "spl_diffusivity"]
+__all__ = _public_names() + ["spl_rate", "spl_apply", "spl_diffusivity", "spl_deposition"]
 
 def _resolve_version() -> str:
     """Version of the installed distribution.

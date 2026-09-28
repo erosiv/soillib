@@ -88,12 +88,23 @@ silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const float 
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
     gpuErrchk(cudaGetLastError());
   }
+  if(channel == 3) {
+    using T = silt::vec<3>;
+    __blur<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
+    gpuErrchk(cudaGetLastError());
+    __blur<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
+    gpuErrchk(cudaGetLastError());
+  }
 
   return tensorIn;
 }
 
 //
 // Gaussian Blur Kernel, Spatially-Varying Sigma
+//
+//  Still separable, still a fixed kwindow -- sigma is just looked up per
+//  output cell instead of passed as one constant. An approximation (a true
+//  space-varying Gaussian isn't separable), but a cheap and standard one.
 //
 
 template<typename T>
@@ -129,6 +140,13 @@ silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const silt::
   }
   if(channel == 2) {
     using T = silt::vec<2>;
+    __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), sigma, shape, true);
+    gpuErrchk(cudaGetLastError());
+    __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), sigma, shape, false);
+    gpuErrchk(cudaGetLastError());
+  }
+  if(channel == 3) {
+    using T = silt::vec<3>;
     __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), sigma, shape, true);
     gpuErrchk(cudaGetLastError());
     __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), sigma, shape, false);

@@ -46,4 +46,17 @@ void spl_diffusivity (
   const float n
 );
 
+//! Concentration-based deposition rate, written into `deposition`:
+//!   D = k_S * Qs / Qw
+//! Qs is a sediment-discharge field (e.g. soil::accumulate of a spl_rate
+//! erosion-rate source along the same flow graph used for Qw), Qw the
+//! water-discharge field it's normalized against. Qw is floored away from
+//! zero so dry cells don't divide by it.
+void spl_deposition (
+  silt::tensor_t<float> deposition,
+  const silt::tensor_t<float> Qs,
+  const silt::tensor_t<float> Qw,
+  const float k_S
+);
+
 } // end of namespace soil
