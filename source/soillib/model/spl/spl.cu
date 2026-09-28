@@ -88,4 +88,48 @@ void spl_apply (
 
 }
 
+//
+// Stream-Power Diffusivity Kernel
+//
+
+__global__ void __spl_diffusivity (
+  silt::tensor_t<float> diffusivity,      //!< Output Diffusivity Field
+  const silt::tensor_t<float> discharge,  //!< Input Discharge Field
+  const silt::tensor_t<float> slope,      //!< Input Slope Field
+  const float D0,
+  const float k_D,
+  const float m,
+  const float n,
+  const silt::shape shape
+){
+
+  const int64_t i = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(i >= shape.elem())
+    return;
+
+  const float Q = fmaxf(discharge[i], 0.0f);
+  const float S = fabsf(slope[i]);
+  diffusivity[i] = D0 + k_D * __powf(Q, m) * __powf(S, n);
+
+}
+
+void spl_diffusivity (
+  silt::tensor_t<float> diffusivity,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> slope,
+  const float D0,
+  const float k_D,
+  const float m,
+  const float n
+) {
+
+  if(discharge.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, discharge.host());
+
+  const silt::shape shape = discharge.shape();
+  __spl_diffusivity<<<block(shape.elem(), 512), 512>>>(diffusivity, discharge, slope, D0, k_D, m, n, shape);
+  gpuErrchk(cudaGetLastError());
+
+}
+
 } // end of namespace soil

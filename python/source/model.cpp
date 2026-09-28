@@ -190,7 +190,11 @@ module.def("accumulate_decay", [](const silt::tensor& graph, const silt::tensor&
 
 module.def("gaussian_blur", [](const silt::tensor& tensor, const float sigma){
     return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma));
-});
+}, "tensor"_a, "sigma"_a);
+
+module.def("gaussian_blur", [](const silt::tensor& tensor, const silt::tensor& sigma){
+    return silt::tensor(soil::gaussian_blur(tensor.as<float>(), sigma.as<float>()));
+}, "tensor"_a, "sigma"_a);
 
 module.def("gradient", [](const silt::tensor& tensor, const silt::vec2 scale){
     return silt::tensor(soil::gradient(tensor.as<float>(), scale));
@@ -227,6 +231,10 @@ module.def("spl_rate_", [](silt::tensor rate, const silt::tensor& discharge, con
 module.def("spl_apply_", [](silt::tensor height, const silt::tensor& rate, const float dt){
     soil::spl_apply(height.as<float>(), rate.as<float>(), dt);
 }, "height"_a, "rate"_a, "dt"_a);
+
+module.def("spl_diffusivity_", [](silt::tensor diffusivity, const silt::tensor& discharge, const silt::tensor& slope, const float D0, const float k_D, const float m, const float n){
+    soil::spl_diffusivity(diffusivity.as<float>(), discharge.as<float>(), slope.as<float>(), D0, k_D, m, n);
+}, "diffusivity"_a, "discharge"_a, "slope"_a, "D0"_a, "k_D"_a, "m"_a, "n"_a);
 
 //
 // Path Integral Solution Functions

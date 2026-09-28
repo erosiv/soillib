@@ -30,4 +30,20 @@ void spl_apply (
   const float dt
 );
 
+//! Stream-power-parameterized diffusivity, written into `diffusivity`:
+//!   D = D0 + k_D * Q^m * |S|^n
+//! Same form and inputs as spl_rate, plus a base (uniform) diffusivity D0.
+//! Intended to drive a per-cell soil::gaussian_blur sigma field, as a fast
+//! approximation of deposition -- more discharge/slope locally diffuses
+//! (redistributes) more material, on top of a uniform background rate.
+void spl_diffusivity (
+  silt::tensor_t<float> diffusivity,
+  const silt::tensor_t<float> discharge,
+  const silt::tensor_t<float> slope,
+  const float D0,
+  const float k_D,
+  const float m,
+  const float n
+);
+
 } // end of namespace soil

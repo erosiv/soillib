@@ -73,7 +73,7 @@ silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const float 
   const silt::shape shape(shapeIn[0], shapeIn[1]);
   const int channel = shapeIn[2];
   silt::tensor_t<float> tensorOut(shapeIn, silt::host_t::GPU);
-  
+
   if(channel == 1) {
     using T = silt::vec<1>;
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
@@ -86,6 +86,52 @@ silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const float 
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), shape, sigma, true);
     gpuErrchk(cudaGetLastError());
     __blur<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), shape, sigma, false);
+    gpuErrchk(cudaGetLastError());
+  }
+
+  return tensorIn;
+}
+
+//
+// Gaussian Blur Kernel, Spatially-Varying Sigma
+//
+
+template<typename T>
+__global__ void __blur_varying (
+  silt::view_t<T> tensorOut,           //!< Output Field
+  const silt::view_t<T> tensorIn,      //!< Input Field
+  const silt::tensor_t<float> sigma,   //!< Per-Cell Sigma Field
+  const silt::shape shape,
+  const bool xdir
+){
+  const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(n < shape.elem()) {
+    __gaussian_blur<T>(tensorOut, tensorIn, shape, n, sigma[n], xdir);
+  };
+}
+
+silt::tensor_t<float> gaussian_blur(silt::tensor_t<float> tensorIn, const silt::tensor_t<float> sigma) {
+
+  if(sigma.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, sigma.host());
+
+  const silt::shape shapeIn = tensorIn.shape();
+  const silt::shape shape(shapeIn[0], shapeIn[1]);
+  const int channel = shapeIn[2];
+  silt::tensor_t<float> tensorOut(shapeIn, silt::host_t::GPU);
+
+  if(channel == 1) {
+    using T = silt::vec<1>;
+    __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), sigma, shape, true);
+    gpuErrchk(cudaGetLastError());
+    __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), sigma, shape, false);
+    gpuErrchk(cudaGetLastError());
+  }
+  if(channel == 2) {
+    using T = silt::vec<2>;
+    __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorOut.view<T>(), tensorIn.view<T>(), sigma, shape, true);
+    gpuErrchk(cudaGetLastError());
+    __blur_varying<T><<<block(shape.elem(), 512), 512>>>(tensorIn.view<T>(), tensorOut.view<T>(), sigma, shape, false);
     gpuErrchk(cudaGetLastError());
   }
 

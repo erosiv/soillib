@@ -71,7 +71,7 @@ def main():
   # Input Fields (Uplift, Rainfall)
   P = soil.util.load_png(f"{DATA_DIR}/rainfall.png", host=silt.gpu)
   U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
-  soil.gaussian_blur(U, 2.0)
+  soil.gaussian_blur(U, 12.0)
 
   dt = 1.0
   silt.multiply_(U, 2.0 * dt / scale_z)
@@ -87,10 +87,13 @@ def main():
 
       # Discharge Field Computation
       Q = soil.accumulate(graph, P, soil.d8)
-      soil.gaussian_blur(Q, 1.0)
+      S = soil.slope(H, graph, scale)
+
+      D = soil.spl_diffusivity(Q, S, D0=0.25, k_D=1, m=-0.4, n=-1.0)
+      D = silt.clamp(D, 0.0, 8.0)
+      soil.gaussian_blur(Q, D)
 
       # Slope Field and SPL Erosion Rate
-      S = soil.slope(H, graph, scale)
       soil.spl_rate_(rate, Q, S, K=0.1, m=0.4, n=1.0)
 
       # Height-Field Update: Uplift and Erode
