@@ -69,8 +69,9 @@ def main():
   rate = silt.like(H)
 
   # Input Fields (Uplift, Rainfall)
-  U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
   P = soil.util.load_png(f"{DATA_DIR}/rainfall.png", host=silt.gpu)
+  U = soil.util.load_png(f"{DATA_DIR}/uplift.png", host=silt.gpu)
+  soil.gaussian_blur(U, 2.0)
 
   dt = 1.0
   silt.multiply_(U, 2.0 * dt / scale_z)
@@ -83,10 +84,16 @@ def main():
     with timer:
 
       graph = soil.steepest(H, soil.d8)
+
+      # Discharge Field Computation
       Q = soil.accumulate(graph, P, soil.d8)
+      soil.gaussian_blur(Q, 1.0)
+
+      # Slope Field and SPL Erosion Rate
       S = soil.slope(H, graph, scale)
       soil.spl_rate_(rate, Q, S, K=0.1, m=0.4, n=1.0)
 
+      # Height-Field Update: Uplift and Erode
       silt.add_(H, U)
       soil.spl_apply_(H, rate, dt = dt / scale_z)
 
