@@ -29,8 +29,12 @@ __device__ void __gaussian_blur (
 ){
    
   const silt::ivec2 pos = shape.unflatten(n);       //!< 2D Position
-  const int kwindow = 16;                     //!< Kernel Window Size
+  const float s = fmaxf(sigma, 1e-6f);
+  const float k2 = 0.5f / (s * s);
+  const int kwindow = int(fminf(ceilf(3.0f * s), 16.0f));
+
   T val = T{0};                               //!< Blurred Value
+  float Z = 0.0f;                             //!< Discrete Weight Sum
 
   for(int k = -kwindow; k <= kwindow; ++k){
 
@@ -41,15 +45,13 @@ __device__ void __gaussian_blur (
     if(npos.y > shape[1] - 1) npos.y = shape[1] - 1;
     const int nind = shape.flatten(npos);
 
-//    const float sigma2 = 
-    const float Z = sqrt(2.0f * 3.14159265f) * sigma;
-    const float kernel = __expf(-0.5f*(k / sigma)*(k / sigma)) / Z;
-    const T src = bufferIn[nind];
-    val += src * kernel;
+    const float w = __expf(-k2 * float(k) * float(k));
+    val += bufferIn[nind] * w;
+    Z += w;
 
   }
 
-  bufferOut[n] = val;
+  bufferOut[n] = val * (1.0f / Z);
 
 }
 
