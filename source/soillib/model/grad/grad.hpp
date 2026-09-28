@@ -24,7 +24,7 @@ silt::tensor_t<float> grad_steepest(const silt::tensor_t<float>& tensor, const s
 
 //! Gradient, Quadratic Descending Upwind (Godunov/eikonal upwind).
 //! Per axis, the steeper of the two one-sided downhill differences, zero
-//! if both neighbors are uphill.
+//! if both neighbors are uphill, signed as dz/dx like the other two.
 silt::tensor_t<float> grad_quadratic(const silt::tensor_t<float>& tensor, const silt::vec3 scale);
 
 //! Gradient, Centered Finite Differences (5-point stencil).

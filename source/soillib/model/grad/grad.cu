@@ -100,16 +100,22 @@ __global__ void __grad_quadratic (
   const float h0p = shape.oob(ipos + silt::ivec2( 0, 1)) ? CUDART_NAN_F : tensorIn[shape.flatten(ipos + silt::ivec2( 0, 1))];
 
   // Per axis: the steeper of the two one-sided downhill differences, zero
-  // if both neighbors are uphill. Non-negative by construction (unlike
-  // grad_steepest/grad_centered's signed dz/dx) -- the standard
-  // Hamilton-Jacobi/eikonal upwind scheme for |grad h|.
+  // if both neighbors are uphill -- the eikonal upwind |grad h|, signed as
+  // dz/dx. Descent toward -x is dz/dx > 0, toward +x is dz/dx < 0. An
+  // out-of-bounds descent becomes 0 and so never passes the > 0 test.
+  const float dxn = __isnanf(hn0) ? 0.0f : (h - hn0);  // descent toward -x
+  const float dxp = __isnanf(hp0) ? 0.0f : (h - hp0);  // descent toward +x
+
   float gx = 0.0f;
-  if(!__isnanf(hn0)) gx = glm::max(gx, (h - hn0)/scale.x);
-  if(!__isnanf(hp0)) gx = glm::max(gx, (h - hp0)/scale.x);
+  if(dxn > 0.0f || dxp > 0.0f)
+    gx = (dxn >= dxp) ? (dxn / scale.x) : (-dxp / scale.x);
+
+  const float dyn = __isnanf(h0n) ? 0.0f : (h - h0n);  // descent toward -y
+  const float dyp = __isnanf(h0p) ? 0.0f : (h - h0p);  // descent toward +y
 
   float gy = 0.0f;
-  if(!__isnanf(h0n)) gy = glm::max(gy, (h - h0n)/scale.y);
-  if(!__isnanf(h0p)) gy = glm::max(gy, (h - h0p)/scale.y);
+  if(dyn > 0.0f || dyp > 0.0f)
+    gy = (dyn >= dyp) ? (dyn / scale.y) : (-dyp / scale.y);
 
   auto view = tensorOut.view<silt::vec2>();
   view[n] = silt::vec2(gx, gy);

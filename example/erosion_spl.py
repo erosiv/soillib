@@ -116,11 +116,11 @@ def main():
 
       
       # One Sample:
-      # G = soil.steepest(H, soil.d8)
-      G = soil.random_weighted(H, soil.d8, rng)
-      Qw = soil.accumulate(G, P, soil.d8) # Water Discharge
-      Qs = soil.accumulate(G, E, soil.d8) # Sediment Load
-      # Qc = soil.accumulate(G, C, soil.d8) # Color Discharge
+#      G = soil.steepest(H, soil.d8)
+#      G = soil.random_weighted(H, soil.d8, rng)
+#      Qw = soil.accumulate(G, P, soil.d8) # Water Discharge
+#      Qs = soil.accumulate(G, E, soil.d8) # Sediment Load
+#      Qc = soil.accumulate(G, C, soil.d8) # Color Discharge
 
       # Temporal Delay
       # alpha = 0.5
@@ -130,30 +130,30 @@ def main():
 
       # MultiSample:
 
-#      samples = 4
-#
-#      # First draw allocates, the rest accumulate into it.
-#      G = soil.random_weighted(H, soil.d8, rng)
-#      Qw = soil.accumulate(G, P, soil.d8)   # Water Discharge
-#      Qs = soil.accumulate(G, E, soil.d8)   # Sediment Load
-#      Qc = soil.accumulate(G, C, soil.d8)   # Color Discharge
-#
-#      for _ in range(samples - 1):
-#        G = soil.random_weighted(H, soil.d8, rng)
-#        silt.add_(Qw, soil.accumulate(G, P, soil.d8))
-#        silt.add_(Qs, soil.accumulate(G, E, soil.d8))
-#        silt.add_(Qc, soil.accumulate(G, C, soil.d8))
-#
-#      silt.multiply_(Qw, 1.0 / samples)
-#      silt.multiply_(Qs, 1.0 / samples)
-#      silt.multiply_(Qc, 1.0 / samples)
+      samples = 4
+
+      # First draw allocates, the rest accumulate into it.
+      G = soil.random_weighted(H, soil.d8, rng)
+      Qw = soil.accumulate(G, P, soil.d8)   # Water Discharge
+      Qs = soil.accumulate(G, E, soil.d8)   # Sediment Load
+      # Qc = soil.accumulate(G, C, soil.d8)   # Color Discharge
+
+      for _ in range(samples - 1):
+        G = soil.random_weighted(H, soil.d8, rng)
+        silt.add_(Qw, soil.accumulate(G, P, soil.d8))
+        silt.add_(Qs, soil.accumulate(G, E, soil.d8))
+        # silt.add_(Qc, soil.accumulate(G, C, soil.d8))
+
+      silt.multiply_(Qw, 1.0 / samples)
+      silt.multiply_(Qs, 1.0 / samples)
+      # silt.multiply_(Qc, 1.0 / samples)
 
       # Diffusion Component onto Advective Component
-      # diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
-      # diff = silt.clamp(diff, 0.0, 8.0)
-      # Qw = soil.gaussian_blur(Qw, diff)
-      # Qs = soil.gaussian_blur(Qs, diff)
-      # Qc = soil.gaussian_blur(Qc, diff)
+      diff = soil.spl_diffusivity(Qw, S, D0=0.25, k_D=0.25, m=-0.4, n=-1.0)
+      diff = silt.clamp(diff, 0.0, 8.0)
+      Qw = soil.gaussian_blur(Qw, diff)
+      Qs = soil.gaussian_blur(Qs, diff)
+#      Qc = soil.gaussian_blur(Qc, diff)
 
       print(f"Step {i}/{steps}, Execution Time: {timer.count} ms")
 
