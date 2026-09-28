@@ -224,7 +224,7 @@ def plot(model):
   ax[1, 0].set_title("Relief-Shaded Albedo")
 
   ax[1, 1].imshow(1.0 + discharge, cmap='CMRmap',
-                   norm=colors.LogNorm(1, 1.0 + discharge.max()))
+                   norm=colors.LogNorm(1, 1.0 + np.nanmax(discharge)))
   ax[1, 1].set_title("Discharge")
 
   for a in ax.flat:
