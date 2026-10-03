@@ -6,6 +6,7 @@
 #include <silt/core/tensor.hpp>
 
 #include <iostream>
+#include <stdexcept>
 #include <stdfloat>
 #include <tiffio.h>
 
@@ -66,8 +67,8 @@ protected:
   void scatter_scanline(const void *src, const size_t row); //!< file row -> tensor
   void gather_scanline(void *dst, const size_t row);        //!< tensor -> file row
 
-  //! Bytes per stored element. Not bits()/8: a 16-bit file is read into a
-  //! float32 tensor, so a staging buffer is sized from this, not the file.
+  //! Bytes per stored element in the tensor, which is what a staging buffer is
+  //! sized from.
   inline size_t elem_size() const { return (this->_bits == 64) ? 8 : 4; }
 
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
@@ -93,9 +94,6 @@ void tiff::scatter_scanline(const void *src, const size_t row) {
 
   for (size_t x = 0; x < this->width(); ++x) {
     const size_t i = this->tensor_index(x, row);
-    if (this->bits() == 16) {
-//      ((float *)data)[i] = ((std::float16_t *)src)[x];
-    }
     if (this->bits() == 32) {
       ((float *)data)[i] = ((const float *)src)[x];
     }
@@ -159,15 +157,21 @@ bool tiff::read(const char *filename) {
     this->peek(filename);
   }
 
+  // Only 32- and 64-bit float samples are read. Widening a 16-bit file would
+  // need silt to carry the source depth to write it back unchanged, so it is
+  // rejected rather than silently returning the wrong type or empty data.
+  if (this->bits() != 32 && this->bits() != 64) {
+    throw std::runtime_error("TIFF bit depth not supported: " +
+                             std::to_string(this->bits()) +
+                             " (only 32 and 64 bit float samples are read)");
+  }
+
   // Shape is (W, H): dim0 = x (east), dim1 = y (north), y contiguous. The file
   // is row-major with row 0 north, so the scanline helpers reverse y on the way
   // in and out. That conversion happens here and nowhere else.
 
   this->_shape = silt::shape(this->width(), this->height());
 
-  if (this->bits() == 16) { // Note: Internal Type is still Float32
-    this->_tensor = silt::tensor(silt::FLOAT32, this->_shape);
-  }
   if (this->bits() == 32) {
     this->_tensor = silt::tensor(silt::FLOAT32, this->_shape);
   }
@@ -230,9 +234,6 @@ bool tiff::read(const char *filename) {
             // Reverses y, as the scanline helpers do.
             const size_t i = this->tensor_index(fpos.x, fpos.y);
 
-            if (this->bits() == 16) {
-//              ((float *)buf)[i] = ((std::float16_t *)nbuf)[iy * this->_twidth + ix];
-            }
             if (this->bits() == 32) {
               ((float *)buf)[i] = ((float *)nbuf)[iy * this->_twidth + ix];
             }
