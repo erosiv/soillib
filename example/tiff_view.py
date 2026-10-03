@@ -12,7 +12,8 @@ def main(input):
     print(f"File: {file}, {image.tensor.type}")
 
     data = image.tensor.numpy()
-    plt.imshow(data)
+    # as_image transposes and reverses y: tensor order -> image order.
+    plt.imshow(soil.util.as_image(data))
     plt.show()
 
 if __name__ == "__main__":

@@ -17,7 +17,8 @@ def main(input):
     height_gpu = image.tensor.copy_to(silt.gpu)
     normal = soil.normal(height_gpu, image.meta.scale).copy_to(silt.cpu).numpy()
     relief = soil.util.relief_shade(height, normal)
-    plt.imshow(relief, cmap='gray')
+    # as_image transposes and reverses y: tensor order -> image order.
+    plt.imshow(soil.util.as_image(relief), cmap='gray')
     plt.show()
 
 if __name__ == "__main__":

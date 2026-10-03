@@ -214,16 +214,17 @@ def plot(model):
 
   fig, ax = plt.subplots(2, 2, figsize=(12, 12))
 
-  ax[0, 0].imshow(normal_rgb)
+  # as_image transposes and reverses y: tensor order -> image order.
+  ax[0, 0].imshow(soil.util.as_image(normal_rgb))
   ax[0, 0].set_title("Surface Normal")
 
-  ax[0, 1].imshow(albedo)
+  ax[0, 1].imshow(soil.util.as_image(albedo))
   ax[0, 1].set_title("Surface Albedo")
 
-  ax[1, 0].imshow(shaded_albedo)
+  ax[1, 0].imshow(soil.util.as_image(shaded_albedo))
   ax[1, 0].set_title("Relief-Shaded Albedo")
 
-  ax[1, 1].imshow(1.0 + discharge, cmap='CMRmap',
+  ax[1, 1].imshow(soil.util.as_image(1.0 + discharge), cmap='CMRmap',
                    norm=colors.LogNorm(1, 1.0 + np.nanmax(discharge)))
   ax[1, 1].set_title("Discharge")
 

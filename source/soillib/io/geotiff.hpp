@@ -70,9 +70,11 @@ struct geotiff: soil::io::tiff {
 
   geotiff() {};
   geotiff(const silt::tensor &_tensor): tiff(_tensor) {
-    // do additional stuff to the metadata struct here?
-    this->_meta.coords[3] = _shape[0];
-    this->_meta.coords[4] = _shape[1];
+    // Mirror the raster dimensions into the metadata; set_min needs them.
+    // The tie point keeps its default until a caller georeferences the image.
+    this->_meta.width = this->width();
+    this->_meta.height = this->height();
+    this->_meta.bits = this->bits();
   }
 
   geotiff(const char *filename) {
@@ -101,19 +103,43 @@ struct geotiff: soil::io::tiff {
     std::vector<short> keydir;
 
     inline glm::vec2 dim() const { return glm::vec2(width, height); }
-    inline glm::vec2 min() const { return glm::min(glm::vec2(coords[3], coords[4]), glm::vec2(coords[3], coords[4]) + glm::vec2(scale[0], scale[1]) * dim()); }
-    inline glm::vec2 max() const { return glm::max(glm::vec2(coords[3], coords[4]), glm::vec2(coords[3], coords[4]) + glm::vec2(scale[0], scale[1]) * dim()); }
+
+    //! World position of the raster tie point: GeoTIFF ModelTiepointTag gives
+    //! the NORTH-WEST corner, i.e. raster (i, j) = (0, 0), which is row 0.
+    inline glm::vec2 tiepoint() const { return glm::vec2(coords[3], coords[4]); }
+
+    //! Cell size, always positive. ModelPixelScale is specified positive with
+    //! the row index increasing southward; some writers emit a negative y
+    //! regardless, so the magnitude is taken and the direction applied below.
+    inline glm::vec2 cell() const { return glm::abs(glm::vec2(scale[0], scale[1])); }
+
+    //! South-west corner: tensor cell (0, 0). World y decreases down the
+    //! raster, so the tie point's y is the maximum, not the minimum.
+    inline glm::vec2 min() const { return glm::vec2(tiepoint().x, tiepoint().y - cell().y * dim().y); }
+
+    //! North-east corner.
+    inline glm::vec2 max() const { return glm::vec2(tiepoint().x + cell().x * dim().x, tiepoint().y); }
+
+    //! Georeference from the south-west corner, converting to the north-west
+    //! tie point the format stores. `scale` and `height` must already be set,
+    //! so assign the scale before the origin.
+    inline void set_min(const glm::vec2 m) {
+      coords[3] = m.x;
+      coords[4] = double(m.y) + double(cell().y) * double(height);
+    }
   };
 
   // Projection
 
-  inline glm::vec2 scale() const { return glm::vec2(_meta.scale[0], _meta.scale[1]); }
+  //! Cell size in world units, always positive. See meta_t::cell.
+  inline glm::vec2 scale() const { return _meta.cell(); }
   inline glm::vec2 dim() const { return glm::vec2(this->width(), this->height()); }
-  inline glm::vec2 min() const { return glm::min(glm::vec2(_meta.coords[3], _meta.coords[4]), glm::vec2(_meta.coords[3], _meta.coords[4]) + scale() * dim()); }
-  inline glm::vec2 max() const { return glm::max(glm::vec2(_meta.coords[3], _meta.coords[4]), glm::vec2(_meta.coords[3], _meta.coords[4]) + scale() * dim()); }
-  // Vienna DGM: Requires User-Facing Ability to Alter Scle Cleanly...
-  // inline glm::vec2 min() const   { return glm::min(glm::vec2(_coords[1]), glm::vec2(_coords[1]) + glm::vec2(_scale.x, -_scale.y)*dim()); }
-  // inline glm::vec2 max() const   { return glm::max(glm::vec2(_coords[1]), glm::vec2(_coords[1]) + glm::vec2(_scale.x, -_scale.y)*dim()); }
+
+  //! South-west corner (tensor cell (0, 0)) and north-east corner.
+  inline glm::vec2 min() const { return _meta.min(); }
+  inline glm::vec2 max() const { return _meta.max(); }
+
+  //! Map a tensor coordinate (x east, y north) into world space.
   inline glm::vec2 map(const glm::vec2 p) const { return min() + scale() * p; }
 
   // Basic Get and Copy
@@ -226,16 +252,18 @@ bool geotiff::write(const char *filename) {
   if (!_meta.geoasciiparams.empty())
     TIFFSetField(out, TIFFTAG_GEOASCIIPARAMS, _meta.geoasciiparams.c_str());
 
-  // Output Data
+  // Output Data: scanlines are gathered with y reversed, as in tiff::write.
 
-  auto data = this->_tensor.data();
-  uint8_t *buf = (uint8_t *)data;
+  // Sized from the stored element, not bits()/8: see tiff::elem_size.
+  uint8_t *nbuf = new uint8_t[this->width() * this->elem_size()];
 
   for (uint32_t row = 0; row < this->height(); row++) {
-    if (TIFFWriteScanline(out, buf, row, 0) < 0)
+    this->gather_scanline(nbuf, row);
+    if (TIFFWriteScanline(out, nbuf, row, 0) < 0)
       break;
-    buf += this->width() * (this->bits() / 8);
   }
+
+  delete[] nbuf;
 
   TIFFClose(out);
   return true;

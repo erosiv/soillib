@@ -15,7 +15,8 @@ def main(input):
     height_gpu = image.tensor.copy_to(silt.gpu)
     normal = soil.normal(height_gpu, image.meta.scale).copy_to(silt.cpu).numpy()
     normal = 0.5 + 0.5 * normal
-    plt.imshow(normal)
+    # as_image transposes and reverses y: tensor order -> image order.
+    plt.imshow(soil.util.as_image(normal))
     plt.show()
 
 if __name__ == "__main__":

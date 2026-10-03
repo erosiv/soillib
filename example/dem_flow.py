@@ -46,7 +46,8 @@ def main(data):
   fig, ax = plt.subplots(1, 4, figsize=(20, 5))
   fig.suptitle("Flow Routing: Single-Flow vs. Decayed vs. Multi-Flow")
 
-  ax[0].imshow(height.copy_to(silt.cpu).numpy(), cmap='terrain')
+  # as_image transposes and reverses y: tensor order -> image order.
+  ax[0].imshow(soil.util.as_image(height.copy_to(silt.cpu).numpy()), cmap='terrain')
   ax[0].set_title("Height")
 
   panels = [
@@ -56,7 +57,7 @@ def main(data):
   ]
 
   for a, (title, field) in zip(ax[1:], panels):
-    field_np = field.copy_to(silt.cpu).numpy()
+    field_np = soil.util.as_image(field.copy_to(silt.cpu).numpy())
     a.imshow(field_np, cmap='CMRmap', norm=colors.LogNorm(1, field_np.max()), interpolation='none')
     a.set_title(title)
 

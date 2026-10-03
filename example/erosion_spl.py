@@ -42,13 +42,14 @@ def plot(
   fig, ax = plt.subplots(2, figsize=(12, 12))
   # silt.divide_(color, discharge)
 
-  ax[0].imshow(normal_rgb)
+  # as_image transposes and reverses y: tensor order -> image order.
+  ax[0].imshow(soil.util.as_image(normal_rgb))
   ax[0].set_title("Surface Normal")
 
 #  ax[1].imshow(color)
 #  ax[1].set_title("Surface Color")
 
-  ax[1].imshow(1.0 + discharge, cmap='CMRmap',
+  ax[1].imshow(soil.util.as_image(1.0 + discharge), cmap='CMRmap',
                    norm=colors.LogNorm(1, 1.0 + np.nanmax(discharge)))
   ax[1].set_title("Discharge")
 

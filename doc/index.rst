@@ -24,5 +24,6 @@ soillib
    :maxdepth: 2
    :caption: Contents:
 
+   conventions
    api_cpp
    api_python

@@ -108,9 +108,10 @@ struct sample_t<T, 2, 1> {
     };
   } 
 
-  __device__ static sample_t<T, 2, 1> gather(const silt::tensor_t<T>& buf, const silt::ivec2 res, const silt::vec2 pos);
+  //! Bilinear gather at a fractional position. res is (W, H); x is dim0 and y
+  //! is dim1, which is contiguous. A buffer in any other order is reordered at
+  //! the boundary it came from, not sampled through a second index convention.
   __device__ static sample_t<T, 2, 1> gather(const silt::view_t<const T>& buf, const silt::ivec2 res, const silt::vec2 pos);
-//  __device__ static sample_t<T, 2, 1> gather(cudaTextureObject_t texObj, const silt::ivec2 res, const silt::vec2 pos);
 
   sample_t<T, 1, 1> l0, l1;
   float t;
@@ -119,38 +120,6 @@ struct sample_t<T, 2, 1> {
 //
 // Gather Operations for Interpolation Support
 //
-
-template<typename T>
-__device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::tensor_t<T>& buf, const silt::ivec2 res, const silt::vec2 pos){
-
-  const silt::ivec2 p00 = silt::ivec2(pos) + silt::ivec2(0, 0);
-  const silt::ivec2 p01 = silt::ivec2(pos) + silt::ivec2(0, 1);
-  const silt::ivec2 p10 = silt::ivec2(pos) + silt::ivec2(1, 0);
-  const silt::ivec2 p11 = silt::ivec2(pos) + silt::ivec2(1, 1);
-  silt::vec2 w = pos - glm::floor(pos);
-
-  int i00 = p00.y * res.x + p00.x;
-  int i01 = p01.y * res.x + p01.x;
-  int i10 = p10.y * res.x + p10.x;
-  int i11 = p11.y * res.x + p11.x;
-
-  if(pos.x < 0 && pos.y < 0) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
-  if(pos.x > res.x-1 && pos.y > res.y-1) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
-
-  if(pos.x + 1 > res.x - 1){ w.x = 0; i10 = 0; i11 = 0; }
-  if(pos.y + 1 > res.y - 1){ w.y = 0; i01 = 0; i11 = 0; }
-
-  const T h00 = buf[i00];
-  const T h01 = buf[i01];
-  const T h10 = buf[i10];
-  const T h11 = buf[i11];
-
-  return sample_t<T, 2, 1>{
-    {h00, h01}, 
-    {h10, h11},
-    w
-  };
-}
 
 template<typename T>
 __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::view_t<const T>& view, const silt::ivec2 res, const silt::vec2 pos){
@@ -186,30 +155,3 @@ __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::view_t<const 
   };
 }
 
-//template<typename T>
-//__device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(cudaTextureObject_t texObj, const ivec2 res, const vec2 pos){
-//
-//  const ivec2 p00 = ivec2(pos) + ivec2(0, 0);
-//  const ivec2 p01 = ivec2(pos) + ivec2(0, 1);
-//  const ivec2 p10 = ivec2(pos) + ivec2(1, 0);
-//  const ivec2 p11 = ivec2(pos) + ivec2(1, 1);
-//  vec2 w = pos - glm::floor(pos);
-//
-//  // Bounds Check -> NaN
-//  if(pos.x < 0) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
-//  if(pos.y < 0) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
-//  if(pos.x >= res.x) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
-//  if(pos.y >= res.y) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
-//
-//  // Note the differing y ordering here...
-//  const T h00 = tex2D<T>(texObj, (float)p00.x, res.y - 1 - (float)p00.y);
-//  const T h01 = tex2D<T>(texObj, (float)p01.x, res.y - 1 - (float)p01.y);
-//  const T h10 = tex2D<T>(texObj, (float)p10.x, res.y - 1 - (float)p10.y);
-//  const T h11 = tex2D<T>(texObj, (float)p11.x, res.y - 1 - (float)p11.y);
-//
-//  return sample_t<T, 2, 1>{
-//    {h00, h01}, 
-//    {h10, h11},
-//    w
-//  };
-//}

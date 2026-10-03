@@ -50,6 +50,26 @@ struct tiff {
   silt::shape shape() const { return this->_shape; }
 
 protected:
+  //! Flat tensor index for the file pixel at (col, row).
+  //!
+  //! A TIFF scanline runs west to east and row 0 is the north edge
+  //! (ORIENTATION_TOPLEFT). A tensor is (W, H) with dim0 = x (east), dim1 = y
+  //! (north) and y contiguous. Converting between them is y = H - row - 1,
+  //! x = col.
+  //!
+  //! This is the only expression of that conversion: the scanline helpers and
+  //! the tiled reader all call it, so read and write cannot diverge.
+  inline size_t tensor_index(const size_t col, const size_t row) const {
+    return col * this->_height + (this->_height - row - 1);
+  }
+
+  void scatter_scanline(const void *src, const size_t row); //!< file row -> tensor
+  void gather_scanline(void *dst, const size_t row);        //!< tensor -> file row
+
+  //! Bytes per stored element. Not bits()/8: a 16-bit file is read into a
+  //! float32 tensor, so a staging buffer is sized from this, not the file.
+  inline size_t elem_size() const { return (this->_bits == 64) ? 8 : 4; }
+
   bool meta_loaded = false; //!< Flag: Is Meta-Data Loaded
   bool tiled_image = false; //!< Flag: Is Image Tiled
 
@@ -65,6 +85,41 @@ protected:
   silt::shape _shape;   //!< Underlying Data Shape
   silt::tensor _tensor; //!< Underlying Data Tensor
 };
+
+//! Scatter one file scanline into the tensor, reversing y.
+void tiff::scatter_scanline(const void *src, const size_t row) {
+
+  void *data = this->_tensor.data();
+
+  for (size_t x = 0; x < this->width(); ++x) {
+    const size_t i = this->tensor_index(x, row);
+    if (this->bits() == 16) {
+//      ((float *)data)[i] = ((std::float16_t *)src)[x];
+    }
+    if (this->bits() == 32) {
+      ((float *)data)[i] = ((const float *)src)[x];
+    }
+    if (this->bits() == 64) {
+      ((double *)data)[i] = ((const double *)src)[x];
+    }
+  }
+}
+
+//! Gather one file scanline out of the tensor, reversing y.
+void tiff::gather_scanline(void *dst, const size_t row) {
+
+  const void *data = this->_tensor.data();
+
+  for (size_t x = 0; x < this->width(); ++x) {
+    const size_t i = this->tensor_index(x, row);
+    if (this->bits() == 32) {
+      ((float *)dst)[x] = ((const float *)data)[i];
+    }
+    if (this->bits() == 64) {
+      ((double *)dst)[x] = ((const double *)data)[i];
+    }
+  }
+}
 
 //! Load TIFF Metadata
 bool tiff::peek(const char *filename) {
@@ -104,8 +159,9 @@ bool tiff::read(const char *filename) {
     this->peek(filename);
   }
 
-  // Note: TIFF is Column Major (See Reading Function Below)
-  //  Therefore,
+  // Shape is (W, H): dim0 = x (east), dim1 = y (north), y contiguous. The file
+  // is row-major with row 0 north, so the scanline helpers reverse y on the way
+  // in and out. That conversion happens here and nowhere else.
 
   this->_shape = silt::shape(this->width(), this->height());
 
@@ -128,36 +184,12 @@ bool tiff::read(const char *filename) {
   // Load Tiled / Non-Tiled Images
   if (!this->tiled_image) {
 
-    auto data = this->_tensor.data();
-    uint8_t *buf = (uint8_t *)data;
-
+    // Holds one FILE scanline, so this one really is bits()/8.
     uint8_t *nbuf = new uint8_t[this->width() * (this->bits() / 8)];
 
     for (size_t row = 0; row < this->height(); row++) {
       TIFFReadScanline(tif, nbuf, row);
-
-      for (size_t i = 0; i < this->width(); ++i) {
-
-        if (this->bits() == 16) {
-//          ((float *)buf)[i] = ((std::float16_t *)nbuf)[i];
-        }
-        if (this->bits() == 32) {
-          ((float *)buf)[i] = ((float *)nbuf)[i];
-        }
-        if (this->bits() == 64) {
-          ((double *)buf)[i] = ((double *)nbuf)[i];
-        }
-      }
-
-      if (this->bits() == 16) {
-        buf += this->width() * (32 / 8);
-      }
-      if (this->bits() == 32) {
-        buf += this->width() * (32 / 8);
-      }
-      if (this->bits() == 64) {
-        buf += this->width() * (64 / 8);
-      }
+      this->scatter_scanline(nbuf, row);
     }
 
     delete[] nbuf;
@@ -195,14 +227,17 @@ bool tiff::read(const char *filename) {
             if (fpos.y >= this->height())
               continue;
 
+            // Reverses y, as the scanline helpers do.
+            const size_t i = this->tensor_index(fpos.x, fpos.y);
+
             if (this->bits() == 16) {
-//              ((float *)buf)[fpos.y * this->width() + fpos.x] = ((std::float16_t *)nbuf)[iy * this->_twidth + ix];
+//              ((float *)buf)[i] = ((std::float16_t *)nbuf)[iy * this->_twidth + ix];
             }
             if (this->bits() == 32) {
-              ((float *)buf)[fpos.y * this->width() + fpos.x] = ((float *)nbuf)[iy * this->_twidth + ix];
+              ((float *)buf)[i] = ((float *)nbuf)[iy * this->_twidth + ix];
             }
             if (this->bits() == 64) {
-              ((double *)buf)[fpos.y * this->width() + fpos.x] = ((double *)nbuf)[iy * this->_twidth + ix];
+              ((double *)buf)[i] = ((double *)nbuf)[iy * this->_twidth + ix];
             }
           }
       }
@@ -228,14 +263,16 @@ bool tiff::write(const char *filename) {
   TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
   TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
 
-  auto data = this->_tensor.data();
-  uint8_t *buf = (uint8_t *)data;
+  // Sized from the stored element, not bits()/8: see elem_size.
+  uint8_t *nbuf = new uint8_t[this->width() * this->elem_size()];
 
   for (uint32_t row = 0; row < this->height(); row++) {
-    if (TIFFWriteScanline(out, buf, row, 0) < 0)
+    this->gather_scanline(nbuf, row);
+    if (TIFFWriteScanline(out, nbuf, row, 0) < 0)
       break;
-    buf += this->width() * (this->bits() / 8);
   }
+
+  delete[] nbuf;
 
   TIFFClose(out);
   return true;

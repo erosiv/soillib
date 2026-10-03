@@ -14,6 +14,8 @@ import soillib as soil
 
 __all__ = [
   "iter_tiff",
+  "as_image",
+  "from_image",
   "load_png",
   "relief_shade",
   "plot_area",
@@ -49,6 +51,24 @@ def iter_tiff(path, max_files=None):
     raise RuntimeError("path must be file or directory")
 
 
+def as_image(array):
+  """Tensor order to image order.
+
+  A tensor is (W, H[, C]) with x east and y north; an image is (rows, cols[, C])
+  with row 0 north. Transposes and reverses y. Use this before `imshow`,
+  `Image.fromarray` or any other viewer, and nowhere else."""
+  if array.ndim == 2:
+    return np.ascontiguousarray(array[:, ::-1].T)
+  return np.ascontiguousarray(np.transpose(array, (1, 0, 2))[::-1, :, :])
+
+
+def from_image(array):
+  """Image order to tensor order: the exact inverse of `as_image`."""
+  if array.ndim == 2:
+    return np.ascontiguousarray(array.T[:, ::-1])
+  return np.ascontiguousarray(np.transpose(array, (1, 0, 2))[:, ::-1, :])
+
+
 def load_png(path, host=None):
   """
   Load a PNG as a tensor: grayscale (L/LA) -> single channel, RGB/RGBA ->
@@ -57,23 +77,24 @@ def load_png(path, host=None):
   from PIL import Image
 
   image = Image.open(path)
-  size = image.size
+  w, h = image.size
   mode = image.mode
   data = np.array(image.getdata())
 
+  # getdata() is row-major, so the natural shape is (rows, cols) = (h, w).
   if mode == "L":
-    data = data.reshape(size[0], size[1], 1)[..., 0]
+    data = data.reshape(h, w)
   elif mode == "LA":
-    data = data.reshape(size[0], size[1], 2)[..., 0]
+    data = data.reshape(h, w, 2)[..., 0]
   elif mode == "RGB":
-    data = data.reshape(size[0], size[1], 3)[..., :3]
+    data = data.reshape(h, w, 3)
   elif mode == "RGBA":
-    data = data.reshape(size[0], size[1], 4)[..., :3]
+    data = data.reshape(h, w, 4)[..., :3]
   else:
     raise ValueError(f"load_png: unsupported PNG mode {mode!r}")
 
   data = (data / 256.0).astype(np.float32)
-  tensor = silt.tensor.from_numpy(data)
+  tensor = silt.tensor.from_numpy(from_image(data))
   return tensor.to(host) if host is not None else tensor
 
 
@@ -108,7 +129,7 @@ def plot_area(area):
   fig, ax = plt.subplots(figsize=(8, 6))
   fig.patch.set_alpha(0)
   plt.grid('on', zorder=0)
-  im = ax.imshow(area, zorder=2,
+  im = ax.imshow(as_image(area), zorder=2,
                   cmap='CMRmap',
                   norm=colors.LogNorm(1, area.max()),
                   interpolation='bilinear')
@@ -126,20 +147,20 @@ def plot_images(images):
   if K == 1:
     ax = [ax]
   for k, img in enumerate(images):
-    ax[k].imshow(img, zorder=2, cmap='CMRmap', interpolation='bilinear')
+    ax[k].imshow(as_image(img), zorder=2, cmap='CMRmap', interpolation='bilinear')
   plt.tight_layout()
   plt.show()
 
 
 def show_height(tensor):
-  plt.imshow(_to_cpu_numpy(tensor))
+  plt.imshow(as_image(_to_cpu_numpy(tensor)))
   plt.show()
 
 
 def show_normal(tensor, scale):
   """`tensor` should be GPU-resident (soil.normal runs on the GPU)."""
   normal = _to_cpu_numpy(soil.normal(tensor, scale))
-  plt.imshow(0.5 + 0.5 * normal)
+  plt.imshow(as_image(0.5 + 0.5 * normal))
   plt.show()
 
 
@@ -148,12 +169,12 @@ def show_relief(tensor, scale):
   normal = _to_cpu_numpy(soil.normal(tensor, scale))
   height = _to_cpu_numpy(tensor)
   relief = relief_shade(height, normal)
-  plt.imshow(relief, cmap='gray')
+  plt.imshow(as_image(relief), cmap='gray')
   plt.show()
 
 
 def show_discharge(tensor):
-  data = 1.0 + _to_cpu_numpy(tensor)
+  data = as_image(1.0 + _to_cpu_numpy(tensor))
   fig, ax = plt.subplots(figsize=(8, 6))
   ax.imshow(data, zorder=2,
             cmap='CMRmap',
@@ -163,7 +184,7 @@ def show_discharge(tensor):
 
 
 def show_mass(tensor):
-  data = 1.0 + _to_cpu_numpy(tensor)
+  data = as_image(1.0 + _to_cpu_numpy(tensor))
   fig, ax = plt.subplots(figsize=(8, 6))
   ax.imshow(data, zorder=2,
             cmap='CMRmap',
@@ -220,7 +241,7 @@ def save_tensor(path, tensor, scale=None):
   if channels == 3:
     from PIL import Image
     out = f"{path}.png"
-    image = np.clip(255.0 * data, 0.0, 255.0).astype(np.uint8)
+    image = np.clip(255.0 * as_image(data), 0.0, 255.0).astype(np.uint8)
     Image.fromarray(image).save(out)
     return [out]
 
