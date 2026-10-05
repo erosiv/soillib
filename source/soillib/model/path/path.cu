@@ -115,6 +115,7 @@ __global__ void __solve_uniform (
   // From rest: one cell of relaxation, so the first direction is steepest descent.
   const vecD d_init = __descent(heightView, res, pos, scale);
   vecD d = d_init * (1.0f - __expf(-drag * L));
+  float coast = 0.0f;                       //!< Path Length Without Descent  [m]
 
   // Integrate along Streamline
   int step = 0;
@@ -145,7 +146,10 @@ __global__ void __solve_uniform (
     const silt::vec2 d_norm = d / d_len;        //!< Normalized Direction   [1]
     const float ds = __stepsize(pos, d_norm);   //!< Step-Size in Gridspace [1]
     pos += ds * d_norm;                         //!< Grid Position Update   [1]
-    if(shape.oob(pos))
+    // The bounds test truncates toward zero, so a position in (-1, 0) reads as
+    // cell 0 and would deposit there on the way out; the low edges are tested
+    // against the interpolation support instead.
+    if(shape.oob(pos) || pos.x < 0.0f || pos.y < 0.0f)
       break;
 
     const float darc = ds * L;                  //!< Path Length Travelled  [m]
@@ -154,6 +158,16 @@ __global__ void __solve_uniform (
 
     // Relax the direction onto steepest descent over the step.
     const vecD d_eq = __descent(heightView, res, pos, scale);
+
+    // The step is one cell whatever the direction's magnitude, so a particle on
+    // ground with no descent keeps its inherited direction and runs straight
+    // out across the flat. It may coast one coasting length without a driving
+    // gradient, which is the distance `drag` says it carries.
+    if(glm::length(d_eq) > epsilon)
+      coast = 0.0f;
+    else if((coast += darc) * drag > 1.0f)
+      break;
+
     d = d_eq + (d - d_eq) * __expf(-drag * darc);
 
   }

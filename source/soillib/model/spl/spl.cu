@@ -92,6 +92,43 @@ void spl_apply (
 // Exponential Fitting: Relaxation Rate + Fitted Update
 //
 
+__global__ void __spl_deposition_limit (
+  silt::tensor_t<float> deposition,   //!< Deposition Rate, In Place [m/time]
+  const silt::tensor_t<float> slope,  //!< Input Slope Field         [1]
+  const float fraction,
+  const float length,
+  const float floor,
+  const float dt,
+  const silt::shape shape
+){
+
+  const int64_t i = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(i >= shape.elem())
+    return;
+
+  const float cap = (fraction * fabsf(slope[i]) * length + floor) / dt;
+  deposition[i] = fminf(deposition[i], cap);
+
+}
+
+void spl_deposition_limit (
+  silt::tensor_t<float> deposition,
+  const silt::tensor_t<float> slope,
+  const float fraction,
+  const float length,
+  const float floor,
+  const float dt
+) {
+
+  if(deposition.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, deposition.host());
+
+  const silt::shape shape = deposition.shape();
+  __spl_deposition_limit<<<block(shape.elem(), 512), 512>>>(deposition, slope, fraction, length, floor, dt, shape);
+  gpuErrchk(cudaGetLastError());
+
+}
+
 __global__ void __spl_decay (
   silt::tensor_t<float> decay,            //!< Output Decay Rate    [1/m]
   const silt::tensor_t<float> discharge,  //!< Input Discharge      [m^3/time]

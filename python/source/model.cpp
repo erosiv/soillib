@@ -215,6 +215,10 @@ module.def("creep", [](const silt::tensor& height, const silt::vec3 scale, const
     return silt::tensor(soil::creep(height.as<float>(), scale, rate, critslope));
 }, "height"_a, "scale"_a, "rate"_a, "critslope"_a = 0.0f);
 
+module.def("creep_relax", [](const silt::tensor& height, const silt::vec3 scale, const float rate, const float critslope){
+    return silt::tensor(soil::creep_relax(height.as<float>(), scale, rate, critslope));
+}, "height"_a, "scale"_a, "rate"_a, "critslope"_a = 0.0f);
+
 // Convenience: grad_centered + the normalize trick, in one call.
 module.def("normal", [](const silt::tensor& tensor, const silt::vec3 scale){
     return silt::tensor(soil::normal(tensor.as<float>(), scale));
@@ -265,6 +269,10 @@ module.def("spill_limit", [](const silt::tensor& height, const silt::tensor& bef
 module.def("spl_diffusivity_", [](silt::tensor diffusivity, const silt::tensor& discharge, const silt::tensor& slope, const float D0, const float k_D, const float m, const float n){
     soil::spl_diffusivity(diffusivity.as<float>(), discharge.as<float>(), slope.as<float>(), D0, k_D, m, n);
 }, "diffusivity"_a, "discharge"_a, "slope"_a, "D0"_a, "k_D"_a, "m"_a, "n"_a);
+
+module.def("spl_deposition_limit_", [](silt::tensor deposition, const silt::tensor& slope, const float fraction, const float length, const float floor, const float dt){
+    soil::spl_deposition_limit(deposition.as<float>(), slope.as<float>(), fraction, length, floor, dt);
+}, "deposition"_a, "slope"_a, "fraction"_a, "length"_a, "floor"_a, "dt"_a);
 
 module.def("spl_decay_", [](silt::tensor decay, const silt::tensor& discharge, const float k_S, const float width, const float minimum){
     soil::spl_decay(decay.as<float>(), discharge.as<float>(), k_S, width, minimum);

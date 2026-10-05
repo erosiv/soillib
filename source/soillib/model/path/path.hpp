@@ -31,7 +31,10 @@ namespace soil {
 //! a mixing length in metres.
 //!
 //! Particles terminate on leaving the domain, on a vanishing direction, on
-//! attenuation below epsilon, and on a Manhattan step bound.
+//! attenuation below epsilon, on a Manhattan step bound, and on coasting one
+//! coasting length over ground with no descent: the step is one cell whatever
+//! the direction's magnitude, so a particle crossing a flat would otherwise
+//! carry its inherited direction straight out of it.
 silt::tensor solve_uniform (
   const silt::tensor_t<float> height,   //!< Height Field          [1]
   const silt::tensor_t<float> source,   //!< Source Term Tensor    [X/time/m^D]

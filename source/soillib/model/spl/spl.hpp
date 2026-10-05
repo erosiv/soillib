@@ -67,6 +67,24 @@ void spl_apply_exp (
   const float dt
 );
 
+//! Cap a deposition rate at what a cell can aggrade in one step without
+//! filling toward its donors, in place:
+//!   D <- min(D, (fraction * slope * length + floor) / dt)
+//! The headroom a cell has before deposition reverses its flow scales with its
+//! local relief, slope * length; `floor` is the rise a flat is still allowed,
+//! without which a zero slope admits no deposition at all.
+//!
+//! Pointwise and monotone, so unlike soil::spill_limit it couples no
+//! neighbours and cannot imprint a spatial pattern of its own.
+void spl_deposition_limit (
+  silt::tensor_t<float> deposition,
+  const silt::tensor_t<float> slope,
+  const float fraction,
+  const float length,
+  const float floor,
+  const float dt
+);
+
 //! Cap aggradation at the level of the cells that drained into it, as a
 //! new tensor. `before` is the height field as it stood at the start of the
 //! step and fixes which D4 neighbors are donors; `height` is the updated
