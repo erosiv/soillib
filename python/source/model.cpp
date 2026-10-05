@@ -266,6 +266,10 @@ module.def("spl_diffusivity_", [](silt::tensor diffusivity, const silt::tensor& 
     soil::spl_diffusivity(diffusivity.as<float>(), discharge.as<float>(), slope.as<float>(), D0, k_D, m, n);
 }, "diffusivity"_a, "discharge"_a, "slope"_a, "D0"_a, "k_D"_a, "m"_a, "n"_a);
 
+module.def("spl_decay_", [](silt::tensor decay, const silt::tensor& discharge, const float k_S, const float width, const float minimum){
+    soil::spl_decay(decay.as<float>(), discharge.as<float>(), k_S, width, minimum);
+}, "decay"_a, "discharge"_a, "k_S"_a, "width"_a, "minimum"_a);
+
 module.def("spl_deposition_", [](silt::tensor deposition, const silt::tensor& Qs, const silt::tensor& Qw, const float k_S){
     soil::spl_deposition(deposition.as<float>(), Qs.as<float>(), Qw.as<float>(), k_S);
 }, "deposition"_a, "Qs"_a, "Qw"_a, "k_S"_a);

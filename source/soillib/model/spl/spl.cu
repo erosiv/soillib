@@ -92,6 +92,40 @@ void spl_apply (
 // Exponential Fitting: Relaxation Rate + Fitted Update
 //
 
+__global__ void __spl_decay (
+  silt::tensor_t<float> decay,            //!< Output Decay Rate    [1/m]
+  const silt::tensor_t<float> discharge,  //!< Input Discharge      [m^3/time]
+  const float k_S,
+  const float width,
+  const float minimum,
+  const silt::shape shape
+){
+
+  const int64_t i = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
+  if(i >= shape.elem())
+    return;
+
+  decay[i] = k_S * width / fmaxf(discharge[i], minimum);
+
+}
+
+void spl_decay (
+  silt::tensor_t<float> decay,
+  const silt::tensor_t<float> discharge,
+  const float k_S,
+  const float width,
+  const float minimum
+) {
+
+  if(discharge.host() != silt::host_t::GPU)
+    throw silt::error::mismatch_host(silt::host_t::GPU, discharge.host());
+
+  const silt::shape shape = discharge.shape();
+  __spl_decay<<<block(shape.elem(), 512), 512>>>(decay, discharge, k_S, width, minimum, shape);
+  gpuErrchk(cudaGetLastError());
+
+}
+
 __global__ void __spl_relax (
   silt::tensor_t<float> relax,            //!< Output Relaxation Rate
   const silt::tensor_t<float> discharge,  //!< Input Discharge Field

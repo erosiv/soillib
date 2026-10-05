@@ -97,6 +97,20 @@ void spl_diffusivity (
   const float n
 );
 
+//! Decay rate of a transported load [1/m], written into `decay`: the
+//! reciprocal of the length over which concentration-based deposition relaxes
+//! the load onto the local capacity,
+//!   lambda = Qw / (k_S * width)
+//! which is the attenuation soil::solve_uniform applies per unit path length.
+//! Discharge is floored at `minimum` so a dry cell gives a finite, large rate.
+void spl_decay (
+  silt::tensor_t<float> decay,
+  const silt::tensor_t<float> discharge,
+  const float k_S,
+  const float width,
+  const float minimum
+);
+
 //! Concentration-based deposition rate, written into `deposition`:
 //!   D = k_S * Qs / Qw
 //! Qs is a sediment-discharge field (e.g. soil::accumulate of a spl_rate

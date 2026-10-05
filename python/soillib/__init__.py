@@ -52,6 +52,13 @@ def spl_diffusivity(discharge, slope, D0, k_D, m, n):
     return diffusivity
 
 
+def spl_decay(discharge, k_S, width, minimum):
+    """k_S * width / discharge, the load's decay rate, as a new tensor (see spl_decay_)."""
+    decay = silt.like(discharge)
+    spl_decay_(decay, discharge, k_S=k_S, width=width, minimum=minimum)
+    return decay
+
+
 def spl_deposition(Qs, Qw, k_S):
     """k_S * Qs / Qw (concentration-based), as a new tensor (see spl_deposition_)."""
     deposition = silt.like(Qs)
@@ -64,7 +71,7 @@ def _public_names() -> list:
 
 __all__ = _public_names() + [
     "spl_rate", "spl_apply", "spl_relax", "spl_apply_exp",
-    "spl_diffusivity", "spl_deposition",
+    "spl_diffusivity", "spl_deposition", "spl_decay",
 ]
 
 def _resolve_version() -> str:
