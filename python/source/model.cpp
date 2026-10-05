@@ -9,6 +9,7 @@ namespace nb = nanobind;
 #include <soillib/model/path/path.hpp>
 #include <soillib/model/spl/spl.hpp>
 #include <soillib/model/grad/grad.hpp>
+#include <soillib/model/creep/creep.hpp>
 #include <soillib/op/cone.hpp>
 #include <soillib/op/noise.hpp>
 #include <soillib/op/normal.hpp>
@@ -210,6 +211,10 @@ module.def("laplacian", [](const silt::tensor& tensor, const silt::vec2 scale){
     return silt::tensor(soil::laplacian(tensor.as<float>(), scale));
 });
 
+module.def("creep", [](const silt::tensor& height, const silt::vec3 scale, const float rate, const float critslope){
+    return silt::tensor(soil::creep(height.as<float>(), scale, rate, critslope));
+}, "height"_a, "scale"_a, "rate"_a, "critslope"_a = 0.0f);
+
 // Convenience: grad_centered + the normalize trick, in one call.
 module.def("normal", [](const silt::tensor& tensor, const silt::vec3 scale){
     return silt::tensor(soil::normal(tensor.as<float>(), scale));
@@ -270,24 +275,28 @@ module.def("spl_deposition_", [](silt::tensor deposition, const silt::tensor& Qs
 //
 
 module.def("solve_uniform", [](
-  const silt::tensor flow,
+  const silt::tensor height,
   const silt::tensor source,
   const silt::tensor decay,
   silt::tensor rng,
-  const silt::vec2 scale,
-  const size_t count
+  const silt::vec3 scale,
+  const size_t count,
+  const float gravity,
+  const float drag
 ){
 
   return soil::solve_uniform (
-    flow.as<float>(),
+    height.as<float>(),
     source.as<float>(),
     decay.as<float>(),
     rng.as<silt::rng>(),
     scale,
-    count
+    count,
+    gravity,
+    drag
   );
 
-});
+}, "height"_a, "source"_a, "decay"_a, "rng"_a, "scale"_a, "count"_a, "gravity"_a, "drag"_a);
 
 // module.def("suspend", [](
 //   const silt::tensor flow,

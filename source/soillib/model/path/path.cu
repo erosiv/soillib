@@ -46,15 +46,44 @@ __device__ float __stepsize (
 
 }
 
+//! Terminal velocity of a particle at a position in grid-space: the velocity at
+//! which the drag balances the acceleration down the potential gradient. This
+//! is the velocity the motion law relaxes toward, and the whole of the velocity
+//! field the solver needs -- nothing is prescribed from outside.
+__device__ silt::vec2 __velocity (
+  const silt::view_t<const float>& height, //!< Height Field          [1]
+  const silt::ivec2 res,                   //!< Field Resolution      [1]
+  const silt::vec2 pos,                    //!< Grid-Space Position   [1]
+  const silt::vec3 scale,                  //!< Cell Scale            [m]
+  const float gravity,                     //!< Gravity               [m/time^2]
+  const float drag                         //!< Drag Rate             [1/time]
+) {
+
+  // Height is in normalized units, so the per-cell difference becomes a
+  // dimensionless slope through scale.z / scale.xy -- the same convention the
+  // soil::grad_* operators use.
+  const auto support = sample_t<float, 2, 1>::gather(height, res, pos);
+  const silt::vec2 grad = support.grad();
+  const silt::vec2 slope = silt::vec2 (
+    grad.x * scale.z / scale.x,
+    grad.y * scale.z / scale.y
+  );
+
+  return -(gravity / drag) * slope;
+
+}
+
 template<size_t K>                      //!< K = Transport Tensor Components
 __global__ void __solve_uniform (
   silt::tensor_t<float> flux,           //!< Flux Integral Estimate [X*m^D/s]
-  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor      [m/s]
+  const silt::tensor_t<float> height,   //!< Height Field           [1]
   const silt::tensor_t<float> source,   //!< Source Term Tensor     [X/s]
   const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/s]
   silt::tensor_t<silt::rng> rng,        //!< Random Number Source   [1]
   const silt::shape shape,              //!< Tensor Shape
-  const silt::vec2 scale,               //!< Cell Scale             [m]
+  const silt::vec3 scale,               //!< Cell Scale             [m]
+  const float gravity,                  //!< Gravity                [m/s^2]
+  const float drag,                     //!< Drag Rate              [1/s]
   const float epsilon,                  //!< Minimum Attenuation    [1]
   const float maxstep                   //!< Maximum Particle Steps [1]
 ) {
@@ -69,8 +98,10 @@ __global__ void __solve_uniform (
   using vecD = silt::fvec<D>;               //!< Vector of D Components
   using vecK = silt::fvec<K>;               //!< Vector of K Components
   auto fluxView = flux.view<vecK>();        //!< Tensorised Flux View         [X/s]
-  auto flowView = flow.view<vecD>();        //!< Tensorised Flow View         [m/s]
+  auto heightView = height.view<float>();   //!< Height Field View            [1]
   auto sourceView = source.view<vecK>();    //!< Tensorised Source View       [X/s]
+
+  const silt::ivec2 res = silt::ivec2(shape[0], shape[1]);
 
   // Initialize Particle State
   float att = 1.0f;                         //!< Cumulative Flux Attenuation  [1]
@@ -82,20 +113,17 @@ __global__ void __solve_uniform (
   int ind = shape.flatten(pos);             //!< Grid Tensor Index
 
   // Upstream Contributions Sample
-  const float L = glm::length(scale);       //!< Length of Cell         [m]
+  const silt::vec2 scaleXY = silt::vec2(scale.x, scale.y);
+  const float L = glm::length(scaleXY);     //!< Length of Cell         [m]
   const float A = (scale.x * scale.y);      //!< Area of Cell           [m^D]
   const float P = 1.0f / (A * shape.elem());  //!< Probability of Sample  [1/m^D]
   const vecK S = sourceView[ind] / P;       //!< Sampled Source Rate    [X*m^D/s]
   if(glm::length(S) < epsilon)              //!< Early Termination
     return;
 
-  // the flow evolution rule?
-  //  if we don't have any type of momentum, then pits basically
-  //  don't really go away. We rely on the well-structuredness of
-  //  the velocity field, which we cannot always do.
-//  silt::vec2 v = flowView[ind];
-  const sample_t<vecD, D, 1> v_support = sample_t<vecD, D, 1>::gather(flowView, vecD(shape[0], shape[1]), pos);
-  vecD v = v_support.val();
+  // The particle carries its own momentum, so it is launched at the local
+  // terminal velocity and relaxes from there as the gradient under it changes.
+  vecD v = __velocity(heightView, res, pos, scale, gravity, drag);
 
   // Integrate along Streamline
   int step = 0;
@@ -111,35 +139,46 @@ __global__ void __solve_uniform (
       if constexpr(K >= 2){
         atomicAdd(&fluxView[ind].y, S.y * att);
       }
+      if constexpr(K >= 3){
+        atomicAdd(&fluxView[ind].z, S.z * att);
+      }
     }
 
-    // Sample Velocity Field
-    const sample_t<vecD, D, 1> v_support = sample_t<vecD, D, 1>::gather(flowView, vecD(shape[0], shape[1]), pos);
-    v = v_support.val();
-//    v = flowView[ind];
-
+    // The ordered comparison also rejects a NaN, which is what a gather just
+    // outside its support returns: the last cell is in bounds for the position
+    // test above but has no interpolation support.
     const float v_len = glm::length(v);         //!< Velocity [m/s]
-    if(v_len < epsilon)
+    if(!(v_len > epsilon))
       break;
 
     // Update the Position in Grid-Space
     const silt::vec2 v_norm = v / v_len;        //!< Normalized Direction   [1]
-    const float step = __stepsize(pos, v_norm); //!< Step-Size in Gridspace [1]
-    pos += step * v_norm;                       //!< Grid Position Update   [1]
+    const float ds = __stepsize(pos, v_norm);   //!< Step-Size in Gridspace [1]
+    pos += ds * v_norm;                         //!< Grid Position Update   [1]
+    if(shape.oob(pos))
+      break;
 
-    // Update the Real Time and Attenuation
-    const float dlambda = step * L / v_len;     //!< Real Time Travelled  [t]
+    // Update the Real Time and Attenuation. The step is the voxel-crossing
+    // time at the current speed, which the quasi-static assumption licenses.
+    const float dlambda = ds * L / v_len;       //!< Real Time Travelled  [t]
     att *= __expf(-dlambda * decay[ind]);       //!< Decay Attenuation    [1]
     lambda += dlambda;                          //!< Update Real Time     [t]
+
+    // Relax the velocity onto the terminal velocity where the particle now is,
+    // which is the exact solution for a gradient held fixed over the step. A
+    // short step leaves the velocity nearly untouched, so the particle coasts
+    // across an adverse gradient; a long one lands it on the local terminal
+    // velocity, which is steepest descent.
+    const vecD v_eq = __velocity(heightView, res, pos, scale, gravity, drag);
+    v = v_eq + (v - v_eq) * __expf(-drag * dlambda);
 
   }
 
 }
 
 template<size_t K>                      //!< K = Transport Tensor Components
-__global__ void __normalize (
-  silt::tensor_t<float> flux,           //!< Flux Integral Estimate [X*m^D/s] -> [X]
-  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor      [m/s]
+__global__ void __finalize (
+  silt::tensor_t<float> flux,           //!< Flux Integral Estimate [X*m^D/s]
   const silt::tensor_t<float> source,   //!< Source Term            [X/s]
   const silt::vec2 scale,               //!< Cell Scale             [m]
   const size_t count                    //!< Sample Count           [1]
@@ -148,22 +187,21 @@ __global__ void __normalize (
   const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= flux.elem()/K) return;
 
-  constexpr size_t D = 2;                 //!< Dimensionality of Domain
-  using vecD = silt::fvec<D>;             //!< Vector of D Components
   using vecK = silt::fvec<K>;             //!< Vector of K Components
   auto fluxView = flux.view<vecK>();      //!< Tensorised Flux View   [X*m^D/s]
-  auto flowView = flow.view<vecD>();      //!< Tensorised Flow View   [m/s]
   auto sourceView = source.view<vecK>();  //!< Tensorised Source View [X/s]
 
-  const vecD v = flowView[n];                                             //!< [m/s]
-  const float A = scale.x * scale.y;                                      //!< [m^D]
-  const float norm = abs(v.x * scale.y) + abs(v.y * scale.x);             //!< [m^D/s]
+  const float A = scale.x * scale.y;      //!< [m^D]
 
   // Note: We add the scaled source term here, so that even positions with zero samples
   //  have a positive value corresponding to their local source term. This additional
-  //  value is NOT divided by the sample count. Everything is normalized together.
+  //  value is NOT divided by the sample count.
+  //
+  // The estimate is left as the flux integral. Dividing by a cell-crossing rate
+  // here would turn it into a concentration and fold an arbitrary constant into
+  // whatever law consumes it.
 
-  fluxView[n] = (sourceView[n] * A + fluxView[n] / float(count)) / norm;  //!< [X]
+  fluxView[n] = sourceView[n] * A + fluxView[n] / float(count);  //!< [X*m^D/s]
 
 }
 
@@ -176,12 +214,14 @@ namespace soil {
 //! of the source tensor is the dimensionality of the transported quantity.
 //!
 silt::tensor solve_uniform (
-  const silt::tensor_t<float> flow,     //!< Flow-Field Tensor      [m/s]
+  const silt::tensor_t<float> height,   //!< Height Field           [1]
   const silt::tensor_t<float> source,   //!< Source Term Tensor     [X/s]
   const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/s]
   silt::tensor_t<silt::rng> rng,        //!< Random Number Source   [1]
-  const silt::vec2 scale,               //!< Cell Scale             [m]
-  const size_t count                    //!< Sample Count           [1]
+  const silt::vec3 scale,               //!< Cell Scale             [m]
+  const size_t count,                   //!< Sample Count           [1]
+  const float gravity,                  //!< Gravity                [m/s^2]
+  const float drag                      //!< Drag Rate              [1/s]
 ) {
 
   // The Accumulated Flux has the same Dimension as the Source-Term.
@@ -196,19 +236,26 @@ silt::tensor solve_uniform (
   // Simulation Parameters
   const float epsilon = 1E-16f;               //!< Minimum Attenuation [1]
   const float maxstep = shape[0] + shape[1];  //!< Maximum Step Number given by Manhattan Bound
+  const silt::vec2 scaleXY = silt::vec2(scale.x, scale.y);
 
-  // Resolve Data-Layout ofw Source / Flux Tensor
+  // Resolve Data-Layout of Source / Flux Tensor
   switch(D) {
     case 1:
-      __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, epsilon, maxstep);
+      __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, gravity, drag, epsilon, maxstep);
       gpuErrchk(cudaGetLastError());
-      __normalize<1><<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
+      __finalize<1><<<block(flux.elem(), 512), 512>>>(flux, source, scaleXY, count);
       gpuErrchk(cudaGetLastError());
       break;
     case 2:
-      __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, flow, source, decay, rng, shape, scale, epsilon, maxstep);
+      __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, gravity, drag, epsilon, maxstep);
       gpuErrchk(cudaGetLastError());
-      __normalize<2><<<block(flux.elem(), 512), 512>>>(flux, flow, source, scale, count);
+      __finalize<2><<<block(flux.elem(), 512), 512>>>(flux, source, scaleXY, count);
+      gpuErrchk(cudaGetLastError());
+      break;
+    case 3:
+      __solve_uniform<3><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, gravity, drag, epsilon, maxstep);
+      gpuErrchk(cudaGetLastError());
+      __finalize<3><<<block(flux.elem(), 512), 512>>>(flux, source, scaleXY, count);
       gpuErrchk(cudaGetLastError());
       break;
     default:
