@@ -46,30 +46,22 @@ __device__ float __stepsize (
 
 }
 
-//! Terminal velocity of a particle at a position in grid-space: the velocity at
-//! which the drag balances the acceleration down the potential gradient. This
-//! is the velocity the motion law relaxes toward, and the whole of the velocity
-//! field the solver needs -- nothing is prescribed from outside.
-__device__ silt::vec2 __velocity (
+//! Steepest descent at a position in grid-space, as a dimensionless slope.
+__device__ silt::vec2 __descent (
   const silt::view_t<const float>& height, //!< Height Field          [1]
   const silt::ivec2 res,                   //!< Field Resolution      [1]
   const silt::vec2 pos,                    //!< Grid-Space Position   [1]
-  const silt::vec3 scale,                  //!< Cell Scale            [m]
-  const float gravity,                     //!< Gravity               [m/time^2]
-  const float drag                         //!< Drag Rate             [1/time]
+  const silt::vec3 scale                   //!< Cell Scale            [m]
 ) {
 
-  // Height is in normalized units, so the per-cell difference becomes a
-  // dimensionless slope through scale.z / scale.xy -- the same convention the
-  // soil::grad_* operators use.
+  // Per-cell differences become a dimensionless slope through scale.z/scale.xy.
   const auto support = sample_t<float, 2, 1>::gather(height, res, pos);
   const silt::vec2 grad = support.grad();
-  const silt::vec2 slope = silt::vec2 (
+
+  return -silt::vec2 (
     grad.x * scale.z / scale.x,
     grad.y * scale.z / scale.y
   );
-
-  return -(gravity / drag) * slope;
 
 }
 
@@ -78,12 +70,11 @@ __global__ void __solve_uniform (
   silt::tensor_t<float> flux,           //!< Flux Integral Estimate [X*m^D/s]
   const silt::tensor_t<float> height,   //!< Height Field           [1]
   const silt::tensor_t<float> source,   //!< Source Term Tensor     [X/s]
-  const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/s]
+  const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/m]
   silt::tensor_t<silt::rng> rng,        //!< Random Number Source   [1]
   const silt::shape shape,              //!< Tensor Shape
   const silt::vec3 scale,               //!< Cell Scale             [m]
-  const float gravity,                  //!< Gravity                [m/s^2]
-  const float drag,                     //!< Drag Rate              [1/s]
+  const float drag,                     //!< Inverse Drag Length    [1/m]
   const float epsilon,                  //!< Minimum Attenuation    [1]
   const float maxstep                   //!< Maximum Particle Steps [1]
 ) {
@@ -105,7 +96,7 @@ __global__ void __solve_uniform (
 
   // Initialize Particle State
   float att = 1.0f;                         //!< Cumulative Flux Attenuation  [1]
-  float lambda = 0.0f;                      //!< Cumulative Time Travelled    [s]
+  float arc = 0.0f;                         //!< Cumulative Path Length       [m]
   vecD pos = vecD {                         //!< Position in Grid-Space       [1]
     curand_uniform(&rng[n])*float(shape[0]),
     curand_uniform(&rng[n])*float(shape[1])
@@ -121,9 +112,9 @@ __global__ void __solve_uniform (
   if(glm::length(S) < epsilon)              //!< Early Termination
     return;
 
-  // The particle carries its own momentum, so it is launched at the local
-  // terminal velocity and relaxes from there as the gradient under it changes.
-  vecD v = __velocity(heightView, res, pos, scale, gravity, drag);
+  // From rest: one cell of relaxation, so the first direction is steepest descent.
+  const vecD d_init = __descent(heightView, res, pos, scale);
+  vecD d = d_init * (1.0f - __expf(-drag * L));
 
   // Integrate along Streamline
   int step = 0;
@@ -144,33 +135,26 @@ __global__ void __solve_uniform (
       }
     }
 
-    // The ordered comparison also rejects a NaN, which is what a gather just
-    // outside its support returns: the last cell is in bounds for the position
-    // test above but has no interpolation support.
-    const float v_len = glm::length(v);         //!< Velocity [m/s]
-    if(!(v_len > epsilon))
+    // The ordered comparison also rejects the NaN a gather returns just outside
+    // its support, where the position test above still passes.
+    const float d_len = glm::length(d);         //!< Direction Magnitude  [1]
+    if(!(d_len > epsilon))
       break;
 
-    // Update the Position in Grid-Space
-    const silt::vec2 v_norm = v / v_len;        //!< Normalized Direction   [1]
-    const float ds = __stepsize(pos, v_norm);   //!< Step-Size in Gridspace [1]
-    pos += ds * v_norm;                         //!< Grid Position Update   [1]
+    // Advance one cell along the direction.
+    const silt::vec2 d_norm = d / d_len;        //!< Normalized Direction   [1]
+    const float ds = __stepsize(pos, d_norm);   //!< Step-Size in Gridspace [1]
+    pos += ds * d_norm;                         //!< Grid Position Update   [1]
     if(shape.oob(pos))
       break;
 
-    // Update the Real Time and Attenuation. The step is the voxel-crossing
-    // time at the current speed, which the quasi-static assumption licenses.
-    const float dlambda = ds * L / v_len;       //!< Real Time Travelled  [t]
-    att *= __expf(-dlambda * decay[ind]);       //!< Decay Attenuation    [1]
-    lambda += dlambda;                          //!< Update Real Time     [t]
+    const float darc = ds * L;                  //!< Path Length Travelled  [m]
+    att *= __expf(-darc * decay[ind]);          //!< Decay Attenuation     [1]
+    arc += darc;                                //!< Update Path Length    [m]
 
-    // Relax the velocity onto the terminal velocity where the particle now is,
-    // which is the exact solution for a gradient held fixed over the step. A
-    // short step leaves the velocity nearly untouched, so the particle coasts
-    // across an adverse gradient; a long one lands it on the local terminal
-    // velocity, which is steepest descent.
-    const vecD v_eq = __velocity(heightView, res, pos, scale, gravity, drag);
-    v = v_eq + (v - v_eq) * __expf(-drag * dlambda);
+    // Relax the direction onto steepest descent over the step.
+    const vecD d_eq = __descent(heightView, res, pos, scale);
+    d = d_eq + (d - d_eq) * __expf(-drag * darc);
 
   }
 
@@ -193,67 +177,51 @@ __global__ void __finalize (
 
   const float A = scale.x * scale.y;      //!< [m^D]
 
-  // Note: We add the scaled source term here, so that even positions with zero samples
-  //  have a positive value corresponding to their local source term. This additional
-  //  value is NOT divided by the sample count.
-  //
-  // The estimate is left as the flux integral. Dividing by a cell-crossing rate
-  // here would turn it into a concentration and fold an arbitrary constant into
-  // whatever law consumes it.
-
+  // The local source term is added unscaled by the sample count, so a cell no
+  // particle visited still carries it.
   fluxView[n] = sourceView[n] * A + fluxView[n] / float(count);  //!< [X*m^D/s]
 
 }
 
 namespace soil {
 
-//! Uniform Distribution Grid-Free Monte-Carlo
-//!   Estimator for Linear Conservation Laws
-//!
-//! Note that this estimator is parameterized so that the 3rd dimension
-//! of the source tensor is the dimensionality of the transported quantity.
-//!
 silt::tensor solve_uniform (
   const silt::tensor_t<float> height,   //!< Height Field           [1]
-  const silt::tensor_t<float> source,   //!< Source Term Tensor     [X/s]
-  const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/s]
+  const silt::tensor_t<float> source,   //!< Source Term Tensor     [X/time/m^D]
+  const silt::tensor_t<float> decay,    //!< Decay Term Tensor      [1/m]
   silt::tensor_t<silt::rng> rng,        //!< Random Number Source   [1]
   const silt::vec3 scale,               //!< Cell Scale             [m]
   const size_t count,                   //!< Sample Count           [1]
-  const float gravity,                  //!< Gravity                [m/s^2]
-  const float drag                      //!< Drag Rate              [1/s]
+  const float drag                      //!< Inverse Drag Length    [1/m]
 ) {
 
-  // The Accumulated Flux has the same Dimension as the Source-Term.
-  //  The entirety of the flux is then initialized to zero.
-  //  The actual dimension of the domain doesn't have the third component.
+  // The flux carries the component count of the source term; the domain shape
+  // drops the third dimension.
   const silt::shape shapeIn = source.shape();
   const size_t D = shapeIn[2];  // Dimensionality of Transported Quantity
   const silt::shape shape = silt::shape(shapeIn[0], shapeIn[1]);
   auto flux = silt::tensor_t<float>(shapeIn, silt::host_t::GPU);
   silt::set(flux, 0.0f);
 
-  // Simulation Parameters
   const float epsilon = 1E-16f;               //!< Minimum Attenuation [1]
-  const float maxstep = shape[0] + shape[1];  //!< Maximum Step Number given by Manhattan Bound
+  const float maxstep = shape[0] + shape[1];  //!< Manhattan Step Bound
   const silt::vec2 scaleXY = silt::vec2(scale.x, scale.y);
 
-  // Resolve Data-Layout of Source / Flux Tensor
   switch(D) {
     case 1:
-      __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, gravity, drag, epsilon, maxstep);
+      __solve_uniform<1><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, drag, epsilon, maxstep);
       gpuErrchk(cudaGetLastError());
       __finalize<1><<<block(flux.elem(), 512), 512>>>(flux, source, scaleXY, count);
       gpuErrchk(cudaGetLastError());
       break;
     case 2:
-      __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, gravity, drag, epsilon, maxstep);
+      __solve_uniform<2><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, drag, epsilon, maxstep);
       gpuErrchk(cudaGetLastError());
       __finalize<2><<<block(flux.elem(), 512), 512>>>(flux, source, scaleXY, count);
       gpuErrchk(cudaGetLastError());
       break;
     case 3:
-      __solve_uniform<3><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, gravity, drag, epsilon, maxstep);
+      __solve_uniform<3><<<block(rng.elem(), 512), 512>>>(flux, height, source, decay, rng, shape, scale, drag, epsilon, maxstep);
       gpuErrchk(cudaGetLastError());
       __finalize<3><<<block(flux.elem(), 512), 512>>>(flux, source, scaleXY, count);
       gpuErrchk(cudaGetLastError());

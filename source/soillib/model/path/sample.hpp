@@ -140,8 +140,8 @@ __device__ sample_t<T, 2, 1> sample_t<T, 2, 1>::gather(const silt::view_t<const 
   if(pos.x > res.x - 1) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
   if(pos.y > res.y - 1) return sample_t<T, 2, 1>(T{CUDART_NAN_F});
 
-  if(pos.x + 1 > res.x - 1){ w.x = 0; i10 = 0; i11 = 0; }
-  if(pos.y + 1 > res.y - 1){ w.y = 0; i01 = 0; i11 = 0; }
+  if(p10.x > res.x - 1){ w.x = 0; i10 = i00; i11 = i01; }
+  if(p01.y > res.y - 1){ w.y = 0; i01 = i00; i11 = i10; }
 
   const T h00 = view[i00];
   const T h01 = view[i01];

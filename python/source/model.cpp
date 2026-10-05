@@ -281,7 +281,6 @@ module.def("solve_uniform", [](
   silt::tensor rng,
   const silt::vec3 scale,
   const size_t count,
-  const float gravity,
   const float drag
 ){
 
@@ -292,11 +291,10 @@ module.def("solve_uniform", [](
     rng.as<silt::rng>(),
     scale,
     count,
-    gravity,
     drag
   );
 
-}, "height"_a, "source"_a, "decay"_a, "rng"_a, "scale"_a, "count"_a, "gravity"_a, "drag"_a);
+}, "height"_a, "source"_a, "decay"_a, "rng"_a, "scale"_a, "count"_a, "drag"_a);
 
 // module.def("suspend", [](
 //   const silt::tensor flow,

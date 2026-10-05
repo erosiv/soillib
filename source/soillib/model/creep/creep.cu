@@ -16,8 +16,8 @@ inline int block(const int64_t elem, const int thread) {
 // Hillslope Creep: Divergence of a Nonlinear Downhill Flux
 //
 
-//! Volumetric flux per unit width along one link [m^2/time].
-//! The denominator is floored so the diffusivity stays bounded.
+//! Volumetric flux per unit width along one link [m^2/time], with the
+//! denominator floored to bound the diffusivity.
 __device__ inline float __creep_flux (
   const float slope,      //!< Link Slope Magnitude [1]
   const float rate,       //!< Creep Diffusivity    [m^2/time]
@@ -45,8 +45,7 @@ __global__ void __creep (
   const int64_t n = int64_t(blockIdx.x) * int64_t(blockDim.x) + int64_t(threadIdx.x);
   if(n >= shape.elem()) return;
 
-  // D8 link set. Axial links carry 2/3 and diagonal links 1/3 so that a linear
-  // flux law collapses onto the isotropic nine-point Laplacian.
+  // D8 link set, weighted 2/3 axial and 1/3 diagonal.
   const silt::ivec2 shift[8] = {
     {-1, 0}, { 1, 0}, { 0,-1}, { 0, 1},
     {-1,-1}, { 1, 1}, { 1,-1}, {-1, 1},
@@ -69,9 +68,8 @@ __global__ void __creep (
     const float hn = tensorIn[shape.flatten(npos)] * scale.z;
     const float len = glm::length(silt::vec2(shift[k].x * scale.x, shift[k].y * scale.y));
 
-    // A positive drop means the link runs out of this cell, so its flux is a
-    // loss here and a gain for the neighbor. The pair is antisymmetric, which
-    // is what conserves mass without a scatter.
+    // A positive drop runs the link out of this cell: a loss here, a gain for
+    // the neighbor. The pair is antisymmetric, so mass conserves without a scatter.
     const float drop = h - hn;
     const float flux = __creep_flux(fabsf(drop) / len, rate, critslope);
     change -= copysignf(weight[k] * flux / len, drop);

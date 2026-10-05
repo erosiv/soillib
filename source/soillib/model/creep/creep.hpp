@@ -8,44 +8,27 @@
 
 namespace soil {
 
-//! Hillslope creep rate: the divergence of a downhill sediment flux, as a
-//! rate of surface change [m/time]. Integrate it outside:
+//! Hillslope creep rate: the divergence of a downhill sediment flux, as a rate
+//! of surface change [m/time], positive for accumulation. Integrate outside as
 //!   h += dt * creep(...) / scale.z
-//! The sign is a change rate, not an erosion rate -- positive is accumulation,
-//! so folding it into a net rate that gets SUBTRACTED (soil::spl_apply) wants
-//! the opposite sign.
 //!
-//! Flux is taken per D8 link, from the higher cell to the lower one:
+//! Flux is taken per D8 link, from the higher cell of the pair to the lower:
 //!   q(S) = rate * S / (1 - (S/critslope)^2),   S = |dh| / link length
-//! and the per-cell rate is sum_k w_k * q_k / d_k, signed by which way the
-//! link runs. Links are weighted 2/3 axial and 1/3 diagonal so that a LINEAR
-//! flux law reproduces the isotropic nine-point Laplacian exactly -- which is
-//! the point of comparison for validating this against soil::laplacian.
+//! and the cell rate is sum_k w_k * q_k / d_k, signed by which way the link
+//! runs. Links are weighted 2/3 axial and 1/3 diagonal, so a linear flux law
+//! reproduces the isotropic nine-point Laplacian exactly.
 //!
-//! On the linear limit, and why the nonlinearity is the whole mechanism: a
-//! per-link flux law that is antisymmetric in the pair is ALGEBRAICALLY the
-//! ordinary Laplacian, because the downhill flux a cell receives from its
-//! uphill neighbor is exactly the term a symmetric Laplacian already carries.
-//! Restricting flux to downhill links therefore changes nothing on its own.
-//! What makes transport one-way in effect is `critslope`: flux grows without
-//! bound as a link approaches it, so a slope cannot steepen past it. That
-//! yields convex crests at low slope and planar threshold slopes at the
-//! critical angle, which is the morphology linear diffusion cannot produce.
+//! `critslope <= 0` drops the nonlinearity, leaving linear diffusion with
+//! diffusivity `rate`. Otherwise flux grows without bound as a link approaches
+//! `critslope`, so a slope cannot steepen past it.
 //!
-//! `critslope <= 0` disables the nonlinearity and gives plain linear
-//! diffusion with diffusivity `rate`.
+//! The denominator is floored at 1 - 0.99^2, bounding the effective diffusivity
+//! at ~50x `rate`, so an explicit step is stable for
+//! dt < min(scale.x, scale.y)^2 / (4 * 50 * rate).
 //!
-//! The denominator is floored at 1 - 0.99^2, so the effective diffusivity is
-//! bounded by ~50x `rate`. An explicit step is stable for
-//! dt < min(scale.x, scale.y)^2 / (4 * 50 * rate); an exponentially-fitted
-//! variant (as in soil::spl_apply_exp) is what lifts that.
+//! Boundaries are closed: a link leaving the domain carries no flux.
 //!
-//! Boundaries are closed: a link that leaves the domain carries no flux, so
-//! the interior conserves mass and material accumulates at the edge unless
-//! something else removes it.
-//!
-//! \todo rate as a field rather than a scalar, for spatially varying
-//!   erodibility; exponentially-fitted integration for large steps.
+//! \todo rate as a field; exponentially-fitted integration for large steps.
 silt::tensor_t<float> creep (
   const silt::tensor_t<float>& height,  //!< Height Field              [1]
   const silt::vec3 scale,               //!< Cell Scale                [m]
