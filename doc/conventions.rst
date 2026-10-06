@@ -86,7 +86,7 @@ indexes through ``flatten``.
      - Transform
    * - TIFF / GeoTIFF
      - ``io/tiff.hpp``: ``tensor_index``
-     - ``tensor(x, y) = file(row = H-1-y, col = x)``
+     - ``tensor(x, y, c) = file(row = H-1-y, col = x, sample = c)``
    * - PNG
      - ``soillib.load_png``
      - the same, via ``from_image``
@@ -100,6 +100,23 @@ helpers and the tiled reader both call it, so read and write cannot diverge.
 ``as_image`` and ``from_image`` are an exact inverse pair, and are the only
 conversion that should appear before a ``matplotlib`` ``imshow`` or a
 ``PIL.Image.fromarray``.
+
+Channels
+--------
+
+A tensor channel is one TIFF **sample per pixel**, not one page. A ``(W, H, C)``
+tensor writes as a single image with ``SAMPLESPERPIXEL = C`` and
+``PLANARCONFIG_CONTIG``, which interleaves the samples of a pixel in the same
+order the tensor's flat index does. The file conversion is therefore the 2D one
+with a sample stride, and no repacking occurs.
+
+``SAMPLESPERPIXEL`` requires every channel to share ``W``, ``H``, bit depth and
+sample format. Channels past the first are tagged ``EXTRASAMPLE_UNSPECIFIED``,
+not alpha, so a reader does not premultiply them.
+
+Reading accepts ``PLANARCONFIG_CONTIG`` and ``PLANARCONFIG_SEPARATE``, tiled and
+stripped. A file with ``SAMPLESPERPIXEL = 1`` loads as a 2D ``(W, H)`` tensor,
+since ``silt::shape`` drops trailing singleton dimensions.
 
 Georeferencing
 --------------

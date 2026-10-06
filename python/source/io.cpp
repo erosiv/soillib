@@ -29,8 +29,9 @@ tiff.def("write", &soil::io::tiff::write);
 
 tiff.def_prop_ro("width", &soil::io::tiff::width);
 tiff.def_prop_ro("height", &soil::io::tiff::height);
+tiff.def_prop_ro("samples", &soil::io::tiff::samples);
 tiff.def_prop_ro("tensor", &soil::io::tiff::tensor);
-tiff.def_prop_ro("shape", &soil::io::tiff::shape);//, nb::rv_policy::reference);
+tiff.def_prop_ro("shape", &soil::io::tiff::shape);
 
 //! GeoTIFF Datatype
 
@@ -72,6 +73,7 @@ geotiff_meta.def_ro("filename", &soil::io::geotiff::meta_t::filename);
 geotiff_meta.def_rw("width", &soil::io::geotiff::meta_t::width);
 geotiff_meta.def_rw("height", &soil::io::geotiff::meta_t::height);
 geotiff_meta.def_rw("bits", &soil::io::geotiff::meta_t::bits);
+geotiff_meta.def_rw("samples", &soil::io::geotiff::meta_t::samples);
 
 geotiff_meta.def_prop_rw("scale", [](const soil::io::geotiff::meta_t& geotiff_meta){
   return glm::vec3(geotiff_meta.scale[0], geotiff_meta.scale[1], geotiff_meta.scale[2]);

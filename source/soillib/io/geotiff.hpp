@@ -4,6 +4,9 @@
 
 #include <soillib/io/tiff.hpp>
 
+#include <cmath>
+#include <limits>
+
 namespace soil {
 namespace io {
 
@@ -75,6 +78,7 @@ struct geotiff: soil::io::tiff {
     this->_meta.width = this->width();
     this->_meta.height = this->height();
     this->_meta.bits = this->bits();
+    this->_meta.samples = this->samples();
   }
 
   geotiff(const char *filename) {
@@ -92,6 +96,7 @@ struct geotiff: soil::io::tiff {
     size_t width;
     size_t height;
     size_t bits;
+    size_t samples = 1; //!< Samples per Pixel, i.e. tensor channels
 
     std::string gdal_nodata;
     std::string gdal_metadata;
@@ -155,7 +160,7 @@ private:
 
 // Implementations
 
-bool geotiff::peek(const char *filename) {
+inline bool geotiff::peek(const char *filename) {
 
   _XTIFFInitialize();
 
@@ -166,6 +171,7 @@ bool geotiff::peek(const char *filename) {
   this->_meta.width = this->width();
   this->_meta.height = this->height();
   this->_meta.bits = this->bits();
+  this->_meta.samples = this->samples();
 
   TIFF *tif = TIFFOpen(filename, "r");
   if (tif == NULL) {
@@ -208,7 +214,7 @@ bool geotiff::peek(const char *filename) {
   return true;
 }
 
-bool geotiff::read(const char *filename) {
+inline bool geotiff::read(const char *filename) {
 
   geotiff::peek(filename);
   if (!tiff::read(filename))
@@ -218,21 +224,13 @@ bool geotiff::read(const char *filename) {
   return true;
 }
 
-bool geotiff::write(const char *filename) {
+inline bool geotiff::write(const char *filename) {
 
   _XTIFFInitialize();
 
   TIFF *out = TIFFOpen(filename, "w");
 
-  TIFFSetField(out, TIFFTAG_IMAGEWIDTH, this->width());
-  TIFFSetField(out, TIFFTAG_IMAGELENGTH, this->height());
-  TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
-  TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, this->bits());
-  TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
-  TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
-  TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
-  TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
-  TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, this->width()));
+  this->set_raster_tags(out);
 
   // GDAL Tags
 
@@ -254,35 +252,18 @@ bool geotiff::write(const char *filename) {
 
   // Output Data: scanlines are gathered with y reversed, as in tiff::write.
 
-  // Sized from the stored element, not bits()/8: see tiff::elem_size.
-  uint8_t *nbuf = new uint8_t[this->width() * this->elem_size()];
-
-  for (uint32_t row = 0; row < this->height(); row++) {
-    this->gather_scanline(nbuf, row);
-    if (TIFFWriteScanline(out, nbuf, row, 0) < 0)
-      break;
-  }
-
-  delete[] nbuf;
+  this->write_raster(out);
 
   TIFFClose(out);
   return true;
 }
 
-void geotiff::setNaN() {
+//! Replace the nodata value with NaN, across every sample: GDAL_NODATA is one
+//! value for the whole raster, not one per band.
+inline void geotiff::setNaN() {
 
   if (this->_meta.gdal_nodata == "")
     return;
-
-  if (this->bits() == 16) {
-    auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto buffer = this->_tensor.as<float>();
-    const float _nodata = std::stof(this->_meta.gdal_nodata);
-    for (size_t i = 0; i < buffer.elem(); ++i) {
-      if (buffer[i] == _nodata)
-        buffer[i] = nan;
-    }
-  }
 
   if (this->bits() == 32) {
     auto nan = std::numeric_limits<float>::quiet_NaN();
@@ -305,38 +286,27 @@ void geotiff::setNaN() {
   }
 }
 
-void geotiff::unsetNaN() {
+//! Inverse of setNaN. Tested with std::isnan, since NaN compares equal to
+//! nothing, itself included.
+inline void geotiff::unsetNaN() {
 
   if (this->_meta.gdal_nodata == "")
     return;
 
-  if (this->bits() == 16) {
-    auto nan = std::numeric_limits<float>::quiet_NaN();
-    auto buffer = this->_tensor.as<float>();
-    const float _nodata = std::stof(this->_meta.gdal_nodata);
-    for (size_t i = 0; i < buffer.elem(); ++i) {
-      if (buffer[i] == nan) {
-        buffer[i] = _nodata;
-      }
-    }
-  }
-
   if (this->bits() == 32) {
-    auto nan = std::numeric_limits<float>::quiet_NaN();
     auto buffer = this->_tensor.as<float>();
     const float _nodata = std::stof(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
-      if (buffer[i] == nan)
+      if (std::isnan(buffer[i]))
         buffer[i] = _nodata;
     }
   }
 
   if (this->bits() == 64) {
-    auto nan = std::numeric_limits<double>::quiet_NaN();
     auto buffer = this->_tensor.as<double>();
     const double _nodata = std::stod(this->_meta.gdal_nodata);
     for (size_t i = 0; i < buffer.elem(); ++i) {
-      if (buffer[i] == nan)
+      if (std::isnan(buffer[i]))
         buffer[i] = _nodata;
     }
   }
