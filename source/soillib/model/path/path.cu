@@ -46,7 +46,41 @@ __device__ float __stepsize (
 
 }
 
-//! Steepest descent at a position in grid-space, as a dimensionless slope.
+//! Steepest descent at a grid node, as a dimensionless slope. Per axis the
+//! steeper of the two one-sided downhill differences, zero if both neighbours
+//! are uphill: the eikonal upwind descent, matching soil::grad_quadratic.
+__device__ silt::vec2 __descent_node (
+  const silt::view_t<const float>& height, //!< Height Field          [1]
+  const silt::ivec2 res,                   //!< Field Resolution      [1]
+  const silt::ivec2 ipos,                  //!< Grid Node             [1]
+  const silt::vec3 scale                   //!< Cell Scale            [m]
+) {
+
+  const int i = ipos.x * res.y + ipos.y;
+  const float h = height[i];
+
+  // An out-of-bounds neighbour contributes no descent, so it never competes.
+  const float dxn = (ipos.x > 0)         ? (h - height[i - res.y]) : 0.0f;
+  const float dxp = (ipos.x < res.x - 1) ? (h - height[i + res.y]) : 0.0f;
+  const float dyn = (ipos.y > 0)         ? (h - height[i - 1])     : 0.0f;
+  const float dyp = (ipos.y < res.y - 1) ? (h - height[i + 1])     : 0.0f;
+
+  // Per-cell differences become a dimensionless slope through scale.z/scale.xy.
+  silt::vec2 d = silt::vec2(0.0f);
+  if(dxn > 0.0f || dxp > 0.0f)
+    d.x = ((dxn >= dxp) ? -dxn : dxp) * scale.z / scale.x;
+  if(dyn > 0.0f || dyp > 0.0f)
+    d.y = ((dyn >= dyp) ? -dyn : dyp) * scale.z / scale.y;
+
+  return d;
+
+}
+
+//! Steepest descent at a position in grid-space, as a dimensionless slope: the
+//! node-wise eikonal upwind descent, interpolated over the four nodes around
+//! the position. Node-centered, so it carries no half-cell offset against the
+//! height field. Out of the interpolation support it returns NaN, which the
+//! caller's ordered comparison rejects.
 __device__ silt::vec2 __descent (
   const silt::view_t<const float>& height, //!< Height Field          [1]
   const silt::ivec2 res,                   //!< Field Resolution      [1]
@@ -54,14 +88,25 @@ __device__ silt::vec2 __descent (
   const silt::vec3 scale                   //!< Cell Scale            [m]
 ) {
 
-  // Per-cell differences become a dimensionless slope through scale.z/scale.xy.
-  const auto support = sample_t<float, 2, 1>::gather(height, res, pos);
-  const silt::vec2 grad = support.grad();
+  if(!(pos.x >= 0.0f) || !(pos.y >= 0.0f))
+    return silt::vec2(CUDART_NAN_F);
+  if(!(pos.x <= float(res.x - 1)) || !(pos.y <= float(res.y - 1)))
+    return silt::vec2(CUDART_NAN_F);
 
-  return -silt::vec2 (
-    grad.x * scale.z / scale.x,
-    grad.y * scale.z / scale.y
-  );
+  const silt::vec2 base = glm::floor(pos);
+  silt::ivec2 p0 = silt::ivec2(base);
+  silt::ivec2 p1 = p0 + silt::ivec2(1, 1);
+  silt::vec2 w = pos - base;
+
+  if(p1.x > res.x - 1){ p1.x = p0.x; w.x = 0.0f; }
+  if(p1.y > res.y - 1){ p1.y = p0.y; w.y = 0.0f; }
+
+  const silt::vec2 d00 = __descent_node(height, res, silt::ivec2(p0.x, p0.y), scale);
+  const silt::vec2 d01 = __descent_node(height, res, silt::ivec2(p0.x, p1.y), scale);
+  const silt::vec2 d10 = __descent_node(height, res, silt::ivec2(p1.x, p0.y), scale);
+  const silt::vec2 d11 = __descent_node(height, res, silt::ivec2(p1.x, p1.y), scale);
+
+  return glm::mix(glm::mix(d00, d01, w.y), glm::mix(d10, d11, w.y), w.x);
 
 }
 
@@ -97,11 +142,16 @@ __global__ void __solve_uniform (
   // Initialize Particle State
   float att = 1.0f;                         //!< Cumulative Flux Attenuation  [1]
   float arc = 0.0f;                         //!< Cumulative Path Length       [m]
+
+  // A node owns the half cell around it, so the nodal cells span [-0.5, res-0.5).
+  // Seeds are drawn over that and clamped onto the interpolation support, which
+  // keeps the sampled area equal to the domain area that P assumes.
   vecD pos = vecD {                         //!< Position in Grid-Space       [1]
-    curand_uniform(&rng[n])*float(shape[0]),
-    curand_uniform(&rng[n])*float(shape[1])
+    curand_uniform(&rng[n])*float(shape[0]) - 0.5f,
+    curand_uniform(&rng[n])*float(shape[1]) - 0.5f
   };
-  int ind = shape.flatten(pos);             //!< Grid Tensor Index
+  pos = glm::clamp(pos, vecD(0.0f), vecD(float(res.x - 1), float(res.y - 1)));
+  int ind = shape.flatten(pos + 0.5f);      //!< Grid Tensor Index
 
   // Upstream Contributions Sample
   const silt::vec2 scaleXY = silt::vec2(scale.x, scale.y);
@@ -122,7 +172,9 @@ __global__ void __solve_uniform (
   while(!shape.oob(pos) && epsilon < abs(att) && ++step < maxstep) {
 
     // Accumulate Estimate upon exiting Cell
-    const int nind = shape.flatten(pos);
+    // The nearest node, not the cell the position truncates into: a sample
+    // belongs to the node it is closest to, or the field reads half a cell off.
+    const int nind = shape.flatten(pos + 0.5f);
     if(nind != ind) {
       ind = nind;
       if constexpr(K >= 1){
@@ -136,7 +188,7 @@ __global__ void __solve_uniform (
       }
     }
 
-    // The ordered comparison also rejects the NaN a gather returns just outside
+    // The ordered comparison also rejects the NaN __descent returns just outside
     // its support, where the position test above still passes.
     const float d_len = glm::length(d);         //!< Direction Magnitude  [1]
     if(!(d_len > epsilon))
@@ -146,10 +198,11 @@ __global__ void __solve_uniform (
     const silt::vec2 d_norm = d / d_len;        //!< Normalized Direction   [1]
     const float ds = __stepsize(pos, d_norm);   //!< Step-Size in Gridspace [1]
     pos += ds * d_norm;                         //!< Grid Position Update   [1]
-    // The bounds test truncates toward zero, so a position in (-1, 0) reads as
-    // cell 0 and would deposit there on the way out; the low edges are tested
-    // against the interpolation support instead.
-    if(shape.oob(pos) || pos.x < 0.0f || pos.y < 0.0f)
+
+    // Boundary Check
+    if(!(pos.x >= 0.0f) || !(pos.y >= 0.0f))
+      break;
+    if(!(pos.x <= float(res.x - 1)) || !(pos.y <= float(res.y - 1)))
       break;
 
     const float darc = ds * L;                  //!< Path Length Travelled  [m]
@@ -158,16 +211,6 @@ __global__ void __solve_uniform (
 
     // Relax the direction onto steepest descent over the step.
     const vecD d_eq = __descent(heightView, res, pos, scale);
-
-    // The step is one cell whatever the direction's magnitude, so a particle on
-    // ground with no descent keeps its inherited direction and runs straight
-    // out across the flat. It may coast one coasting length without a driving
-    // gradient, which is the distance `drag` says it carries.
-    if(glm::length(d_eq) > epsilon)
-      coast = 0.0f;
-    else if((coast += darc) * drag > 1.0f)
-      break;
-
     d = d_eq + (d - d_eq) * __expf(-drag * darc);
 
   }
